@@ -410,23 +410,49 @@ async function doLogin(){
   const err=document.getElementById("l-err");
   err.textContent="";
   if(!empCod||!uid||!pass){err.textContent="Completá todos los campos";return;}
+  err.textContent="🔄 Verificando...";
   try{
     // Buscar empresa por código
     const empresas=await fbGet("empresas");
-    if(!empresas){err.textContent="Error de conexión";return;}
-    const key=Object.keys(empresas).find(k=>empresas[k].codigo===empCod);
-    if(!key){err.textContent="Empresa no encontrada";return;}
+    if(!empresas){err.textContent="❌ Sin datos en el servidor";return;}
+    // Buscar empresa cuyo campo 'codigo' coincida
+    const key=Object.keys(empresas).find(k=>{
+      const emp=empresas[k];
+      return emp && emp.codigo && emp.codigo.toLowerCase()===empCod;
+    });
+    if(!key){
+      err.textContent="❌ Empresa '"+empCod+"' no encontrada";
+      console.log("Empresas disponibles:",Object.values(empresas).map(e=>e.codigo));
+      return;
+    }
     const emp=empresas[key];
-    if(emp.estado==="inactiva"){err.textContent="Esta cuenta está suspendida";return;}
+    if(emp.estado==="inactiva"){err.textContent="⏸ Esta cuenta está suspendida";return;}
     const users=emp.usuarios||{};
-    const userKey=Object.keys(users).find(k=>users[k].id===uid);
-    if(!userKey||users[userKey].pass!==pass){err.textContent="Usuario o contraseña incorrectos";return;}
-    empresaKey=key; empresaData=emp; currentUser=users[userKey];
+    // Buscar usuario: la key en Firebase ES el id del usuario
+    // Intentamos directo primero, luego buscando por campo id
+    let foundUser=null;
+    if(users[uid] && users[uid].pass===pass){
+      foundUser=users[uid];
+    } else {
+      // fallback: buscar por campo id
+      const userKey=Object.keys(users).find(k=>users[k].id===uid);
+      if(userKey && users[userKey].pass===pass) foundUser=users[userKey];
+    }
+    if(!foundUser){
+      err.textContent="❌ Usuario o contraseña incorrectos";
+      console.log("Usuarios en empresa:",Object.keys(users));
+      return;
+    }
+    empresaKey=key; empresaData=emp; currentUser=foundUser;
     sessionStorage.setItem("dm_session",JSON.stringify({empresaKey:key,user:currentUser,empresaData:emp}));
     document.getElementById("l-pass").value="";
+    err.textContent="";
     aplicarBranding();
     iniciarApp();
-  }catch(e){err.textContent="Error de conexión. Reintentá.";}
+  }catch(e){
+    err.textContent="❌ Error: "+e.message;
+    console.error("Login error:",e);
+  }
 }
 
 function aplicarBranding(){
