@@ -866,9 +866,10 @@ function renderRutas() {
           (detailHTML || '<div class="empty-box" style="padding:16px">Sin clientes</div>') +
           '<div class="ruta-total-bar"><span class="ruta-total-lbl">Total ruta</span><div style="text-align:right"><div class="ruta-total-val">$' + fM(calc.total) + '</div><div style="font-size:11px;color:#94a3b8;margin-top:1px">Cobrado $' + fM(calc.cobrado) + ' · Saldo $' + fM(calc.saldo) + '</div></div></div>' +
         '</div>' +
-        '<div style="display:flex;gap:8px;margin-top:8px">' +
-          '<button class="btn btn-primary btn-sm" style="flex:1" onclick="descargarPDFRuta(\'' + rutaKey + '\')">📥 PDF</button>' +
-          '<button class="btn btn-ghost btn-sm" style="flex:1;color:var(--red);border-color:#fca5a5" onclick="borrarRuta(\'' + rutaKey + '\')">🗑 Borrar</button>' +
+        '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">' +
+          '<button class="btn btn-primary btn-sm" style="flex:1;min-width:80px" onclick="descargarPDFRuta(\\'' + rutaKey + '\\')">📥 PDF</button>' +
+          '<button class="btn btn-ghost btn-sm" style="flex:1;min-width:80px" onclick="abrirRenombrar(\\'' + rutaKey + '\\')">✏️ Renombrar</button>' +
+          '<button class="btn btn-ghost btn-sm" style="flex:1;min-width:80px;color:var(--red);border-color:#fca5a5" onclick="borrarRuta(\\'' + rutaKey + '\\')">🗑 Borrar ruta</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -905,6 +906,10 @@ function renderClienteRow(rutaKey, cliKey, cli) {
         pagoInputs +
         '<div class="pago-saldo-row"><span class="pago-saldo-lbl">Saldo</span><span class="pago-saldo-val '+sc+'">$'+fM(saldo)+'</span></div>' +
         (modo!=="ninguno"?'<button class="save-pago-btn" onclick="guardarPago(\''+rutaKey+'\',\''+cliKey+'\')">💾 Guardar cobro</button>':"") +
+      '<div class="cli-action-row">' +
+        '<button class="cli-action-btn mover" onclick="abrirMover(\\'' + rutaKey + '\\',\\'' + cliKey + '\\')">🔀 Mover a otra ruta</button>' +
+        '<button class="cli-action-btn borrar" onclick="borrarClienteRuta(\\'' + rutaKey + '\\',\\'' + cliKey + '\\')">🗑 Quitar de la ruta</button>' +
+      '</div>' +
       '</div>' +
     '</div>' +
   '</div>';
