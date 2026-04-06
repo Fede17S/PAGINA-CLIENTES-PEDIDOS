@@ -220,6 +220,34 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 .danger-lbl{font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .dropdown::-webkit-scrollbar{width:3px}
 .dropdown::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+.modal-bg.open{display:flex}
+.modal-box{background:#1a2436;border:1px solid #2a3a52;border-radius:14px;width:100%;max-width:340px;overflow:hidden}
+.modal-head{padding:16px 18px;border-bottom:1px solid #2a3a52;display:flex;align-items:center;justify-content:space-between}
+.modal-ttl{font-size:15px;font-weight:700;color:#f1f5f9}
+.modal-cls{background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:4px}
+.modal-cls:active{color:#ef4444}
+.modal-body{padding:18px}
+.modal-foot{padding:12px 18px;border-top:1px solid #2a3a52;display:flex;gap:8px;justify-content:flex-end}
+.modal-input{width:100%;padding:11px 13px;border:1.5px solid #2a3a52;border-radius:8px;background:#0d1b2a;color:#f1f5f9;font-size:15px;font-family:"Inter",sans-serif;outline:none;transition:border-color .15s;margin-bottom:12px}
+.modal-input:focus{border-color:#1e56d0}
+.modal-input::placeholder{color:#475569}
+.modal-label{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;display:block}
+.mbtn{padding:9px 16px;border:none;border-radius:7px;font-family:"Inter",sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:filter .15s}
+.mbtn:active{filter:brightness(.9)}
+.mbtn-primary{background:#1e56d0;color:#fff}
+.mbtn-ghost{background:#1a2436;color:#94a3b8;border:1px solid #2a3a52}
+.mbtn-danger{background:#450a0a;color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.ruta-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:8px}
+.ruta-action-btn{background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:12px;cursor:pointer;color:#64748b;font-family:"Inter",sans-serif;transition:all .15s;white-space:nowrap}
+.ruta-action-btn:hover{border-color:#1e56d0;color:#1e56d0}
+.cli-action-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.cli-action-btn{flex:1;padding:7px 8px;border:1.5px solid var(--border);border-radius:7px;background:var(--surface);font-family:"Inter",sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center}
+.cli-action-btn:active{filter:brightness(.9)}
+.cli-action-btn.mover{color:#1e56d0;border-color:#1e56d0}
+.cli-action-btn.borrar{color:#dc2626;border-color:#dc2626}
 </style>
 </head>
 <body>
@@ -1011,10 +1039,134 @@ function renderResumen() {
     '</div>';
 }
 
+/* ── MODALES ── */
+function cerrarModal(id) {
+  document.getElementById(id).classList.remove("open");
+}
+function abrirModal(id) {
+  document.getElementById(id).classList.add("open");
+}
+
+/* ── RENOMBRAR RUTA ── */
+function abrirRenombrar(rk) {
+  document.getElementById("modal-ruta-key").value = rk;
+  document.getElementById("modal-ruta-nombre").value = rutasData[rk] ? rutasData[rk].nombre || "" : "";
+  abrirModal("modal-renombrar");
+  setTimeout(function(){ document.getElementById("modal-ruta-nombre").focus(); }, 100);
+}
+function confirmarRenombrar() {
+  var rk = document.getElementById("modal-ruta-key").value;
+  var nombre = document.getElementById("modal-ruta-nombre").value.trim();
+  if (!nombre) return;
+  fbPatch("empresas/" + empresaKey + "/rutas/" + rk, {nombre: nombre})
+    .then(function() {
+      if (rutasData[rk]) rutasData[rk].nombre = nombre;
+      cerrarModal("modal-renombrar");
+      renderRutas();
+    })
+    .catch(function() { alert("Error al renombrar."); });
+}
+
+/* ── BORRAR CLIENTE DE RUTA ── */
+function borrarClienteRuta(rk, ck) {
+  var nom = rutasData[rk] && rutasData[rk].clientes && rutasData[rk].clientes[ck] ? rutasData[rk].clientes[ck].nom : "este cliente";
+  if (!confirm("¿Quitar a " + nom + " de la ruta? El remito seguirá en el resumen mensual.")) return;
+  fbDel("empresas/" + empresaKey + "/rutas/" + rk + "/clientes/" + ck)
+    .then(function() {
+      if (rutasData[rk] && rutasData[rk].clientes) delete rutasData[rk].clientes[ck];
+      if (clienteAbierto[rk] === ck) delete clienteAbierto[rk];
+      renderRutas();
+    })
+    .catch(function() { alert("Error al borrar."); });
+}
+
+/* ── MOVER CLIENTE A OTRA RUTA ── */
+function abrirMover(rk, ck) {
+  var keys = Object.keys(rutasData).filter(function(k){ return k !== rk; });
+  if (!keys.length) { alert("No hay otras rutas disponibles. Creá una nueva primero."); return; }
+  document.getElementById("modal-mover-rk").value = rk;
+  document.getElementById("modal-mover-ck").value = ck;
+  var sel = document.getElementById("modal-mover-destino");
+  sel.innerHTML = keys.map(function(k) {
+    return '<option value="' + k + '">' + (rutasData[k].nombre || new Date(rutasData[k].fecha||"").toLocaleDateString("es-AR")) + '</option>';
+  }).join("");
+  abrirModal("modal-mover");
+}
+function confirmarMover() {
+  var rk  = document.getElementById("modal-mover-rk").value;
+  var ck  = document.getElementById("modal-mover-ck").value;
+  var dst = document.getElementById("modal-mover-destino").value;
+  if (!rk || !ck || !dst) return;
+  var cli = rutasData[rk] && rutasData[rk].clientes ? rutasData[rk].clientes[ck] : null;
+  if (!cli) { cerrarModal("modal-mover"); return; }
+  // Push to destination, then delete from origin
+  fbPush("empresas/" + empresaKey + "/rutas/" + dst + "/clientes", cli)
+    .then(function(newKey) {
+      if (!rutasData[dst]) rutasData[dst] = {clientes:{}};
+      if (!rutasData[dst].clientes) rutasData[dst].clientes = {};
+      rutasData[dst].clientes[newKey] = cli;
+      return fbDel("empresas/" + empresaKey + "/rutas/" + rk + "/clientes/" + ck);
+    })
+    .then(function() {
+      if (rutasData[rk] && rutasData[rk].clientes) delete rutasData[rk].clientes[ck];
+      if (clienteAbierto[rk] === ck) delete clienteAbierto[rk];
+      cerrarModal("modal-mover");
+      // Abrir la ruta destino automáticamente
+      rutaAbierta = dst;
+      renderRutas();
+    })
+    .catch(function() { alert("Error al mover. Reintentá."); });
+}
+
+/* ── CERRAR MODALES AL CLICK AFUERA ── */
+["modal-renombrar","modal-mover"].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) el.addEventListener("click", function(e){ if (e.target === el) cerrarModal(id); });
+});
+
 document.addEventListener("click", function(e) {
   if (!e.target.closest(".search-wrap"))
     document.querySelectorAll(".dropdown").forEach(function(d){ d.classList.remove("open"); });
 });
 </script>
+
+<!-- MODAL RENOMBRAR RUTA -->
+<div class="modal-bg" id="modal-renombrar">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-ttl">✏️ Renombrar ruta</div>
+      <button class="modal-cls" onclick="cerrarModal('modal-renombrar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="modal-label">Nombre de la ruta</label>
+      <input class="modal-input" type="text" id="modal-ruta-nombre" placeholder="Ej: Lunes 7 julio">
+      <input type="hidden" id="modal-ruta-key">
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn mbtn-ghost" onclick="cerrarModal('modal-renombrar')">Cancelar</button>
+      <button class="mbtn mbtn-primary" onclick="confirmarRenombrar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOVER CLIENTE -->
+<div class="modal-bg" id="modal-mover">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-ttl">🔀 Mover cliente</div>
+      <button class="modal-cls" onclick="cerrarModal('modal-mover')">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="modal-label">Mover a la ruta</label>
+      <select class="modal-input" id="modal-mover-destino"></select>
+      <input type="hidden" id="modal-mover-rk">
+      <input type="hidden" id="modal-mover-ck">
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn mbtn-ghost" onclick="cerrarModal('modal-mover')">Cancelar</button>
+      <button class="mbtn mbtn-primary" onclick="confirmarMover()">Mover</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
