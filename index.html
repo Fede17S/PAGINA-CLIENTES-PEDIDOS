@@ -226,6 +226,31 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 
 .dropdown::-webkit-scrollbar{width:3px}
 .dropdown::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+
+/* PEDIDOS ACUMULADOS */
+.dia-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-family:"Inter",sans-serif;transition:background .15s;margin-bottom:8px;text-align:left}
+.dia-btn.open{border-color:var(--emp-primary);background:var(--blue-lt)}
+.dia-fecha{font-size:14px;font-weight:700;color:var(--text)}
+.dia-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.dia-chips{display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:10px}
+.dia-detail{display:none;margin-bottom:10px}
+.dia-detail.open{display:block}
+.dia-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.ped-section-head{padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.prod-acum-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.prod-acum-row:last-child{border-bottom:none}
+.prod-acum-cod{font-size:10px;font-weight:700;background:#e2e8f0;color:var(--muted);padding:2px 6px;border-radius:4px;font-family:monospace;white-space:nowrap}
+.prod-acum-name{flex:1;font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod-acum-cant{font-size:14px;font-weight:800;color:var(--emp-primary);white-space:nowrap;font-variant-numeric:tabular-nums}
+.prod-acum-total{font-size:12px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.obs-item{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);line-height:1.5}
+.obs-item:last-child{border-bottom:none}
+.obs-cli{font-size:11px;font-weight:700;color:var(--emp-primary);margin-bottom:3px}
+.dia-total-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--navy);border-radius:0 0 var(--radius) var(--radius)}
+.dia-total-lbl{font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+.dia-total-val{font-size:16px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.pedir-btn{background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-family:"Inter",sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;width:100%;justify-content:center;margin-top:8px}
+.pedir-btn:active{filter:brightness(.9)}
 </style>
 </head>
 <body>
@@ -258,6 +283,7 @@ textarea{resize:none;font-size:14px;line-height:1.5}
     <button class="sb-item active" onclick="verTab('pedido',this)"><span class="sb-icon">📝</span>Nuevo Pedido</button>
     <button class="sb-item" id="nav-remito" onclick="verTab('remito',this)"><span class="sb-icon">🚚</span>Nuevo Remito</button>
     <button class="sb-item" id="nav-hoja" onclick="verTab('hoja',this)"><span class="sb-icon">📋</span>Hoja de Ruta</button>
+    <button class="sb-item" id="nav-pedidos-acum" onclick="verTab('pedidos-acum',this)"><span class="sb-icon">🛒</span>Pedidos al Proveedor</button>
     <button class="sb-item" id="nav-resumen" onclick="verTab('resumen',this)"><span class="sb-icon">📊</span>Resumen Mensual</button>
   </nav>
   <div class="sb-foot">
@@ -352,6 +378,14 @@ textarea{resize:none;font-size:14px;line-height:1.5}
   <div id="rutas-list"></div>
 </div>
 
+<div id="pedidos-acum" class="section">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <span id="fb-ped-status" class="fb-pill sync">☁️</span>
+    <button class="btn btn-ghost btn-sm" onclick="cargarPedidosAcum()">🔄 Actualizar</button>
+  </div>
+  <div id="pedidos-acum-list"><div class="empty-box"><div class="empty-icon">🛒</div>Sin pedidos guardados aún.<br><small>Cada pedido enviado aparece acá agrupado por día.</small></div></div>
+</div>
+
 <div id="resumen" class="section">
   <div class="res-toolbar">
     <select id="fil-mes" onchange="renderResumen()"></select>
@@ -404,7 +438,7 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 <script>
 var FB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta",resumen:"Resumen Mensual"};
+var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor",resumen:"Resumen Mensual"};
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
@@ -489,6 +523,7 @@ function verTab(id,btn){
   document.getElementById("header-title").textContent=TITLES[id]||id;
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
+  if(id==="pedidos-acum")cargarPedidosAcum();
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
 }
 function cargarCatalogo(){
@@ -544,6 +579,23 @@ function generarPDF(m){
   doc.text("Fecha: "+new Date().toLocaleDateString()+" "+new Date().toLocaleTimeString(),55,37);
   doc.autoTable({startY:44,head:[["Cant","Cod","Producto","P.U","Sub"]],body:ordenes[t].map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),foot:[["","","","TOTAL","$"+tot]],theme:"striped",headStyles:{fillColor:[13,27,42]}});
   if(obs){var y=doc.lastAutoTable.finalY+10;doc.setFont("helvetica","bold");doc.text("OBSERVACIONES:",14,y);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(obs,180),14,y+7);}
+  // Guardar pedido acumulado en Firebase
+  if(m==="pedido"){
+    var ahora2=new Date();
+    var diaKey=ahora2.toISOString().slice(0,10).replace(/-/g,"");
+    var pedAcum={
+      fecha:ahora2.toISOString(),
+      clienteNom:document.getElementById("nomCli-ped").value||"Mostrador",
+      clienteId:document.getElementById("idCli-ped").value||"",
+      obs:obs||"",
+      items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),
+      total:parseLocalFloat(document.getElementById("total-ped").textContent),
+      usuario:currentUser.id
+    };
+    fbPush("empresas/"+empresaKey+"/pedidosAcum/"+diaKey,pedAcum)
+      .catch(function(e){console.warn("No se pudo guardar pedido acumulado:",e);});
+  }
+
   if(m==="remito"){
     var totalNum=parseLocalFloat(tot), ahora=new Date();
     var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),total:totalNum,usuario:currentUser.id};
@@ -798,6 +850,157 @@ function confirmarMover(){ if(!modalRutaKey||!modalCliKey)return; var dst=docume
 function descargarPDFRuta(rk){ var ruta=rutasData[rk];if(!ruta)return; var jsPDF=window.jspdf.jsPDF,doc=new jsPDF(); if(empresaData.logo)doc.addImage(empresaData.logo,"PNG",10,5,40,20); doc.setFont("helvetica","bold");doc.text("HOJA DE RUTA — "+(ruta.nombre||"Ruta").toUpperCase(),105,16,{align:"center"}); doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Fecha: "+new Date(ruta.fecha).toLocaleDateString(),14,26); var calc=calcRuta(ruta); doc.autoTable({startY:32,head:[["Cliente","Total","Efectivo","Transfer.","Saldo"]],body:Object.values(ruta.clientes||{}).map(function(c){return[c.nom,"$"+fM(c.importe||0),"$"+fM(c.efectivo||0),"$"+fM(c.transferencia||0),"$"+fM((c.importe||0)-(c.efectivo||0)-(c.transferencia||0))];}),foot:[["","$"+fM(calc.total),"","","$"+fM(calc.saldo)]],theme:"striped",headStyles:{fillColor:[13,27,42]}}); doc.save("Ruta_"+(ruta.nombre||"ruta")+".pdf"); }
 
 // VENTAS
+/* ══ PEDIDOS ACUMULADOS ══ */
+var pedidosAcumData = {};
+var diaAbierto = null;
+
+function cargarPedidosAcum(){
+  setStatus("fb-ped-status","sync","☁️ Cargando...");
+  fbGet("empresas/"+empresaKey+"/pedidosAcum")
+    .then(function(data){
+      pedidosAcumData = data||{};
+      setStatus("fb-ped-status","ok","✅");
+      renderPedidosAcum();
+    })
+    .catch(function(){setStatus("fb-ped-status","err","❌");});
+}
+
+function renderPedidosAcum(){
+  var wrap=document.getElementById("pedidos-acum-list");
+  // diaKey format: YYYYMMDD, each value is {pedKey: pedido}
+  var diaKeys=Object.keys(pedidosAcumData).sort(function(a,b){return b.localeCompare(a);});
+  if(!diaKeys.length){
+    wrap.innerHTML='<div class="empty-box"><div class="empty-icon">🛒</div>Sin pedidos guardados.<br><small>Cada pedido enviado aparece acá agrupado por día.</small></div>';
+    return;
+  }
+  wrap.innerHTML="";
+  diaKeys.forEach(function(diaKey){
+    var diaData=pedidosAcumData[diaKey];
+    var pedidos=Object.entries(diaData||{}).map(function(e){return Object.assign({fbKey:e[0]},e[1]);});
+    var isOpen=diaAbierto===diaKey;
+    // Build date label
+    var y=diaKey.slice(0,4),m2=diaKey.slice(4,6),d2=diaKey.slice(6,8);
+    var fecha=new Date(y+"-"+m2+"-"+d2).toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+    fecha=fecha.charAt(0).toUpperCase()+fecha.slice(1);
+    // Totals
+    var totalDia=pedidos.reduce(function(s,p){return s+(p.total||0);},0);
+    var cantPed=pedidos.length;
+    // Accumulate products
+    var prodAcum={};
+    pedidos.forEach(function(p){
+      (p.items||[]).forEach(function(it){
+        if(!prodAcum[it.id])prodAcum[it.id]={id:it.id,n:it.n,cant:0,total:0};
+        prodAcum[it.id].cant+=it.c;
+        prodAcum[it.id].total+=it.sub;
+      });
+    });
+    var prodList=Object.values(prodAcum).sort(function(a,b){return b.cant-a.cant;});
+    // Observations
+    var obsItems=pedidos.filter(function(p){return p.obs&&p.obs.trim();});
+    var outer=document.createElement("div");
+    // Toggle button
+    var btn=document.createElement("button");
+    btn.className="dia-btn"+(isOpen?" open":"");
+    btn.innerHTML=
+      '<div style="flex:1;min-width:0">'+
+        '<div class="dia-fecha">'+fecha+'</div>'+
+        '<div class="dia-meta">'+cantPed+' pedido'+(cantPed!==1?"s":"")+" · "+prodList.length+' producto'+(prodList.length!==1?"s":"")+'</div>'+
+      '</div>'+
+      '<div class="dia-chips">'+
+        '<span class="chip chip-blue" style="background:#dbeafe;color:#1e40af">$'+fM(totalDia)+'</span>'+
+        '<span style="color:var(--muted2);font-size:15px">'+(isOpen?"▲":"▼")+'</span>'+
+      '</div>';
+    btn.onclick=function(){diaAbierto=diaAbierto===diaKey?null:diaKey;renderPedidosAcum();};
+    outer.appendChild(btn);
+    // Detail
+    var detail=document.createElement("div");
+    detail.className="dia-detail"+(isOpen?" open":"");
+    var card=document.createElement("div");
+    card.className="dia-card";
+    // Products section
+    var ph=document.createElement("div");
+    ph.className="ped-section-head";
+    ph.textContent="📦 Productos a pedir al proveedor";
+    card.appendChild(ph);
+    prodList.forEach(function(p){
+      var row=document.createElement("div");
+      row.className="prod-acum-row";
+      row.innerHTML='<span class="prod-acum-cod">'+p.id+'</span><span class="prod-acum-name">'+p.n+'</span><span class="prod-acum-cant">×'+p.cant+'</span><span class="prod-acum-total">$'+fM(p.total)+'</span>';
+      card.appendChild(row);
+    });
+    // Observations
+    if(obsItems.length){
+      var oh=document.createElement("div");
+      oh.className="ped-section-head";
+      oh.style.cssText="border-top:1px solid var(--border)";
+      oh.textContent="💬 Observaciones";
+      card.appendChild(oh);
+      obsItems.forEach(function(p){
+        var o=document.createElement("div");
+        o.className="obs-item";
+        o.innerHTML='<div class="obs-cli">'+p.clienteNom+'</div>'+p.obs;
+        card.appendChild(o);
+      });
+    }
+    // Total bar
+    var totalBar=document.createElement("div");
+    totalBar.className="dia-total-bar";
+    totalBar.innerHTML='<span class="dia-total-lbl">Total del día</span><span class="dia-total-val">$'+fM(totalDia)+'</span>';
+    card.appendChild(totalBar);
+    detail.appendChild(card);
+    // Action buttons
+    var actRow=document.createElement("div");
+    actRow.style.cssText="display:flex;gap:8px;margin-top:8px";
+    var btnPDF=document.createElement("button");
+    btnPDF.className="btn btn-primary btn-sm";
+    btnPDF.style.flex="1";
+    btnPDF.textContent="📥 PDF del día";
+    btnPDF.onclick=function(){descargarPDFDia(diaKey,fecha,prodList,obsItems,totalDia);};
+    var btnDel=document.createElement("button");
+    btnDel.className="btn btn-ghost btn-sm";
+    btnDel.style.cssText="flex:1;color:var(--red);border-color:#fca5a5";
+    btnDel.textContent="🗑 Borrar día";
+    btnDel.onclick=function(){borrarDiaPedidos(diaKey);};
+    actRow.appendChild(btnPDF);
+    actRow.appendChild(btnDel);
+    detail.appendChild(actRow);
+    outer.appendChild(detail);
+    wrap.appendChild(outer);
+  });
+}
+
+function borrarDiaPedidos(diaKey){
+  if(!confirm("Borrar todos los pedidos de este día?"))return;
+  fbDel("empresas/"+empresaKey+"/pedidosAcum/"+diaKey)
+    .then(function(){delete pedidosAcumData[diaKey];if(diaAbierto===diaKey)diaAbierto=null;renderPedidosAcum();})
+    .catch(function(){alert("Error al borrar.");});
+}
+
+function descargarPDFDia(diaKey,fecha,prodList,obsItems,total){
+  var jsPDF=window.jspdf.jsPDF,doc=new jsPDF();
+  if(empresaData.logo)doc.addImage(empresaData.logo,"PNG",10,5,40,20);
+  doc.setFont("helvetica","bold");
+  doc.text("PEDIDO AL PROVEEDOR — "+fecha.toUpperCase(),105,16,{align:"center"});
+  doc.setFont("helvetica","normal");doc.setFontSize(10);
+  doc.text("Empresa: "+(empresaData.nombre||"")+" · "+new Date().toLocaleString(),14,26);
+  doc.autoTable({
+    startY:32,
+    head:[["Código","Producto","Cant. Total"]],
+    body:prodList.map(function(p){return[p.id,p.n,p.cant];}),
+    foot:[["","TOTAL PRODUCTOS","$"+fM(total)]],
+    theme:"striped",headStyles:{fillColor:[13,27,42]}
+  });
+  if(obsItems.length){
+    var y=doc.lastAutoTable.finalY+10;
+    doc.setFont("helvetica","bold");doc.text("OBSERVACIONES:",14,y);
+    doc.setFont("helvetica","normal");
+    obsItems.forEach(function(p){
+      y+=7;doc.text("• "+p.clienteNom+": "+p.obs,14,y);
+    });
+  }
+  doc.save("Pedido_Proveedor_"+diaKey+".pdf");
+}
+
 function cargarVentasFirebase(f){ setStatus("fb-res-status","sync","☁️"); fbGet("empresas/"+empresaKey+"/ventas").then(function(d){ventas=d?Object.entries(d).map(function(e){return Object.assign({},e[1],{fbKey:e[0]});}):[];setStatus("fb-res-status","ok","✅");poblarFiltros();renderResumen();}).catch(function(){setStatus("fb-res-status","err","❌");}); }
 function borrarVenta(fbKey){ if(!confirm("¿Borrar este remito del resumen?"))return; fbDel("empresas/"+empresaKey+"/ventas/"+fbKey).then(function(){ventas=ventas.filter(function(v){return v.fbKey!==fbKey;});renderResumen();}).catch(function(){alert("Error al borrar.");}); }
 function poblarFiltros(){ var now=new Date(),selA=document.getElementById("fil-anio"),anioAct=+selA.value||now.getFullYear(); var anioSet=new Set([now.getFullYear()]);ventas.forEach(function(v){anioSet.add(v.anio);}); selA.innerHTML=Array.from(anioSet).sort(function(a,b){return b-a;}).map(function(a){return'<option value="'+a+'"'+(a===anioAct?" selected":"")+'>'+a+'</option>';}).join(""); poblarMeses(); }
