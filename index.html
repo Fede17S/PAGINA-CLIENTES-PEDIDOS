@@ -616,22 +616,6 @@ function generarPDF(m){
   doc.text("Fecha: "+new Date().toLocaleDateString()+" "+new Date().toLocaleTimeString(),55,37);
   doc.autoTable({startY:44,head:[["Cant","Cod","Producto","P.U","Sub"]],body:ordenes[t].map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),foot:[["","","","TOTAL","$"+tot]],theme:"striped",headStyles:{fillColor:[13,27,42]}});
   if(obs){var y=doc.lastAutoTable.finalY+10;doc.setFont("helvetica","bold");doc.text("OBSERVACIONES:",14,y);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(obs,180),14,y+7);}
-  // Guardar pedido acumulado en Firebase
-  if(m==="pedido"){
-    var ahora2=new Date();
-    var diaKey=ahora2.toISOString().slice(0,10).replace(/-/g,"");
-    var pedAcum={
-      fecha:ahora2.toISOString(),
-      clienteNom:document.getElementById("nomCli-ped").value||"Mostrador",
-      clienteId:document.getElementById("idCli-ped").value||"",
-      obs:obs||"",
-      items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),
-      total:parseLocalFloat(document.getElementById("total-ped").textContent),
-      usuario:currentUser.id
-    };
-    fbPush("empresas/"+empresaKey+"/pedidosAcum/"+diaKey,pedAcum)
-      .catch(function(e){console.warn("No se pudo guardar pedido acumulado:",e);});
-  }
 
   if(m==="remito"){
     var totalNum=parseLocalFloat(tot), ahora=new Date();
@@ -652,6 +636,20 @@ function generarPDF(m){
       });
     }).catch(function(e){console.warn("Firebase:",e);});
   }
+  // BACKUP: guardar siempre antes de compartir
+  var bkItem={
+    id:"bk_"+Date.now(),
+    fecha:new Date().toISOString(),
+    clienteNom:nom,
+    clienteId:document.getElementById("idCli-"+t).value||"",
+    lista:tipoLista[t],
+    obs:obs,
+    items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),
+    total:parseLocalFloat(document.getElementById("total-"+t).textContent),
+    tipo:m
+  };
+  guardarBackup(bkItem);
+
   var blob=doc.output("blob"), file=new File([blob],m+"_"+nom+".pdf",{type:"application/pdf"});
   if(navigator.share)navigator.share({files:[file]}).catch(function(){doc.save(m+"_"+nom+".pdf");});
   else doc.save(m+"_"+nom+".pdf");
