@@ -876,40 +876,66 @@ function buildClienteRow(rutaKey, cliKey, cli){
 function imprimirRemitoCli(rk, ck){
   var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(!cli){alert("No se encontraron datos de este cliente.");return;}
-  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
-  if(empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,40,20);
-  doc.setFont("helvetica","bold"); doc.setFontSize(18);
-  doc.text((empresaData.nombre||"EMPRESA")+" - REMITO",105,16,{align:"center"});
-  doc.setFont("helvetica","normal"); doc.setFontSize(11);
-  doc.text("Cliente: "+cli.nom,55,25);
-  doc.text("Fecha: "+new Date(cli.fecha||Date.now()).toLocaleDateString()+" "+new Date(cli.fecha||Date.now()).toLocaleTimeString(),55,31);
   var ef=cli.efectivo||0, tr=cli.transferencia||0;
   var pagado=ef+tr, saldo=(cli.importe||0)-pagado;
-  doc.text("Total: $"+fM(cli.importe||0)+"  |  Cobrado: $"+fM(pagado)+"  |  Saldo: $"+fM(saldo),55,37);
-  doc.autoTable({
-    startY:44,
-    head:[["Cant","Cod","Producto","P.U","Sub"]],
-    body:(cli.items||[]).map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),
-    foot:[["","","","TOTAL","$"+fM(cli.importe||0)]],
-    theme:"striped",
-    headStyles:{fillColor:[13,27,42]}
-  });
-  // Cobro info
+  var fecha=new Date(cli.fecha||Date.now()).toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  var hora=new Date(cli.fecha||Date.now()).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+  var logoHtml=empresaData.logo?'<img src="'+empresaData.logo+'" style="height:50px;object-fit:contain">':'';
+  var filasItems=(cli.items||[]).map(function(it){
+    return '<tr><td style="text-align:center">'+it.c+'</td><td style="font-size:10px;color:#666">'+it.id+'</td><td>'+it.n+'</td><td style="text-align:right">$'+fM(it.p)+'</td><td style="text-align:right;font-weight:700">$'+fM(it.sub)+'</td></tr>';
+  }).join("");
+  var cobroHtml="";
   if(pagado>0){
-    var y=doc.lastAutoTable.finalY+8;
-    doc.setFont("helvetica","bold");
-    doc.text("COBRO:",14,y);
-    doc.setFont("helvetica","normal");
-    if(ef>0) doc.text("Efectivo: $"+fM(ef),40,y);
-    if(tr>0) doc.text("Transferencia: $"+fM(tr),(ef>0?90:40),y);
+    cobroHtml='<div style="margin-top:12px;padding:10px;background:#f1f5f9;border-radius:6px;font-size:12px">';
+    if(ef>0) cobroHtml+='<span style="margin-right:16px">💵 Efectivo: <b>$'+fM(ef)+'</b></span>';
+    if(tr>0) cobroHtml+='<span>📲 Transferencia: <b>$'+fM(tr)+'</b></span>';
+    cobroHtml+='</div>';
   }
-  var blob=doc.output("blob");
-  var file=new File([blob],"remito_"+cli.nom+".pdf",{type:"application/pdf"});
-  if(navigator.share){
-    navigator.share({files:[file]}).catch(function(){doc.save("remito_"+cli.nom+".pdf");});
-  } else {
-    doc.save("remito_"+cli.nom+".pdf");
-  }
+  var w=window.open("","_blank","width=600,height=800");
+  w.document.write(
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<title>Remito - '+cli.nom+'</title>'+
+    '<style>'+
+      'body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#000;font-size:13px}'+
+      'h1{font-size:18px;margin:0}'+
+      '.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:14px}'+
+      '.header-right{text-align:right;font-size:12px;color:#444}'+
+      '.info{margin-bottom:14px;font-size:13px}'+
+      '.info b{display:inline-block;min-width:70px}'+
+      'table{width:100%;border-collapse:collapse;margin-top:8px}'+
+      'thead th{background:#0d1b2a;color:#fff;padding:8px;font-size:12px;text-align:left}'+
+      'tbody td{padding:7px 8px;border-bottom:1px solid #e2e8f0;font-size:13px}'+
+      'tbody tr:nth-child(even){background:#f8fafc}'+
+      '.total-row td{font-weight:800;font-size:15px;border-top:2px solid #000;padding-top:10px}'+
+      '.saldo{margin-top:14px;padding:12px;border:2px solid #0d1b2a;border-radius:6px;display:flex;justify-content:space-between;align-items:center}'+
+      '.saldo-val{font-size:20px;font-weight:800}'+
+      '.saldo-val.ok{color:#059669}.saldo-val.pend{color:#d97706}'+
+      '@media print{button{display:none!important}body{padding:10px}}'+
+    '</style></head><body>'+
+    '<div class="header">'+
+      '<div>'+logoHtml+'<h1 style="margin-top:6px">'+(empresaData.nombre||"EMPRESA")+'</h1><div style="font-size:12px;color:#666">REMITO DE ENTREGA</div></div>'+
+      '<div class="header-right"><div style="font-size:11px;text-transform:capitalize">'+fecha+'</div><div>'+hora+'</div></div>'+
+    '</div>'+
+    '<div class="info">'+
+      '<div><b>Cliente:</b> '+cli.nom+'</div>'+
+    '</div>'+
+    '<table>'+
+      '<thead><tr><th style="width:40px">Cant</th><th style="width:50px">Cód</th><th>Producto</th><th style="width:80px;text-align:right">P.U.</th><th style="width:90px;text-align:right">Subtotal</th></tr></thead>'+
+      '<tbody>'+filasItems+'</tbody>'+
+      '<tfoot><tr class="total-row"><td colspan="4" style="text-align:right">TOTAL</td><td style="text-align:right">$'+fM(cli.importe||0)+'</td></tr></tfoot>'+
+    '</table>'+
+    '<div class="saldo">'+
+      '<span style="font-size:13px;font-weight:700;text-transform:uppercase;color:#64748b">Saldo pendiente</span>'+
+      '<span class="saldo-val '+(saldo<=0?"ok":"pend")+'">$'+fM(saldo)+'</span>'+
+    '</div>'+
+    cobroHtml+
+    '<div style="text-align:center;margin-top:20px">'+
+      '<button onclick="window.print()" style="background:#0d1b2a;color:#fff;border:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">🖨️ Imprimir</button>'+
+    '</div>'+
+    '<scr'+'ipt>window.onload=function(){window.print();}</scr'+'ipt>'+
+    '</body></html>'
+  );
+  w.document.close();
 }
 
 function toggleRuta(k){ rutaAbierta=rutaAbierta===k?null:k; renderRutas(); }
