@@ -226,6 +226,8 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 
 .dropdown::-webkit-scrollbar{width:3px}
 .dropdown::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+.print-cli-btn{background:var(--navy);border:1.5px solid rgba(255,255,255,.15);color:#94a3b8;border-radius:7px;padding:5px 9px;font-size:15px;cursor:pointer;flex-shrink:0;margin-left:6px;transition:all .15s;line-height:1}
+.print-cli-btn:active{background:var(--emp-primary);color:#fff;border-color:var(--emp-primary)}
 
 /* PEDIDOS ACUMULADOS */
 .dia-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;font-family:"Inter",sans-serif;transition:background .15s;margin-bottom:8px;text-align:left}
@@ -764,8 +766,14 @@ function buildClienteRow(rutaKey, cliKey, cli){
   head.innerHTML=
     '<div style="flex:1;min-width:0"><div class="ruta-cli-nom">'+cli.nom+'</div><div style="font-size:12px;color:var(--muted);margin-top:1px">$'+fM(tot)+'</div></div>'+
     (saldo<=0?'<span class="chip chip-ok">✓ Pagado</span>':pagado>0?'<span class="chip chip-warn">$'+fM(saldo)+' rest.</span>':'<span class="chip chip-red">Sin pago</span>')+
+    '<button class="print-cli-btn" title="Imprimir remito">🖨️</button>'+
     '<span style="color:var(--muted2);font-size:14px;margin-left:8px">'+(isCO?"▲":"▼")+'</span>';
+  // Print button stops propagation
   head.onclick=function(){toggleCliente(rutaKey,cliKey);};
+  head.querySelector(".print-cli-btn").onclick=function(e){
+    e.stopPropagation();
+    imprimirRemitoCli(rutaKey,cliKey);
+  };
   row.appendChild(head);
 
   // Body
@@ -863,6 +871,45 @@ function buildClienteRow(rutaKey, cliKey, cli){
 
   row.appendChild(body);
   return row;
+}
+
+function imprimirRemitoCli(rk, ck){
+  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli){alert("No se encontraron datos de este cliente.");return;}
+  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+  if(empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,40,20);
+  doc.setFont("helvetica","bold"); doc.setFontSize(18);
+  doc.text((empresaData.nombre||"EMPRESA")+" - REMITO",105,16,{align:"center"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(11);
+  doc.text("Cliente: "+cli.nom,55,25);
+  doc.text("Fecha: "+new Date(cli.fecha||Date.now()).toLocaleDateString()+" "+new Date(cli.fecha||Date.now()).toLocaleTimeString(),55,31);
+  var ef=cli.efectivo||0, tr=cli.transferencia||0;
+  var pagado=ef+tr, saldo=(cli.importe||0)-pagado;
+  doc.text("Total: $"+fM(cli.importe||0)+"  |  Cobrado: $"+fM(pagado)+"  |  Saldo: $"+fM(saldo),55,37);
+  doc.autoTable({
+    startY:44,
+    head:[["Cant","Cod","Producto","P.U","Sub"]],
+    body:(cli.items||[]).map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),
+    foot:[["","","","TOTAL","$"+fM(cli.importe||0)]],
+    theme:"striped",
+    headStyles:{fillColor:[13,27,42]}
+  });
+  // Cobro info
+  if(pagado>0){
+    var y=doc.lastAutoTable.finalY+8;
+    doc.setFont("helvetica","bold");
+    doc.text("COBRO:",14,y);
+    doc.setFont("helvetica","normal");
+    if(ef>0) doc.text("Efectivo: $"+fM(ef),40,y);
+    if(tr>0) doc.text("Transferencia: $"+fM(tr),(ef>0?90:40),y);
+  }
+  var blob=doc.output("blob");
+  var file=new File([blob],"remito_"+cli.nom+".pdf",{type:"application/pdf"});
+  if(navigator.share){
+    navigator.share({files:[file]}).catch(function(){doc.save("remito_"+cli.nom+".pdf");});
+  } else {
+    doc.save("remito_"+cli.nom+".pdf");
+  }
 }
 
 function toggleRuta(k){ rutaAbierta=rutaAbierta===k?null:k; renderRutas(); }
