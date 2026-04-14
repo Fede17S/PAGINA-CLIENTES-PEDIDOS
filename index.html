@@ -582,15 +582,35 @@ function cargarCatalogo(){
       else var sep=",";
       if(lS.length>1){dbStock=lS.slice(1).map(function(l){var r=splitCSV(l,sep);return{id:r[0],n:r[1],pCli:parseLocalFloat(r[2]),pPat:parseLocalFloat(r[3])||parseLocalFloat(r[2])};}).filter(function(p){return p.id;});}
     }
+    // Cargar clientes desde Firebase usuarios (fuente primaria)
+    var usuarios=emp.usuarios||{};
+    var cliDeUsu=Object.values(usuarios).filter(function(u){
+      return u.id && (u.role==="cliente"||u.role==="vendedor"||!u.role);
+    }).map(function(u){
+      return{id:u.id,nombre:u.name||u.id,lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.telefono||""};
+    });
+    // Fallback CSV
     var rawC=emp.clientesCSV||"";
     var lC=rawC.split("\n").filter(function(l){return l.trim();});
-    if(lC.length>1){var sep2=lC[0].indexOf(";")>=0?";":",";}
-    else var sep2=",";
-    if(lC.length>1){dbCli=lC.slice(1).map(function(l){var r=splitCSV(l,sep2);return{id:r[0],nombre:r[1],lista:r[2]||"Clientes"};}).filter(function(c){return c.id;});}
+    var cliDeCSV=[];
+    if(lC.length>1){
+      var sep2=lC[0].indexOf(";")>=0?";":","
+      cliDeCSV=lC.slice(1).map(function(l){var r=splitCSV(l,sep2);return{id:r[0],nombre:r[1],lista:r[2]||"Clientes",direccion:"",telefono:""};}).filter(function(c){return c.id;});
+    }
+    var idsUsu=new Set(cliDeUsu.map(function(c){return c.id;}));
+    dbCli=cliDeUsu.concat(cliDeCSV.filter(function(c){return !idsUsu.has(c.id);}));
+    dbCli.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es");});
     actualizarDL(); msg.className="ok"; msg.textContent="\u2705";
   }).catch(function(){msg.className="err";msg.textContent="\u26A0\uFE0F";});
 }
-function actualizarDL(){ var h=dbCli.map(function(c){return '<option value="'+c.nombre+'">';}).join(""); document.getElementById("dl-cli-ped").innerHTML=h; document.getElementById("dl-cli-rem").innerHTML=h; }
+function actualizarDL(){
+  var h=dbCli.map(function(c){
+    var extra=c.direccion?' ('+c.direccion+')':'';
+    return '<option value="'+c.nombre+'" data-id="'+c.id+'" data-lista="'+c.lista+'">'+c.nombre+extra+'</option>';
+  }).join("");
+  document.getElementById("dl-cli-ped").innerHTML=h;
+  document.getElementById("dl-cli-rem").innerHTML=h;
+}
 function vincularCli(origen,t){ var idIn=document.getElementById("idCli-"+t),nomIn=document.getElementById("nomCli-"+t); var c=origen==="id"?dbCli.find(function(x){return x.id.toString()===idIn.value.trim();}):dbCli.find(function(x){return x.nombre.trim()===nomIn.value.trim();}); if(c){idIn.value=c.id;nomIn.value=c.nombre;tipoLista[t]=c.lista.toLowerCase().includes("patagonia")?"Patagonia":"Clientes";document.getElementById("badge-"+t).textContent="📋 "+tipoLista[t];} }
 function filtrar(t){ var box=document.getElementById("res-"+t),bus=document.getElementById("bus-"+t).value.toLowerCase().trim(); box.innerHTML=""; if(bus.length<1){box.classList.remove("open");return;} var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(bus)||p.n.toLowerCase().includes(bus);}).slice(0,12); if(res.length){box.classList.add("open");res.forEach(function(p){var pre=tipoLista[t]==="Patagonia"?p.pPat:p.pCli;var div=document.createElement("div");div.className="dd-item";div.innerHTML='<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span><span class="dd-price">$'+fM(pre)+'</span>';div.onclick=function(){itemSel[t]=Object.assign({},p,{pre:pre});document.getElementById("bus-"+t).value=p.n;box.classList.remove("open");};box.appendChild(div);});}else box.classList.remove("open"); }
 function agregar(t){ var cant=parseFloat(document.getElementById("cant-"+t).value)||1; if(!itemSel[t])return; var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id&&x.p===itemSel[t].pre;}); if(exist){exist.c+=cant;exist.sub=exist.p*exist.c;}else ordenes[t].push({id:itemSel[t].id,n:itemSel[t].n,p:itemSel[t].pre,c:cant,sub:itemSel[t].pre*cant}); renderItems(t); document.getElementById("bus-"+t).value=""; document.getElementById("cant-"+t).value="1"; itemSel[t]=null; }
