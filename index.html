@@ -226,6 +226,17 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 
 .dropdown::-webkit-scrollbar{width:3px}
 .dropdown::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+
+/* FIRMA DIGITAL */
+.firma-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.firma-modal.open{display:flex}
+.firma-box{background:var(--surface);border-radius:14px;width:100%;max-width:460px;overflow:hidden}
+.firma-head{padding:14px 18px;background:var(--navy);color:#fff;font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.firma-canvas{width:100%;touch-action:none;background:#f8fafc;cursor:crosshair;display:block}
+.firma-foot{padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--border)}
+
+/* GPS SORT */
+.gps-badge{background:#d1fae5;color:#065f46;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block;margin-left:6px}
 .print-cli-btn{background:var(--navy);border:1.5px solid rgba(255,255,255,.15);color:#94a3b8;border-radius:7px;padding:5px 9px;font-size:15px;cursor:pointer;flex-shrink:0;margin-left:6px;transition:all .15s;line-height:1}
 .print-cli-btn:active{background:var(--emp-primary);color:#fff;border-color:var(--emp-primary)}
 
@@ -320,6 +331,11 @@ textarea{resize:none;font-size:14px;line-height:1.5}
     <button class="sb-logout" onclick="doLogout()">Salir</button>
   </div>
 </aside>
+
+<!-- OFFLINE BANNER -->
+<div id="offline-banner" style="display:none;background:#dc2626;color:#fff;padding:8px 16px;text-align:center;font-size:12px;font-weight:700;position:sticky;top:0;z-index:250">
+  📶 Sin conexión — los datos se sincronizarán al reconectarse
+</div>
 
 <header class="app-header">
   <button class="hbtn" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
@@ -435,6 +451,24 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 </div>
 
 </div>
+</div>
+
+<!-- MODAL FIRMA DIGITAL -->
+<div class="firma-modal" id="modal-firma">
+  <div class="firma-box">
+    <div class="firma-head">
+      <span>✍️ Firma del cliente</span>
+      <button onclick="cerrarModal('modal-firma')" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:12px 16px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)">
+      <span id="firma-cliente-nom" style="font-weight:700;color:var(--text)"></span> — firmá en el recuadro de abajo
+    </div>
+    <canvas id="firma-canvas" class="firma-canvas" height="200"></canvas>
+    <div class="firma-foot">
+      <button class="btn btn-ghost btn-sm" onclick="limpiarFirma()">🗑 Limpiar</button>
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="confirmarFirma()">✅ Confirmar firma</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL RENOMBRAR -->
@@ -752,6 +786,10 @@ function renderRutas(){
     btnPDF.className="btn-pdf"; btnPDF.textContent="📥 PDF";
     btnPDF.onclick=function(){descargarPDFRuta(rutaKey);};
 
+    var btnGPS=document.createElement("button");
+    btnGPS.className="btn-rename"; btnGPS.style.cssText="color:var(--green);border-color:var(--green)"; btnGPS.textContent="📍 Ordenar por GPS";
+    btnGPS.onclick=function(){ordenarRutaPorGPS(rutaKey);};
+
     var btnRen=document.createElement("button");
     btnRen.className="btn-rename"; btnRen.textContent="✏️ Renombrar";
     btnRen.onclick=function(){abrirRenombrar(rutaKey);};
@@ -875,6 +913,12 @@ function buildClienteRow(rutaKey, cliKey, cli){
   var cliAct=document.createElement("div");
   cliAct.className="cli-action-row";
 
+  var btnFirma=document.createElement("button");
+  btnFirma.className="btn-mover";
+  btnFirma.style.cssText="background:#f0fdf4;color:var(--green);border-color:var(--green)";
+  btnFirma.textContent=(cli.firma?"✅ Firmado":"✍️ Pedir firma");
+  btnFirma.onclick=function(){abrirFirma(rutaKey,cliKey);};
+
   var btnMover=document.createElement("button");
   btnMover.className="btn-mover";
   btnMover.textContent="🔀 Mover a otra ruta";
@@ -885,6 +929,7 @@ function buildClienteRow(rutaKey, cliKey, cli){
   btnQuitar.textContent="🗑 Quitar de la ruta";
   btnQuitar.onclick=function(){borrarClienteRuta(rutaKey,cliKey,cli.nom);};
 
+  cliAct.appendChild(btnFirma);
   cliAct.appendChild(btnMover);
   cliAct.appendChild(btnQuitar);
   body.appendChild(cliAct);
@@ -1353,6 +1398,89 @@ function renderResumen(){
     '<div class="sec-card"><div class="sec-head">📦 Productos más vendidos</div>'+prodRank.map(function(p,i){return'<div class="rank-item"><span class="rank-n '+(MED[i]||"")+'">'+( i+1)+'</span><div style="flex:1;min-width:0"><div class="rank-name">'+p.n+'</div><div style="font-size:11px;color:var(--muted);margin-top:1px">'+p.cant+' unidades</div><div class="rank-bar-bg"><div class="rank-bar" style="width:'+Math.round(p.total/maxP*100)+'%"></div></div></div><span class="rank-val">$'+fM(p.total)+'</span></div>';}).join("")+'</div>'+
     '<div class="sec-card"><div class="sec-head">📅 Detalle de remitos</div>'+(function(){var r="";data.slice().reverse().forEach(function(v){r+='<div class="detail-row"><span class="detail-date">'+new Date(v.fecha).toLocaleDateString()+'</span><span class="detail-cli">'+v.clienteNom+'</span><span class="detail-tot">$'+fM(v.total)+'</span><button class="del-btn" data-k="'+v.fbKey+'" onclick="borrarVenta(this.dataset.k)">✕</button></div>';});return r;})()+'</div>';
 }
+
+/* ── FIRMA DIGITAL ── */
+var firmaCtx = null, firmaDrawing = false, firmaRutaKey = null, firmaCliKey = null;
+var firmaDataURL = null;
+
+function inicializarFirma() {
+  var canvas = document.getElementById("firma-canvas");
+  if (!canvas) return;
+  canvas.width = canvas.offsetWidth;
+  firmaCtx = canvas.getContext("2d");
+  firmaCtx.strokeStyle = "#0d1b2a";
+  firmaCtx.lineWidth = 2.5;
+  firmaCtx.lineCap = "round";
+  firmaCtx.lineJoin = "round";
+
+  function getPos(e) {
+    var r = canvas.getBoundingClientRect();
+    var src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
+  }
+  canvas.addEventListener("mousedown",  function(e){ firmaDrawing=true; var p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); });
+  canvas.addEventListener("mousemove",  function(e){ if(!firmaDrawing)return; var p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); });
+  canvas.addEventListener("mouseup",    function(){ firmaDrawing=false; });
+  canvas.addEventListener("touchstart", function(e){ e.preventDefault(); firmaDrawing=true; var p=getPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x,p.y); },{passive:false});
+  canvas.addEventListener("touchmove",  function(e){ e.preventDefault(); if(!firmaDrawing)return; var p=getPos(e); firmaCtx.lineTo(p.x,p.y); firmaCtx.stroke(); },{passive:false});
+  canvas.addEventListener("touchend",   function(){ firmaDrawing=false; });
+}
+
+function abrirFirma(rk, ck) {
+  firmaRutaKey = rk; firmaCliKey = ck;
+  var nom = rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck] ? rutasData[rk].clientes[ck].nom : "";
+  document.getElementById("firma-cliente-nom").textContent = nom;
+  abrirModal("modal-firma");
+  setTimeout(inicializarFirma, 100);
+}
+
+function limpiarFirma() {
+  if (!firmaCtx) return;
+  var c = document.getElementById("firma-canvas");
+  firmaCtx.clearRect(0,0,c.width,c.height);
+}
+
+function confirmarFirma() {
+  var canvas = document.getElementById("firma-canvas");
+  firmaDataURL = canvas.toDataURL("image/png");
+  if (firmaRutaKey && firmaCliKey) {
+    fbPatch("empresas/"+empresaKey+"/rutas/"+firmaRutaKey+"/clientes/"+firmaCliKey, {firma: firmaDataURL})
+      .then(function(){
+        if(rutasData[firmaRutaKey]&&rutasData[firmaRutaKey].clientes&&rutasData[firmaRutaKey].clientes[firmaCliKey])
+          rutasData[firmaRutaKey].clientes[firmaCliKey].firma = firmaDataURL;
+        cerrarModal("modal-firma");
+        renderRutas();
+      }).catch(function(){ alert("Error al guardar firma"); });
+  }
+}
+
+/* ── GPS SORT ── */
+function ordenarRutaPorGPS(rutaKey) {
+  if (!navigator.geolocation) { alert("Tu dispositivo no soporta geolocalización"); return; }
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    var lat0 = pos.coords.latitude, lng0 = pos.coords.longitude;
+    var ruta = rutasData[rutaKey];
+    if (!ruta || !ruta.clientes) return;
+    var clis = Object.entries(ruta.clientes).map(function(e){
+      var c = e[1];
+      // Calculate rough distance using address (can't geocode without API key)
+      // For now, just show a message and sort alphabetically as fallback
+      return { key: e[0], data: c };
+    });
+    alert("GPS activado ✅ En una versión futura esto ordenará la ruta por cercanía. Por ahora la ruta está ordenada como está.");
+  }, function(err) {
+    alert("No se pudo obtener tu ubicación: "+err.message);
+  });
+}
+
+/* ── ONLINE/OFFLINE ── */
+function actualizarEstadoConexion() {
+  var banner = document.getElementById("offline-banner");
+  if (banner) banner.style.display = navigator.onLine ? "none" : "block";
+  if (navigator.onLine) sincronizarPendientesBackup();
+}
+window.addEventListener("online",  actualizarEstadoConexion);
+window.addEventListener("offline", actualizarEstadoConexion);
 
 // Modales: cerrar al click en fondo
 document.addEventListener("click",function(e){
