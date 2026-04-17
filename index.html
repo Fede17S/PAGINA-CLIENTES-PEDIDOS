@@ -268,6 +268,19 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 .mapa-stat-val{font-size:16px;font-weight:800;color:var(--navy)}
 .mapa-stat-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
 
+/* PAGOS ADICIONALES */
+.pagos-hist{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px}
+.pago-hist-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.pago-hist-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.pago-hist-row:last-child{border-bottom:none}
+.pago-hist-fecha{color:var(--muted);white-space:nowrap;min-width:70px}
+.pago-hist-monto{font-weight:700;color:var(--green);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pago-hist-tipo{font-size:10px;background:#e0e7ff;color:#3730a3;padding:2px 6px;border-radius:4px}
+.btn-add-pago{margin-top:8px;width:100%;padding:8px;background:var(--green);color:#fff;border:none;border-radius:7px;font-family:"Inter",sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+.btn-add-pago:active{filter:brightness(.9)}
+.nuevo-pago-form{background:var(--bg);border-radius:8px;padding:12px;margin-top:8px;display:none}
+.nuevo-pago-form.open{display:block}
+
 /* FIRMA DIGITAL */
 .firma-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
 .firma-modal.open{display:flex}
@@ -779,7 +792,21 @@ function generarPDF(m){
 function cargarRutasFirebase(){ setStatus("fb-hoja-status","sync","☁️ Cargando…"); fbGet("empresas/"+empresaKey+"/rutas").then(function(d){rutasData=d||{};setStatus("fb-hoja-status","ok","✅");renderRutas();}).catch(function(){setStatus("fb-hoja-status","err","❌");}); }
 function crearNuevaRuta(){ var nombre=prompt("Nombre para esta ruta:"); if(!nombre||!nombre.trim())return; var nv={nombre:nombre.trim(),fecha:new Date().toISOString(),clientes:{}}; fbPush("empresas/"+empresaKey+"/rutas",nv).then(function(key){rutasData[key]=nv;rutaAbierta=key;renderRutas();}).catch(function(){alert("Error al crear ruta.");}); }
 function borrarRuta(rk){ if(!confirm("¿Borrar esta hoja de ruta completa?"))return; fbDel("empresas/"+empresaKey+"/rutas/"+rk).then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();}).catch(function(){alert("Error al borrar.");}); }
-function calcRuta(ruta){ var cl=Object.values(ruta.clientes||{}); var tot=cl.reduce(function(s,c){return s+(c.importe||0);},0); var cob=cl.reduce(function(s,c){return s+(c.efectivo||0)+(c.transferencia||0);},0); return{total:tot,cobrado:cob,saldo:tot-cob,clientes:cl.length,pagados:cl.filter(function(c){return(c.efectivo||0)+(c.transferencia||0)>=(c.importe||0);}).length}; }
+function calcRuta(ruta){
+  var cl=Object.values(ruta.clientes||{});
+  var tot=cl.reduce(function(s,c){return s+(c.importe||0);},0);
+  var cob=cl.reduce(function(s,c){
+    var base=(c.efectivo||0)+(c.transferencia||0);
+    var adicional=(c.pagosAdicionales||[]).reduce(function(sa,p){return sa+(p.monto||0);},0);
+    return s+base+adicional;
+  },0);
+  return{total:tot,cobrado:cob,saldo:tot-cob,clientes:cl.length,
+    pagados:cl.filter(function(c){
+      var base=(c.efectivo||0)+(c.transferencia||0);
+      var adicional=(c.pagosAdicionales||[]).reduce(function(sa,p){return sa+(p.monto||0);},0);
+      return base+adicional>=(c.importe||0);
+    }).length};
+}
 
 function renderRutas(){
   var wrap=document.getElementById("rutas-list");
@@ -991,6 +1018,13 @@ function buildClienteRow(rutaKey, cliKey, cli){
   }
 
   body.appendChild(pagoDiv);
+
+  // Pagos adicionales / historial
+  var pagosHist=document.createElement("div");
+  pagosHist.className="pagos-hist";
+  pagosHist.id="pagos-hist-"+rutaKey+"-"+cliKey;
+  renderPagosHist(pagosHist, rutaKey, cliKey);
+  body.appendChild(pagosHist);
 
   // Acciones cliente
   var cliAct=document.createElement("div");
@@ -1204,10 +1238,166 @@ function actualizarVentaDeRuta(rk, ck, nuevoTotal, items){
     }).catch(function(){});
 }
 
+function renderPagosHist(wrap, rk, ck){
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli) return;
+  var pagos=cli.pagosAdicionales||[];
+  var efBase=cli.efectivo||0, trBase=cli.transferencia||0;
+  var totalPagado=efBase+trBase+pagos.reduce(function(s,p){return s+(p.monto||0);},0);
+  var saldo=(cli.importe||0)-totalPagado;
+
+  wrap.innerHTML="";
+  var title=document.createElement("div");
+  title.className="pago-hist-title";
+  title.innerHTML='<span>💰 Historial de pagos</span><span style="color:'+(saldo<=0?"var(--green)":"var(--amber)")+'">Saldo: $'+fM(Math.abs(saldo))+(saldo<0?" a favor":"")+'</span>';
+  wrap.appendChild(title);
+
+  // Pago base del remito
+  if(efBase>0||trBase>0){
+    var baseRow=document.createElement("div");
+    baseRow.className="pago-hist-row";
+    baseRow.innerHTML='<span class="pago-hist-fecha">Al entregar</span>'+
+      '<span style="flex:1;color:var(--muted);font-size:11px">'+
+        (efBase>0?"💵 $"+fM(efBase):"")+
+        (efBase>0&&trBase>0?" + ":"")+
+        (trBase>0?"📲 $"+fM(trBase):"")+
+      '</span>'+
+      '<span class="pago-hist-monto">$'+fM(efBase+trBase)+'</span>';
+    wrap.appendChild(baseRow);
+  }
+
+  // Pagos adicionales
+  pagos.forEach(function(p,i){
+    var row=document.createElement("div");
+    row.className="pago-hist-row";
+    var fecha=p.fecha?new Date(p.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"}):"—";
+    var forma={efectivo:"💵",transferencia:"📲",mixto:"🔀"}[p.forma]||"💰";
+    row.innerHTML='<span class="pago-hist-fecha">'+fecha+'</span>'+
+      '<span style="flex:1;color:var(--muted);font-size:11px">'+forma+' '+(p.nota||p.forma||"")+'</span>'+
+      '<span class="pago-hist-monto">$'+fM(p.monto||0)+'</span>';
+    var del=document.createElement("button");
+    del.style.cssText="background:none;border:none;color:var(--muted2);font-size:14px;cursor:pointer;padding:2px 4px";
+    del.textContent="✕";
+    del.onclick=function(){borrarPagoAdicional(rk,ck,i);};
+    row.appendChild(del);
+    wrap.appendChild(row);
+  });
+
+  // Form to add new payment
+  var btnAdd=document.createElement("button");
+  btnAdd.className="btn-add-pago";
+  btnAdd.textContent="+ Agregar otro pago";
+  btnAdd.onclick=function(){
+    var form=wrap.querySelector(".nuevo-pago-form");
+    if(form) form.classList.toggle("open");
+    btnAdd.textContent=form&&form.classList.contains("open")?"✕ Cancelar":"+ Agregar otro pago";
+  };
+  wrap.appendChild(btnAdd);
+
+  var form=document.createElement("div");
+  form.className="nuevo-pago-form";
+  form.innerHTML=
+    '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Nuevo pago</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:8px">'+
+      '<input type="number" id="np-monto-'+rk+'-'+cliKey+'" placeholder="Monto $" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-weight:700;font-family:Inter,sans-serif;background:var(--surface);color:var(--text)">'+
+      '<select id="np-forma-'+rk+'-'+cliKey+'" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:Inter,sans-serif;background:var(--surface);color:var(--text);-webkit-appearance:none">'+
+        '<option value="efectivo">💵 Efectivo</option>'+
+        '<option value="transferencia">📲 Transfer.</option>'+
+        '<option value="cheque">📄 Cheque</option>'+
+      '</select>'+
+    '</div>'+
+    '<input type="text" id="np-nota-'+rk+'-'+cliKey+'" placeholder="Nota (opcional)" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:Inter,sans-serif;background:var(--surface);color:var(--text);margin-bottom:8px">'+
+    '<button data-rk="'+rk+'" data-ck="'+cliKey+'" onclick="confirmarPagoAdicional(this.dataset.rk,this.dataset.ck)" style="width:100%;padding:9px;background:var(--green);color:#fff;border:none;border-radius:7px;font-family:Inter,sans-serif;font-size:13px;font-weight:700;cursor:pointer">💾 Guardar pago</button>';
+  wrap.appendChild(form);
+}
+
+function confirmarPagoAdicional(rk, ck){
+  var montoEl=document.getElementById("np-monto-"+rk+"-"+ck);
+  var formaEl=document.getElementById("np-forma-"+rk+"-"+ck);
+  var notaEl=document.getElementById("np-nota-"+rk+"-"+ck);
+  var monto=parseFloat(montoEl?montoEl.value:0)||0;
+  var forma=formaEl?formaEl.value:"efectivo";
+  var nota=notaEl?notaEl.value.trim():"";
+  if(monto<=0){alert("Ingresá un monto mayor a 0");return;}
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli) return;
+  var nuevosPagos=(cli.pagosAdicionales||[]).slice();
+  var nuevoPago={monto:monto,forma:forma,nota:nota,fecha:new Date().toISOString(),usuario:currentUser?currentUser.id:"vendedor"};
+  nuevosPagos.push(nuevoPago);
+
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{pagosAdicionales:nuevosPagos})
+    .then(function(){
+      cli.pagosAdicionales=nuevosPagos;
+      // Sync to cuentas_corrientes
+      var movCC={tipo:"pago",fecha:nuevoPago.fecha,
+        concepto:"Pago "+forma+(nota?" — "+nota:"")+" (ruta)",
+        forma_pago:forma,debito:0,credito:monto,
+        usuario:currentUser?currentUser.id:"vendedor",ref_ruta:rk,ref_cli:ck};
+      fbPush("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom+"/movimientos",movCC).catch(function(){});
+      fbGet("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom)
+        .then(function(ccData){
+          var s=(ccData&&ccData.saldo)||0;
+          fbPatch("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo:s-monto}).catch(function(){});
+        }).catch(function(){});
+      clienteAbierto[rk]=ck;
+      renderRutas();
+    }).catch(function(){alert("Error al guardar pago.");});
+}
+
+function borrarPagoAdicional(rk,ck,idx){
+  if(!confirm("¿Borrar este pago?")) return;
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli) return;
+  var pagos=(cli.pagosAdicionales||[]).slice();
+  var pagoEliminado=pagos[idx];
+  pagos.splice(idx,1);
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{pagosAdicionales:pagos})
+    .then(function(){
+      cli.pagosAdicionales=pagos;
+      clienteAbierto[rk]=ck;
+      renderRutas();
+    }).catch(function(){alert("Error al borrar.");});
+}
+
 function toggleRuta(k){ rutaAbierta=rutaAbierta===k?null:k; renderRutas(); }
 function toggleCliente(rk,ck){ if(clienteAbierto[rk]===ck)delete clienteAbierto[rk]; else clienteAbierto[rk]=ck; renderRutas(); }
 function setModo(rk,ck,modo){ if(!rutasData[rk]||!rutasData[rk].clientes||!rutasData[rk].clientes[ck])return; rutasData[rk].clientes[ck].modo=modo; if(modo==="efectivo")rutasData[rk].clientes[ck].transferencia=0; if(modo==="transferencia")rutasData[rk].clientes[ck].efectivo=0; clienteAbierto[rk]=ck; renderRutas(); }
-function guardarPago(rk,ck){ if(!rutasData[rk]||!rutasData[rk].clientes||!rutasData[rk].clientes[ck])return; var cli=rutasData[rk].clientes[ck],modo=cli.modo||"ninguno"; var efEl=document.getElementById("ef-"+rk+"-"+ck),trEl=document.getElementById("tr-"+rk+"-"+ck); var ef=efEl?+efEl.value||0:0,tr=trEl?+trEl.value||0:0; cli.efectivo=ef;cli.transferencia=tr;clienteAbierto[rk]=ck; fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{efectivo:ef,transferencia:tr,modo:modo}).then(function(){renderRutas();}).catch(function(){alert("Error al guardar.");}); }
+function guardarPago(rk,ck){
+  if(!rutasData[rk]||!rutasData[rk].clientes||!rutasData[rk].clientes[ck])return;
+  var cli=rutasData[rk].clientes[ck],modo=cli.modo||"ninguno";
+  var efEl=document.getElementById("ef-"+rk+"-"+ck),trEl=document.getElementById("tr-"+rk+"-"+ck);
+  var ef=efEl?+efEl.value||0:0,tr=trEl?+trEl.value||0:0;
+  var efAnterior=cli.efectivo||0,trAnterior=cli.transferencia||0;
+  cli.efectivo=ef;cli.transferencia=tr;clienteAbierto[rk]=ck;
+
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{efectivo:ef,transferencia:tr,modo:modo})
+    .then(function(){
+      // Sync payment to cuentas_corrientes
+      var pagoNuevoEf=ef-efAnterior, pagoNuevoTr=tr-trAnterior;
+      var pagoTotal=pagoNuevoEf+pagoNuevoTr;
+      if(Math.abs(pagoTotal)>0.01){
+        var concepto="Pago "+(modo==="mixto"?"mixto":modo==="transferencia"?"transferencia":"efectivo")+" — "+cli.nom;
+        var partes=[];
+        if(pagoNuevoEf>0.01) partes.push("Efectivo $"+fM(pagoNuevoEf));
+        if(pagoNuevoTr>0.01) partes.push("Transfer. $"+fM(pagoNuevoTr));
+        var mov={tipo:"pago",fecha:new Date().toISOString(),
+          concepto:concepto+(partes.length?" ("+partes.join(" + ")+")":""),
+          forma_pago:modo,debito:0,credito:pagoTotal,
+          usuario:currentUser?currentUser.id:"vendedor",
+          ref_ruta:rk,ref_cli:ck};
+        fbPush("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom+"/movimientos",mov).catch(function(){});
+        // Update saldo
+        fbGet("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom)
+          .then(function(ccData){
+            var saldoActual=(ccData&&ccData.saldo)||0;
+            var nuevoSaldo=saldoActual-pagoTotal;
+            fbPatch("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo:nuevoSaldo}).catch(function(){});
+          }).catch(function(){});
+      }
+      renderRutas();
+    })
+    .catch(function(){alert("Error al guardar.");});
+}
 
 // RENOMBRAR
 function abrirRenombrar(rk){ modalRutaKey=rk; document.getElementById("modal-ruta-nombre").value=rutasData[rk]?rutasData[rk].nombre||"":""; abrirModal("modal-renombrar"); setTimeout(function(){document.getElementById("modal-ruta-nombre").focus();},100); }
