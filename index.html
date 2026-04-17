@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>RutaApp</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -227,6 +229,31 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 .dropdown::-webkit-scrollbar{width:3px}
 .dropdown::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
 
+/* ── MAPA ENTREGAS ── */
+#mapa-leaflet{height:320px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:12px;z-index:1;position:relative}
+.parada-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:border-color .2s}
+.parada-card.activa{border-color:var(--emp-primary)}
+.parada-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
+.parada-head{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.parada-info{flex:1;min-width:0}
+.parada-nom{font-size:14px;font-weight:700;color:var(--text)}
+.parada-dir{font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.parada-total{font-size:14px;font-weight:700;color:var(--emp-primary);white-space:nowrap;font-variant-numeric:tabular-nums}
+.nav-btns{display:flex;gap:6px;padding:0 14px 12px}
+.nav-btn{flex:1;padding:8px 4px;border:none;border-radius:7px;font-family:"Inter",sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:filter .15s;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px}
+.nav-btn:active{filter:brightness(.9)}
+.nav-gmaps{background:#4285f4;color:#fff}
+.nav-waze{background:#33ccff;color:#1a1a1a}
+.nav-apple{background:#1a1a1a;color:#fff}
+.dist-badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#e0e7ff;color:#3730a3;margin-left:6px}
+.geocoding-progress{text-align:center;padding:20px;color:var(--muted);font-size:13px}
+.ruta-sel-bar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.ruta-sel-bar select{flex:1;font-size:14px}
+.mapa-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.mapa-stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.mapa-stat-val{font-size:16px;font-weight:800;color:var(--navy)}
+.mapa-stat-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+
 /* FIRMA DIGITAL */
 .firma-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
 .firma-modal.open{display:flex}
@@ -235,8 +262,6 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 .firma-canvas{width:100%;touch-action:none;background:#f8fafc;cursor:crosshair;display:block}
 .firma-foot{padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--border)}
 
-/* GPS SORT */
-.gps-badge{background:#d1fae5;color:#065f46;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block;margin-left:6px}
 .print-cli-btn{background:var(--navy);border:1.5px solid rgba(255,255,255,.15);color:#94a3b8;border-radius:7px;padding:5px 9px;font-size:15px;cursor:pointer;flex-shrink:0;margin-left:6px;transition:all .15s;line-height:1}
 .print-cli-btn:active{background:var(--emp-primary);color:#fff;border-color:var(--emp-primary)}
 
@@ -324,6 +349,7 @@ textarea{resize:none;font-size:14px;line-height:1.5}
     <button class="sb-item" id="nav-hoja" onclick="verTab('hoja',this)"><span class="sb-icon">📋</span>Hoja de Ruta</button>
     <button class="sb-item" id="nav-backup" onclick="verTab('backup',this)"><span class="sb-icon">💾</span>Backup Pedidos</button>
     <button class="sb-item" id="nav-pedidos-acum" onclick="verTab('pedidos-acum',this)"><span class="sb-icon">🛒</span>Pedidos al Proveedor</button>
+    <button class="sb-item" id="nav-mapa-entregas" onclick="verTab('mapa-entregas',this)"><span class="sb-icon">🗺️</span>Mapa de Entregas</button>
     <button class="sb-item" id="nav-resumen" onclick="verTab('resumen',this)"><span class="sb-icon">📊</span>Resumen Mensual</button>
   </nav>
   <div class="sb-foot">
@@ -440,6 +466,22 @@ textarea{resize:none;font-size:14px;line-height:1.5}
   <div id="pedidos-acum-list"><div class="empty-box"><div class="empty-icon">🛒</div>Sin pedidos guardados aún.<br><small>Cada pedido enviado aparece acá agrupado por día.</small></div></div>
 </div>
 
+<div id="mapa-entregas" class="section">
+  <div class="ruta-sel-bar">
+    <select id="mapa-ruta-sel" onchange="seleccionarRutaMapa()">
+      <option value="">— Elegí una hoja de ruta —</option>
+    </select>
+    <button class="btn btn-primary btn-sm" onclick="optimizarYMostrar()">📍 Optimizar ruta</button>
+  </div>
+  <div id="mapa-stats" class="mapa-stats" style="display:none">
+    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-paradas">0</div><div class="mapa-stat-lbl">Paradas</div></div>
+    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-distancia">—</div><div class="mapa-stat-lbl">Distancia est.</div></div>
+    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-cobrar">$0</div><div class="mapa-stat-lbl">Por cobrar</div></div>
+  </div>
+  <div id="mapa-leaflet"></div>
+  <div id="mapa-paradas"></div>
+</div>
+
 <div id="resumen" class="section">
   <div class="res-toolbar">
     <select id="fil-mes" onchange="renderResumen()"></select>
@@ -510,7 +552,7 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 <script>
 var FB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual"};
+var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas"};
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
@@ -596,6 +638,7 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="pedidos-acum")cargarPedidosAcum();
+  if(id==="mapa-entregas")iniciarMapaEntregas();
   if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
 }
@@ -785,10 +828,6 @@ function renderRutas(){
     var btnPDF=document.createElement("button");
     btnPDF.className="btn-pdf"; btnPDF.textContent="📥 PDF";
     btnPDF.onclick=function(){descargarPDFRuta(rutaKey);};
-
-    var btnGPS=document.createElement("button");
-    btnGPS.className="btn-rename"; btnGPS.style.cssText="color:var(--green);border-color:var(--green)"; btnGPS.textContent="📍 Ordenar por GPS";
-    btnGPS.onclick=function(){ordenarRutaPorGPS(rutaKey);};
 
     var btnRen=document.createElement("button");
     btnRen.className="btn-rename"; btnRen.textContent="✏️ Renombrar";
@@ -1509,23 +1548,6 @@ function borrarFirma(rk, ck) {
     }).catch(function(){ alert("Error al borrar firma."); });
 }
 
-function ordenarRutaPorGPS(rutaKey) {
-  if (!navigator.geolocation) { alert("Tu dispositivo no soporta geolocalización"); return; }
-  navigator.geolocation.getCurrentPosition(function(pos) {
-    var lat0 = pos.coords.latitude, lng0 = pos.coords.longitude;
-    var ruta = rutasData[rutaKey];
-    if (!ruta || !ruta.clientes) return;
-    var clis = Object.entries(ruta.clientes).map(function(e){
-      var c = e[1];
-      // Calculate rough distance using address (can't geocode without API key)
-      // For now, just show a message and sort alphabetically as fallback
-      return { key: e[0], data: c };
-    });
-    alert("GPS activado ✅ En una versión futura esto ordenará la ruta por cercanía. Por ahora la ruta está ordenada como está.");
-  }, function(err) {
-    alert("No se pudo obtener tu ubicación: "+err.message);
-  });
-}
 
 /* ── ONLINE/OFFLINE ── */
 function actualizarEstadoConexion() {
@@ -1536,6 +1558,282 @@ function actualizarEstadoConexion() {
 window.addEventListener("online",  actualizarEstadoConexion);
 window.addEventListener("offline", actualizarEstadoConexion);
 
+// ══════════════════════════════════════════════════════
+// MAPA DE ENTREGAS
+// ══════════════════════════════════════════════════════
+var _mapaLeaflet = null;
+var _mapaMarkers = [];
+var _mapaParadas = [];
+var _geocodeCache = {};
+var _rutaMapaKey = null;
+
+function iniciarMapaEntregas() {
+  poblarSelectorMapaRutas();
+  cargarGeocodeCache();
+}
+
+function poblarSelectorMapaRutas() {
+  var sel = document.getElementById("mapa-ruta-sel");
+  var keys = Object.keys(rutasData).sort(function(a,b){
+    return (rutasData[b].fecha||"").localeCompare(rutasData[a].fecha||"");
+  });
+  sel.innerHTML = '<option value="">— Elegí una hoja de ruta —</option>' +
+    keys.map(function(k){
+      var r = rutasData[k];
+      var cant = Object.keys(r.clientes||{}).length;
+      var nombre = r.nombre || new Date(r.fecha||"").toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
+      return '<option value="'+k+'">'+nombre+' ('+cant+' clientes)</option>';
+    }).join("");
+  // Auto-select rutaAbierta
+  if(rutaAbierta && rutasData[rutaAbierta]) sel.value = rutaAbierta;
+}
+
+function seleccionarRutaMapa() {
+  _rutaMapaKey = document.getElementById("mapa-ruta-sel").value;
+}
+
+function cargarGeocodeCache() {
+  try { _geocodeCache = JSON.parse(localStorage.getItem("dm_geocache")||"{}"); } catch(e){ _geocodeCache={}; }
+}
+function saveGeocodeCache() {
+  try { localStorage.setItem("dm_geocache", JSON.stringify(_geocodeCache)); } catch(e){}
+}
+
+// Geocode via OpenStreetMap Nominatim (free, 1 req/sec)
+async function geocodeAddress(direccion) {
+  if (!direccion||!direccion.trim()) return null;
+  var key = direccion.trim().toLowerCase();
+  if (_geocodeCache[key]) return _geocodeCache[key];
+  try {
+    var url = "https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(direccion+", Puerto Madryn, Argentina")+"&limit=1";
+    var r = await fetch(url, {headers:{"Accept-Language":"es","User-Agent":"DistriMax-App/1.0"}});
+    var data = await r.json();
+    if (data && data[0]) {
+      var coords = {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)};
+      _geocodeCache[key] = coords;
+      saveGeocodeCache();
+      return coords;
+    }
+  } catch(e) { console.warn("Geocode error:", e); }
+  return null;
+}
+
+function getDistKm(lat1,lng1,lat2,lng2) {
+  var R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lat2-lng2)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Nearest-neighbor TSP starting from current GPS position
+function optimizarOrden(puntos, startLat, startLng) {
+  if (!puntos.length) return [];
+  var remaining = puntos.slice();
+  var ordered = [];
+  var curLat = startLat, curLng = startLng;
+  while (remaining.length) {
+    var best = 0, bestDist = Infinity;
+    remaining.forEach(function(p,i){
+      var d = getDistKm(curLat, curLng, p.lat, p.lng);
+      if (d < bestDist) { bestDist=d; best=i; }
+    });
+    ordered.push(remaining[best]);
+    curLat = remaining[best].lat; curLng = remaining[best].lng;
+    remaining.splice(best,1);
+  }
+  return ordered;
+}
+
+async function optimizarYMostrar() {
+  _rutaMapaKey = document.getElementById("mapa-ruta-sel").value;
+  if (!_rutaMapaKey) { alert("Elegí una hoja de ruta primero"); return; }
+  var ruta = rutasData[_rutaMapaKey];
+  if (!ruta) return;
+  var cliEntries = Object.entries(ruta.clientes||{});
+  if (!cliEntries.length) { alert("Esta ruta no tiene clientes"); return; }
+
+  // Show loading
+  document.getElementById("mapa-paradas").innerHTML =
+    '<div class="geocoding-progress">🔍 Buscando direcciones en el mapa...<br><small>Esto puede tardar unos segundos</small></div>';
+
+  // Get user location first
+  var startLat = -42.7682, startLng = -65.0351; // Puerto Madryn default
+  try {
+    await new Promise(function(res){
+      navigator.geolocation.getCurrentPosition(function(pos){
+        startLat=pos.coords.latitude; startLng=pos.coords.longitude; res();
+      }, function(){ res(); }, {timeout:5000});
+    });
+  } catch(e){}
+
+  // Find addresses from usuarios Firebase
+  var usuarios = {};
+  try {
+    var empData = await fbGet("empresas/"+empresaKey);
+    usuarios = empData.usuarios||{};
+  } catch(e){}
+
+  // Geocode each client
+  var puntos = [];
+  for (var ci=0; ci<cliEntries.length; ci++) {
+    var ck = cliEntries[ci][0];
+    var cli = cliEntries[ci][1];
+    // Find address from usuarios
+    var dir = "";
+    Object.values(usuarios).forEach(function(u){
+      if((u.id||"").toLowerCase()===(cli.id||cli.nom||"").toLowerCase()||(u.name||"").toLowerCase()===(cli.nom||"").toLowerCase())
+        dir=u.direccion||"";
+    });
+    document.getElementById("mapa-paradas").innerHTML =
+      '<div class="geocoding-progress">📍 Procesando '+cli.nom+'... ('+(ci+1)+'/'+cliEntries.length+')</div>';
+
+    var coords = dir ? await geocodeAddress(dir) : null;
+    puntos.push({
+      cliKey: ck, cli: cli, dir: dir,
+      lat: coords?coords.lat:null, lng: coords?coords.lng:null,
+      hasCoords: !!coords
+    });
+    if (dir && !_geocodeCache[dir.toLowerCase()]) await new Promise(function(r){setTimeout(r,1100);}); // Nominatim rate limit
+  }
+
+  // Separate geocoded vs not geocoded
+  var conCoords = puntos.filter(function(p){return p.hasCoords;});
+  var sinCoords = puntos.filter(function(p){return !p.hasCoords;});
+
+  // Optimize order
+  var ordered = optimizarOrden(conCoords, startLat, startLng).concat(sinCoords);
+
+  // Calculate total distance
+  var totalKm = 0;
+  var prev = {lat:startLat, lng:startLng};
+  conCoords.forEach(function(p){ totalKm+=getDistKm(prev.lat,prev.lng,p.lat,p.lng); prev={lat:p.lat,lng:p.lng}; });
+
+  // Total saldo
+  var totalSaldo = Object.values(ruta.clientes||{}).reduce(function(s,c){ return s+(c.importe||0)-(c.efectivo||0)-(c.transferencia||0); },0);
+
+  // Update stats
+  document.getElementById("mapa-stats").style.display="grid";
+  document.getElementById("ms-paradas").textContent = ordered.length;
+  document.getElementById("ms-distancia").textContent = conCoords.length>1 ? totalKm.toFixed(1)+" km" : "N/D";
+  document.getElementById("ms-cobrar").textContent = "$"+fM(totalSaldo);
+
+  // Init/update map
+  initMapa(startLat, startLng, ordered);
+
+  // Render paradas list
+  renderParadas(ordered);
+
+  _mapaParadas = ordered;
+}
+
+var COLORS = ["#e63946","#e09f3e","#2d6a4f","#1e56d0","#7b2d8b","#e85d04","#023e8a","#b5179e","#588157","#9d0208"];
+
+function initMapa(startLat, startLng, ordered) {
+  if (!_mapaLeaflet) {
+    _mapaLeaflet = L.map("mapa-leaflet").setView([startLat, startLng], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom:19
+    }).addTo(_mapaLeaflet);
+  }
+  // Clear existing markers and lines
+  _mapaMarkers.forEach(function(m){_mapaLeaflet.removeLayer(m);});
+  _mapaMarkers=[];
+
+  // Start marker (my position)
+  var startIcon = L.divIcon({html:'<div style="background:#059669;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)">📍</div>',iconSize:[30,30],iconAnchor:[15,15],className:""});
+  var startMarker = L.marker([startLat,startLng],{icon:startIcon}).addTo(_mapaLeaflet).bindPopup("Mi ubicación actual");
+  _mapaMarkers.push(startMarker);
+
+  // Route line points
+  var linePoints = [[startLat,startLng]];
+  var bounds = [[startLat,startLng]];
+
+  ordered.forEach(function(p,i){
+    if(!p.hasCoords) return;
+    var color = COLORS[i%COLORS.length];
+    var icon = L.divIcon({
+      html:'<div style="background:'+color+';color:#fff;min-width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);padding:0 4px">'+(i+1)+'</div>',
+      iconSize:[28,28],iconAnchor:[14,14],className:""
+    });
+    var ef=p.cli.efectivo||0,tr=p.cli.transferencia||0;
+    var saldo=(p.cli.importe||0)-ef-tr;
+    var popup = "<b>"+(i+1)+". "+p.cli.nom+"</b><br>"+
+      (p.dir?p.dir+"<br>":"Dirección no registrada<br>")+
+      "Total: $"+fM(p.cli.importe||0)+"<br>"+
+      (saldo>0?"<span style='color:#d97706'>⚠️ Saldo: $"+fM(saldo)+"</span>":"<span style='color:#059669'>✅ Cobrado</span>");
+    var marker = L.marker([p.lat,p.lng],{icon:icon}).addTo(_mapaLeaflet).bindPopup(popup);
+    _mapaMarkers.push(marker);
+    linePoints.push([p.lat,p.lng]);
+    bounds.push([p.lat,p.lng]);
+  });
+
+  // Draw route line
+  if(linePoints.length>1){
+    var line = L.polyline(linePoints,{color:"#1e56d0",weight:3,opacity:.7,dashArray:"8,6"}).addTo(_mapaLeaflet);
+    _mapaMarkers.push(line);
+  }
+
+  // Fit bounds
+  if(bounds.length>1) _mapaLeaflet.fitBounds(bounds,{padding:[30,30]});
+
+  // Force resize (needed when tab switches)
+  setTimeout(function(){_mapaLeaflet.invalidateSize();},300);
+}
+
+function renderParadas(ordered) {
+  var wrap = document.getElementById("mapa-paradas");
+  if (!ordered.length) { wrap.innerHTML="<div class='empty-box'><div class='empty-icon'>📍</div>Sin paradas.</div>"; return; }
+  wrap.innerHTML = "";
+  ordered.forEach(function(p,i){
+    var color = COLORS[i%COLORS.length];
+    var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
+    var saldo=(p.cli.importe||0)-ef-tr;
+    var card = document.createElement("div");
+    card.className="parada-card";
+    card.id="parada-"+i;
+
+    var lat=p.lat, lng=p.lng;
+    var dir=p.dir||p.cli.nom;
+    var gmaps="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir+", Puerto Madryn, Argentina");
+    var waze="https://waze.com/ul?q="+encodeURIComponent(dir+", Puerto Madryn, Argentina")+"&navigate=yes";
+    var apple="https://maps.apple.com/?daddr="+encodeURIComponent(dir+", Puerto Madryn, Argentina");
+    if(lat&&lng){
+      gmaps="https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng;
+      waze="https://waze.com/ul?ll="+lat+","+lng+"&navigate=yes";
+      apple="https://maps.apple.com/?daddr="+lat+","+lng;
+    }
+
+    card.innerHTML=
+      '<div class="parada-head" onclick="focusParada('+i+','+lat+','+lng+')">'+
+        '<div class="parada-num" style="background:'+color+'">'+(i+1)+'</div>'+
+        '<div class="parada-info">'+
+          '<div class="parada-nom">'+p.cli.nom+'</div>'+
+          '<div class="parada-dir">'+(p.dir||'<span style="color:#f59e0b">⚠️ Sin dirección registrada</span>')+'</div>'+
+        '</div>'+
+        '<div>'+
+          '<div class="parada-total">$'+fM(p.cli.importe||0)+'</div>'+
+          (saldo>0?'<div style="font-size:10px;color:var(--amber);font-weight:700;text-align:right">$'+fM(saldo)+' pend.</div>':'<div style="font-size:10px;color:var(--green);font-weight:700">✓ Cobrado</div>')+
+        '</div>'+
+      '</div>'+
+      '<div class="nav-btns">'+
+        '<a href="'+gmaps+'" target="_blank" class="nav-btn nav-gmaps">🗺️ Google Maps</a>'+
+        '<a href="'+waze+'" target="_blank" class="nav-btn nav-waze">🚗 Waze</a>'+
+        '<a href="'+apple+'" target="_blank" class="nav-btn nav-apple"> Apple Maps</a>'+
+      '</div>';
+    wrap.appendChild(card);
+  });
+}
+
+function focusParada(i, lat, lng) {
+  if (!lat||!lng||!_mapaLeaflet) return;
+  _mapaLeaflet.setView([lat,lng],16);
+  _mapaMarkers[i+1] && _mapaMarkers[i+1].openPopup();
+  document.querySelectorAll(".parada-card").forEach(function(c){c.classList.remove("activa");});
+  var card=document.getElementById("parada-"+i);
+  if(card){card.classList.add("activa");card.scrollIntoView({behavior:"smooth",block:"nearest"});}
+}
+
+// ══════════════════════════════════════════════════════
 // Modales: cerrar al click en fondo
 document.addEventListener("click",function(e){
   if(e.target.classList.contains("modal-bg"))e.target.classList.remove("open");
