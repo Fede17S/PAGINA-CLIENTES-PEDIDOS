@@ -838,6 +838,23 @@ function buildClienteRow(rutaKey, cliKey, cli){
   var body=document.createElement("div");
   body.className="ruta-cli-body"+(isCO?" open":"");
 
+  // Firma guardada — mostrar imagen si existe
+  if(cli.firma){
+    var firmaWrap=document.createElement("div");
+    firmaWrap.style.cssText="margin-bottom:8px;padding:8px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px";
+    var firmaFecha=cli.firmadoEn?new Date(cli.firmadoEn).toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+    firmaWrap.innerHTML=
+      '<div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:6px">✅ FIRMA REGISTRADA'+
+        (firmaFecha?' — '+firmaFecha:'')+
+      '</div>'+
+      '<img src="'+cli.firma+'" style="max-width:100%;border-radius:6px;border:1px solid #a7f3d0;background:#fff;display:block">'+
+      '<button data-rk="'+rutaKey+'" data-ck="'+cliKey+'" onclick="borrarFirma(this.dataset.rk,this.dataset.ck)" '+
+        'style="margin-top:8px;width:100%;padding:6px;background:none;border:1px solid #dc2626;border-radius:6px;'+
+        'color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">'+
+        '🗑 Borrar firma</button>';
+    body.appendChild(firmaWrap);
+  }
+
   // Items list
   var items=cli.items||[];
   if(items.length){
@@ -916,7 +933,12 @@ function buildClienteRow(rutaKey, cliKey, cli){
   var btnFirma=document.createElement("button");
   btnFirma.className="btn-mover";
   btnFirma.style.cssText="background:#f0fdf4;color:var(--green);border-color:var(--green)";
-  btnFirma.textContent=(cli.firma?"✅ Firmado":"✍️ Pedir firma");
+  if(cli.firma){
+    btnFirma.textContent="✅ Ver firma";
+    btnFirma.style.cssText="background:#f0fdf4;color:#065f46;border:1.5px solid #059669";
+  } else {
+    btnFirma.textContent="✍️ Pedir firma";
+  }
   btnFirma.onclick=function(){abrirFirma(rutaKey,cliKey);};
 
   var btnMover=document.createElement("button");
@@ -958,14 +980,20 @@ function imprimirRemitoCli(rk, ck){
     theme:"striped",
     headStyles:{fillColor:[13,27,42]}
   });
+  var yFin = doc.lastAutoTable.finalY+8;
   if(pagado>0){
-    var y=doc.lastAutoTable.finalY+10;
-    doc.setFont("helvetica","bold"); doc.text("COBRO:",14,y);
+    doc.setFont("helvetica","bold"); doc.text("COBRO:",14,yFin);
     doc.setFont("helvetica","normal");
-    if(ef>0) doc.text("Efectivo: $"+fM(ef),40,y);
-    if(tr>0) doc.text("Transferencia: $"+fM(tr),(ef>0?95:40),y);
+    if(ef>0) doc.text("Efectivo: $"+fM(ef),40,yFin);
+    if(tr>0) doc.text("Transferencia: $"+fM(tr),(ef>0?95:40),yFin);
+    yFin+=10;
   }
-  // Open in new tab so browser print dialog appears
+  // Add firma image if exists
+  if(cli.firma){
+    doc.setFont("helvetica","bold"); doc.text("FIRMA DEL CLIENTE:",14,yFin+4);
+    try{ doc.addImage(cli.firma,"JPEG",14,yFin+8,80,32); } catch(e){}
+    yFin+=48;
+  }
   var pdfUrl = doc.output("bloburl");
   window.open(pdfUrl,"_blank");
 }
@@ -1442,19 +1470,45 @@ function limpiarFirma() {
 
 function confirmarFirma() {
   var canvas = document.getElementById("firma-canvas");
-  firmaDataURL = canvas.toDataURL("image/png");
+  // Compress: redraw at smaller size as JPEG to minimize Firebase payload
+  var small = document.createElement("canvas");
+  small.width = 400; small.height = 160;
+  var ctx2 = small.getContext("2d");
+  ctx2.fillStyle = "#fff";
+  ctx2.fillRect(0,0,400,160);
+  ctx2.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 400, 160);
+  // Check if canvas has any drawing (not blank)
+  var data = ctx2.getImageData(0,0,400,160).data;
+  var hasDrawing = false;
+  for(var i=0;i<data.length;i+=4){ if(data[i]<240||data[i+1]<240||data[i+2]<240){hasDrawing=true;break;} }
+  if(!hasDrawing){ alert("El cliente tiene que firmar antes de confirmar."); return; }
+  firmaDataURL = small.toDataURL("image/jpeg", 0.5); // JPEG 50% quality = ~10-20KB
   if (firmaRutaKey && firmaCliKey) {
-    fbPatch("empresas/"+empresaKey+"/rutas/"+firmaRutaKey+"/clientes/"+firmaCliKey, {firma: firmaDataURL})
+    fbPatch("empresas/"+empresaKey+"/rutas/"+firmaRutaKey+"/clientes/"+firmaCliKey, {firma: firmaDataURL, firmadoEn: new Date().toISOString()})
       .then(function(){
-        if(rutasData[firmaRutaKey]&&rutasData[firmaRutaKey].clientes&&rutasData[firmaRutaKey].clientes[firmaCliKey])
+        if(rutasData[firmaRutaKey]&&rutasData[firmaRutaKey].clientes&&rutasData[firmaRutaKey].clientes[firmaCliKey]){
           rutasData[firmaRutaKey].clientes[firmaCliKey].firma = firmaDataURL;
+          rutasData[firmaRutaKey].clientes[firmaCliKey].firmadoEn = new Date().toISOString();
+        }
         cerrarModal("modal-firma");
         renderRutas();
-      }).catch(function(){ alert("Error al guardar firma"); });
+      }).catch(function(e){ alert("Error al guardar firma: "+e.message+". Intentá de nuevo."); });
   }
 }
 
 /* ── GPS SORT ── */
+function borrarFirma(rk, ck) {
+  if(!confirm("¿Borrar la firma de este cliente?")) return;
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {firma:"", firmadoEn:""})
+    .then(function(){
+      if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
+        delete rutasData[rk].clientes[ck].firma;
+        delete rutasData[rk].clientes[ck].firmadoEn;
+      }
+      renderRutas();
+    }).catch(function(){ alert("Error al borrar firma."); });
+}
+
 function ordenarRutaPorGPS(rutaKey) {
   if (!navigator.geolocation) { alert("Tu dispositivo no soporta geolocalización"); return; }
   navigator.geolocation.getCurrentPosition(function(pos) {
