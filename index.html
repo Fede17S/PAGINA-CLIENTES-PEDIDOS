@@ -473,6 +473,12 @@ textarea{resize:none;font-size:14px;line-height:1.5}
     </select>
     <button class="btn btn-primary btn-sm" onclick="optimizarYMostrar()">📍 Optimizar ruta</button>
   </div>
+  <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap">
+    <input type="text" id="test-dir-input" placeholder="📍 Probá una dirección: Ej. San Martín 450" style="flex:1;padding:9px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:Inter,sans-serif;background:var(--surface);color:var(--text);outline:none">
+    <button onclick="testDireccion()" class="btn btn-ghost btn-sm" style="white-space:nowrap">🔍 Verificar</button>
+  </div>
+  <div id="test-dir-result" style="display:none;font-size:12px;padding:8px 12px;border-radius:7px;margin-bottom:8px"></div>
+
   <div id="mapa-stats" class="mapa-stats" style="display:none">
     <div class="mapa-stat"><div class="mapa-stat-val" id="ms-paradas">0</div><div class="mapa-stat-lbl">Paradas</div></div>
     <div class="mapa-stat"><div class="mapa-stat-val" id="ms-distancia">—</div><div class="mapa-stat-lbl">Distancia est.</div></div>
@@ -1568,8 +1574,22 @@ var _geocodeCache = {};
 var _rutaMapaKey = null;
 
 function iniciarMapaEntregas() {
-  poblarSelectorMapaRutas();
   cargarGeocodeCache();
+  if (!Object.keys(rutasData).length) {
+    // Rutas not loaded yet — fetch them first
+    document.getElementById("mapa-paradas").innerHTML =
+      '<div class="geocoding-progress">☁️ Cargando hojas de ruta...</div>';
+    fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
+      rutasData = d||{};
+      poblarSelectorMapaRutas();
+      document.getElementById("mapa-paradas").innerHTML="";
+    }).catch(function(){
+      document.getElementById("mapa-paradas").innerHTML =
+        '<div class="geocoding-progress">❌ Error cargando rutas</div>';
+    });
+  } else {
+    poblarSelectorMapaRutas();
+  }
 }
 
 function poblarSelectorMapaRutas() {
@@ -1665,11 +1685,19 @@ async function optimizarYMostrar() {
     });
   } catch(e){}
 
-  // Find addresses from usuarios Firebase
+  // Find addresses from usuarios Firebase + clientesCSV
   var usuarios = {};
+  var usuariosMap = {}; // nombre.lower() -> direccion
   try {
     var empData = await fbGet("empresas/"+empresaKey);
     usuarios = empData.usuarios||{};
+    // Build lookup map by name AND id
+    Object.values(usuarios).forEach(function(u){
+      if(u.direccion){
+        usuariosMap[(u.name||"").toLowerCase()] = u.direccion;
+        usuariosMap[(u.id||"").toLowerCase()]   = u.direccion;
+      }
+    });
   } catch(e){}
 
   // Geocode each client
@@ -1677,12 +1705,9 @@ async function optimizarYMostrar() {
   for (var ci=0; ci<cliEntries.length; ci++) {
     var ck = cliEntries[ci][0];
     var cli = cliEntries[ci][1];
-    // Find address from usuarios
-    var dir = "";
-    Object.values(usuarios).forEach(function(u){
-      if((u.id||"").toLowerCase()===(cli.id||cli.nom||"").toLowerCase()||(u.name||"").toLowerCase()===(cli.nom||"").toLowerCase())
-        dir=u.direccion||"";
-    });
+    // Find address from usuarios map (by name or id)
+    var dir = usuariosMap[(cli.nom||"").toLowerCase()] ||
+              usuariosMap[(cli.id||"").toLowerCase()] || "";
     document.getElementById("mapa-paradas").innerHTML =
       '<div class="geocoding-progress">📍 Procesando '+cli.nom+'... ('+(ci+1)+'/'+cliEntries.length+')</div>';
 
@@ -1721,8 +1746,18 @@ async function optimizarYMostrar() {
 
   // Render paradas list
   renderParadas(ordered);
-
   _mapaParadas = ordered;
+
+  // Show address status summary
+  var sinDir = ordered.filter(function(p){return !p.dir;});
+  if(sinDir.length){
+    var warn = document.createElement("div");
+    warn.style.cssText="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:#92400e";
+    warn.innerHTML="<b>⚠️ "+sinDir.length+" cliente(s) sin dirección registrada:</b><br>"+
+      sinDir.map(function(p){return "• "+p.cli.nom;}).join("<br>")+
+      "<br><br><small>Agregá sus direcciones en <b>RutaApp Admin → Clientes & Usuarios</b> para que aparezcan en el mapa.</small>";
+    document.getElementById("mapa-paradas").insertBefore(warn, document.getElementById("mapa-paradas").firstChild);
+  }
 }
 
 var COLORS = ["#e63946","#e09f3e","#2d6a4f","#1e56d0","#7b2d8b","#e85d04","#023e8a","#b5179e","#588157","#9d0208"];
@@ -1831,6 +1866,32 @@ function focusParada(i, lat, lng) {
   document.querySelectorAll(".parada-card").forEach(function(c){c.classList.remove("activa");});
   var card=document.getElementById("parada-"+i);
   if(card){card.classList.add("activa");card.scrollIntoView({behavior:"smooth",block:"nearest"});}
+}
+
+async function testDireccion() {
+  var dir = document.getElementById("test-dir-input").value.trim();
+  var res = document.getElementById("test-dir-result");
+  if(!dir){ res.style.display="none"; return; }
+  res.style.cssText="display:block;background:#f1f5f9;border:1px solid var(--border);border-radius:7px;padding:8px 12px;font-size:12px;color:var(--muted)";
+  res.textContent="🔍 Buscando...";
+  // Clear cache for this address to force fresh lookup
+  delete _geocodeCache[dir.toLowerCase()];
+  var coords = await geocodeAddress(dir);
+  if(coords){
+    res.style.cssText="display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:7px;padding:8px 12px;font-size:12px;color:#065f46";
+    res.innerHTML="✅ Dirección encontrada — Lat: "+coords.lat.toFixed(5)+", Lng: "+coords.lng.toFixed(5)+
+      '<br><a href="https://www.google.com/maps?q='+coords.lat+','+coords.lng+'" target="_blank" style="color:#1e56d0;font-weight:700">Ver en Google Maps →</a>';
+    // Show pin on map if loaded
+    if(_mapaLeaflet){
+      _mapaLeaflet.setView([coords.lat,coords.lng],15);
+      var tmpIcon=L.divIcon({html:'<div style="background:#e63946;color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">📍 '+dir+'</div>',iconAnchor:[0,0],className:""});
+      var tmp=L.marker([coords.lat,coords.lng],{icon:tmpIcon}).addTo(_mapaLeaflet).bindPopup("✅ "+dir).openPopup();
+      setTimeout(function(){_mapaLeaflet.removeLayer(tmp);},8000);
+    }
+  } else {
+    res.style.cssText="display:block;background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;padding:8px 12px;font-size:12px;color:#991b1b";
+    res.innerHTML="❌ No se encontró esa dirección. Intentá con más detalle, por ejemplo: <i>San Martín 450, Puerto Madryn</i>";
+  }
 }
 
 // ══════════════════════════════════════════════════════
