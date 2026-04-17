@@ -229,6 +229,20 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 .dropdown::-webkit-scrollbar{width:3px}
 .dropdown::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
 
+/* EDITAR ITEMS RUTA */
+.edit-items-wrap{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px}
+.edit-items-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+.edit-item-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.edit-item-row:last-child{border-bottom:none}
+.edit-item-name{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.edit-item-cant{width:52px;padding:5px 7px;text-align:center;font-size:13px;font-weight:700;border:1.5px solid var(--border);border-radius:6px;font-family:"Inter",sans-serif}
+.edit-item-cant:focus{border-color:var(--emp-primary);outline:none}
+.edit-item-del{background:none;border:none;color:var(--muted2);font-size:16px;cursor:pointer;padding:2px 4px;border-radius:4px;flex-shrink:0}
+.edit-item-del:active{color:var(--red);background:#fee2e2}
+.add-producto-ruta{display:flex;gap:6px;margin-top:8px}
+.add-producto-ruta input{flex:1;font-size:13px;padding:8px 10px}
+.add-producto-ruta .dropdown{top:calc(100% + 2px)}
+
 /* ── MAPA ENTREGAS ── */
 #mapa-leaflet{height:320px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:12px;z-index:1;position:relative}
 .parada-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:border-color .2s}
@@ -914,6 +928,13 @@ function buildClienteRow(rutaKey, cliKey, cli){
     body.appendChild(itemsDiv);
   }
 
+  // ── EDITAR ITEMS ──
+  var editWrap=document.createElement("div");
+  editWrap.className="edit-items-wrap";
+  editWrap.id="edit-items-"+rutaKey+"-"+cliKey;
+  renderEditItems(editWrap, rutaKey, cliKey);
+  body.appendChild(editWrap);
+
   // Pago section
   var pagoDiv=document.createElement("div");
   pagoDiv.className="pago-section";
@@ -1043,6 +1064,145 @@ function imprimirRemitoCli(rk, ck){
   window.open(pdfUrl,"_blank");
 }
 
+
+function renderEditItems(wrap, rk, ck){
+  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli) return;
+  var items = (cli.items||[]).slice();
+
+  wrap.innerHTML = "";
+  var title = document.createElement("div");
+  title.className = "edit-items-title";
+  title.textContent = "✏️ Editar productos del remito";
+  wrap.appendChild(title);
+
+  // Existing items editable
+  items.forEach(function(it, i){
+    var row = document.createElement("div");
+    row.className = "edit-item-row";
+    var nameEl = document.createElement("span");
+    nameEl.className = "edit-item-name";
+    nameEl.title = it.n;
+    nameEl.textContent = it.n;
+
+    var cantEl = document.createElement("input");
+    cantEl.type = "number"; cantEl.min = "0"; cantEl.step = "1";
+    cantEl.className = "edit-item-cant";
+    cantEl.value = it.c;
+    cantEl.onchange = function(){
+      var newC = parseFloat(this.value)||0;
+      if(newC <= 0){ items.splice(i,1); }
+      else { items[i] = Object.assign({},it,{c:newC,sub:it.p*newC}); }
+      guardarItemsEditados(rk, ck, items, wrap);
+    };
+
+    var delEl = document.createElement("button");
+    delEl.className = "edit-item-del";
+    delEl.textContent = "✕";
+    delEl.onclick = function(){
+      items.splice(i,1);
+      guardarItemsEditados(rk, ck, items, wrap);
+    };
+
+    var priceEl = document.createElement("span");
+    priceEl.style.cssText = "font-size:12px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums";
+    priceEl.textContent = "$"+fM(it.p);
+
+    row.appendChild(nameEl);
+    row.appendChild(cantEl);
+    row.appendChild(priceEl);
+    row.appendChild(delEl);
+    wrap.appendChild(row);
+  });
+
+  // Add product search
+  var addRow = document.createElement("div");
+  addRow.className = "add-producto-ruta";
+  var searchWrap = document.createElement("div");
+  searchWrap.className = "search-wrap";
+  searchWrap.style.flex = "1";
+  var searchIn = document.createElement("input");
+  searchIn.type = "text";
+  searchIn.placeholder = "+ Agregar producto...";
+  searchIn.autocomplete = "off";
+  var dropDown = document.createElement("div");
+  dropDown.className = "dropdown";
+
+  searchIn.oninput = function(){
+    var q = this.value.toLowerCase().trim();
+    dropDown.innerHTML = "";
+    if(q.length < 1){ dropDown.classList.remove("open"); return; }
+    var res = dbStock.filter(function(p){
+      return p.id.toLowerCase().includes(q)||p.n.toLowerCase().includes(q);
+    }).slice(0,10);
+    if(res.length){
+      dropDown.classList.add("open");
+      var lista = tipoLista[ck]||cli.lista||"Clientes";
+      res.forEach(function(p){
+        var pre = lista==="Patagonia"?p.pPat:p.pCli;
+        var div = document.createElement("div");
+        div.className = "dd-item";
+        div.innerHTML = '<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span><span class="dd-price">$'+fM(pre)+'</span>';
+        div.onclick = function(){
+          var exist = items.find(function(x){return x.id===p.id;});
+          if(exist){ exist.c+=1; exist.sub=exist.p*exist.c; }
+          else items.push({id:p.id,n:p.n,p:pre,c:1,sub:pre});
+          searchIn.value=""; dropDown.classList.remove("open");
+          guardarItemsEditados(rk,ck,items,wrap);
+        };
+        dropDown.appendChild(div);
+      });
+    } else dropDown.classList.remove("open");
+  };
+
+  searchWrap.appendChild(searchIn);
+  searchWrap.appendChild(dropDown);
+  addRow.appendChild(searchWrap);
+  wrap.appendChild(addRow);
+}
+
+function guardarItemsEditados(rk, ck, items, wrap){
+  // Recalculate importe from items
+  var nuevoTotal = items.reduce(function(s,it){return s+it.sub;},0);
+  var patch = {items: items, importe: nuevoTotal};
+  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
+    rutasData[rk].clientes[ck].items = items;
+    rutasData[rk].clientes[ck].importe = nuevoTotal;
+  }
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch)
+    .then(function(){
+      // Refresh the edit wrap
+      renderEditItems(wrap, rk, ck);
+      // Also update the ventas total if there's a matching venta
+      actualizarVentaDeRuta(rk, ck, nuevoTotal, items);
+      // Re-render totals
+      renderRutas();
+    })
+    .catch(function(){ alert("Error al guardar cambios."); });
+}
+
+function actualizarVentaDeRuta(rk, ck, nuevoTotal, items){
+  // Find the venta in Firebase that matches this remito and update it
+  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli||!cli.fecha) return;
+  // Look through ventas for a matching entry (same client, same approximate date)
+  fbGet("empresas/"+empresaKey+"/ventas")
+    .then(function(ventas){
+      if(!ventas) return;
+      var cliNom = cli.nom||"";
+      var cliDate = (cli.fecha||"").slice(0,10);
+      // Find matching venta
+      var match = Object.entries(ventas).find(function(e){
+        var v = e[1];
+        return v.clienteNom===cliNom && (v.fecha||"").slice(0,10)===cliDate;
+      });
+      if(match){
+        var fbKey = match[0];
+        fbPatch("empresas/"+empresaKey+"/ventas/"+fbKey, {total:nuevoTotal, items:items})
+          .catch(function(){});
+      }
+    }).catch(function(){});
+}
 
 function toggleRuta(k){ rutaAbierta=rutaAbierta===k?null:k; renderRutas(); }
 function toggleCliente(rk,ck){ if(clienteAbierto[rk]===ck)delete clienteAbierto[rk]; else clienteAbierto[rk]=ck; renderRutas(); }
