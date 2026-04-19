@@ -33,7 +33,7 @@ body{font-family:"Inter",sans-serif;background:var(--bg);color:var(--text);min-h
 .l-btn{width:100%;padding:13px;border:none;border-radius:8px;background:var(--emp-primary);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:"Inter",sans-serif;transition:filter .15s;margin-top:4px}
 .l-btn:active{filter:brightness(.9)}
 .l-err{font-size:12px;color:#fca5a5;text-align:center;margin-top:10px;min-height:18px}
-.l-debug{display:none;margin-top:12px;padding:10px;background:rgba(0,0,0,.3);border-radius:7px;font-size:11px;font-family:monospace;color:#94a3b8;white-space:pre-wrap;text-align:left;max-height:220px;overflow-y:auto;line-height:1.6}
+.l-debug{display:none!important;margin-top:12px;padding:10px;background:rgba(0,0,0,.3);border-radius:7px;font-size:11px;font-family:monospace;color:#94a3b8;white-space:pre-wrap;text-align:left;max-height:220px;overflow-y:auto;line-height:1.6}
 
 #app{display:none}
 #app.on{display:block}
@@ -646,7 +646,7 @@ function doLogin(){
   if(!empCod||!uid||!pass){err.textContent="Completá todos los campos";return;}
   err.textContent="🔄 Conectando…";
   var log="";
-  function addLog(txt){log+=txt+"\n";dbg.textContent=log;dbg.style.display="block";}
+  function addLog(txt){log+=txt+"\n";} // debug disabled in production
   fetch(FB+"/empresas.json").then(function(resp){
     addLog("HTTP: "+resp.status);
     if(resp.status===401||resp.status===403){err.textContent="🔒 Firebase bloqueado — revisá las reglas";throw new Error("blocked");}
@@ -659,7 +659,20 @@ function doLogin(){
     Object.keys(empresas).forEach(function(k){var e=empresas[k];if(e&&e.codigo&&e.codigo.toString().toLowerCase().trim()===empCod)key=k;});
     if(!key){err.textContent="❌ Empresa '"+empCod+"' no encontrada";addLog("Códigos: "+Object.values(empresas).map(function(e){return e.codigo||"?";}).join(", "));return;}
     var emp=empresas[key];
-    if(emp.estado==="inactiva"){err.textContent="⏸ Cuenta suspendida";return;}
+    // Check estado and vencimiento BEFORE user auth
+    if(emp.estado==="inactiva"){
+      showSuspendedCli("Esta cuenta está suspendida. Contactá al administrador.");
+      err.textContent=""; dbg.style.display="none";
+      return;
+    }
+    if(emp.vence){
+      var venceDate=new Date(emp.vence); venceDate.setHours(23,59,59);
+      if(new Date()>venceDate){
+        showSuspendedCli("La suscripción venció el "+venceDate.toLocaleDateString("es-AR")+". Contactá al administrador.");
+        err.textContent=""; dbg.style.display="none";
+        return;
+      }
+    }
     var users=emp.usuarios||{};
     addLog("Usuarios: "+Object.keys(users).join(", "));
     var foundUser=null;
