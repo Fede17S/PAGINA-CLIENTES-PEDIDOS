@@ -653,8 +653,24 @@ function doLogin(){
 }
 
 function aplicarBranding(){
-  if(empresaData.logo&&empresaData.logo.length>100){document.getElementById("login-logo").src=empresaData.logo;document.getElementById("sb-logo").src=empresaData.logo;}
-  document.getElementById("sb-emp-name").textContent=empresaData.nombre||"";
+  var d = empresaData;
+  if(!d) return;
+  // Logo
+  if(d.logo&&d.logo.length>100){
+    var ll=document.getElementById("login-logo"); if(ll) ll.src=d.logo;
+    var sl=document.getElementById("sb-logo"); if(sl) sl.src=d.logo;
+  }
+  // App name
+  var appName = d.appname||d.nombre||"RutaApp";
+  var sn=document.getElementById("sb-emp-name"); if(sn) sn.textContent=d.nombre||"";
+  document.title = appName;
+  var lTitle=document.getElementById("login-app-title"); if(lTitle) lTitle.textContent=appName;
+  // Color primary
+  if(d.color){ document.documentElement.style.setProperty("--emp-primary", d.color); }
+  // WhatsApp (used by pedidos sharing)
+  if(d.whatsapp) window._empWhatsapp = d.whatsapp;
+  // Plan check
+  window._empPlan = d.plan||"pro";
 }
 function doLogout(){ if(!confirm("¿Cerrar sesión?"))return; sessionStorage.removeItem("dm_session"); location.reload(); }
 function iniciarApp(){ document.getElementById("login-screen").style.display="none"; document.getElementById("app").classList.add("on"); document.getElementById("sb-username").textContent=currentUser.name||currentUser.id; aplicarRol(); cargarCatalogo(); }
