@@ -229,6 +229,18 @@ textarea{resize:none;font-size:14px;line-height:1.5}
 .dropdown::-webkit-scrollbar{width:3px}
 .dropdown::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
 
+/* CUENTA SUSPENDIDA */
+#suspended-screen{display:none;position:fixed;inset:0;background:#0d1b2a;z-index:9999;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px}
+#suspended-screen.show{display:flex}
+.susp-icon{font-size:64px;margin-bottom:20px}
+.susp-title{font-size:22px;font-weight:800;color:#f1f5f9;margin-bottom:8px}
+.susp-sub{font-size:14px;color:#94a3b8;max-width:380px;line-height:1.7;margin-bottom:28px}
+.susp-wa{display:inline-flex;align-items:center;gap:8px;background:#25d366;color:#fff;padding:13px 26px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px}
+.plan-locked{text-align:center;padding:60px 24px;color:var(--muted)}
+.plan-locked-icon{font-size:48px;margin-bottom:12px}
+.plan-locked h3{font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px}
+.plan-locked p{font-size:13px;line-height:1.6;max-width:320px;margin:0 auto}
+
 /* EDITAR ITEMS RUTA */
 .edit-items-wrap{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px}
 .edit-items-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
@@ -361,6 +373,13 @@ textarea{resize:none;font-size:14px;line-height:1.5}
     <div id="l-err" class="l-err"></div>
     <div id="l-debug" class="l-debug"></div>
   </div>
+</div>
+
+<div id="suspended-screen">
+  <div class="susp-icon">⏸</div>
+  <div class="susp-title" id="susp-title-cli">Cuenta suspendida</div>
+  <div class="susp-sub" id="susp-msg-cli">Esta cuenta no está activa. Contactá al administrador.</div>
+  <a href="https://wa.me/5492804213069?text=Hola%2C%20necesito%20reactivar%20mi%20acceso%20a%20la%20app" class="susp-wa" target="_blank">💬 Contactar por WhatsApp</a>
 </div>
 
 <div id="app">
@@ -610,7 +629,10 @@ function abrirModal(id){ document.getElementById(id).classList.add("open"); }
 
 window.onload = function(){
   var saved = sessionStorage.getItem("dm_session");
-  if(saved){ try{ var s=JSON.parse(saved); empresaKey=s.empresaKey; currentUser=s.user; empresaData=s.empresaData; aplicarBranding(); iniciarApp(); }catch(e){ sessionStorage.removeItem("dm_session"); } }
+  if(saved){ try{ var s=JSON.parse(saved); empresaKey=s.empresaKey; currentUser=s.user; empresaData=s.empresaData; aplicarBranding();
+    if (!checkEmpresaAccess(s.empresaData||{})) { sessionStorage.removeItem("dm_session"); return; }
+    aplicarRestricciones();
+    iniciarApp(); }catch(e){ sessionStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
 };
 
@@ -645,10 +667,11 @@ function doLogin(){
     else{Object.keys(users).forEach(function(k){if(users[k].id===uid&&users[k].pass===pass)foundUser=users[k];});}
     if(!foundUser){err.textContent="❌ Usuario o contraseña incorrectos";addLog("Usuario '"+uid+"' no encontrado o contraseña incorrecta");return;}
     empresaKey=key; empresaData=emp; currentUser=foundUser;
+    if (!checkEmpresaAccess(emp)) return;
     sessionStorage.setItem("dm_session",JSON.stringify({empresaKey:key,user:currentUser,empresaData:emp}));
     document.getElementById("l-pass").value="";
     err.textContent=""; dbg.style.display="none";
-    aplicarBranding(); iniciarApp();
+    aplicarBranding(); aplicarRestricciones(); iniciarApp();
   }).catch(function(e){if(e.message!=="blocked"){err.textContent="❌ Error: "+e.message;addLog("Error: "+e.message);}});
 }
 
@@ -672,6 +695,74 @@ function aplicarBranding(){
   // Plan check
   window._empPlan = d.plan||"pro";
 }
+function checkEmpresaAccess(emp) {
+  if (emp.estado && emp.estado !== 'activa') {
+    showSuspendedCli('Esta cuenta está suspendida. Contactá al administrador.');
+    return false;
+  }
+  if (emp.vence) {
+    var vence = new Date(emp.vence); vence.setHours(23,59,59);
+    if (new Date() > vence) {
+      showSuspendedCli('La suscripción venció el ' + vence.toLocaleDateString('es-AR') + '. Contactá al administrador.');
+      return false;
+    }
+  }
+  return true;
+}
+
+function showSuspendedCli(msg) {
+  var el = document.getElementById('suspended-screen');
+  var msgEl = document.getElementById('susp-msg-cli');
+  if (msgEl) msgEl.textContent = msg;
+  if (el) el.classList.add('show');
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.remove('on');
+}
+
+// Plan restrictions — hide nav items based on plan
+function aplicarRestricciones() {
+  var plan = window._empPlan || 'pro';
+  // Define what each plan allows
+  var permisos = {
+    basico:    ['nav-resumen'],
+    estandar:  ['nav-pedido','nav-remito','nav-hoja','nav-resumen','nav-mapa-entregas','nav-backup'],
+    pro:       null // null = todo habilitado
+  };
+  var permitidos = permisos[plan];
+  if (!permitidos) return; // pro = todo accesible
+  // Lock disabled sections
+  var allSections = ['nav-pedido','nav-remito','nav-hoja','nav-resumen','nav-mapa-entregas',
+                     'nav-backup','nav-pedidos-acum'];
+  allSections.forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    if (!permitidos.includes(id)) {
+      btn.style.opacity = '0.4';
+      btn.style.cursor = 'not-allowed';
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        showPlanLocked(plan);
+      };
+    }
+  });
+  // For basic plan — auto-navigate to resumen
+  if (plan === 'basico') {
+    setTimeout(function() { verTab('resumen', document.getElementById('nav-resumen')); }, 500);
+  }
+}
+
+function showPlanLocked(plan) {
+  var planNames = { basico: 'Básico', estandar: 'Estándar', pro: 'Pro' };
+  var main = document.querySelector('.main-content') || document.getElementById('app');
+  var msg = document.createElement('div');
+  msg.className = 'plan-locked';
+  msg.innerHTML = '<div class="plan-locked-icon">🔒</div>' +
+    '<h3>Función no incluida en tu plan</h3>' +
+    '<p>Tu plan ' + (planNames[plan]||plan) + ' no incluye esta función. Contactá al administrador para actualizar.</p>' +
+    '<a href="https://wa.me/' + '5492804213069' + '" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#25d366;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">💬 Consultar upgrade</a>';
+  showNotif('Esta función no está en tu plan actual', 'err');
+}
+
 function doLogout(){ if(!confirm("¿Cerrar sesión?"))return; sessionStorage.removeItem("dm_session"); location.reload(); }
 function iniciarApp(){ document.getElementById("login-screen").style.display="none"; document.getElementById("app").classList.add("on"); document.getElementById("sb-username").textContent=currentUser.name||currentUser.id; aplicarRol(); cargarCatalogo(); }
 function aplicarRol(){ var isAdmin=currentUser.role==="admin"; ["nav-remito","nav-hoja","nav-resumen"].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display=isAdmin?"flex":"none";}); }
