@@ -1053,47 +1053,26 @@ function limpiarFormulario(t) {
    SYNC CATÁLOGO (Sheets CSV)
 ════════════════════════════════════════ */
 async function sincronizarCatalogo() {
-  const msg = document.getElementById("sync-msg");
-  msg.className=""; msg.textContent="🔄";
-  const urlS = localStorage.getItem(K.URL_STK) || "https://docs.google.com/spreadsheets/d/e/2PACX-1vRQGGGUL7sB1gqhvZLKJtqtYgIZbyfbK9EmUKPnPpwFNX-uEYrRN2VWGgpOF3WDxheXKvkIr0VW8oVF/pub?output=csv";
-  const urlC = localStorage.getItem(K.URL_CLI) || "https://docs.google.com/spreadsheets/d/e/2PACX-1vStWgQatDMyC-hkTph-idGBLXnjBBymRd26tz-kCY-hJaRZGzFtObAh5C0mCO25yzXZjubZ-xt3oq6s/pub?output=csv";
+  var msg = document.getElementById("sync-msg");
+  if (msg) { msg.className="sync"; msg.textContent="🔄"; }
   try {
-    const[rS,rC]=await Promise.all([fetch(urlS),fetch(urlC)]);
-    const[tS,tC]=await Promise.all([rS.text(),rC.text()]);
-    const lS=tS.split(/\r?\n/).filter(l=>l.trim()), sepS=lS[0].includes(";")?";":",";
-    dbStock=lS.slice(1).map(l=>{const r=splitCSV(l,sepS);return{id:r[0],n:r[1],pCli:parseLocalFloat(r[2]),pPat:parseLocalFloat(r[3])||parseLocalFloat(r[2])};}).filter(p=>p.id);
-    const lC=tC.split(/\r?\n/).filter(l=>l.trim()), sepC=lC[0].includes(";")?";":",";
-    dbCli=lC.slice(1).map(l=>{const r=splitCSV(l,sepC);return{id:r[0],nombre:r[1],lista:r[2]||"Clientes"};}).filter(c=>c.id);
-    localStorage.setItem(K.STK, JSON.stringify(dbStock));
-    localStorage.setItem(K.CLI, JSON.stringify(dbCli));
-    msg.className="ok"; msg.textContent="✅";
+    var data = await fbGet("empresas/"+empresaKey+"/productos");
+    var lista = currentUser && currentUser.lista ? currentUser.lista : "Clientes";
+    dbStock = data ? Object.entries(data).map(function(e){
+      var p=e[1], k=e[0];
+      return { id: p.codigo||k, nombre: p.nombre||"", 
+               precio: lista==="Clientes"?(p.precioClientes||0):(p.precioPatagonia||0),
+               categoria: p.categoria||"" };
+    }) : [];
+    if (msg) { msg.className="ok"; msg.textContent="✅"; }
   } catch(e) {
-    dbStock=JSON.parse(localStorage.getItem(K.STK))||[];
-    dbCli=JSON.parse(localStorage.getItem(K.CLI))||[];
-    msg.className="err"; msg.textContent="⚠️";
+    if (msg) { msg.className="err"; msg.textContent="❌"; }
   }
-  actualizarDL();
 }
-function actualizarDL(){
-  const h=dbCli.map(c=>`<option value="${c.nombre}">`).join("");
-  document.getElementById("dl-cli-ped").innerHTML=h;
-  document.getElementById("dl-cli-rem").innerHTML=h;
-}
-
-/* ════════════════════════════════════════
-   FIREBASE — HOJA DE RUTA
-════════════════════════════════════════ */
-/* ═══════════════════════════════════════
-   RUTAS — nuevo sistema
-═══════════════════════════════════════ */
-let rutasData = {};      // { rutaKey: { fecha, nombre, clientes:{cliKey:{...}} } }
-let rutaAbierta = null;  // key de la ruta actualmente expandida
-let clienteAbierto = {}; // { rutaKey: cliKey }
-
 async function cargarRutasFirebase() {
   setStatus("fb-hoja-status","sync","☁️ Cargando…");
   try {
-    const data = await fbGet("rutas");
+    const data = await fbGet("empresas/"+empresaKey+"/rutas");
     rutasData = data || {};
     setStatus("fb-hoja-status","ok","✅ Actualizado");
   } catch(e) {
@@ -1111,7 +1090,7 @@ async function crearNuevaRuta() {
     clientes: {}
   };
   try {
-    const key = await fbPush("rutas", nueva);
+    const key = await fbPush("empresas/"+empresaKey+"/rutas", nueva);
     rutasData[key] = { ...nueva, fbKey: key };
     rutaAbierta = key;
     renderRutas();
@@ -1121,7 +1100,7 @@ async function crearNuevaRuta() {
 async function borrarRuta(rutaKey) {
   if (!confirm("¿Borrar esta hoja de ruta completa? No se puede deshacer.")) return;
   try {
-    await fbDelete(`rutas/${rutaKey}`);
+    await fbDelete(`empresas/${empresaKey}/rutas/${rutaKey}`);
     delete rutasData[rutaKey];
     if (rutaAbierta === rutaKey) rutaAbierta = null;
     renderRutas();
@@ -1310,7 +1289,7 @@ async function guardarPago(rutaKey, cliKey) {
   clienteAbierto[rutaKey] = cliKey;
 
   try {
-    await fbPatch(`rutas/${rutaKey}/clientes/${cliKey}`, {
+    await fbPatch(`empresas/${empresaKey}/rutas/${rutaKey}/clientes/${cliKey}`, {
       efectivo: ef, transferencia: tr, modo
     });
     renderRutas();
@@ -1320,7 +1299,7 @@ async function guardarPago(rutaKey, cliKey) {
 // Compatibilidad: cuando se guarda un remito, se agrega el cliente a la ruta activa
 async function agregarClienteARuta(rutaKey, cliData) {
   try {
-    const key = await fbPush(`rutas/${rutaKey}/clientes`, cliData);
+    const key = await fbPush(`empresas/${empresaKey}/rutas/${rutaKey}/clientes`, cliData);
     if (!rutasData[rutaKey].clientes) rutasData[rutaKey].clientes = {};
     rutasData[rutaKey].clientes[key] = cliData;
   } catch(e) { console.warn("No se pudo agregar a ruta:", e); }
@@ -1368,7 +1347,7 @@ function descargarHojaRuta() { if(rutaAbierta) descargarPDFRuta(rutaAbierta); }
 async function cargarVentasFirebase(forzar) {
   setStatus("fb-res-status","sync","☁️ Cargando…");
   try {
-    const data = await fbGet("ventas");
+    const data = await fbGet("empresas/"+empresaKey+"/ventas");
     ventas = data
       ? Object.entries(data).map(([fbKey,v])=>({...v,fbKey}))
       : [];
@@ -1383,7 +1362,7 @@ async function cargarVentasFirebase(forzar) {
 async function borrarVenta(fbKey) {
   if (!confirm("¿Borrar este remito del resumen? No se puede deshacer.")) return;
   try {
-    await fbDelete(`ventas/${fbKey}`);
+    await fbDelete(`empresas/${empresaKey}/ventas/${fbKey}`);
     ventas = ventas.filter(v=>v.fbKey!==fbKey);
     renderResumen();
   } catch(e) { alert("Error al borrar. Reintentá."); }
@@ -1392,18 +1371,38 @@ async function borrarVenta(fbKey) {
 /* ════════════════════════════════════════
    CLIENTE / BÚSQUEDA / ITEMS
 ════════════════════════════════════════ */
-function vincularCli(origen,t) {
-  const idIn=document.getElementById(`idCli-${t}`), nomIn=document.getElementById(`nomCli-${t}`);
-  let c = origen==="id"
-    ? dbCli.find(x=>x.id.toString()===idIn.value.trim())
-    : dbCli.find(x=>x.nombre.trim()===nomIn.value.trim());
-  if(c){
-    idIn.value=c.id; nomIn.value=c.nombre;
-    tipoLista[t]=c.lista.toLowerCase().includes("patagonia")?"Patagonia":"Clientes";
-    document.getElementById(`badge-${t}`).textContent=`📋 ${tipoLista[t]}`;
-  }
+function vincularCli(nomIn, idIn, listaIn) {
+  var usuarios = empresaData && empresaData.usuarios ? empresaData.usuarios : {};
+  var clients = Object.values(usuarios);
+  var nombre = document.getElementById(nomIn);
+  var idEl = document.getElementById(idIn);
+  if (!nombre) return;
+  nombre.addEventListener("input", function() {
+    var q = nombre.value.toLowerCase().trim();
+    if (!q) return;
+    var matches = clients.filter(function(c){ return (c.name||c.nombre||"").toLowerCase().includes(q); });
+    var dd = document.getElementById("cli-dd-"+nomIn);
+    if (!dd) {
+      dd = document.createElement("div"); dd.id="cli-dd-"+nomIn;
+      dd.style.cssText="position:absolute;background:var(--surface3);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto;z-index:999;left:0;right:0;top:100%;box-shadow:0 8px 24px rgba(0,0,0,.4)";
+      nombre.parentElement.style.position="relative"; nombre.parentElement.appendChild(dd);
+    }
+    dd.innerHTML="";
+    matches.slice(0,8).forEach(function(c){
+      var item=document.createElement("div");
+      item.textContent=c.name||c.nombre||"";
+      item.style.cssText="padding:10px 14px;cursor:pointer;font-size:13px;color:#fff;border-bottom:1px solid var(--border2)";
+      item.onclick=function(){
+        nombre.value=c.name||c.nombre||"";
+        if(idEl) idEl.value=c.id||c.name||"";
+        if(listaIn){var ll=document.getElementById(listaIn);if(ll)ll.textContent=c.lista||"Clientes";}
+        dd.innerHTML=""; dd.style.display="none";
+      };
+      dd.appendChild(item);
+    });
+    dd.style.display=matches.length?"block":"none";
+  });
 }
-
 function filtrar(t) {
   const box=document.getElementById(`res-${t}`);
   const bus=document.getElementById(`bus-${t}`).value.toLowerCase().trim();
@@ -1489,7 +1488,7 @@ async function generarPDF(m) {
     };
     try {
       // Guardar en ventas siempre
-      await fbPush("ventas", venta);
+      await fbPush("empresas/"+empresaKey+"/ventas", venta);
       // Agregar a la ruta activa si existe, sino crear automáticamente
       let rutaKey = rutaAbierta;
       if (!rutaKey) {
@@ -1502,7 +1501,7 @@ async function generarPDF(m) {
         } else {
           const nombre = `Ruta ${new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})}`;
           const nueva = { nombre, fecha: new Date().toISOString(), clientes: {} };
-          rutaKey = await fbPush("rutas", nueva);
+          rutaKey = await fbPush("empresas/"+empresaKey+"/rutas", nueva);
           rutasData[rutaKey] = { ...nueva, fbKey: rutaKey };
         }
         rutaAbierta = rutaKey;
@@ -1670,8 +1669,6 @@ function renderResumen(){
    CONFIG
 ════════════════════════════════════════ */
 function guardarCloud(){
-  localStorage.setItem(K.URL_STK, document.getElementById("url-stk").value);
-  localStorage.setItem(K.URL_CLI, document.getElementById("url-cli").value);
   location.reload();
 }
 
