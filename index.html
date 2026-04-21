@@ -794,7 +794,7 @@ function doLogin(){
   if(!empCod||!uid||!pass){err.textContent="Completá todos los campos";return;}
   err.textContent="🔄 Conectando…";
   var log="";
-  function addLog(txt){log+=txt+"\n";} // debug disabled in production
+  function addLog(txt){log+=txt+"\n"; var dbg=document.getElementById("l-debug"); if(dbg){dbg.textContent=log; dbg.style.display="block"; dbg.style.cssText="display:block!important;margin-top:10px;padding:10px;background:rgba(0,0,0,.4);border-radius:7px;font-size:11px;font-family:monospace;color:#94a3b8;white-space:pre-wrap;max-height:200px;overflow-y:auto";}  }
   fetch(FB+"/empresas.json").then(function(resp){
     addLog("HTTP: "+resp.status);
     if(resp.status===401||resp.status===403){err.textContent="🔒 Firebase bloqueado — revisá las reglas";throw new Error("blocked");}
@@ -890,7 +890,7 @@ function aplicarRestricciones() {
     pro:       null // null = todo habilitado
   };
   var permitidos = permisos[plan];
-  if (!permitidos) return; // pro = todo accesible
+  if (!permitidos || plan === 'pro') return; // pro o desconocido = todo accesible
   // Lock disabled sections
   var allSections = ['nav-pedido','nav-remito','nav-hoja','nav-resumen','nav-mapa-entregas',
                      'nav-backup','nav-pedidos-acum'];
@@ -961,9 +961,19 @@ function verTab(id,btn){
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
 }
 function cargarCatalogo(){
-  var msg=document.getElementById("sync-msg"); msg.className=""; msg.textContent="\u{1F504}";
+  var msg=document.getElementById("sync-msg");
+  if(msg){msg.className=""; msg.textContent="🔄 Cargando...";}
+  if(!empresaKey){
+    if(msg){msg.className="err"; msg.textContent="⚠️ Sin empresa";}
+    console.error("cargarCatalogo: empresaKey vacío");
+    return;
+  }
   fbGet("empresas/"+empresaKey).then(function(emp){
-    if(!emp)return;
+    if(!emp){
+      if(msg){msg.className="err"; msg.textContent="❌ Empresa no encontrada";}
+      alert("Error: No se encontraron datos de la empresa (key="+empresaKey+"). Avisá al admin.");
+      return;
+    }
     empresaData=Object.assign({},empresaData,emp);
     var productos=emp.productos||null;
     if(productos&&Object.keys(productos).length>0){
@@ -971,16 +981,29 @@ function cargarCatalogo(){
         return{id:p.codigo||p.nombre.substring(0,4),n:p.nombre,pCli:p.precioClientes||0,pPat:p.precioPatagonia||0};
       });
     } else {
+      // Fallback: stockCSV
       var rawS=emp.stockCSV||"";
       var lS=rawS.split("\n").filter(function(l){return l.trim();});
-      if(lS.length>1){var sep=lS[0].indexOf(";")>=0?";":",";}
-      else var sep=",";
-      if(lS.length>1){dbStock=lS.slice(1).map(function(l){var r=splitCSV(l,sep);return{id:r[0],n:r[1],pCli:parseLocalFloat(r[2]),pPat:parseLocalFloat(r[3])||parseLocalFloat(r[2])};}).filter(function(p){return p.id;});}
+      var sep = (lS.length>0 && lS[0].indexOf(";")>=0) ? ";" : ",";
+      if(lS.length>1){
+        dbStock=lS.slice(1).map(function(l){
+          var r=splitCSV(l,sep);
+          return{id:r[0],n:r[1],pCli:parseLocalFloat(r[2]),pPat:parseLocalFloat(r[3])||parseLocalFloat(r[2])};
+        }).filter(function(p){return p.id&&p.n;});
+      }
     }
-    // Cargar clientes desde Firebase usuarios (fuente primaria)
+    if(msg){
+      if(dbStock.length>0){
+        msg.className="ok"; msg.textContent="✅ "+dbStock.length+" prods";
+      } else {
+        msg.className="warn"; msg.textContent="⚠️ Sin productos";
+        console.warn("cargarCatalogo: dbStock vacío para empresa key="+empresaKey);
+      }
+    }
+    // Cargar clientes — solo rol cliente/sin rol (excluir al vendedor logueado)
     var usuarios=emp.usuarios||{};
     var cliDeUsu=Object.values(usuarios).filter(function(u){
-      return u.id && (u.role==="cliente"||u.role==="vendedor"||!u.role);
+      return u.id && u.id !== currentUser.id && (u.role==="cliente"||!u.role);
     }).map(function(u){
       return{id:u.id,nombre:u.name||u.id,lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.telefono||""};
     });
@@ -995,8 +1018,12 @@ function cargarCatalogo(){
     var idsUsu=new Set(cliDeUsu.map(function(c){return c.id;}));
     dbCli=cliDeUsu.concat(cliDeCSV.filter(function(c){return !idsUsu.has(c.id);}));
     dbCli.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es");});
-    actualizarDL(); msg.className="ok"; msg.textContent="\u2705";
-  }).catch(function(){msg.className="err";msg.textContent="\u26A0\uFE0F";});
+    actualizarDL();
+  }).catch(function(e){
+    console.error("cargarCatalogo error:", e);
+    if(msg){msg.className="err"; msg.textContent="❌ Error red";}
+    alert("Error al cargar productos: "+e.message+". Revisá la conexión o las reglas de Firebase.");
+  });
 }
 function actualizarDL(){
   var h=dbCli.map(function(c){
@@ -1020,7 +1047,16 @@ function quitarItem(t,i){ ordenes[t].splice(i,1); renderItems(t); }
 
 function generarPDF(m){
   var t=m==="pedido"?"ped":"rem";
-  if(!ordenes[t].length){alert("Agregá al menos un producto.");return;}
+  if(!ordenes[t].length){
+    if(dbStock.length===0){
+      alert("⚠️ No hay productos cargados para esta empresa.\n\nSolución: andá al Admin y cargá el catálogo de productos para esta empresa.");
+    } else {
+      alert("Agregá al menos un producto al pedido antes de continuar.");
+    }
+    return;
+  }
+  if(!empresaKey){alert("Error: empresaKey vacío. Cerrá sesión y volvé a entrar.");return;}
+  try{
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
   var nom=document.getElementById("nomCli-"+t).value||"Mostrador";
   var tot=document.getElementById("total-"+t).textContent;
@@ -1071,6 +1107,7 @@ function generarPDF(m){
   if(navigator.share)navigator.share({files:[file]}).catch(function(){doc.save(m+"_"+nom+".pdf");});
   else doc.save(m+"_"+nom+".pdf");
   limpiarFormulario(t);
+  } catch(err) { console.error("generarPDF error:",err); alert("Error al generar PDF: "+err.message+"\n\nAvisá al admin con este mensaje."); }
 }
 
 // ══ RUTAS ══
