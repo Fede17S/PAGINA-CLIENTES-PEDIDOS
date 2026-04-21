@@ -1646,6 +1646,91 @@ function renderEditItems(wrap, rk, ck){
   editBody.appendChild(addRow);
 }
 
+function imprimirRemitoCli(rk, ck){
+  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli){alert("No se encontraron datos de este cliente.");return;}
+  var ef=cli.efectivo||0, tr=cli.transferencia||0;
+  var pagado=ef+tr, saldo=(cli.importe||0)-pagado;
+  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+  if(empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,40,20);
+  doc.setFontSize(18); doc.setFont("helvetica","bold");
+  doc.text((empresaData.nombre||"EMPRESA")+" - REMITO",105,16,{align:"center"});
+  doc.setFontSize(11); doc.setFont("helvetica","normal");
+  doc.text("Cliente: "+cli.nom,55,25);
+  doc.text("Fecha: "+new Date(cli.fecha||Date.now()).toLocaleDateString()+" "+new Date(cli.fecha||Date.now()).toLocaleTimeString(),55,31);
+  doc.autoTable({
+    startY:44,
+    head:[["Cant","Cod","Producto","P.U","Sub"]],
+    body:(cli.items||[]).map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),
+    foot:[["","","","TOTAL","$"+fM(cli.importe||0)]],
+    theme:"striped",
+    headStyles:{fillColor:[13,27,42]}
+  });
+  var yFin = doc.lastAutoTable.finalY+8;
+  if(pagado>0){
+    doc.setFont("helvetica","bold"); doc.text("COBRO:",14,yFin);
+    doc.setFont("helvetica","normal");
+    if(ef>0) doc.text("Efectivo: $"+fM(ef),40,yFin);
+    if(tr>0) doc.text("Transferencia: $"+fM(tr),(ef>0?95:40),yFin);
+    yFin+=10;
+  }
+  if(cli.firma){
+    doc.setFont("helvetica","bold"); doc.text("FIRMA DEL CLIENTE:",14,yFin+4);
+    try{ doc.addImage(cli.firma,"JPEG",14,yFin+8,80,32); } catch(e){}
+    yFin+=48;
+  }
+  var pdfUrl = doc.output("bloburl");
+  window.open(pdfUrl,"_blank");
+}
+
+function guardarItemsEditados(rk, ck, items, wrap){
+  var nuevoTotal = items.reduce(function(s,it){return s+it.sub;},0);
+  var patch = {items: items, importe: nuevoTotal};
+  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
+    rutasData[rk].clientes[ck].items = items;
+    rutasData[rk].clientes[ck].importe = nuevoTotal;
+  }
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch)
+    .then(function(){
+      // Refresh edit wrap keeping it open
+      if(wrap){
+        var editBody = wrap.querySelector(".rc-edit-body");
+        var wasOpen = editBody && editBody.style.display !== "none";
+        renderEditItems(wrap, rk, ck);
+        if(wasOpen){
+          var newBody = wrap.querySelector(".rc-edit-body");
+          var toggle = wrap.querySelector(".rc-edit-toggle");
+          if(newBody) newBody.style.display = "block";
+          if(toggle) toggle.classList.add("open");
+        }
+      }
+      actualizarVentaDeRuta(rk, ck, nuevoTotal, items);
+      renderRutas();
+    })
+    .catch(function(){ alert("Error al guardar cambios."); });
+}
+
+function actualizarVentaDeRuta(rk, ck, nuevoTotal, items){
+  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli||!cli.fecha) return;
+  fbGet("empresas/"+empresaKey+"/ventas")
+    .then(function(ventas){
+      if(!ventas) return;
+      var cliNom = cli.nom||"";
+      var cliDate = (cli.fecha||"").slice(0,10);
+      var match = Object.entries(ventas).find(function(e){
+        var v = e[1];
+        return v.clienteNom===cliNom && (v.fecha||"").slice(0,10)===cliDate;
+      });
+      if(match){
+        var fbKey = match[0];
+        fbPatch("empresas/"+empresaKey+"/ventas/"+fbKey, {total:nuevoTotal, items:items})
+          .catch(function(){});
+      }
+    }).catch(function(){});
+}
+
+
 function renderPagosHist(wrap, rk, ck){
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(!cli) return;
