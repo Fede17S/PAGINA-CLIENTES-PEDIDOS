@@ -479,6 +479,114 @@ select option { background:var(--s2) }
   .card-body { padding:8px 12px 12px }
 }
 
+
+/* ═══════════════════════════════════════
+   REDISEÑO CLIENTE RUTA — rc-* classes
+═══════════════════════════════════════ */
+.rc-row { border-bottom:1px solid var(--border2) }
+.rc-row:last-child { border-bottom:none }
+
+/* Head */
+.rc-head { display:flex; align-items:center; gap:8px; padding:13px 14px; cursor:pointer; transition:background .12s; user-select:none }
+.rc-head:hover { background:var(--s3) }
+.rc-head-info { flex:1; min-width:0 }
+.rc-nom { font-size:14px; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.rc-sub { font-size:12px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums }
+.rc-badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; flex-shrink:0 }
+.rc-badge-ok   { background:rgba(16,185,129,.15); color:#34d399 }
+.rc-badge-warn { background:rgba(245,158,11,.15);  color:#fbbf24 }
+.rc-badge-red  { background:rgba(239,68,68,.15);   color:#f87171 }
+.rc-print-btn { background:none; border:none; cursor:pointer; font-size:16px; padding:4px 6px; border-radius:6px; opacity:.5; transition:opacity .15s; flex-shrink:0 }
+.rc-print-btn:hover { opacity:1; background:var(--s4) }
+.rc-caret { color:var(--muted2); font-size:12px; flex-shrink:0 }
+
+/* Body */
+.rc-body { display:none; padding:0 14px 14px }
+.rc-body.open { display:block }
+
+/* Firma */
+.rc-firma-wrap { margin-bottom:10px; padding:10px; background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.2); border-radius:10px }
+.rc-firma-lbl { font-size:11px; font-weight:700; color:#34d399; margin-bottom:8px }
+.rc-firma-img { max-width:100%; border-radius:6px; border:1px solid rgba(16,185,129,.2); background:#fff; display:block }
+.rc-firma-del { margin-top:8px; width:100%; padding:7px; background:none; border:1px solid rgba(239,68,68,.3); border-radius:7px; color:var(--red); font-size:12px; font-weight:700; cursor:pointer; font-family:Inter,sans-serif; transition:all .15s }
+.rc-firma-del:hover { background:rgba(239,68,68,.1) }
+
+/* Items list (read-only) */
+.rc-items { padding:4px 0 6px; border-bottom:1px solid var(--border2); margin-bottom:6px }
+.rc-item { display:flex; align-items:center; gap:8px; padding:5px 0 }
+.rc-item-cant { font-size:12px; font-weight:700; color:var(--muted); min-width:24px; text-align:center; flex-shrink:0 }
+.rc-item-name { flex:1; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.rc-item-sub { font-size:13px; font-weight:600; color:var(--gold2); font-variant-numeric:tabular-nums; flex-shrink:0 }
+
+/* Edit items */
+.rc-edit-wrap { margin:6px 0 2px }
+.rc-edit-toggle { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--s3); border:1px solid var(--border2); border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; color:var(--muted); transition:all .15s; user-select:none }
+.rc-edit-toggle:hover { border-color:var(--muted); color:var(--text) }
+.rc-edit-toggle.open { border-color:var(--gold); color:var(--gold2); background:rgba(201,147,58,.07) }
+.rc-edit-count { background:var(--s4); border-radius:20px; padding:1px 8px; font-size:11px; color:var(--muted) }
+.rc-edit-body { padding:8px 0 4px }
+.rc-edit-item { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border2) }
+.rc-edit-item:last-of-type { border-bottom:none }
+.rc-edit-name { flex:1; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.rc-edit-price { font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0 }
+.rc-edit-cant { width:54px!important; padding:6px 8px!important; font-size:13px!important; font-weight:700!important; text-align:center; flex-shrink:0; border-radius:7px!important }
+.rc-edit-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:14px; padding:4px 6px; border-radius:5px; flex-shrink:0; transition:all .15s }
+.rc-edit-del:hover { color:var(--red); background:rgba(239,68,68,.1) }
+.rc-edit-add { padding:8px 0 2px }
+
+/* Cobro card */
+.rc-cobro-card { background:var(--s1); border:1px solid var(--border2); border-radius:10px; padding:12px; margin-top:10px }
+.rc-cobro-head { margin-bottom:10px }
+.rc-cobro-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px }
+.rc-modo-row { display:flex; gap:5px; margin-bottom:10px }
+.rc-modo-btn { flex:1; padding:8px 4px; border:1.5px solid var(--border); border-radius:7px; background:var(--s3); font-family:Inter,sans-serif; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; text-align:center; transition:all .15s }
+.rc-modo-btn:hover { border-color:var(--muted); color:var(--text) }
+.rc-modo-btn.sel { border-color:var(--gold); background:rgba(201,147,58,.12); color:var(--gold2) }
+.rc-cobro-hint { font-size:13px; color:var(--muted2); text-align:center; padding:6px 0 4px; font-style:italic }
+.rc-cobro-inputs { display:flex; gap:8px; margin-bottom:2px }
+.rc-cobro-field { flex:1 }
+.rc-cobro-field label { font-size:10px; font-weight:700; color:var(--muted); margin-bottom:5px; display:block; text-transform:uppercase; letter-spacing:.4px }
+.rc-cobro-field input { padding:9px 11px!important; font-size:14px!important; font-weight:700!important; text-align:right; font-variant-numeric:tabular-nums }
+.rc-saldo-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0 0; border-top:1px solid var(--border2); margin-top:10px }
+.rc-saldo-lbl { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.3px }
+.rc-saldo-val { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums }
+.rc-saldo-val.ok  { color:var(--green) }
+.rc-saldo-val.warn{ color:var(--amber) }
+.rc-saldo-val.neg { color:var(--red) }
+.rc-guardar-btn { width:100%; margin-top:10px; padding:11px; background:var(--gold); color:#100800; border:none; border-radius:8px; font-family:Inter,sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all .15s }
+.rc-guardar-btn:hover { background:var(--gold2); box-shadow:0 4px 12px rgba(201,147,58,.3) }
+.rc-guardar-btn:active { filter:brightness(.9); transform:scale(.99) }
+
+/* Historial pagos */
+.rc-hist-wrap { margin-top:10px }
+.rc-hist-card { background:var(--s3); border:1px solid var(--border2); border-radius:10px; overflow:hidden; margin-bottom:8px }
+.rc-hist-title { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-bottom:1px solid var(--border2); font-size:12px; font-weight:700; color:var(--muted) }
+.rc-hist-ok   { color:var(--green) }
+.rc-hist-warn { color:var(--amber) }
+.rc-hist-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border2) }
+.rc-hist-row:last-child { border-bottom:none }
+.rc-hist-fecha { font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0; min-width:72px }
+.rc-hist-det { flex:1; font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.rc-hist-monto { font-size:13px; font-weight:700; color:var(--gold2); font-variant-numeric:tabular-nums; white-space:nowrap }
+.rc-hist-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:13px; padding:2px 5px; border-radius:4px; flex-shrink:0; transition:all .15s }
+.rc-hist-del:hover { color:var(--red) }
+.rc-add-pago-btn { width:100%; padding:9px; background:none; border:1.5px dashed var(--border); border-radius:8px; font-family:Inter,sans-serif; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s }
+.rc-add-pago-btn:hover { border-color:var(--gold); color:var(--gold2); background:rgba(201,147,58,.06) }
+.rc-add-pago-form { display:none; background:var(--s3); border:1px solid var(--border2); border-radius:10px; padding:12px; margin-top:6px }
+.rc-add-pago-row { display:flex; gap:8px; margin-bottom:8px }
+.rc-add-input { flex:1; padding:9px 11px!important; font-size:14px!important; font-weight:700!important; font-variant-numeric:tabular-nums }
+.rc-add-select { flex:1; padding:9px 11px!important; font-size:13px!important }
+.rc-add-nota { width:100%; margin-bottom:8px; padding:8px 11px!important; font-size:13px!important }
+.rc-add-confirmar { width:100%; padding:10px; background:var(--green); color:#fff; border:none; border-radius:8px; font-family:Inter,sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all .15s }
+.rc-add-confirmar:active { filter:brightness(.9) }
+
+/* Acciones */
+.rc-actions { display:flex; gap:6px; margin-top:10px }
+.rc-act-btn { flex:1; padding:9px 6px; border-radius:8px; font-family:Inter,sans-serif; font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid; transition:all .15s; text-align:center }
+.rc-act-btn:active { filter:brightness(.9) }
+.rc-act-firma { background:rgba(16,185,129,.1); color:var(--green); border-color:rgba(16,185,129,.3) }
+.rc-act-mover { background:rgba(37,99,235,.1); color:#93c5fd; border-color:rgba(37,99,235,.3) }
+.rc-act-quitar { background:rgba(239,68,68,.08); color:var(--red); border-color:rgba(239,68,68,.25) }
 </style>
 </head>
 <body>
@@ -1216,161 +1324,159 @@ function renderRutas(){
   });
 }
 
+
 function buildClienteRow(rutaKey, cliKey, cli){
   var ef=cli.efectivo||0, tr=cli.transferencia||0, tot=cli.importe||0;
-  var pagado=ef+tr, saldo=tot-pagado;
+  var pagAd=(cli.pagosAdicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0);
+  var pagado=ef+tr+pagAd, saldo=tot-pagado;
   var modo=cli.modo||"ninguno";
   var isCO=clienteAbierto[rutaKey]===cliKey;
   var sc=saldo<=0?"ok":saldo<tot?"warn":"neg";
 
   var row=document.createElement("div");
-  row.className="ruta-cli-row";
+  row.className="rc-row";
 
-  // Head
+  /* ── HEAD ── */
   var head=document.createElement("div");
-  head.className="ruta-cli-head";
+  head.className="rc-head";
+  var estadoHtml = saldo<=0
+    ? '<span class="rc-badge rc-badge-ok">✓ Cobrado</span>'
+    : pagado>0
+      ? '<span class="rc-badge rc-badge-warn">$'+fM(saldo)+' pend.</span>'
+      : '<span class="rc-badge rc-badge-red">Sin pago</span>';
   head.innerHTML=
-    '<div style="flex:1;min-width:0"><div class="ruta-cli-nom">'+cli.nom+'</div><div style="font-size:12px;color:var(--muted);margin-top:1px">$'+fM(tot)+'</div></div>'+
-    (saldo<=0?'<span class="chip chip-ok">✓ Pagado</span>':pagado>0?'<span class="chip chip-warn">$'+fM(saldo)+' rest.</span>':'<span class="chip chip-red">Sin pago</span>')+
-    '<button class="print-cli-btn" title="Imprimir remito">🖨️</button>'+
-    '<span style="color:var(--muted2);font-size:14px;margin-left:8px">'+(isCO?"▲":"▼")+'</span>';
-  // Print button stops propagation
+    '<div class="rc-head-info">'+
+      '<div class="rc-nom">'+cli.nom+'</div>'+
+      '<div class="rc-sub">$'+fM(tot)+'</div>'+
+    '</div>'+
+    estadoHtml+
+    '<button class="rc-print-btn" title="Imprimir remito">🖨️</button>'+
+    '<span class="rc-caret">'+(isCO?"▲":"▼")+'</span>';
   head.onclick=function(){toggleCliente(rutaKey,cliKey);};
-  head.querySelector(".print-cli-btn").onclick=function(e){
-    e.stopPropagation();
-    imprimirRemitoCli(rutaKey,cliKey);
-  };
+  head.querySelector(".rc-print-btn").onclick=function(e){e.stopPropagation();imprimirRemitoCli(rutaKey,cliKey);};
   row.appendChild(head);
 
-  // Body
+  /* ── BODY ── */
   var body=document.createElement("div");
-  body.className="ruta-cli-body"+(isCO?" open":"");
+  body.className="rc-body"+(isCO?" open":"");
 
-  // Firma guardada — mostrar imagen si existe
+  /* Firma */
   if(cli.firma){
-    var firmaWrap=document.createElement("div");
-    firmaWrap.style.cssText="margin-bottom:8px;padding:8px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px";
-    var firmaFecha=cli.firmadoEn?new Date(cli.firmadoEn).toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
-    firmaWrap.innerHTML=
-      '<div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:6px">✅ FIRMA REGISTRADA'+
-        (firmaFecha?' — '+firmaFecha:'')+
-      '</div>'+
-      '<img src="'+cli.firma+'" style="max-width:100%;border-radius:6px;border:1px solid #a7f3d0;background:#fff;display:block">'+
-      '<button data-rk="'+rutaKey+'" data-ck="'+cliKey+'" onclick="borrarFirma(this.dataset.rk,this.dataset.ck)" '+
-        'style="margin-top:8px;width:100%;padding:6px;background:none;border:1px solid #dc2626;border-radius:6px;'+
-        'color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">'+
-        '🗑 Borrar firma</button>';
-    body.appendChild(firmaWrap);
+    var fw=document.createElement("div");
+    fw.className="rc-firma-wrap";
+    var ff=cli.firmadoEn?new Date(cli.firmadoEn).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+    fw.innerHTML=
+      '<div class="rc-firma-lbl">✅ Firma registrada'+(ff?' · '+ff:'')+'</div>'+
+      '<img src="'+cli.firma+'" class="rc-firma-img">'+
+      '<button data-rk="'+rutaKey+'" data-ck="'+cliKey+'" onclick="borrarFirma(this.dataset.rk,this.dataset.ck)" class="rc-firma-del">🗑 Borrar firma</button>';
+    body.appendChild(fw);
   }
 
-  // Items list
+  /* Items list */
   var items=cli.items||[];
   if(items.length){
     var itemsDiv=document.createElement("div");
-    itemsDiv.style.cssText="padding:4px 0 8px";
+    itemsDiv.className="rc-items";
     items.forEach(function(it){
       var d=document.createElement("div");
-      d.className="ruta-item";
-      d.innerHTML='<span class="ruta-item-name">'+it.n+'</span><span class="ruta-item-cant">'+it.c+'×</span><span class="ruta-item-sub">$'+fM(it.sub)+'</span>';
+      d.className="rc-item";
+      d.innerHTML=
+        '<span class="rc-item-cant">'+it.c+'×</span>'+
+        '<span class="rc-item-name">'+it.n+'</span>'+
+        '<span class="rc-item-sub">$'+fM(it.sub)+'</span>';
       itemsDiv.appendChild(d);
     });
     body.appendChild(itemsDiv);
   }
 
-  // ── EDITAR ITEMS ──
+  /* Editar items */
   var editWrap=document.createElement("div");
-  editWrap.className="edit-items-wrap";
+  editWrap.className="rc-edit-wrap";
   editWrap.id="edit-items-"+rutaKey+"-"+cliKey;
   renderEditItems(editWrap, rutaKey, cliKey);
   body.appendChild(editWrap);
 
-  // Pago section
+  /* Cobro */
   var pagoDiv=document.createElement("div");
-  pagoDiv.className="pago-section";
+  pagoDiv.className="rc-cobro-card";
 
-  var pagoTitle=document.createElement("div");
-  pagoTitle.className="pago-section-title";
-  pagoTitle.textContent="Registrar cobro";
-  pagoDiv.appendChild(pagoTitle);
+  var cobHead=document.createElement("div");
+  cobHead.className="rc-cobro-head";
+  cobHead.innerHTML='<span class="rc-cobro-title">Registrar cobro</span>';
+  pagoDiv.appendChild(cobHead);
 
-  // Modo buttons
+  /* Modo buttons */
   var modoRow=document.createElement("div");
-  modoRow.className="pago-modo-row";
-  ["efectivo","transferencia","mixto"].forEach(function(m){
+  modoRow.className="rc-modo-row";
+  [["efectivo","💵 Efectivo"],["transferencia","📲 Transfer."],["mixto","🔀 Mixto"]].forEach(function(m){
     var mb=document.createElement("button");
-    mb.className="modo-btn"+(modo===m?" sel":"");
-    mb.textContent=m==="efectivo"?"💵 Efectivo":m==="transferencia"?"📲 Transfer.":"🔀 Mixto";
-    mb.onclick=function(){setModo(rutaKey,cliKey,m);};
+    mb.className="rc-modo-btn"+(modo===m[0]?" sel":"");
+    mb.textContent=m[1];
+    mb.onclick=function(){setModo(rutaKey,cliKey,m[0]);};
     modoRow.appendChild(mb);
   });
   pagoDiv.appendChild(modoRow);
 
-  // Inputs
-  var inputsDiv=document.createElement("div");
+  /* Inputs */
   if(modo==="ninguno"){
-    inputsDiv.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:8px 0">Elegí un método de cobro</div>';
+    var hint=document.createElement("div");
+    hint.className="rc-cobro-hint";
+    hint.textContent="Seleccioná un método de cobro";
+    pagoDiv.appendChild(hint);
   } else {
-    inputsDiv.className="pago-inputs";
+    var inp=document.createElement("div");
+    inp.className="rc-cobro-inputs";
     if(modo==="efectivo"||modo==="mixto"){
-      var fef=document.createElement("div"); fef.className="pago-field";
-      fef.innerHTML='<label>Efectivo</label><input type="number" id="ef-'+rutaKey+'-'+cliKey+'" value="'+(ef||"")+'">';
-      inputsDiv.appendChild(fef);
+      inp.innerHTML+='<div class="rc-cobro-field"><label>💵 Efectivo</label><input type="number" id="ef-'+rutaKey+'-'+cliKey+'" value="'+(ef||"")+'"></div>';
     }
     if(modo==="transferencia"||modo==="mixto"){
-      var ftr=document.createElement("div"); ftr.className="pago-field";
-      ftr.innerHTML='<label>Transferencia</label><input type="number" id="tr-'+rutaKey+'-'+cliKey+'" value="'+(tr||"")+'">';
-      inputsDiv.appendChild(ftr);
+      inp.innerHTML+='<div class="rc-cobro-field"><label>📲 Transferencia</label><input type="number" id="tr-'+rutaKey+'-'+cliKey+'" value="'+(tr||"")+'"></div>';
     }
+    pagoDiv.appendChild(inp);
   }
-  pagoDiv.appendChild(inputsDiv);
 
-  // Saldo
+  /* Saldo row */
   var saldoRow=document.createElement("div");
-  saldoRow.className="pago-saldo-row";
-  saldoRow.innerHTML='<span class="pago-saldo-lbl">Saldo</span><span class="pago-saldo-val '+sc+'">$'+fM(saldo)+'</span>';
+  saldoRow.className="rc-saldo-row";
+  saldoRow.innerHTML=
+    '<span class="rc-saldo-lbl">Saldo pendiente</span>'+
+    '<span class="rc-saldo-val '+sc+'">$'+fM(Math.max(0,saldo))+'</span>';
   pagoDiv.appendChild(saldoRow);
 
-  // Guardar cobro
   if(modo!=="ninguno"){
     var saveBtn=document.createElement("button");
-    saveBtn.className="save-pago-btn";
-    saveBtn.textContent="💾 Guardar cobro";
+    saveBtn.className="rc-guardar-btn";
+    saveBtn.innerHTML='💾 Guardar cobro';
     saveBtn.onclick=function(){guardarPago(rutaKey,cliKey);};
     pagoDiv.appendChild(saveBtn);
   }
 
   body.appendChild(pagoDiv);
 
-  // Pagos adicionales / historial
+  /* Historial de pagos */
   var pagosHist=document.createElement("div");
-  pagosHist.className="pagos-hist";
+  pagosHist.className="rc-hist-wrap";
   pagosHist.id="pagos-hist-"+rutaKey+"-"+cliKey;
   renderPagosHist(pagosHist, rutaKey, cliKey);
   body.appendChild(pagosHist);
 
-  // Acciones cliente
+  /* Acciones */
   var cliAct=document.createElement("div");
-  cliAct.className="cli-action-row";
+  cliAct.className="rc-actions";
 
   var btnFirma=document.createElement("button");
-  btnFirma.className="btn-mover";
-  btnFirma.style.cssText="background:#f0fdf4;color:var(--green);border-color:var(--green)";
-  if(cli.firma){
-    btnFirma.textContent="✅ Ver firma";
-    btnFirma.style.cssText="background:#f0fdf4;color:#065f46;border:1.5px solid #059669";
-  } else {
-    btnFirma.textContent="✍️ Pedir firma";
-  }
+  btnFirma.className="rc-act-btn rc-act-firma";
+  btnFirma.innerHTML=cli.firma?"✅ Ver firma":"✍️ Firma";
   btnFirma.onclick=function(){abrirFirma(rutaKey,cliKey);};
 
   var btnMover=document.createElement("button");
-  btnMover.className="btn-mover";
-  btnMover.textContent="🔀 Mover a otra ruta";
+  btnMover.className="rc-act-btn rc-act-mover";
+  btnMover.innerHTML="🔀 Mover";
   btnMover.onclick=function(){abrirMover(rutaKey,cliKey);};
 
   var btnQuitar=document.createElement("button");
-  btnQuitar.className="btn-quitar";
-  btnQuitar.textContent="🗑 Quitar de la ruta";
+  btnQuitar.className="rc-act-btn rc-act-quitar";
+  btnQuitar.innerHTML="🗑 Quitar";
   btnQuitar.onclick=function(){borrarClienteRuta(rutaKey,cliKey,cli.nom);};
 
   cliAct.appendChild(btnFirma);
@@ -1382,182 +1488,85 @@ function buildClienteRow(rutaKey, cliKey, cli){
   return row;
 }
 
-function imprimirRemitoCli(rk, ck){
-  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  if(!cli){alert("No se encontraron datos de este cliente.");return;}
-  var ef=cli.efectivo||0, tr=cli.transferencia||0;
-  var pagado=ef+tr, saldo=(cli.importe||0)-pagado;
-  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
-  if(empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,40,20);
-  doc.setFontSize(18); doc.setFont("helvetica","bold");
-  doc.text((empresaData.nombre||"EMPRESA")+" - REMITO",105,16,{align:"center"});
-  doc.setFontSize(11); doc.setFont("helvetica","normal");
-  doc.text("Cliente: "+cli.nom,55,25);
-  doc.text("Fecha: "+new Date(cli.fecha||Date.now()).toLocaleDateString()+" "+new Date(cli.fecha||Date.now()).toLocaleTimeString(),55,31);
-  doc.autoTable({
-    startY:44,
-    head:[["Cant","Cod","Producto","P.U","Sub"]],
-    body:(cli.items||[]).map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),
-    foot:[["","","","TOTAL","$"+fM(cli.importe||0)]],
-    theme:"striped",
-    headStyles:{fillColor:[13,27,42]}
-  });
-  var yFin = doc.lastAutoTable.finalY+8;
-  if(pagado>0){
-    doc.setFont("helvetica","bold"); doc.text("COBRO:",14,yFin);
-    doc.setFont("helvetica","normal");
-    if(ef>0) doc.text("Efectivo: $"+fM(ef),40,yFin);
-    if(tr>0) doc.text("Transferencia: $"+fM(tr),(ef>0?95:40),yFin);
-    yFin+=10;
-  }
-  // Add firma image if exists
-  if(cli.firma){
-    doc.setFont("helvetica","bold"); doc.text("FIRMA DEL CLIENTE:",14,yFin+4);
-    try{ doc.addImage(cli.firma,"JPEG",14,yFin+8,80,32); } catch(e){}
-    yFin+=48;
-  }
-  var pdfUrl = doc.output("bloburl");
-  window.open(pdfUrl,"_blank");
-}
-
-
 function renderEditItems(wrap, rk, ck){
-  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(!cli) return;
-  var items = (cli.items||[]).slice();
+  var items=(cli.items||[]).slice();
+  wrap.innerHTML="";
 
-  wrap.innerHTML = "";
-  var title = document.createElement("div");
-  title.className = "edit-items-title";
-  title.textContent = "✏️ Editar productos del remito";
-  wrap.appendChild(title);
+  /* Toggle header */
+  var toggle=document.createElement("div");
+  toggle.className="rc-edit-toggle";
+  toggle.innerHTML='<span>✏️ Editar productos</span><span class="rc-edit-count">'+items.length+'</span>';
+  var editBody=document.createElement("div");
+  editBody.className="rc-edit-body";
+  editBody.style.display="none";
+  toggle.onclick=function(){
+    var open=editBody.style.display!=="none";
+    editBody.style.display=open?"none":"block";
+    toggle.classList.toggle("open",!open);
+  };
+  wrap.appendChild(toggle);
+  wrap.appendChild(editBody);
 
-  // Existing items editable
-  items.forEach(function(it, i){
-    var row = document.createElement("div");
-    row.className = "edit-item-row";
-    var nameEl = document.createElement("span");
-    nameEl.className = "edit-item-name";
-    nameEl.title = it.n;
-    nameEl.textContent = it.n;
-
-    var cantEl = document.createElement("input");
-    cantEl.type = "number"; cantEl.min = "0"; cantEl.step = "1";
-    cantEl.className = "edit-item-cant";
-    cantEl.value = it.c;
-    cantEl.onchange = function(){
-      var newC = parseFloat(this.value)||0;
-      if(newC <= 0){ items.splice(i,1); }
-      else { items[i] = Object.assign({},it,{c:newC,sub:it.p*newC}); }
-      guardarItemsEditados(rk, ck, items, wrap);
+  /* Existing items */
+  items.forEach(function(it,i){
+    var row=document.createElement("div");
+    row.className="rc-edit-item";
+    row.innerHTML=
+      '<span class="rc-edit-name">'+it.n+'</span>'+
+      '<span class="rc-edit-price">$'+fM(it.p)+'</span>'+
+      '<input type="number" min="0" step="1" class="rc-edit-cant" value="'+it.c+'" data-idx="'+i+'">'+
+      '<button class="rc-edit-del" data-idx="'+i+'">✕</button>';
+    row.querySelector(".rc-edit-cant").onchange=function(){
+      var newC=parseFloat(this.value)||0;
+      if(newC<=0) items.splice(i,1);
+      else items[i]=Object.assign({},it,{c:newC,sub:it.p*newC});
+      guardarItemsEditados(rk,ck,items,wrap);
     };
-
-    var delEl = document.createElement("button");
-    delEl.className = "edit-item-del";
-    delEl.textContent = "✕";
-    delEl.onclick = function(){
+    row.querySelector(".rc-edit-del").onclick=function(){
       items.splice(i,1);
-      guardarItemsEditados(rk, ck, items, wrap);
+      guardarItemsEditados(rk,ck,items,wrap);
     };
-
-    var priceEl = document.createElement("span");
-    priceEl.style.cssText = "font-size:12px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums";
-    priceEl.textContent = "$"+fM(it.p);
-
-    row.appendChild(nameEl);
-    row.appendChild(cantEl);
-    row.appendChild(priceEl);
-    row.appendChild(delEl);
-    wrap.appendChild(row);
+    editBody.appendChild(row);
   });
 
-  // Add product search
-  var addRow = document.createElement("div");
-  addRow.className = "add-producto-ruta";
-  var searchWrap = document.createElement("div");
-  searchWrap.className = "search-wrap";
-  searchWrap.style.flex = "1";
-  var searchIn = document.createElement("input");
-  searchIn.type = "text";
-  searchIn.placeholder = "+ Agregar producto...";
-  searchIn.autocomplete = "off";
-  var dropDown = document.createElement("div");
-  dropDown.className = "dropdown";
-
-  searchIn.oninput = function(){
-    var q = this.value.toLowerCase().trim();
-    dropDown.innerHTML = "";
-    if(q.length < 1){ dropDown.classList.remove("open"); return; }
-    var res = dbStock.filter(function(p){
-      return p.id.toLowerCase().includes(q)||p.n.toLowerCase().includes(q);
-    }).slice(0,10);
+  /* Add product search */
+  var addRow=document.createElement("div");
+  addRow.className="rc-edit-add";
+  var sw=document.createElement("div");
+  sw.className="search-wrap";
+  var si=document.createElement("input");
+  si.type="text"; si.placeholder="+ Agregar producto..."; si.autocomplete="off";
+  var dd=document.createElement("div");
+  dd.className="dropdown";
+  si.oninput=function(){
+    var q=this.value.toLowerCase().trim();
+    dd.innerHTML="";
+    if(q.length<1){dd.classList.remove("open");return;}
+    var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(q)||p.n.toLowerCase().includes(q);}).slice(0,10);
     if(res.length){
-      dropDown.classList.add("open");
-      var lista = tipoLista[ck]||cli.lista||"Clientes";
+      dd.classList.add("open");
+      var lista=cli.lista||"Clientes";
       res.forEach(function(p){
-        var pre = lista==="Patagonia"?p.pPat:p.pCli;
-        var div = document.createElement("div");
-        div.className = "dd-item";
-        div.innerHTML = '<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span><span class="dd-price">$'+fM(pre)+'</span>';
-        div.onclick = function(){
-          var exist = items.find(function(x){return x.id===p.id;});
-          if(exist){ exist.c+=1; exist.sub=exist.p*exist.c; }
+        var pre=lista==="Patagonia"?p.pPat:p.pCli;
+        var div=document.createElement("div");
+        div.className="dd-item";
+        div.innerHTML='<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span><span class="dd-price">$'+fM(pre)+'</span>';
+        div.onclick=function(){
+          var ex=items.find(function(x){return x.id===p.id;});
+          if(ex){ex.c+=1;ex.sub=ex.p*ex.c;}
           else items.push({id:p.id,n:p.n,p:pre,c:1,sub:pre});
-          searchIn.value=""; dropDown.classList.remove("open");
+          si.value="";dd.classList.remove("open");
           guardarItemsEditados(rk,ck,items,wrap);
         };
-        dropDown.appendChild(div);
+        dd.appendChild(div);
       });
-    } else dropDown.classList.remove("open");
+    } else dd.classList.remove("open");
   };
-
-  searchWrap.appendChild(searchIn);
-  searchWrap.appendChild(dropDown);
-  addRow.appendChild(searchWrap);
-  wrap.appendChild(addRow);
-}
-
-function guardarItemsEditados(rk, ck, items, wrap){
-  // Recalculate importe from items
-  var nuevoTotal = items.reduce(function(s,it){return s+it.sub;},0);
-  var patch = {items: items, importe: nuevoTotal};
-  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
-    rutasData[rk].clientes[ck].items = items;
-    rutasData[rk].clientes[ck].importe = nuevoTotal;
-  }
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch)
-    .then(function(){
-      // Refresh the edit wrap
-      renderEditItems(wrap, rk, ck);
-      // Also update the ventas total if there's a matching venta
-      actualizarVentaDeRuta(rk, ck, nuevoTotal, items);
-      // Re-render totals
-      renderRutas();
-    })
-    .catch(function(){ alert("Error al guardar cambios."); });
-}
-
-function actualizarVentaDeRuta(rk, ck, nuevoTotal, items){
-  // Find the venta in Firebase that matches this remito and update it
-  var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  if(!cli||!cli.fecha) return;
-  // Look through ventas for a matching entry (same client, same approximate date)
-  fbGet("empresas/"+empresaKey+"/ventas")
-    .then(function(ventas){
-      if(!ventas) return;
-      var cliNom = cli.nom||"";
-      var cliDate = (cli.fecha||"").slice(0,10);
-      // Find matching venta
-      var match = Object.entries(ventas).find(function(e){
-        var v = e[1];
-        return v.clienteNom===cliNom && (v.fecha||"").slice(0,10)===cliDate;
-      });
-      if(match){
-        var fbKey = match[0];
-        fbPatch("empresas/"+empresaKey+"/ventas/"+fbKey, {total:nuevoTotal, items:items})
-          .catch(function(){});
-      }
-    }).catch(function(){});
+  sw.appendChild(si); sw.appendChild(dd);
+  addRow.appendChild(sw);
+  editBody.appendChild(addRow);
 }
 
 function renderPagosHist(wrap, rk, ck){
@@ -1569,69 +1578,75 @@ function renderPagosHist(wrap, rk, ck){
   var saldo=(cli.importe||0)-totalPagado;
 
   wrap.innerHTML="";
-  var title=document.createElement("div");
-  title.className="pago-hist-title";
-  title.innerHTML='<span>💰 Historial de pagos</span><span style="color:'+(saldo<=0?"var(--green)":"var(--amber)")+'">Saldo: $'+fM(Math.abs(saldo))+(saldo<0?" a favor":"")+'</span>';
-  wrap.appendChild(title);
+  if(!efBase&&!trBase&&!pagos.length){
+    // Sin pagos - solo mostrar botón agregar
+  } else {
+    var hist=document.createElement("div");
+    hist.className="rc-hist-card";
+    var htitle=document.createElement("div");
+    htitle.className="rc-hist-title";
+    htitle.innerHTML=
+      '<span>💰 Historial de pagos</span>'+
+      '<span class="rc-hist-saldo '+(saldo<=0?"rc-hist-ok":"rc-hist-warn")+'">'+
+        (saldo<=0?"✓ Cobrado":"$"+fM(saldo)+" pend.")+
+      '</span>';
+    hist.appendChild(htitle);
 
-  // Pago base del remito
-  if(efBase>0||trBase>0){
-    var baseRow=document.createElement("div");
-    baseRow.className="pago-hist-row";
-    baseRow.innerHTML='<span class="pago-hist-fecha">Al entregar</span>'+
-      '<span style="flex:1;color:var(--muted);font-size:11px">'+
-        (efBase>0?"💵 $"+fM(efBase):"")+
-        (efBase>0&&trBase>0?" + ":"")+
-        (trBase>0?"📲 $"+fM(trBase):"")+
-      '</span>'+
-      '<span class="pago-hist-monto">$'+fM(efBase+trBase)+'</span>';
-    wrap.appendChild(baseRow);
+    if(efBase>0||trBase>0){
+      var br=document.createElement("div");
+      br.className="rc-hist-row";
+      br.innerHTML=
+        '<span class="rc-hist-fecha">Al entregar</span>'+
+        '<span class="rc-hist-det">'+
+          (efBase>0?"💵 $"+fM(efBase):"")+
+          (efBase>0&&trBase>0?" · ":"")+
+          (trBase>0?"📲 $"+fM(trBase):"")+
+        '</span>'+
+        '<span class="rc-hist-monto">$'+fM(efBase+trBase)+'</span>';
+      hist.appendChild(br);
+    }
+    pagos.forEach(function(p,i){
+      var fecha=p.fecha?new Date(p.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"}):"—";
+      var icono={efectivo:"💵",transferencia:"📲",cheque:"📄",mixto:"🔀"}[p.forma]||"💰";
+      var row=document.createElement("div");
+      row.className="rc-hist-row";
+      row.innerHTML=
+        '<span class="rc-hist-fecha">'+fecha+'</span>'+
+        '<span class="rc-hist-det">'+icono+' '+(p.nota||p.forma||"")+'</span>'+
+        '<span class="rc-hist-monto">$'+fM(p.monto||0)+'</span>'+
+        '<button class="rc-hist-del" onclick="borrarPagoAdicional(\''+rk+'\',\''+ck+'\','+i+')">✕</button>';
+      hist.appendChild(row);
+    });
+    wrap.appendChild(hist);
   }
 
-  // Pagos adicionales
-  pagos.forEach(function(p,i){
-    var row=document.createElement("div");
-    row.className="pago-hist-row";
-    var fecha=p.fecha?new Date(p.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"}):"—";
-    var forma={efectivo:"💵",transferencia:"📲",mixto:"🔀"}[p.forma]||"💰";
-    row.innerHTML='<span class="pago-hist-fecha">'+fecha+'</span>'+
-      '<span style="flex:1;color:var(--muted);font-size:11px">'+forma+' '+(p.nota||p.forma||"")+'</span>'+
-      '<span class="pago-hist-monto">$'+fM(p.monto||0)+'</span>';
-    var del=document.createElement("button");
-    del.style.cssText="background:none;border:none;color:var(--muted2);font-size:14px;cursor:pointer;padding:2px 4px";
-    del.textContent="✕";
-    del.onclick=function(){borrarPagoAdicional(rk,ck,i);};
-    row.appendChild(del);
-    wrap.appendChild(row);
-  });
-
-  // Form to add new payment
-  var btnAdd=document.createElement("button");
-  btnAdd.className="btn-add-pago";
-  btnAdd.textContent="+ Agregar otro pago";
-  btnAdd.onclick=function(){
-    var form=wrap.querySelector(".nuevo-pago-form");
-    if(form) form.classList.toggle("open");
-    btnAdd.textContent=form&&form.classList.contains("open")?"✕ Cancelar":"+ Agregar otro pago";
-  };
-  wrap.appendChild(btnAdd);
-
-  var form=document.createElement("div");
-  form.className="nuevo-pago-form";
-  form.innerHTML=
-    '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Nuevo pago</div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:8px">'+
-      '<input type="number" id="np-monto-'+rk+'-'+ck+'" placeholder="Monto $" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-weight:700;font-family:Inter,sans-serif;background:var(--surface);color:var(--text)">'+
-      '<select id="np-forma-'+rk+'-'+ck+'" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:Inter,sans-serif;background:var(--surface);color:var(--text);-webkit-appearance:none">'+
+  /* Agregar pago */
+  var addPagoBtn=document.createElement("button");
+  addPagoBtn.className="rc-add-pago-btn";
+  addPagoBtn.textContent="+ Agregar pago";
+  var addPagoForm=document.createElement("div");
+  addPagoForm.className="rc-add-pago-form";
+  addPagoForm.innerHTML=
+    '<div class="rc-add-pago-row">'+
+      '<input type="number" id="np-monto-'+rk+'-'+ck+'" placeholder="Monto $" class="rc-add-input">'+
+      '<select id="np-forma-'+rk+'-'+ck+'" class="rc-add-select">'+
         '<option value="efectivo">💵 Efectivo</option>'+
         '<option value="transferencia">📲 Transfer.</option>'+
         '<option value="cheque">📄 Cheque</option>'+
       '</select>'+
     '</div>'+
-    '<input type="text" id="np-nota-'+rk+'-'+ck+'" placeholder="Nota (opcional)" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:Inter,sans-serif;background:var(--surface);color:var(--text);margin-bottom:8px">'+
-    '<button data-rk="'+rk+'" data-ck="'+ck+'" onclick="confirmarPagoAdicional(this.dataset.rk,this.dataset.ck)" style="width:100%;padding:9px;background:var(--green);color:#fff;border:none;border-radius:7px;font-family:Inter,sans-serif;font-size:13px;font-weight:700;cursor:pointer">💾 Guardar pago</button>';
-  wrap.appendChild(form);
+    '<input type="text" id="np-nota-'+rk+'-'+ck+'" placeholder="Nota (opcional)" class="rc-add-nota">'+
+    '<button data-rk="'+rk+'" data-ck="'+ck+'" onclick="confirmarPagoAdicional(this.dataset.rk,this.dataset.ck)" class="rc-add-confirmar">💾 Guardar pago</button>';
+  addPagoBtn.onclick=function(){
+    var open=addPagoForm.style.display!=="none";
+    addPagoForm.style.display=open?"none":"block";
+    addPagoBtn.textContent=open?"+ Agregar pago":"✕ Cancelar";
+    if(!open) setTimeout(function(){var el=document.getElementById("np-monto-"+rk+"-"+ck);if(el)el.focus();},50);
+  };
+  wrap.appendChild(addPagoBtn);
+  wrap.appendChild(addPagoForm);
 }
+
 
 function confirmarPagoAdicional(rk, ck){
   var montoEl=document.getElementById("np-monto-"+rk+"-"+ck);
