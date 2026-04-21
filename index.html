@@ -664,6 +664,35 @@ select option { background:var(--s2) }
 .pa-act-pdf:hover { background:rgba(201,147,58,.18); box-shadow:0 3px 10px rgba(201,147,58,.2) }
 .pa-act-del { background:none; color:var(--red); border-color:rgba(239,68,68,.25) }
 .pa-act-del:hover { background:rgba(239,68,68,.08) }
+
+/* ── STOCK ── */
+.stk-summary { display:none; grid-template-columns:1fr 1fr 1fr; gap:1px; background:var(--border); border-radius:10px; overflow:hidden; margin-bottom:10px }
+.stk-stat { background:var(--s2); padding:10px; text-align:center }
+.stk-stat-val { font-size:18px; font-weight:800; color:#fff }
+.stk-stat-val.stk-green { color:var(--green) }
+.stk-stat-val.stk-red   { color:var(--red) }
+.stk-stat-lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-top:2px }
+.stk-row { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--s2); border:1px solid var(--border); border-radius:10px; margin-bottom:6px }
+.stk-row-info { flex:1; min-width:0 }
+.stk-row-cod { font-size:10px; font-weight:700; color:var(--muted2); margin-bottom:2px }
+.stk-row-name { font-size:13px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.stk-row-right { display:flex; align-items:center; gap:8px; flex-shrink:0 }
+.stk-badge { font-size:11px; font-weight:700; padding:3px 8px; border-radius:20px; white-space:nowrap }
+.stk-badge-ok  { background:rgba(16,185,129,.15); color:#34d399 }
+.stk-badge-low { background:rgba(245,158,11,.15);  color:#fbbf24 }
+.stk-badge-0   { background:rgba(239,68,68,.15);   color:#f87171 }
+.stk-qty-wrap { display:flex; align-items:center }
+.stk-btn-minus,.stk-btn-plus { width:30px; height:30px; border:1.5px solid var(--border); background:var(--s3); color:#fff; font-size:16px; font-weight:700; cursor:pointer; transition:all .15s; display:flex; align-items:center; justify-content:center; font-family:Inter,sans-serif }
+.stk-btn-minus { border-radius:7px 0 0 7px; border-right:none }
+.stk-btn-plus  { border-radius:0 7px 7px 0; border-left:none }
+.stk-btn-minus:hover { background:rgba(239,68,68,.15); color:var(--red) }
+.stk-btn-plus:hover  { background:rgba(16,185,129,.15); color:var(--green) }
+.stk-qty-input { width:50px!important; height:30px; border:1.5px solid var(--border)!important; border-radius:0!important; text-align:center; font-size:13px!important; font-weight:700!important; padding:0!important; -moz-appearance:textfield }
+.stk-qty-input::-webkit-inner-spin-button,.stk-qty-input::-webkit-outer-spin-button { -webkit-appearance:none }
+.dd-stk { font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; white-space:nowrap; flex-shrink:0 }
+.dd-stk-ok  { background:rgba(16,185,129,.15); color:#34d399 }
+.dd-stk-low { background:rgba(245,158,11,.15);  color:#fbbf24 }
+.dd-stk-0   { background:rgba(239,68,68,.15);   color:#f87171 }
 </style>
 </head>
 <body>
@@ -719,6 +748,10 @@ select option { background:var(--s2) }
     <div class="sb-group-lbl">Análisis</div>
     <button class="sb-item" id="nav-resumen" onclick="verTab('resumen',this)">
       <span class="sb-icon">📊</span>Resumen Mensual
+    </button>
+    <div class="sb-group-lbl">Inventario</div>
+    <button class="sb-item" id="nav-stock" onclick="verTab('stock',this)">
+      <span class="sb-icon">📦</span>Mi Stock
     </button>
     <div class="sb-group-lbl">Más</div>
     <button class="sb-item" id="nav-backup" onclick="verTab('backup',this)">
@@ -865,6 +898,15 @@ select option { background:var(--s2) }
   <div id="mapa-paradas"></div>
 </div>
 
+<div id="stock" class="section">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <input type="text" id="stk-buscar" placeholder="🔍 Buscar producto…" oninput="filtrarStock()" style="flex:1;font-size:13px">
+    <button class="btn btn-ghost btn-sm" onclick="cargarStock()">🔄</button>
+  </div>
+  <div class="stk-summary" id="stk-summary"></div>
+  <div id="stk-list"><div class="empty-box"><div class="empty-icon">📦</div>Cargando…</div></div>
+</div>
+
 <div id="resumen" class="section">
   <div class="res-toolbar">
     <select id="fil-mes" onchange="renderResumen()"></select>
@@ -937,10 +979,11 @@ select option { background:var(--s2) }
 
 var FB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas"};
+var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock"};
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
+var stockData = {};
 var dbStock = [], dbCli = [], ventas = [], rutasData = {};
 var rutaAbierta = null, clienteAbierto = {};
 var modalRutaKey = null, modalCliKey = null;
@@ -1144,6 +1187,7 @@ function verTab(id,btn){
   if(id==="mapa-entregas")iniciarMapaEntregas();
   if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
+  if(id==="stock")cargarStock();
 }
 function cargarCatalogo(){
   var msg=document.getElementById("sync-msg");
@@ -1219,7 +1263,30 @@ function actualizarDL(){
   document.getElementById("dl-cli-rem").innerHTML=h;
 }
 function vincularCli(origen,t){ var idIn=document.getElementById("idCli-"+t),nomIn=document.getElementById("nomCli-"+t); var c=origen==="id"?dbCli.find(function(x){return x.id.toString()===idIn.value.trim();}):dbCli.find(function(x){return x.nombre.trim()===nomIn.value.trim();}); if(c){idIn.value=c.id;nomIn.value=c.nombre;tipoLista[t]=c.lista.toLowerCase().includes("patagonia")?"Patagonia":"Clientes";document.getElementById("badge-"+t).textContent="📋 "+tipoLista[t];} }
-function filtrar(t){ var box=document.getElementById("res-"+t),bus=document.getElementById("bus-"+t).value.toLowerCase().trim(); box.innerHTML=""; if(bus.length<1){box.classList.remove("open");return;} var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(bus)||p.n.toLowerCase().includes(bus);}).slice(0,12); if(res.length){box.classList.add("open");res.forEach(function(p){var pre=tipoLista[t]==="Patagonia"?p.pPat:p.pCli;var div=document.createElement("div");div.className="dd-item";div.innerHTML='<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span><span class="dd-price">$'+fM(pre)+'</span>';div.onclick=function(){itemSel[t]=Object.assign({},p,{pre:pre});document.getElementById("bus-"+t).value=p.n;box.classList.remove("open");};box.appendChild(div);});}else box.classList.remove("open"); }
+function filtrar(t){
+  var box=document.getElementById("res-"+t),bus=document.getElementById("bus-"+t).value.toLowerCase().trim();
+  box.innerHTML="";
+  if(bus.length<1){box.classList.remove("open");return;}
+  var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(bus)||p.n.toLowerCase().includes(bus);}).slice(0,12);
+  if(res.length){
+    box.classList.add("open");
+    res.forEach(function(p){
+      var pre=tipoLista[t]==="Patagonia"?p.pPat:p.pCli;
+      var qty=stockData[p.id];
+      var stkHtml="";
+      if(qty!==undefined){
+        if(qty<=0)      stkHtml='<span class="dd-stk dd-stk-0">Sin stock</span>';
+        else if(qty<=5) stkHtml='<span class="dd-stk dd-stk-low">'+qty+' u.</span>';
+        else            stkHtml='<span class="dd-stk dd-stk-ok">'+qty+' u.</span>';
+      }
+      var div=document.createElement("div");
+      div.className="dd-item";
+      div.innerHTML='<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span>'+stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
+      div.onclick=function(){itemSel[t]=Object.assign({},p,{pre:pre});document.getElementById("bus-"+t).value=p.n;box.classList.remove("open");};
+      box.appendChild(div);
+    });
+  } else box.classList.remove("open");
+}
 function agregar(t){ var cant=parseFloat(document.getElementById("cant-"+t).value)||1; if(!itemSel[t])return; var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id&&x.p===itemSel[t].pre;}); if(exist){exist.c+=cant;exist.sub=exist.p*exist.c;}else ordenes[t].push({id:itemSel[t].id,n:itemSel[t].n,p:itemSel[t].pre,c:cant,sub:itemSel[t].pre*cant}); renderItems(t); document.getElementById("bus-"+t).value=""; document.getElementById("cant-"+t).value="1"; itemSel[t]=null; }
 function renderItems(t){ var wrap=document.getElementById("items-"+t); document.getElementById("total-"+t).textContent=fM(ordenes[t].reduce(function(s,i){return s+i.sub;},0)); if(!ordenes[t].length){wrap.innerHTML='<div class="items-empty">Sin productos aún</div>';return;} 
   var html2="";
@@ -1287,6 +1354,7 @@ function generarPDF(m){
     tipo:m
   };
   guardarBackup(bkItem);
+  descontarStock(ordenes[t]);
 
   var blob=doc.output("blob"), file=new File([blob],m+"_"+nom+".pdf",{type:"application/pdf"});
   if(navigator.share)navigator.share({files:[file]}).catch(function(){doc.save(m+"_"+nom+".pdf");});
@@ -1294,6 +1362,113 @@ function generarPDF(m){
   limpiarFormulario(t);
   } catch(err) { console.error("generarPDF error:",err); alert("Error al generar PDF: "+err.message+"\n\nAvisá al admin con este mensaje."); }
 }
+
+/* ══ STOCK ══ */
+var _stkFiltro = "";
+
+function cargarStock(){
+  var list=document.getElementById("stk-list");
+  if(list)list.innerHTML='<div class="empty-box"><div class="empty-icon">⏳</div>Cargando…</div>';
+  if(!empresaKey)return;
+  fbGet("empresas/"+empresaKey+"/stock").then(function(data){
+    stockData=data||{};
+    renderStock();
+  }).catch(function(){
+    if(list)list.innerHTML='<div class="empty-box"><div class="empty-icon">❌</div>Error al cargar stock</div>';
+  });
+}
+
+function filtrarStock(){
+  _stkFiltro=(document.getElementById("stk-buscar")||{}).value||"";
+  renderStock();
+}
+
+function renderStock(){
+  var list=document.getElementById("stk-list");
+  var sumEl=document.getElementById("stk-summary");
+  if(!list)return;
+  var q=_stkFiltro.toLowerCase().trim();
+  var prods=dbStock.filter(function(p){return !q||p.id.toLowerCase().includes(q)||p.n.toLowerCase().includes(q);});
+  if(!prods.length){
+    list.innerHTML='<div class="empty-box"><div class="empty-icon">📦</div>'+(dbStock.length?'Sin resultados':'Sin productos — cargá el catálogo desde el Admin')+'</div>';
+    if(sumEl)sumEl.style.display="none";
+    return;
+  }
+  var enStock=prods.filter(function(p){return (stockData[p.id]||0)>0;}).length;
+  var sinStock=prods.filter(function(p){return (stockData[p.id]||0)<=0;}).length;
+  if(sumEl){
+    sumEl.style.display="grid";
+    sumEl.innerHTML=
+      '<div class="stk-stat"><div class="stk-stat-val">'+prods.length+'</div><div class="stk-stat-lbl">Productos</div></div>'+
+      '<div class="stk-stat"><div class="stk-stat-val stk-green">'+enStock+'</div><div class="stk-stat-lbl">Con stock</div></div>'+
+      '<div class="stk-stat"><div class="stk-stat-val stk-red">'+sinStock+'</div><div class="stk-stat-lbl">Sin stock</div></div>';
+  }
+  list.innerHTML="";
+  prods.forEach(function(p){
+    var qty=stockData[p.id]||0;
+    var bc=qty<=0?"stk-badge-0":qty<=5?"stk-badge-low":"stk-badge-ok";
+    var card=document.createElement("div");
+    card.className="stk-row";
+    card.dataset.pid = p.id;
+    card.innerHTML=
+      '<div class="stk-row-info">'+
+        '<div class="stk-row-cod">'+p.id+'</div>'+
+        '<div class="stk-row-name">'+p.n+'</div>'+
+      '</div>'+
+      '<div class="stk-row-right">'+
+        '<span class="stk-badge '+bc+'">'+(qty<=0?"Sin stock":qty+" u.")+'</span>'+
+        '<div class="stk-qty-wrap">'+
+          '<button class="stk-btn-minus" data-pid="'+p.id+'" data-d="-1">−</button>'+
+          '<input type="number" class="stk-qty-input" id="stk-qty-'+p.id+'" value="'+qty+'" min="0" data-pid="'+p.id+'">'+
+          '<button class="stk-btn-plus" data-pid="'+p.id+'" data-d="1">+</button>'+
+        '</div>'+
+      '</div>';
+    card.querySelector(".stk-btn-minus").onclick=function(){cambiarStock(this.dataset.pid,parseInt(this.dataset.d));};
+    card.querySelector(".stk-btn-plus").onclick=function(){cambiarStock(this.dataset.pid,parseInt(this.dataset.d));};
+    card.querySelector(".stk-qty-input").onchange=function(){setStock(this.dataset.pid,this.value);};
+    list.appendChild(card);
+  });
+}
+
+function cambiarStock(pid,delta){
+  var inp=document.getElementById("stk-qty-"+pid);
+  var actual=parseInt((inp?inp.value:0)||0);
+  var nuevo=Math.max(0,actual+delta);
+  if(inp)inp.value=nuevo;
+  _guardarStockProd(pid,nuevo);
+}
+
+function setStock(pid,val){
+  var nuevo=Math.max(0,parseInt(val)||0);
+  var inp=document.getElementById("stk-qty-"+pid);
+  if(inp)inp.value=nuevo;
+  _guardarStockProd(pid,nuevo);
+}
+
+function _guardarStockProd(pid,qty){
+  stockData[pid]=qty;
+  var patch={};
+  patch[pid]=qty;
+  fbPatch("empresas/"+empresaKey+"/stock",patch)
+    .then(function(){renderStock();})
+    .catch(function(){alert("Error al guardar stock");});
+}
+
+function descontarStock(items){
+  if(!items||!items.length||!empresaKey)return;
+  var patch={};
+  var changed=false;
+  items.forEach(function(it){
+    if(stockData[it.id]!==undefined){
+      var nuevo=Math.max(0,(stockData[it.id]||0)-it.c);
+      patch[it.id]=nuevo;
+      stockData[it.id]=nuevo;
+      changed=true;
+    }
+  });
+  if(changed) fbPatch("empresas/"+empresaKey+"/stock",patch).catch(function(){});
+}
+
 
 // ══ RUTAS ══
 function cargarRutasFirebase(){ setStatus("fb-hoja-status","sync","☁️ Cargando…"); fbGet("empresas/"+empresaKey+"/rutas").then(function(d){rutasData=d||{};setStatus("fb-hoja-status","ok","✅");renderRutas();}).catch(function(){setStatus("fb-hoja-status","err","❌");}); }
