@@ -1317,9 +1317,22 @@ function generarPDF(m){
   doc.setFontSize(18);doc.setFont("helvetica","bold");
   doc.text((empresaData.nombre||"EMPRESA")+" - "+m.toUpperCase(),105,16,{align:"center"});
   doc.setFontSize(11);doc.setFont("helvetica","normal");
-  doc.text("Cliente: "+nom,55,25);doc.text("Lista: "+tipoLista[t],55,31);
-  doc.text("Fecha: "+new Date().toLocaleDateString()+" "+new Date().toLocaleTimeString(),55,37);
-  doc.autoTable({startY:44,head:[["Cant","Cod","Producto","P.U","Sub"]],body:ordenes[t].map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),foot:[["","","","TOTAL","$"+tot]],theme:"striped",headStyles:{fillColor:[13,27,42]}});
+  // Buscar dirección del cliente en dbCli
+  var cliIdVal=document.getElementById("idCli-"+t).value||"";
+  var cliData=dbCli.find(function(c){return c.id===cliIdVal||c.nombre===nom;})||null;
+  var cliDireccion=cliData?cliData.direccion||"":"";
+  var yBase=25;
+  doc.text("Cliente: "+nom,55,yBase);
+  if(cliDireccion){
+    doc.setTextColor(80,100,120);
+    doc.text(cliDireccion,55,yBase+6);
+    doc.setTextColor(30,41,59);
+    yBase+=6;
+  }
+  doc.text("Lista: "+tipoLista[t],55,yBase+6);
+  doc.text("Fecha: "+new Date().toLocaleDateString()+" "+new Date().toLocaleTimeString(),55,yBase+12);
+  var startY=yBase+20;
+  doc.autoTable({startY:startY,head:[["Cant","Cod","Producto","P.U","Sub"]],body:ordenes[t].map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),foot:[["","","","TOTAL","$"+tot]],theme:"striped",headStyles:{fillColor:[13,27,42]}});
   if(obs){var y=doc.lastAutoTable.finalY+10;doc.setFont("helvetica","bold");doc.text("OBSERVACIONES:",14,y);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(obs,180),14,y+7);}
 
   if(m==="remito"){
@@ -1831,8 +1844,17 @@ function imprimirRemitoCli(rk, ck){
   doc.setFontSize(18); doc.setFont("helvetica","bold");
   doc.text((empresaData.nombre||"EMPRESA")+" - REMITO",105,16,{align:"center"});
   doc.setFontSize(11); doc.setFont("helvetica","normal");
-  doc.text("Cliente: "+cli.nom,55,25);
-  doc.text("Fecha: "+new Date(cli.fecha||Date.now()).toLocaleDateString()+" "+new Date(cli.fecha||Date.now()).toLocaleTimeString(),55,31);
+  var cliInfo=dbCli.find(function(c){return c.id===(cli.id||"")||c.nombre===cli.nom;})||null;
+  var cliDir=cliInfo?cliInfo.direccion||"":"";
+  var ry=25;
+  doc.text("Cliente: "+cli.nom,55,ry);
+  if(cliDir){
+    doc.setTextColor(80,100,120);
+    doc.text(cliDir,55,ry+6);
+    doc.setTextColor(30,41,59);
+    ry+=6;
+  }
+  doc.text("Fecha: "+new Date(cli.fecha||Date.now()).toLocaleDateString()+" "+new Date(cli.fecha||Date.now()).toLocaleTimeString(),55,ry+6);
   doc.autoTable({
     startY:44,
     head:[["Cant","Cod","Producto","P.U","Sub"]],
