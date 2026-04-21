@@ -437,16 +437,45 @@ select option { background:var(--s2) }
 .nav-apple { background:var(--s3); color:var(--muted); border:1px solid var(--border) }
 
 /* ── BACKUP ── */
-.bk-counter { font-size:11px; color:var(--muted); text-align:right; margin-bottom:8px }
-.bk-empty { text-align:center; padding:36px 20px; color:var(--muted) }
-.bk-item { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border2) }
-.bk-item:last-child { border-bottom:none }
-.bk-fecha { font-size:11px; color:var(--muted); white-space:nowrap }
-.bk-info { flex:1; min-width:0 }
-.bk-nom { font-size:13px; font-weight:600; color:#fff }
-.bk-tot { font-size:13px; font-weight:700; color:var(--gold2); font-variant-numeric:tabular-nums; white-space:nowrap }
-.bk-btn-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:15px; padding:2px 4px; border-radius:4px }
-.bk-btn-del:active { color:var(--red); background:rgba(239,68,68,.12) }
+.bk-counter { font-size:12px; font-weight:600; color:var(--muted); text-align:right; margin-bottom:10px }
+.bk-zero { text-align:center; padding:48px 20px }
+.bk-zero-icon { font-size:44px; margin-bottom:12px }
+.bk-zero-txt { font-size:15px; font-weight:600; color:var(--text); margin-bottom:4px }
+.bk-zero-sub { font-size:13px; color:var(--muted) }
+
+.bk-card { background:var(--s2); border:1px solid var(--border); border-radius:12px; margin-bottom:8px; overflow:hidden; transition:border-color .15s }
+.bk-card.open { border-color:var(--gold) }
+.bk-card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:13px 14px; cursor:pointer; transition:background .12s }
+.bk-card-head:hover { background:var(--s3) }
+.bk-card-left { flex:1; min-width:0 }
+.bk-card-nom { font-size:14px; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:3px }
+.bk-card-meta { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; flex-wrap:wrap }
+.bk-lista { display:inline-flex; padding:1px 7px; border-radius:20px; font-size:10px; font-weight:700 }
+.bk-lista-cli { background:rgba(37,99,235,.15); color:#93c5fd }
+.bk-lista-pat { background:rgba(16,185,129,.15); color:#34d399 }
+.bk-card-right { display:flex; align-items:center; gap:8px; flex-shrink:0 }
+.bk-card-total { font-size:15px; font-weight:800; color:var(--gold2); font-variant-numeric:tabular-nums }
+.bk-card-caret { font-size:12px; color:var(--muted2) }
+
+.bk-card-detail { display:none; border-top:1px solid var(--border2) }
+.bk-card.open .bk-card-detail { display:block }
+
+.bk-card-items { padding:0 }
+.bk-card-item { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--border2) }
+.bk-ci-cant { font-size:12px; font-weight:700; color:var(--muted); min-width:26px; text-align:center; flex-shrink:0 }
+.bk-ci-name { flex:1; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.bk-ci-sub { font-size:13px; font-weight:600; color:var(--gold2); font-variant-numeric:tabular-nums; white-space:nowrap }
+.bk-card-total-row { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; background:var(--s1); font-size:13px; font-weight:700; color:#fff; font-variant-numeric:tabular-nums; border-bottom:1px solid var(--border2) }
+
+.bk-card-obs { padding:10px 14px; font-size:13px; color:var(--muted); border-bottom:1px solid var(--border2); background:var(--s1) }
+
+.bk-card-actions { display:flex; gap:6px; padding:10px 14px }
+.bk-act-btn { padding:8px 14px; border-radius:8px; font-family:Inter,sans-serif; font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid; transition:all .15s }
+.bk-act-btn:active { filter:brightness(.9); transform:scale(.98) }
+.bk-act-share { flex:1; background:rgba(37,99,235,.1); color:#93c5fd; border-color:rgba(37,99,235,.3) }
+.bk-act-dl { flex:1; background:rgba(201,147,58,.1); color:var(--gold2); border-color:rgba(201,147,58,.3) }
+.bk-act-del { background:none; border-color:rgba(239,68,68,.25); color:var(--red); padding:8px 12px }
+.bk-act-del:hover { background:rgba(239,68,68,.1) }
 
 /* ── SCROLLBARS ── */
 .dropdown::-webkit-scrollbar { width:3px }
@@ -1752,15 +1781,16 @@ function descargarPDFRuta(rk){ var ruta=rutasData[rk];if(!ruta)return; var jsPDF
 
 // VENTAS
 /* ══ BACKUP PEDIDOS ══ */
-var BK_KEY = "dm_backup_pedidos";
+var BK_KEY_BASE = "dm_backup_pedidos";
+function getBkKey(){ return BK_KEY_BASE + "_" + (empresaKey||"global"); }
 var backupAbierto = null;
 
 function getBackups(){
-  try{ return JSON.parse(localStorage.getItem(BK_KEY))||[]; }
+  try{ return JSON.parse(localStorage.getItem(getBkKey()))||[]; }
   catch{ return []; }
 }
 function saveBackups(arr){
-  localStorage.setItem(BK_KEY, JSON.stringify(arr));
+  localStorage.setItem(getBkKey(), JSON.stringify(arr));
 }
 
 function guardarBackup(item){
@@ -1785,15 +1815,15 @@ function subirBackupFirebase(item){
     })
     .catch(function(){
       // No connection — add to pending queue
-      var pending = JSON.parse(localStorage.getItem("dm_bk_pending")||"[]");
+      var pending = JSON.parse(localStorage.getItem("dm_bk_pending_"+(empresaKey||"global"))||"[]");
       if(!pending.find(function(x){return x.id===item.id;})) pending.push(item);
-      localStorage.setItem("dm_bk_pending", JSON.stringify(pending));
+      localStorage.setItem("dm_bk_pending_"+(empresaKey||"global"), JSON.stringify(pending));
       console.log("Backup guardado localmente, se subirá cuando haya conexión.");
     });
 }
 
 function sincronizarPendientesBackup(){
-  var pending = JSON.parse(localStorage.getItem("dm_bk_pending")||"[]");
+  var pending = JSON.parse(localStorage.getItem("dm_bk_pending_"+(empresaKey||"global"))||"[]");
   if(!pending.length || !empresaKey) return;
   var restantes = [];
   var count = 0;
@@ -1805,7 +1835,7 @@ function sincronizarPendientesBackup(){
         var arr = getBackups();
         var idx = arr.findIndex(function(x){return x.id===item.id;});
         if(idx>=0){ arr[idx]._fbKey=fbKey; arr[idx]._synced=true; saveBackups(arr); }
-        localStorage.setItem("dm_bk_pending", JSON.stringify(restantes));
+        localStorage.setItem("dm_bk_pending_"+(empresaKey||"global"), JSON.stringify(restantes));
         if(count===1) renderBackup(); // refresh once
       })
       .catch(function(){ restantes.push(item); });
@@ -1848,90 +1878,113 @@ function renderBackup(){
   if(!wrap) return;
   var arr = getBackups();
   var counter = document.getElementById("bk-counter");
-  if(counter) counter.textContent = arr.length + " pedido(s) guardado(s)";
+  if(counter) counter.textContent = arr.length ? arr.length+" pedido(s)" : "";
   if(!arr.length){
-    wrap.innerHTML='<div class="bk-empty"><div style="font-size:40px;margin-bottom:8px">💾</div>Sin pedidos guardados aún.<br><small>Cada pedido enviado se guarda acá automáticamente.</small></div>';
+    wrap.innerHTML='<div class="bk-zero"><div class="bk-zero-icon">💾</div><div class="bk-zero-txt">Sin pedidos guardados aún</div><div class="bk-zero-sub">Cada pedido enviado se guarda acá automáticamente.</div></div>';
     return;
   }
   wrap.innerHTML="";
-  arr.forEach(function(bk, idx){
+  arr.forEach(function(bk,idx){
     var isOpen = backupAbierto === bk.id;
-    var fechaStr = new Date(bk.fecha).toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+    var d = new Date(bk.fecha);
+    var fechaStr = d.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
+    var horaStr  = d.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+    var listaBadge = (bk.lista||"Clientes").toLowerCase().includes("patagonia")
+      ? '<span class="bk-lista bk-lista-pat">Patagonia</span>'
+      : '<span class="bk-lista bk-lista-cli">Clientes</span>';
+    var tipoIcon = bk.tipo==="remito" ? "🚚" : "📝";
 
-    var outer = document.createElement("div");
+    var card = document.createElement("div");
+    card.className = "bk-card" + (isOpen?" open":"");
 
-    // Header row
-    var row = document.createElement("div");
-    row.className = "bk-row";
-    row.innerHTML =
-      '<div class="bk-num">'+(idx+1)+'</div>'+
-      '<div class="bk-info">'+
-        '<div class="bk-cli">'+(bk.clienteNom||"Sin cliente")+'</div>'+
-        '<div class="bk-meta">'+fechaStr+' · '+(bk.items?bk.items.length:0)+' producto(s) · Lista: '+(bk.lista||"Clientes")+'</div>'+
+    /* Header */
+    var header = document.createElement("div");
+    header.className = "bk-card-head";
+    header.innerHTML =
+      '<div class="bk-card-left">'+
+        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+'</div>'+
+        '<div class="bk-card-meta">'+
+          tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
+          listaBadge+
+        '</div>'+
       '</div>'+
-      '<div class="bk-total">$'+fM(bk.total||0)+'</div>';
-    row.onclick = function(){ backupAbierto = isOpen ? null : bk.id; renderBackup(); };
-    outer.appendChild(row);
+      '<div class="bk-card-right">'+
+        '<div class="bk-card-total">$'+fM(bk.total||0)+'</div>'+
+        '<span class="bk-card-caret">'+(isOpen?"▲":"▼")+'</span>'+
+      '</div>';
+    header.onclick = function(){ backupAbierto = isOpen ? null : bk.id; renderBackup(); };
+    card.appendChild(header);
 
-    // Detail
+    /* Detail (collapsed) */
     var detail = document.createElement("div");
-    detail.className = "bk-detail"+(isOpen?" open":"");
+    detail.className = "bk-card-detail";
 
-    // Items
-    (bk.items||[]).forEach(function(it){
-      var ir = document.createElement("div");
-      ir.className = "bk-item-row";
-      ir.innerHTML = '<span class="bk-item-cant">'+it.c+'×</span><span class="bk-item-name">'+it.n+'</span><span class="bk-item-sub">$'+fM(it.sub)+'</span>';
-      detail.appendChild(ir);
-    });
-
-    // Obs
-    if(bk.obs && bk.obs.trim()){
-      var ob = document.createElement("div");
-      ob.className = "bk-obs";
-      ob.innerHTML = '💬 '+bk.obs;
-      detail.appendChild(ob);
+    /* Items */
+    if((bk.items||[]).length){
+      var itemsDiv = document.createElement("div");
+      itemsDiv.className = "bk-card-items";
+      (bk.items||[]).forEach(function(it){
+        var r = document.createElement("div");
+        r.className = "bk-card-item";
+        r.innerHTML =
+          '<span class="bk-ci-cant">'+it.c+'×</span>'+
+          '<span class="bk-ci-name">'+it.n+'</span>'+
+          '<span class="bk-ci-sub">$'+fM(it.sub)+'</span>';
+        itemsDiv.appendChild(r);
+      });
+      /* Total row */
+      var totRow = document.createElement("div");
+      totRow.className = "bk-card-total-row";
+      totRow.innerHTML = '<span>Total</span><span>$'+fM(bk.total||0)+'</span>';
+      itemsDiv.appendChild(totRow);
+      detail.appendChild(itemsDiv);
     }
 
-    // Action buttons
+    /* Obs */
+    if(bk.obs && bk.obs.trim()){
+      var obs = document.createElement("div");
+      obs.className = "bk-card-obs";
+      obs.innerHTML = '💬 '+bk.obs;
+      detail.appendChild(obs);
+    }
+
+    /* Actions */
     var acts = document.createElement("div");
-    acts.className = "bk-actions";
+    acts.className = "bk-card-actions";
 
     var btnShare = document.createElement("button");
-    btnShare.className = "bk-btn bk-btn-share";
-    btnShare.textContent = "📤 Compartir PDF";
+    btnShare.className = "bk-act-btn bk-act-share";
+    btnShare.innerHTML = "📤 Compartir";
     btnShare.onclick = function(e){ e.stopPropagation(); reenviarPedido(bk); };
 
-    var btnPDF = document.createElement("button");
-    btnPDF.className = "bk-btn bk-btn-pdf";
-    btnPDF.textContent = "📥 Descargar";
-    btnPDF.onclick = function(e){ e.stopPropagation(); generarPDFDesdeBackup(bk, false); };
+    var btnDl = document.createElement("button");
+    btnDl.className = "bk-act-btn bk-act-dl";
+    btnDl.innerHTML = "📥 Descargar";
+    btnDl.onclick = function(e){ e.stopPropagation(); generarPDFDesdeBackup(bk, false); };
 
     var btnDel = document.createElement("button");
-    btnDel.className = "bk-btn bk-btn-del";
-    btnDel.textContent = "🗑 Borrar";
+    btnDel.className = "bk-act-btn bk-act-del";
+    btnDel.innerHTML = "🗑";
     btnDel.onclick = function(e){
       e.stopPropagation();
-      if(!confirm("Borrar este pedido del backup?")) return;
+      if(!confirm("¿Borrar este pedido del backup?")) return;
       var arr2 = getBackups().filter(function(x){return x.id!==bk.id;});
       saveBackups(arr2);
       if(backupAbierto===bk.id) backupAbierto=null;
-      // Also delete from Firebase if synced
-      if(bk._fbKey && empresaKey){
+      if(bk._fbKey && empresaKey)
         fbDel("empresas/"+empresaKey+"/backupPedidos/"+bk._fbKey).catch(function(){});
-      }
       renderBackup();
     };
-
     acts.appendChild(btnShare);
-    acts.appendChild(btnPDF);
+    acts.appendChild(btnDl);
     acts.appendChild(btnDel);
     detail.appendChild(acts);
 
-    outer.appendChild(detail);
-    wrap.appendChild(outer);
+    card.appendChild(detail);
+    wrap.appendChild(card);
   });
 }
+
 
 function generarPDFDesdeBackup(bk, compartir){
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
