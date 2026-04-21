@@ -616,6 +616,54 @@ select option { background:var(--s2) }
 .rc-act-firma { background:rgba(16,185,129,.1); color:var(--green); border-color:rgba(16,185,129,.3) }
 .rc-act-mover { background:rgba(37,99,235,.1); color:#93c5fd; border-color:rgba(37,99,235,.3) }
 .rc-act-quitar { background:rgba(239,68,68,.08); color:var(--red); border-color:rgba(239,68,68,.25) }
+
+/* ── PEDIDOS AL PROVEEDOR ── */
+.pa-card { background:var(--s2); border:1px solid var(--border); border-radius:12px; margin-bottom:8px; overflow:hidden; transition:border-color .15s }
+.pa-card.open { border-color:var(--gold) }
+.pa-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 15px; cursor:pointer; transition:background .12s; user-select:none }
+.pa-head:hover { background:var(--s3) }
+.pa-head-info { flex:1; min-width:0 }
+.pa-fecha { font-size:14px; font-weight:700; color:#fff; margin-bottom:3px }
+.pa-meta { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:5px }
+.pa-dot { color:var(--muted2) }
+.pa-head-right { display:flex; align-items:center; gap:8px; flex-shrink:0 }
+.pa-total { font-size:16px; font-weight:800; color:var(--gold2); font-variant-numeric:tabular-nums }
+.pa-caret { font-size:12px; color:var(--muted2) }
+
+.pa-detail { display:none; border-top:1px solid var(--border2) }
+.pa-card.open .pa-detail { display:block }
+
+/* Tabla productos */
+.pa-table { padding:0 }
+.pa-th { display:flex; align-items:center; gap:8px; padding:8px 14px; background:var(--s1); border-bottom:1px solid var(--border2) }
+.pa-th span { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted2) }
+.pa-th-cod  { width:52px; flex-shrink:0 }
+.pa-th-name { flex:1 }
+.pa-th-cant { width:44px; text-align:center; flex-shrink:0 }
+.pa-th-sub  { width:80px; text-align:right; flex-shrink:0 }
+.pa-tr { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--border2); transition:background .1s }
+.pa-tr:hover { background:var(--s3) }
+.pa-td-cod  { font-size:11px; font-weight:700; color:var(--muted2); width:52px; flex-shrink:0; font-variant-numeric:tabular-nums }
+.pa-td-name { flex:1; font-size:13px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.pa-td-cant { font-size:13px; font-weight:700; color:var(--gold2); width:44px; text-align:center; flex-shrink:0 }
+.pa-td-sub  { font-size:13px; font-weight:600; color:var(--muted); width:80px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums }
+.pa-tfoot { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--s1); font-size:13px; font-weight:700; color:#fff; font-variant-numeric:tabular-nums; border-bottom:1px solid var(--border2) }
+
+/* Observaciones */
+.pa-obs-wrap { border-top:1px solid var(--border2); background:var(--s1) }
+.pa-obs-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); padding:9px 14px 6px }
+.pa-obs-item { display:flex; gap:10px; align-items:baseline; padding:6px 14px; border-top:1px solid var(--border2) }
+.pa-obs-cli { font-size:12px; font-weight:700; color:var(--gold2); white-space:nowrap; flex-shrink:0 }
+.pa-obs-txt { font-size:13px; color:var(--muted); flex:1 }
+
+/* Acciones */
+.pa-actions { display:flex; gap:6px; padding:10px 14px }
+.pa-act-btn { flex:1; padding:9px 14px; border-radius:8px; font-family:Inter,sans-serif; font-size:12px; font-weight:600; cursor:pointer; border:1.5px solid; transition:all .15s }
+.pa-act-btn:active { filter:brightness(.9); transform:scale(.98) }
+.pa-act-pdf { background:rgba(201,147,58,.1); color:var(--gold2); border-color:rgba(201,147,58,.3) }
+.pa-act-pdf:hover { background:rgba(201,147,58,.18); box-shadow:0 3px 10px rgba(201,147,58,.2) }
+.pa-act-del { background:none; color:var(--red); border-color:rgba(239,68,68,.25) }
+.pa-act-del:hover { background:rgba(239,68,68,.08) }
 </style>
 </head>
 <body>
@@ -2039,10 +2087,9 @@ function cargarPedidosAcum(){
 
 function renderPedidosAcum(){
   var wrap=document.getElementById("pedidos-acum-list");
-  // diaKey format: YYYYMMDD, each value is {pedKey: pedido}
   var diaKeys=Object.keys(pedidosAcumData).sort(function(a,b){return b.localeCompare(a);});
   if(!diaKeys.length){
-    wrap.innerHTML='<div class="empty-box"><div class="empty-icon">🛒</div>Sin pedidos guardados.<br><small>Cada pedido enviado aparece acá agrupado por día.</small></div>';
+    wrap.innerHTML='<div class="empty-box"><div class="empty-icon">🛒</div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">Sin pedidos aún</div><div style="font-size:13px">Cada pedido enviado aparece acá agrupado por día.</div></div>';
     return;
   }
   wrap.innerHTML="";
@@ -2050,14 +2097,11 @@ function renderPedidosAcum(){
     var diaData=pedidosAcumData[diaKey];
     var pedidos=Object.entries(diaData||{}).map(function(e){return Object.assign({fbKey:e[0]},e[1]);});
     var isOpen=diaAbierto===diaKey;
-    // Build date label
     var y=diaKey.slice(0,4),m2=diaKey.slice(4,6),d2=diaKey.slice(6,8);
     var fecha=new Date(y+"-"+m2+"-"+d2).toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
     fecha=fecha.charAt(0).toUpperCase()+fecha.slice(1);
-    // Totals
     var totalDia=pedidos.reduce(function(s,p){return s+(p.total||0);},0);
     var cantPed=pedidos.length;
-    // Accumulate products
     var prodAcum={};
     pedidos.forEach(function(p){
       (p.items||[]).forEach(function(it){
@@ -2067,79 +2111,101 @@ function renderPedidosAcum(){
       });
     });
     var prodList=Object.values(prodAcum).sort(function(a,b){return b.cant-a.cant;});
-    // Observations
     var obsItems=pedidos.filter(function(p){return p.obs&&p.obs.trim();});
+
     var outer=document.createElement("div");
-    // Toggle button
-    var btn=document.createElement("button");
-    btn.className="dia-btn"+(isOpen?" open":"");
-    btn.innerHTML=
-      '<div style="flex:1;min-width:0">'+
-        '<div class="dia-fecha">'+fecha+'</div>'+
-        '<div class="dia-meta">'+cantPed+' pedido'+(cantPed!==1?"s":"")+" · "+prodList.length+' producto'+(prodList.length!==1?"s":"")+'</div>'+
+    outer.className="pa-card"+(isOpen?" open":"");
+
+    /* ── Header ── */
+    var head=document.createElement("div");
+    head.className="pa-head";
+    head.innerHTML=
+      '<div class="pa-head-info">'+
+        '<div class="pa-fecha">'+fecha+'</div>'+
+        '<div class="pa-meta">'+
+          '<span>'+cantPed+' pedido'+(cantPed!==1?'s':'')+'</span>'+
+          '<span class="pa-dot">·</span>'+
+          '<span>'+prodList.length+' producto'+(prodList.length!==1?'s':'')+'</span>'+
+        '</div>'+
       '</div>'+
-      '<div class="dia-chips">'+
-        '<span class="chip chip-blue" style="background:#dbeafe;color:#1e40af">$'+fM(totalDia)+'</span>'+
-        '<span style="color:var(--muted2);font-size:15px">'+(isOpen?"▲":"▼")+'</span>'+
+      '<div class="pa-head-right">'+
+        '<div class="pa-total">$'+fM(totalDia)+'</div>'+
+        '<span class="pa-caret">'+(isOpen?"▲":"▼")+'</span>'+
       '</div>';
-    btn.onclick=function(){diaAbierto=diaAbierto===diaKey?null:diaKey;renderPedidosAcum();};
-    outer.appendChild(btn);
-    // Detail
+    head.onclick=function(){diaAbierto=diaAbierto===diaKey?null:diaKey;renderPedidosAcum();};
+    outer.appendChild(head);
+
+    /* ── Detail ── */
     var detail=document.createElement("div");
-    detail.className="dia-detail"+(isOpen?" open":"");
-    var card=document.createElement("div");
-    card.className="dia-card";
-    // Products section
-    var ph=document.createElement("div");
-    ph.className="ped-section-head";
-    ph.textContent="📦 Productos a pedir al proveedor";
-    card.appendChild(ph);
-    prodList.forEach(function(p){
-      var row=document.createElement("div");
-      row.className="prod-acum-row";
-      row.innerHTML='<span class="prod-acum-cod">'+p.id+'</span><span class="prod-acum-name">'+p.n+'</span><span class="prod-acum-cant">×'+p.cant+'</span><span class="prod-acum-total">$'+fM(p.total)+'</span>';
-      card.appendChild(row);
-    });
-    // Observations
+    detail.className="pa-detail";
+
+    /* Tabla de productos */
+    if(prodList.length){
+      var tbl=document.createElement("div");
+      tbl.className="pa-table";
+      /* Cabecera */
+      tbl.innerHTML=
+        '<div class="pa-th">'+
+          '<span class="pa-th-cod">Código</span>'+
+          '<span class="pa-th-name">Producto</span>'+
+          '<span class="pa-th-cant">Cant.</span>'+
+          '<span class="pa-th-sub">Subtotal</span>'+
+        '</div>';
+      prodList.forEach(function(p){
+        var row=document.createElement("div");
+        row.className="pa-tr";
+        row.innerHTML=
+          '<span class="pa-td-cod">'+p.id+'</span>'+
+          '<span class="pa-td-name">'+p.n+'</span>'+
+          '<span class="pa-td-cant">×'+p.cant+'</span>'+
+          '<span class="pa-td-sub">$'+fM(p.total)+'</span>';
+        tbl.appendChild(row);
+      });
+      /* Total */
+      var totRow=document.createElement("div");
+      totRow.className="pa-tfoot";
+      totRow.innerHTML='<span>Total del día</span><span>$'+fM(totalDia)+'</span>';
+      tbl.appendChild(totRow);
+      detail.appendChild(tbl);
+    }
+
+    /* Observaciones */
     if(obsItems.length){
-      var oh=document.createElement("div");
-      oh.className="ped-section-head";
-      oh.style.cssText="border-top:1px solid var(--border)";
-      oh.textContent="💬 Observaciones";
-      card.appendChild(oh);
+      var obsWrap=document.createElement("div");
+      obsWrap.className="pa-obs-wrap";
+      var obsTitle=document.createElement("div");
+      obsTitle.className="pa-obs-title";
+      obsTitle.textContent="💬 Observaciones";
+      obsWrap.appendChild(obsTitle);
       obsItems.forEach(function(p){
         var o=document.createElement("div");
-        o.className="obs-item";
-        o.innerHTML='<div class="obs-cli">'+p.clienteNom+'</div>'+p.obs;
-        card.appendChild(o);
+        o.className="pa-obs-item";
+        o.innerHTML='<span class="pa-obs-cli">'+p.clienteNom+'</span><span class="pa-obs-txt">'+p.obs+'</span>';
+        obsWrap.appendChild(o);
       });
+      detail.appendChild(obsWrap);
     }
-    // Total bar
-    var totalBar=document.createElement("div");
-    totalBar.className="dia-total-bar";
-    totalBar.innerHTML='<span class="dia-total-lbl">Total del día</span><span class="dia-total-val">$'+fM(totalDia)+'</span>';
-    card.appendChild(totalBar);
-    detail.appendChild(card);
-    // Action buttons
-    var actRow=document.createElement("div");
-    actRow.style.cssText="display:flex;gap:8px;margin-top:8px";
+
+    /* Acciones */
+    var acts=document.createElement("div");
+    acts.className="pa-actions";
     var btnPDF=document.createElement("button");
-    btnPDF.className="btn btn-primary btn-sm";
-    btnPDF.style.flex="1";
-    btnPDF.textContent="📥 PDF del día";
+    btnPDF.className="pa-act-btn pa-act-pdf";
+    btnPDF.innerHTML="📥 PDF del día";
     btnPDF.onclick=function(){descargarPDFDia(diaKey,fecha,prodList,obsItems,totalDia);};
     var btnDel=document.createElement("button");
-    btnDel.className="btn btn-ghost btn-sm";
-    btnDel.style.cssText="flex:1;color:var(--red);border-color:#fca5a5";
-    btnDel.textContent="🗑 Borrar día";
+    btnDel.className="pa-act-btn pa-act-del";
+    btnDel.innerHTML="🗑 Borrar día";
     btnDel.onclick=function(){borrarDiaPedidos(diaKey);};
-    actRow.appendChild(btnPDF);
-    actRow.appendChild(btnDel);
-    detail.appendChild(actRow);
+    acts.appendChild(btnPDF);
+    acts.appendChild(btnDel);
+    detail.appendChild(acts);
+
     outer.appendChild(detail);
     wrap.appendChild(outer);
   });
 }
+
 
 function borrarDiaPedidos(diaKey){
   if(!confirm("Borrar todos los pedidos de este día?"))return;
