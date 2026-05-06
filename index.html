@@ -883,16 +883,24 @@ select option { background:#fff }
 .btn-calc-cli:hover { opacity:.88 }
 .btn-calc-cli:disabled { opacity:.45; cursor:not-allowed }
 .gps-cli-status { font-size:12px; color:var(--muted); text-align:center; padding:5px 0 2px; line-height:1.4 }
-#mapa-cli-leaflet { width:100%; height:300px; border-radius:var(--radius); border:1px solid var(--border); margin-bottom:12px; display:none }
-.cli-check-list { max-height:220px; overflow-y:auto }
+#mapa-cli-leaflet { width:100%; height:260px; border-radius:var(--radius); border:1px solid var(--border); margin-bottom:12px }
+/* FIX: reset global input style for checkboxes */
+.cli-check-list input[type=checkbox] {
+  width:16px !important; height:16px !important;
+  padding:0 !important; border:1px solid var(--border) !important;
+  border-radius:3px !important; background:#fff !important;
+  box-shadow:none !important; outline:none !important;
+  -webkit-appearance:checkbox !important; appearance:checkbox !important;
+  accent-color:var(--text); cursor:pointer; flex-shrink:0; margin-top:2px;
+}
+.cli-check-list { max-height:240px; overflow-y:auto }
 .cli-check-list::-webkit-scrollbar { width:3px }
 .cli-check-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px }
-.cli-check-item { display:flex; align-items:flex-start; gap:9px; padding:8px 0; border-bottom:1px solid var(--border2); cursor:pointer }
+.cli-check-item { display:flex; align-items:flex-start; gap:9px; padding:9px 4px; border-bottom:1px solid var(--border2); cursor:pointer; user-select:none }
 .cli-check-item:last-child { border-bottom:none }
-.cli-check-item input[type=checkbox] { width:15px; height:15px; accent-color:var(--text); cursor:pointer; flex-shrink:0; margin-top:2px }
+.cli-check-item:hover { background:var(--s3); border-radius:6px }
 .cli-check-nom { font-size:13px; font-weight:600; color:var(--text) }
 .cli-check-dir { font-size:11px; color:var(--muted) }
-.cli-check-nodir { font-size:11px; color:var(--amber); font-style:italic }
 .ruta-cli-stop { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:11px 13px; display:flex; align-items:flex-start; gap:10px; margin-bottom:7px }
 .ruta-cli-stop.is-start { background:oklch(96% 0.04 155); border-color:oklch(88% 0.04 155) }
 .ruta-stop-num { width:26px; height:26px; border-radius:50%; background:var(--text); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0 }
@@ -1132,9 +1140,6 @@ select option { background:#fff }
     <button class="btn btn-ghost btn-sm btn-icon" onclick="cargarVentasFirebase(true)">🔄</button>
   </div>
   <div id="resumen-body"></div>
-</div>
-
-</div>
 </div>
 
 <!-- ══════════════════════════════════
@@ -3408,20 +3413,29 @@ var _miPosicion = null;
 var _miMarkerCli = null;
 
 function iniciarRutaCli() {
-  _poblarChecksCli();
-  if (_mapaCliInst) _mapaCliInst.invalidateSize();
+  _initMapaCli();
+  // Always fetch fresh clients (user may not have visited Gestión de Clientes)
+  if (!empresaKey) return;
+  fbGet("empresas/"+empresaKey+"/usuarios").then(function(usuarios){
+    _clientesDB = usuarios || {};
+    _poblarChecksCli();
+  }).catch(function(){ _poblarChecksCli(); });
 }
 
 function _poblarChecksCli() {
   var container = document.getElementById("cli-check-list");
+  if (!container) return;
   var entries = Object.entries(_clientesDB);
-  var conDir = entries.filter(function(e){ return e[1].direccion; });
+  var conDir = entries.filter(function(e){ return e[1].direccion && e[1].direccion.trim(); });
+  var btnCalc = document.getElementById("btn-calc-cli");
   if (!entries.length) {
-    container.innerHTML = '<div class="cli-empty-box">Primero agregá clientes en "Gestión de Clientes".</div>';
+    container.innerHTML = '<div class="cli-empty-box">Primero agregá clientes en Gestión de Clientes.</div>';
+    if (btnCalc) btnCalc.style.display="none";
     return;
   }
   if (!conDir.length) {
-    container.innerHTML = '<div class="cli-empty-box">Ningún cliente tiene dirección. Agregala en "Gestión de Clientes".</div>';
+    container.innerHTML = '<div class="cli-empty-box">Ningún cliente tiene dirección registrada.<br>Agregala en Gestión de Clientes.</div>';
+    if (btnCalc) btnCalc.style.display="none";
     return;
   }
   container.innerHTML = conDir.map(function(entry){
@@ -3432,7 +3446,6 @@ function _poblarChecksCli() {
       '<div class="cli-check-dir">'+u.direccion+'</div></div>' +
     '</label>';
   }).join("");
-  var btnCalc = document.getElementById("btn-calc-cli");
   if (btnCalc) btnCalc.style.display="flex";
 }
 
@@ -3472,10 +3485,8 @@ function obtenerPosicionCli() {
 
 function _initMapaCli() {
   var mapDiv = document.getElementById("mapa-cli-leaflet");
-  if (!mapDiv) return;
-  if (typeof L === "undefined") return;
-  mapDiv.style.display="block";
-  if (_mapaCliInst) { _mapaCliInst.invalidateSize(); return; }
+  if (!mapDiv || typeof L === "undefined") return;
+  if (_mapaCliInst) { setTimeout(function(){_mapaCliInst.invalidateSize();},200); return; }
   _mapaCliInst = L.map("mapa-cli-leaflet").setView([-38.5,-65.5],5);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
     attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
