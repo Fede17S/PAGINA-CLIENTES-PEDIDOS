@@ -242,9 +242,11 @@ body {
 ══════════════ */
 #main-wrapper { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; background:var(--bg) }
 .main { flex:1; overflow-y:auto; padding:18px 16px calc(20px + var(--safe-bottom)); max-width:560px; margin:0 auto; width:100% }
+.main:has(.me-root.active) { padding:0; max-width:none; overflow:hidden; display:flex; flex-direction:column }
 
 .section { display:none }
 .section.active { display:block; animation: fadeIn .18s ease-out }
+.section.me-root.active { display:flex }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
 
 /* ── CARDS ── */
@@ -555,26 +557,46 @@ select option { background:#fff }
 
 /* ── MAPA ── */
 #mapa-leaflet { height:340px; border-radius:var(--radius); margin-bottom:12px; border:1px solid var(--border); box-shadow:var(--shadow-sm) }
-.ruta-sel-bar { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap }
-.ruta-sel-bar select { flex:1; min-width:200px }
-.mapa-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:12px }
-.mapa-stat { background:var(--s2); padding:13px 10px; text-align:center }
-.mapa-stat-val { font-size:17px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-0.01em }
-.mapa-stat-lbl { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:3px }
-.parada-card { background:var(--s2); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; box-shadow:var(--shadow-sm); transition:border-color .15s }
-.parada-card.activa { border-color:var(--accent); background:var(--accent-bg) }
-.parada-head { display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer }
-.parada-num { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,.2) }
+/* ── MAPA DE ENTREGAS — layout mejorado ── */
+.me-root { display:flex; flex-direction:column; gap:0; padding:0; height:100%; overflow:hidden }
+.section.me-root { padding:0 }
+.me-toolbar { display:flex; align-items:center; gap:8px; padding:10px 14px; background:var(--s2); border-bottom:1px solid var(--border); flex-shrink:0; flex-wrap:wrap }
+.me-toolbar-left { flex:1; min-width:200px }
+.me-toolbar-left select { width:100%; font-size:13px }
+.me-toolbar-right { display:flex; gap:6px; flex-shrink:0 }
+.mapa-stats { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1px; background:var(--border); border-bottom:1px solid var(--border); flex-shrink:0 }
+.mapa-stat { background:var(--s2); padding:10px 10px; text-align:center }
+.mapa-stat-val { font-size:15px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-0.01em }
+.mapa-stat-lbl { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px }
+.me-split { display:flex; flex:1; min-height:0; gap:0 }
+.me-map { flex:1; min-height:300px; z-index:0 }
+.me-list-col { width:320px; flex-shrink:0; overflow-y:auto; border-left:1px solid var(--border); background:var(--bg) }
+.me-list-col::-webkit-scrollbar { width:4px }
+.me-list-col::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px }
+@media(max-width:760px){
+  .me-split { flex-direction:column }
+  .me-map { height:250px; flex:none }
+  .me-list-col { width:100%; border-left:none; border-top:1px solid var(--border); overflow-y:visible }
+  .mapa-stats { grid-template-columns:1fr 1fr }
+}
+.parada-card { background:var(--s2); border-bottom:1px solid var(--border); overflow:hidden; transition:background .15s }
+.parada-card:last-child { border-bottom:none }
+.parada-card.activa { background:oklch(96% 0.03 245) }
+.parada-head { display:flex; align-items:center; gap:10px; padding:11px 13px; cursor:pointer }
+.parada-head:hover { background:var(--s3) }
+.parada-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,.2) }
 .parada-info { flex:1; min-width:0 }
-.parada-nom { font-size:14px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.parada-dir { font-size:12px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.parada-total { font-size:13.5px; font-weight:700; color:var(--text); text-align:right; font-variant-numeric:tabular-nums }
-.nav-btns { display:flex; gap:6px; padding:0 14px 12px; flex-wrap:wrap }
-.nav-btn { flex:1; min-width:90px; padding:9px 10px; border-radius:8px; font-family:inherit; font-size:12px; font-weight:600; text-decoration:none; text-align:center; transition:all .15s; border:1px solid }
+.parada-nom { font-size:13px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.parada-dir { font-size:11px; color:var(--muted); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.parada-total { font-size:13px; font-weight:700; color:var(--text); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap }
+.nav-btns { display:flex; gap:5px; padding:0 13px 11px 51px; flex-wrap:wrap }
+.nav-btn { flex:1; min-width:80px; padding:7px 8px; border-radius:7px; font-family:inherit; font-size:11.5px; font-weight:600; text-decoration:none; text-align:center; transition:all .15s; border:1px solid }
 .nav-gmaps { background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
 .nav-waze  { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
 .nav-apple { background:#fff; color:var(--text2); border-color:var(--border) }
-.geocoding-progress { padding:24px; text-align:center; color:var(--muted); font-size:13px }
+.me-empty { padding:40px 20px; text-align:center; color:var(--muted); font-size:13px; line-height:1.7 }
+.geocoding-progress { padding:20px 14px; text-align:center; color:var(--muted); font-size:12.5px; line-height:1.6 }
+.me-warn-box { background:#fffbeb; border-bottom:1px solid #fcd34d; padding:10px 13px; font-size:11.5px; color:#92400e }
 
 /* ── BACKUP ── */
 .bk-counter { font-size:12px; font-weight:500; color:var(--muted); text-align:right; margin-bottom:10px }
@@ -872,6 +894,8 @@ select option { background:#fff }
 .cli-badge { font-size:10px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; padding:2px 8px; border-radius:20px; background:var(--blue-bg); color:#1f4ea8; border:1px solid oklch(88% 0.04 245); white-space:nowrap; flex-shrink:0; align-self:flex-start; margin-left:auto }
 .cli-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:15px; padding:5px 7px; border-radius:7px; flex-shrink:0; transition:all .15s; align-self:flex-start }
 .cli-del:hover { color:var(--red); background:var(--red-bg) }
+.cli-act { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:15px; padding:5px 7px; border-radius:7px; flex-shrink:0; transition:all .15s; align-self:flex-start }
+.cli-act:hover { color:var(--text); background:var(--s3) }
 .cli-empty-box { text-align:center; padding:36px 20px; color:var(--muted); font-size:13.5px; line-height:1.6 }
 
 /* ══ RUTA POR CLIENTES (GPS) ══ */
@@ -981,9 +1005,6 @@ select option { background:#fff }
     <div class="sb-group-lbl">Clientes</div>
     <button class="sb-item" id="nav-clientes" onclick="verTab('clientes',this)">
       <span class="sb-icon">👥</span>Gestión de Clientes
-    </button>
-    <button class="sb-item" id="nav-ruta-cli" onclick="verTab('ruta-cli',this)">
-      <span class="sb-icon">📍</span>Ruta por Clientes
     </button>
   </nav>
   <div class="sb-foot">
@@ -1101,26 +1122,35 @@ select option { background:#fff }
   <div id="pedidos-acum-list"><div class="empty-box"><div class="empty-icon">🛒</div>Sin pedidos guardados aún.<br><small>Cada pedido enviado aparece acá agrupado por día.</small></div></div>
 </div>
 
-<div id="mapa-entregas" class="section">
-  <div class="ruta-sel-bar">
-    <select id="mapa-ruta-sel" onchange="seleccionarRutaMapa()">
-      <option value="">— Elegí una hoja de ruta —</option>
-    </select>
-    <button class="btn btn-primary btn-sm" onclick="optimizarYMostrar()">📍 Optimizar ruta</button>
+<div id="mapa-entregas" class="section me-root">
+  <!-- Toolbar top -->
+  <div class="me-toolbar">
+    <div class="me-toolbar-left">
+      <select id="mapa-ruta-sel" onchange="seleccionarRutaMapa()">
+        <option value="">— Elegí una hoja de ruta —</option>
+      </select>
+    </div>
+    <div class="me-toolbar-right">
+      <button class="btn btn-ghost btn-sm" id="btn-me-gps" onclick="meDetectarGPS()" title="Detectar mi posición">📡 Mi posición</button>
+      <button class="btn btn-primary btn-sm" onclick="optimizarYMostrar()">📍 Optimizar ruta</button>
+    </div>
   </div>
-  <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap">
-    <input type="text" id="test-dir-input" placeholder="📍 Probá una dirección: Ej. San Martín 450" style="flex:1;padding:9px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:Inter,sans-serif;background:var(--surface);color:var(--text);outline:none">
-    <button onclick="testDireccion()" class="btn btn-ghost btn-sm" style="white-space:nowrap">🔍 Verificar</button>
-  </div>
-  <div id="test-dir-result" style="display:none;font-size:12px;padding:8px 12px;border-radius:7px;margin-bottom:8px"></div>
 
+  <!-- Stats bar -->
   <div id="mapa-stats" class="mapa-stats" style="display:none">
     <div class="mapa-stat"><div class="mapa-stat-val" id="ms-paradas">0</div><div class="mapa-stat-lbl">Paradas</div></div>
     <div class="mapa-stat"><div class="mapa-stat-val" id="ms-distancia">—</div><div class="mapa-stat-lbl">Distancia est.</div></div>
     <div class="mapa-stat"><div class="mapa-stat-val" id="ms-cobrar">$0</div><div class="mapa-stat-lbl">Por cobrar</div></div>
+    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-gps-status">—</div><div class="mapa-stat-lbl">GPS</div></div>
   </div>
-  <div id="mapa-leaflet"></div>
-  <div id="mapa-paradas"></div>
+
+  <!-- Split layout: map left + list right -->
+  <div class="me-split">
+    <div id="mapa-leaflet" class="me-map"></div>
+    <div class="me-list-col">
+      <div id="mapa-paradas"></div>
+    </div>
+  </div>
 </div>
 
 <div id="stock" class="section">
@@ -1146,7 +1176,7 @@ select option { background:#fff }
      SECCIÓN: GESTIÓN DE CLIENTES
 ══════════════════════════════════ -->
 <div id="clientes" class="section">
-  <!-- Formulario -->
+  <!-- Formulario agregar -->
   <div class="cli-form-card">
     <div class="cli-form-title">Agregar nuevo cliente</div>
     <div class="cli-form-grid">
@@ -1175,7 +1205,11 @@ select option { background:#fff }
       </div>
       <div class="cli-field full">
         <label>Dirección (para GPS)</label>
-        <input type="text" id="nc-dir" placeholder="ej: San Martín 450, Rawson, Chubut">
+        <div style="display:flex;gap:7px">
+          <input type="text" id="nc-dir" placeholder="ej: San Martín 450, Rawson, Chubut" style="flex:1">
+          <button class="btn btn-ghost btn-sm" onclick="verificarDirNuevo()" title="Verificar en mapa" style="white-space:nowrap;flex-shrink:0">🔍 Verificar</button>
+        </div>
+        <div id="nc-dir-result" style="display:none;margin-top:6px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
       </div>
       <div class="cli-field full">
         <label>Notas</label>
@@ -1192,34 +1226,55 @@ select option { background:#fff }
   <div id="cli-list-body"></div>
 </div>
 
-<!-- ══════════════════════════════════
-     SECCIÓN: RUTA POR CLIENTES (GPS)
-══════════════════════════════════ -->
-<div id="ruta-cli" class="section">
-  <!-- Mapa -->
-  <div id="mapa-cli-leaflet"></div>
-  <!-- Control de ubicación -->
-  <div class="ruta-cli-ctrl">
-    <div class="ruta-cli-ctrl-title">Tu posición</div>
-    <button class="btn-gps-loc" id="btn-gps-cli" onclick="obtenerPosicionCli()">
-      📡 Detectar mi ubicación
-    </button>
-    <div class="gps-cli-status" id="gps-cli-status">Presioná para detectar tu posición actual</div>
-  </div>
-  <!-- Selección de clientes -->
-  <div class="ruta-cli-ctrl">
-    <div class="ruta-cli-ctrl-title">Clientes a visitar</div>
-    <div id="cli-check-list" class="cli-check-list"></div>
-    <button class="btn-calc-cli" id="btn-calc-cli" onclick="calcularRutaCli()" style="display:none;margin-top:12px" disabled>
-      🗺️ Calcular ruta óptima
-    </button>
-  </div>
-  <!-- Resultado de la ruta -->
-  <div id="ruta-cli-result" style="display:none">
-    <div class="cli-list-title" style="margin-bottom:10px">Orden de visita</div>
-    <div id="ruta-cli-stops"></div>
+<!-- MODAL EDITAR CLIENTE -->
+<div class="modal-bg" id="modal-edit-cli">
+  <div class="modal-box" style="max-width:480px;width:94%">
+    <div class="modal-ttl">✏️ Editar cliente</div>
+    <div class="cli-form-grid" style="margin-top:14px">
+      <div class="cli-field">
+        <label>ID / Usuario</label>
+        <input type="text" id="ec-id" autocapitalize="none" autocomplete="off">
+      </div>
+      <div class="cli-field">
+        <label>Contraseña</label>
+        <input type="text" id="ec-pass" autocomplete="off">
+      </div>
+      <div class="cli-field full">
+        <label>Nombre completo</label>
+        <input type="text" id="ec-name">
+      </div>
+      <div class="cli-field">
+        <label>Lista de precios</label>
+        <select id="ec-lista">
+          <option value="Clientes">Clientes</option>
+          <option value="Patagonia">Patagonia</option>
+        </select>
+      </div>
+      <div class="cli-field">
+        <label>Teléfono</label>
+        <input type="tel" id="ec-tel">
+      </div>
+      <div class="cli-field full">
+        <label>Dirección (para GPS)</label>
+        <div style="display:flex;gap:7px">
+          <input type="text" id="ec-dir" style="flex:1">
+          <button class="btn btn-ghost btn-sm" onclick="verificarDirEdit()" style="white-space:nowrap;flex-shrink:0">🔍 Verificar</button>
+        </div>
+        <div id="ec-dir-result" style="display:none;margin-top:6px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
+      </div>
+      <div class="cli-field full">
+        <label>Notas</label>
+        <input type="text" id="ec-nota">
+      </div>
+    </div>
+    <input type="hidden" id="ec-key">
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button class="btn btn-primary" style="flex:1" onclick="guardarEditCliente()">💾 Guardar cambios</button>
+      <button class="btn btn-ghost" onclick="cerrarModal('modal-edit-cli')">Cancelar</button>
+    </div>
   </div>
 </div>
+
 
 </div>
 </div>
@@ -1283,7 +1338,7 @@ select option { background:#fff }
 
 var FB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock",clientes:"Gestión de Clientes","ruta-cli":"Ruta por Clientes"};
+var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock",clientes:"Gestión de Clientes"};
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
@@ -1465,7 +1520,7 @@ function aplicarRol(){
   // Todos pueden acceder a pedido, remito, hoja, backup, mapa, pedidos-acum
   // Solo admin ve resumen
   var allNav = ["nav-pedido","nav-remito","nav-hoja","nav-mapa-entregas",
-                "nav-backup","nav-pedidos-acum","nav-resumen","nav-clientes","nav-ruta-cli"];
+                "nav-backup","nav-pedidos-acum","nav-resumen","nav-clientes"];
   allNav.forEach(function(id){
     var el = document.getElementById(id);
     if (!el) return;
@@ -1488,7 +1543,6 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes")cargarClientesSection();
-  if(id==="ruta-cli")iniciarRutaCli();
   if(id==="pedidos-acum")cargarPedidosAcum();
   if(id==="mapa-entregas")iniciarMapaEntregas();
   if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
@@ -2966,24 +3020,89 @@ var _mapaMarkers = [];
 var _mapaParadas = [];
 var _geocodeCache = {};
 var _rutaMapaKey = null;
+var _mePosicion = null; // {lat,lng} GPS position
 
 function iniciarMapaEntregas() {
   cargarGeocodeCache();
+  _initMapaBase();
+  // Try to auto-detect GPS silently
+  if (navigator.geolocation && !_mePosicion) {
+    navigator.geolocation.getCurrentPosition(
+      function(pos){
+        _mePosicion = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+        var el=document.getElementById("ms-gps-status");
+        if(el)el.textContent="✓ GPS";
+        if(_mapaLeaflet) _agregarMarcadorPropio();
+      },
+      function(){}, {timeout:8000, enableHighAccuracy:false}
+    );
+  }
   if (!Object.keys(rutasData).length) {
-    // Rutas not loaded yet — fetch them first
     document.getElementById("mapa-paradas").innerHTML =
       '<div class="geocoding-progress">☁️ Cargando hojas de ruta...</div>';
     fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
       rutasData = d||{};
       poblarSelectorMapaRutas();
-      document.getElementById("mapa-paradas").innerHTML="";
+      document.getElementById("mapa-paradas").innerHTML =
+        '<div class="me-empty">📍 Elegí una hoja de ruta y presioná <b>Optimizar ruta</b></div>';
     }).catch(function(){
       document.getElementById("mapa-paradas").innerHTML =
         '<div class="geocoding-progress">❌ Error cargando rutas</div>';
     });
   } else {
     poblarSelectorMapaRutas();
+    if(!document.getElementById("mapa-paradas").textContent.trim()){
+      document.getElementById("mapa-paradas").innerHTML =
+        '<div class="me-empty">📍 Elegí una hoja de ruta y presioná <b>Optimizar ruta</b></div>';
+    }
   }
+  setTimeout(function(){ if(_mapaLeaflet)_mapaLeaflet.invalidateSize(); },350);
+}
+
+function _initMapaBase() {
+  if (_mapaLeaflet) { setTimeout(function(){_mapaLeaflet.invalidateSize();},300); return; }
+  if (typeof L === "undefined") return;
+  var lat = _mePosicion ? _mePosicion.lat : -42.7682;
+  var lng = _mePosicion ? _mePosicion.lng : -65.0351;
+  _mapaLeaflet = L.map("mapa-leaflet").setView([lat,lng], 13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(_mapaLeaflet);
+}
+
+function _agregarMarcadorPropio() {
+  if (!_mapaLeaflet || !_mePosicion) return;
+  var youIcon = L.divIcon({
+    className:"",
+    html:'<div style="width:16px;height:16px;background:#059669;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',
+    iconSize:[16,16],iconAnchor:[8,8]
+  });
+  L.marker([_mePosicion.lat,_mePosicion.lng],{icon:youIcon,zIndexOffset:1000})
+    .addTo(_mapaLeaflet).bindPopup("📍 Tu posición actual");
+}
+
+function meDetectarGPS() {
+  var btn = document.getElementById("btn-me-gps");
+  var el  = document.getElementById("ms-gps-status");
+  if (!navigator.geolocation) { if(el)el.textContent="No GPS"; return; }
+  btn.disabled=true; btn.textContent="📡 Buscando…";
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      _mePosicion={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      btn.disabled=false; btn.textContent="📡 Mi posición";
+      if(el)el.textContent="✓ GPS";
+      document.getElementById("mapa-stats").style.display="grid";
+      _initMapaBase();
+      _mapaLeaflet.setView([_mePosicion.lat,_mePosicion.lng],14);
+      _agregarMarcadorPropio();
+    },
+    function(err){
+      btn.disabled=false; btn.textContent="📡 Mi posición";
+      if(el)el.textContent="Sin GPS";
+    },
+    {enableHighAccuracy:true,timeout:12000}
+  );
 }
 
 function poblarSelectorMapaRutas() {
@@ -3014,21 +3133,28 @@ function saveGeocodeCache() {
 }
 
 // Geocode via OpenStreetMap Nominatim (free, 1 req/sec)
+// Universal — tries with Argentina suffix, works for any city
 async function geocodeAddress(direccion) {
   if (!direccion||!direccion.trim()) return null;
   var key = direccion.trim().toLowerCase();
   if (_geocodeCache[key]) return _geocodeCache[key];
-  try {
-    var url = "https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(direccion+", Puerto Madryn, Argentina")+"&limit=1";
-    var r = await fetch(url, {headers:{"Accept-Language":"es","User-Agent":"DistriMax-App/1.0"}});
-    var data = await r.json();
-    if (data && data[0]) {
-      var coords = {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)};
-      _geocodeCache[key] = coords;
-      saveGeocodeCache();
-      return coords;
-    }
-  } catch(e) { console.warn("Geocode error:", e); }
+  // Try with ", Argentina" first, then bare
+  var queries = [direccion+", Argentina", direccion];
+  for (var qi=0; qi<queries.length; qi++) {
+    try {
+      var url = "https://nominatim.openstreetmap.org/search?format=json&q="+
+        encodeURIComponent(queries[qi])+"&limit=1&countrycodes=ar";
+      var r = await fetch(url, {headers:{"Accept-Language":"es","User-Agent":"DistriMax-App/1.0"}});
+      var data = await r.json();
+      if (data && data[0]) {
+        var coords = {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display: data[0].display_name};
+        _geocodeCache[key] = coords;
+        saveGeocodeCache();
+        return coords;
+      }
+    } catch(e) { console.warn("Geocode error:", e); }
+    if (qi===0) await new Promise(function(r){setTimeout(r,500);});
+  }
   return null;
 }
 
@@ -3059,34 +3185,36 @@ function optimizarOrden(puntos, startLat, startLng) {
 
 async function optimizarYMostrar() {
   _rutaMapaKey = document.getElementById("mapa-ruta-sel").value;
-  if (!_rutaMapaKey) { alert("Elegí una hoja de ruta primero"); return; }
+  if (!_rutaMapaKey) { showNotif("Elegí una hoja de ruta primero","err"); return; }
   var ruta = rutasData[_rutaMapaKey];
   if (!ruta) return;
   var cliEntries = Object.entries(ruta.clientes||{});
-  if (!cliEntries.length) { alert("Esta ruta no tiene clientes"); return; }
+  if (!cliEntries.length) { showNotif("Esta ruta no tiene clientes","err"); return; }
 
-  // Show loading
   document.getElementById("mapa-paradas").innerHTML =
-    '<div class="geocoding-progress">🔍 Buscando direcciones en el mapa...<br><small>Esto puede tardar unos segundos</small></div>';
+    '<div class="geocoding-progress">🔍 Buscando ubicaciones...<br><small>Puede tardar unos segundos según la cantidad de clientes</small></div>';
+  document.getElementById("mapa-stats").style.display = "grid";
 
-  // Get user location first
-  var startLat = -42.7682, startLng = -65.0351; // Puerto Madryn default
-  try {
-    await new Promise(function(res){
-      navigator.geolocation.getCurrentPosition(function(pos){
-        startLat=pos.coords.latitude; startLng=pos.coords.longitude; res();
-      }, function(){ res(); }, {timeout:5000});
-    });
-  } catch(e){}
+  var startLat = -42.7682, startLng = -65.0351;
+  if (_mePosicion) {
+    startLat = _mePosicion.lat; startLng = _mePosicion.lng;
+  } else {
+    try {
+      await new Promise(function(res){
+        navigator.geolocation.getCurrentPosition(function(pos){
+          _mePosicion={lat:pos.coords.latitude,lng:pos.coords.longitude};
+          startLat=_mePosicion.lat; startLng=_mePosicion.lng; res();
+        }, function(){ res(); }, {timeout:5000});
+      });
+    } catch(e){}
+  }
+  var gpsEl = document.getElementById("ms-gps-status");
+  if(gpsEl) gpsEl.textContent = _mePosicion ? "✓ GPS" : "Sin GPS";
 
-  // Find addresses from usuarios Firebase + clientesCSV
-  var usuarios = {};
-  var usuariosMap = {}; // nombre.lower() -> direccion
+  var usuariosMap = {};
   try {
     var empData = await fbGet("empresas/"+empresaKey);
-    usuarios = empData.usuarios||{};
-    // Build lookup map by name AND id
-    Object.values(usuarios).forEach(function(u){
+    Object.values(empData.usuarios||{}).forEach(function(u){
       if(u.direccion){
         usuariosMap[(u.name||"").toLowerCase()] = u.direccion;
         usuariosMap[(u.id||"").toLowerCase()]   = u.direccion;
@@ -3094,86 +3222,55 @@ async function optimizarYMostrar() {
     });
   } catch(e){}
 
-  // Geocode each client
   var puntos = [];
   for (var ci=0; ci<cliEntries.length; ci++) {
-    var ck = cliEntries[ci][0];
-    var cli = cliEntries[ci][1];
-    // Find address from usuarios map (by name or id)
-    var dir = usuariosMap[(cli.nom||"").toLowerCase()] ||
-              usuariosMap[(cli.id||"").toLowerCase()] || "";
+    var ck=cliEntries[ci][0], cli=cliEntries[ci][1];
+    var dir = usuariosMap[(cli.nom||"").toLowerCase()] || usuariosMap[(cli.id||"").toLowerCase()] || "";
     document.getElementById("mapa-paradas").innerHTML =
-      '<div class="geocoding-progress">📍 Procesando '+cli.nom+'... ('+(ci+1)+'/'+cliEntries.length+')</div>';
-
+      '<div class="geocoding-progress">📍 ' + (ci+1) + '/' + cliEntries.length + ' — <b>' + cli.nom + '</b></div>';
     var coords = dir ? await geocodeAddress(dir) : null;
-    puntos.push({
-      cliKey: ck, cli: cli, dir: dir,
-      lat: coords?coords.lat:null, lng: coords?coords.lng:null,
-      hasCoords: !!coords
-    });
-    if (dir && !_geocodeCache[dir.toLowerCase()]) await new Promise(function(r){setTimeout(r,1100);}); // Nominatim rate limit
+    puntos.push({cliKey:ck, cli:cli, dir:dir,
+      lat:coords?coords.lat:null, lng:coords?coords.lng:null, hasCoords:!!coords});
+    if(dir && !_geocodeCache[dir.toLowerCase()]) await new Promise(function(r){setTimeout(r,1100);});
   }
 
-  // Separate geocoded vs not geocoded
   var conCoords = puntos.filter(function(p){return p.hasCoords;});
   var sinCoords = puntos.filter(function(p){return !p.hasCoords;});
+  var ordered   = optimizarOrden(conCoords, startLat, startLng).concat(sinCoords);
 
-  // Optimize order
-  var ordered = optimizarOrden(conCoords, startLat, startLng).concat(sinCoords);
+  var totalKm=0, prev={lat:startLat,lng:startLng};
+  conCoords.forEach(function(p){totalKm+=getDistKm(prev.lat,prev.lng,p.lat,p.lng);prev={lat:p.lat,lng:p.lng};});
+  var totalSaldo=Object.values(ruta.clientes||{}).reduce(function(s,c){
+    return s+(c.importe||0)-(c.efectivo||0)-(c.transferencia||0);},0);
 
-  // Calculate total distance
-  var totalKm = 0;
-  var prev = {lat:startLat, lng:startLng};
-  conCoords.forEach(function(p){ totalKm+=getDistKm(prev.lat,prev.lng,p.lat,p.lng); prev={lat:p.lat,lng:p.lng}; });
-
-  // Total saldo
-  var totalSaldo = Object.values(ruta.clientes||{}).reduce(function(s,c){ return s+(c.importe||0)-(c.efectivo||0)-(c.transferencia||0); },0);
-
-  // Update stats
-  document.getElementById("mapa-stats").style.display="grid";
-  document.getElementById("ms-paradas").textContent = ordered.length;
+  document.getElementById("ms-paradas").textContent   = ordered.length;
   document.getElementById("ms-distancia").textContent = conCoords.length>1 ? totalKm.toFixed(1)+" km" : "N/D";
-  document.getElementById("ms-cobrar").textContent = "$"+fM(totalSaldo);
+  document.getElementById("ms-cobrar").textContent    = "$"+fM(totalSaldo);
 
-  // Init/update map
+  _initMapaBase();
   initMapa(startLat, startLng, ordered);
-
-  // Render paradas list
   renderParadas(ordered);
   _mapaParadas = ordered;
-
-  // Show address status summary
-  var sinDir = ordered.filter(function(p){return !p.dir;});
-  if(sinDir.length){
-    var warn = document.createElement("div");
-    warn.style.cssText="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:#92400e";
-    warn.innerHTML="<b>⚠️ "+sinDir.length+" cliente(s) sin dirección registrada:</b><br>"+
-      sinDir.map(function(p){return "• "+p.cli.nom;}).join("<br>")+
-      "<br><br><small>Agregá sus direcciones en <b>RutaApp Admin → Clientes & Usuarios</b> para que aparezcan en el mapa.</small>";
-    document.getElementById("mapa-paradas").insertBefore(warn, document.getElementById("mapa-paradas").firstChild);
-  }
 }
+
+
 
 var COLORS = ["#e63946","#e09f3e","#2d6a4f","#1e56d0","#7b2d8b","#e85d04","#023e8a","#b5179e","#588157","#9d0208"];
 
 function initMapa(startLat, startLng, ordered) {
-  if (!_mapaLeaflet) {
-    _mapaLeaflet = L.map("mapa-leaflet").setView([startLat, startLng], 13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom:19
-    }).addTo(_mapaLeaflet);
-  }
   // Clear existing markers and lines
   _mapaMarkers.forEach(function(m){_mapaLeaflet.removeLayer(m);});
   _mapaMarkers=[];
 
   // Start marker (my position)
-  var startIcon = L.divIcon({html:'<div style="background:#059669;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)">📍</div>',iconSize:[30,30],iconAnchor:[15,15],className:""});
-  var startMarker = L.marker([startLat,startLng],{icon:startIcon}).addTo(_mapaLeaflet).bindPopup("Mi ubicación actual");
+  var startIcon = L.divIcon({
+    html:'<div style="background:#059669;width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',
+    iconSize:[18,18],iconAnchor:[9,9],className:""
+  });
+  var startMarker = L.marker([startLat,startLng],{icon:startIcon,zIndexOffset:1000})
+    .addTo(_mapaLeaflet).bindPopup("📍 Tu posición actual");
   _mapaMarkers.push(startMarker);
 
-  // Route line points
   var linePoints = [[startLat,startLng]];
   var bounds = [[startLat,startLng]];
 
@@ -3181,37 +3278,45 @@ function initMapa(startLat, startLng, ordered) {
     if(!p.hasCoords) return;
     var color = COLORS[i%COLORS.length];
     var icon = L.divIcon({
-      html:'<div style="background:'+color+';color:#fff;min-width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);padding:0 4px">'+(i+1)+'</div>',
+      html:'<div style="background:'+color+';color:#fff;min-width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);padding:0 4px">'+(i+1)+'</div>',
       iconSize:[28,28],iconAnchor:[14,14],className:""
     });
-    var ef=p.cli.efectivo||0,tr=p.cli.transferencia||0;
+    var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
     var saldo=(p.cli.importe||0)-ef-tr;
     var popup = "<b>"+(i+1)+". "+p.cli.nom+"</b><br>"+
-      (p.dir?p.dir+"<br>":"Dirección no registrada<br>")+
+      (p.dir ? p.dir+"<br>" : "Sin dirección<br>")+
       "Total: $"+fM(p.cli.importe||0)+"<br>"+
-      (saldo>0?"<span style='color:#d97706'>⚠️ Saldo: $"+fM(saldo)+"</span>":"<span style='color:#059669'>✅ Cobrado</span>");
+      (saldo>0 ? "<span style='color:#d97706'>⚠️ Saldo: $"+fM(saldo)+"</span>" : "<span style='color:#059669'>✅ Cobrado</span>");
     var marker = L.marker([p.lat,p.lng],{icon:icon}).addTo(_mapaLeaflet).bindPopup(popup);
     _mapaMarkers.push(marker);
     linePoints.push([p.lat,p.lng]);
     bounds.push([p.lat,p.lng]);
   });
 
-  // Draw route line
   if(linePoints.length>1){
     var line = L.polyline(linePoints,{color:"#1e56d0",weight:3,opacity:.7,dashArray:"8,6"}).addTo(_mapaLeaflet);
     _mapaMarkers.push(line);
   }
 
-  // Fit bounds
-  if(bounds.length>1) _mapaLeaflet.fitBounds(bounds,{padding:[30,30]});
+  // Show warning banner for clients without address
+  var sinDir = ordered.filter(function(p){return !p.dir;});
+  if(sinDir.length){
+    var warnHtml = '<div class="me-warn-box">⚠️ <b>'+sinDir.length+' sin dirección:</b> '+
+      sinDir.map(function(p){return p.cli.nom;}).join(", ")+
+      ' — Agregá las direcciones en <b>Gestión de Clientes</b></div>';
+    document.getElementById("mapa-paradas").insertAdjacentHTML("afterbegin", warnHtml);
+  }
 
-  // Force resize (needed when tab switches)
+  if(bounds.length>1) _mapaLeaflet.fitBounds(bounds,{padding:[25,25]});
   setTimeout(function(){_mapaLeaflet.invalidateSize();},300);
 }
 
 function renderParadas(ordered) {
   var wrap = document.getElementById("mapa-paradas");
-  if (!ordered.length) { wrap.innerHTML="<div class='empty-box'><div class='empty-icon'>📍</div>Sin paradas.</div>"; return; }
+  if (!ordered.length) {
+    wrap.innerHTML="<div class='me-empty'>Sin paradas</div>";
+    return;
+  }
   wrap.innerHTML = "";
   ordered.forEach(function(p,i){
     var color = COLORS[i%COLORS.length];
@@ -3221,33 +3326,32 @@ function renderParadas(ordered) {
     card.className="parada-card";
     card.id="parada-"+i;
 
-    var lat=p.lat, lng=p.lng;
-    var dir=p.dir||p.cli.nom;
-    var gmaps="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir+", Puerto Madryn, Argentina");
-    var waze="https://waze.com/ul?q="+encodeURIComponent(dir+", Puerto Madryn, Argentina")+"&navigate=yes";
-    var apple="https://maps.apple.com/?daddr="+encodeURIComponent(dir+", Puerto Madryn, Argentina");
-    if(lat&&lng){
-      gmaps="https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng;
-      waze="https://waze.com/ul?ll="+lat+","+lng+"&navigate=yes";
-      apple="https://maps.apple.com/?daddr="+lat+","+lng;
-    }
+    var lat=p.lat, lng=p.lng, dir=p.dir||"";
+    var navDest = (lat&&lng) ? lat+","+lng : encodeURIComponent(dir+", Argentina");
+    var gmaps = lat&&lng ? "https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng
+                         : "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir+", Argentina");
+    var waze  = lat&&lng ? "https://waze.com/ul?ll="+lat+","+lng+"&navigate=yes"
+                         : "https://waze.com/ul?q="+encodeURIComponent(dir+", Argentina")+"&navigate=yes";
+    var apple = lat&&lng ? "https://maps.apple.com/?daddr="+lat+","+lng
+                         : "https://maps.apple.com/?daddr="+encodeURIComponent(dir+", Argentina");
 
-    card.innerHTML=
+    card.innerHTML =
       '<div class="parada-head" onclick="focusParada('+i+','+lat+','+lng+')">'+
         '<div class="parada-num" style="background:'+color+'">'+(i+1)+'</div>'+
         '<div class="parada-info">'+
           '<div class="parada-nom">'+p.cli.nom+'</div>'+
-          '<div class="parada-dir">'+(p.dir||'<span style="color:#f59e0b">⚠️ Sin dirección registrada</span>')+'</div>'+
+          '<div class="parada-dir">'+(p.dir || '<span style="color:#f59e0b">⚠️ Sin dirección</span>')+'</div>'+
         '</div>'+
-        '<div>'+
+        '<div style="text-align:right;flex-shrink:0">'+
           '<div class="parada-total">$'+fM(p.cli.importe||0)+'</div>'+
-          (saldo>0?'<div style="font-size:10px;color:var(--amber);font-weight:700;text-align:right">$'+fM(saldo)+' pend.</div>':'<div style="font-size:10px;color:var(--green);font-weight:700">✓ Cobrado</div>')+
+          (saldo>0 ? '<div style="font-size:10px;color:var(--amber);font-weight:700">$'+fM(saldo)+' pend.</div>'
+                   : '<div style="font-size:10px;color:var(--green);font-weight:700">✓ Cobrado</div>')+
         '</div>'+
       '</div>'+
       '<div class="nav-btns">'+
-        '<a href="'+gmaps+'" target="_blank" class="nav-btn nav-gmaps">🗺️ Google Maps</a>'+
-        '<a href="'+waze+'" target="_blank" class="nav-btn nav-waze">🚗 Waze</a>'+
-        '<a href="'+apple+'" target="_blank" class="nav-btn nav-apple"> Apple Maps</a>'+
+        '<a href="'+gmaps+'" target="_blank" class="nav-btn nav-gmaps">🗺️ Maps</a>'+
+        '<a href="'+waze+'"  target="_blank" class="nav-btn nav-waze">🚗 Waze</a>'+
+        '<a href="'+apple+'" target="_blank" class="nav-btn nav-apple">🍎 Apple</a>'+
       '</div>';
     wrap.appendChild(card);
   });
@@ -3256,36 +3360,10 @@ function renderParadas(ordered) {
 function focusParada(i, lat, lng) {
   if (!lat||!lng||!_mapaLeaflet) return;
   _mapaLeaflet.setView([lat,lng],16);
-  _mapaMarkers[i+1] && _mapaMarkers[i+1].openPopup();
+  if(_mapaMarkers[i+1]) _mapaMarkers[i+1].openPopup();
   document.querySelectorAll(".parada-card").forEach(function(c){c.classList.remove("activa");});
   var card=document.getElementById("parada-"+i);
   if(card){card.classList.add("activa");card.scrollIntoView({behavior:"smooth",block:"nearest"});}
-}
-
-async function testDireccion() {
-  var dir = document.getElementById("test-dir-input").value.trim();
-  var res = document.getElementById("test-dir-result");
-  if(!dir){ res.style.display="none"; return; }
-  res.style.cssText="display:block;background:#f1f5f9;border:1px solid var(--border);border-radius:7px;padding:8px 12px;font-size:12px;color:var(--muted)";
-  res.textContent="🔍 Buscando...";
-  // Clear cache for this address to force fresh lookup
-  delete _geocodeCache[dir.toLowerCase()];
-  var coords = await geocodeAddress(dir);
-  if(coords){
-    res.style.cssText="display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:7px;padding:8px 12px;font-size:12px;color:#065f46";
-    res.innerHTML="✅ Dirección encontrada — Lat: "+coords.lat.toFixed(5)+", Lng: "+coords.lng.toFixed(5)+
-      '<br><a href="https://www.google.com/maps?q='+coords.lat+','+coords.lng+'" target="_blank" style="color:#1e56d0;font-weight:700">Ver en Google Maps →</a>';
-    // Show pin on map if loaded
-    if(_mapaLeaflet){
-      _mapaLeaflet.setView([coords.lat,coords.lng],15);
-      var tmpIcon=L.divIcon({html:'<div style="background:#e63946;color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">📍 '+dir+'</div>',iconAnchor:[0,0],className:""});
-      var tmp=L.marker([coords.lat,coords.lng],{icon:tmpIcon}).addTo(_mapaLeaflet).bindPopup("✅ "+dir).openPopup();
-      setTimeout(function(){_mapaLeaflet.removeLayer(tmp);},8000);
-    }
-  } else {
-    res.style.cssText="display:block;background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;padding:8px 12px;font-size:12px;color:#991b1b";
-    res.innerHTML="❌ No se encontró esa dirección. Intentá con más detalle, por ejemplo: <i>San Martín 450, Puerto Madryn</i>";
-  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -3301,13 +3379,12 @@ document.getElementById("overlay").addEventListener("click", closeSidebar);
   var u=new URLSearchParams(location.search).get("emp");
   if(u){
     document.addEventListener("DOMContentLoaded",function(){
-      var el=document.getElementById("l-empresa"), lbl=document.getElementById("l-empresa-label");
+      var el=document.getElementById("l-empresa"),lbl=document.getElementById("l-empresa-label");
       if(el){el.value=u.toLowerCase();el.readOnly=true;el.style.display="none";}
       if(lbl)lbl.style.display="none";
     });
   }
 })();
-
 
 /* ══════════════════════════════════════════════════════════════
    MÓDULO: GESTIÓN DE CLIENTES
@@ -3342,10 +3419,15 @@ function _renderClientesList() {
       '<div class="cli-info">' +
         '<div class="cli-name">'+(u.name||u.id)+'</div>' +
         (meta ? '<div class="cli-meta">'+meta+'</div>' : '') +
-        (u.direccion ? '<div class="cli-meta" style="color:var(--text2);margin-top:2px">📍 '+u.direccion+'</div>' : '') +
+        (u.direccion
+          ? '<div class="cli-meta" style="color:var(--text2);margin-top:2px">📍 '+u.direccion+'</div>'
+          : '<div class="cli-meta" style="color:var(--amber);margin-top:2px">⚠️ Sin dirección GPS</div>') +
       '</div>' +
       '<div class="cli-badge">'+(u.lista||"Clientes")+'</div>' +
-      '<button class="cli-del" title="Eliminar" onclick="_eliminarCliente(\''+key+'\')">🗑</button>' +
+      '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
+        '<button class="cli-act" title="Editar" onclick="abrirEditCliente(\''+key+'\')">✏️</button>' +
+        '<button class="cli-act cli-del" title="Eliminar" onclick="_eliminarCliente(\''+key+'\')">🗑</button>' +
+      '</div>'+
     '</div>';
   }).join("");
 }
@@ -3369,10 +3451,12 @@ async function guardarNuevoCliente() {
   try {
     var pushKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
     _clientesDB[pushKey] = nuevo;
-    ["nc-id","nc-pass","nc-name","nc-dir","nc-tel","nc-nota"].forEach(function(fid){ var el=document.getElementById(fid); if(el)el.value=""; });
+    ["nc-id","nc-pass","nc-name","nc-dir","nc-tel","nc-nota"].forEach(function(fid){
+      var el=document.getElementById(fid); if(el)el.value="";
+    });
     document.getElementById("nc-lista").value="Clientes";
+    var res=document.getElementById("nc-dir-result"); if(res)res.style.display="none";
     _renderClientesList();
-    // Reload global dbCli list so pedidos/remitos see the new client immediately
     if(empresaData){ var usuarios=empresaData.usuarios||{}; usuarios[pushKey]=nuevo; empresaData.usuarios=usuarios; }
     _agregarCliAlDatalist(nuevo);
     showNotif('✓ Cliente "'+name+'" guardado',"ok");
@@ -3402,235 +3486,86 @@ async function _eliminarCliente(pushKey) {
   } catch(e) { showNotif("Error al eliminar","err"); }
 }
 
-/* ══════════════════════════════════════════════════════════════
-   MÓDULO: RUTA POR CLIENTES (GPS)
-══════════════════════════════════════════════════════════════ */
-
-var _mapaCliInst = null;
-var _mapaCliMarkers = [];
-var _mapaCliRoute = null;
-var _miPosicion = null;
-var _miMarkerCli = null;
-
-function iniciarRutaCli() {
-  _initMapaCli();
-  // Always fetch fresh clients (user may not have visited Gestión de Clientes)
-  if (!empresaKey) return;
-  fbGet("empresas/"+empresaKey+"/usuarios").then(function(usuarios){
-    _clientesDB = usuarios || {};
-    _poblarChecksCli();
-  }).catch(function(){ _poblarChecksCli(); });
+/* ── EDICIÓN DE CLIENTE ── */
+function abrirEditCliente(pushKey) {
+  var u = _clientesDB[pushKey];
+  if (!u) return;
+  document.getElementById("ec-key").value   = pushKey;
+  document.getElementById("ec-id").value    = u.id   || "";
+  document.getElementById("ec-pass").value  = u.pass || "";
+  document.getElementById("ec-name").value  = u.name || "";
+  document.getElementById("ec-lista").value = u.lista || "Clientes";
+  document.getElementById("ec-tel").value   = u.tel   || "";
+  document.getElementById("ec-dir").value   = u.direccion || "";
+  document.getElementById("ec-nota").value  = u.nota  || "";
+  var res=document.getElementById("ec-dir-result"); if(res)res.style.display="none";
+  document.getElementById("modal-edit-cli").classList.add("open");
 }
 
-function _poblarChecksCli() {
-  var container = document.getElementById("cli-check-list");
-  if (!container) return;
-  var entries = Object.entries(_clientesDB);
-  var conDir = entries.filter(function(e){ return e[1].direccion && e[1].direccion.trim(); });
-  var btnCalc = document.getElementById("btn-calc-cli");
-  if (!entries.length) {
-    container.innerHTML = '<div class="cli-empty-box">Primero agregá clientes en Gestión de Clientes.</div>';
-    if (btnCalc) btnCalc.style.display="none";
-    return;
+async function guardarEditCliente() {
+  var pushKey = document.getElementById("ec-key").value;
+  if (!pushKey) return;
+  var id   = document.getElementById("ec-id").value.trim();
+  var pass = document.getElementById("ec-pass").value.trim();
+  var name = document.getElementById("ec-name").value.trim();
+  var lista= document.getElementById("ec-lista").value;
+  var dir  = document.getElementById("ec-dir").value.trim();
+  var tel  = document.getElementById("ec-tel").value.trim();
+  var nota = document.getElementById("ec-nota").value.trim();
+  if (!id)   { showNotif("El ID es obligatorio","err"); return; }
+  if (!name) { showNotif("El nombre es obligatorio","err"); return; }
+  // Check duplicate ID (ignore self)
+  var dup = Object.entries(_clientesDB).find(function(e){ return e[0]!==pushKey && e[1].id===id; });
+  if (dup) { showNotif("Ese ID ya lo usa otro cliente","err"); return; }
+  var updated = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true };
+  if (dir)  updated.direccion = dir;
+  if (tel)  updated.tel = tel;
+  if (nota) updated.nota = nota;
+  try {
+    await fbPatch("empresas/"+empresaKey+"/usuarios/"+pushKey, updated);
+    _clientesDB[pushKey] = updated;
+    cerrarModal("modal-edit-cli");
+    _renderClientesList();
+    showNotif('✓ Cliente "'+name+'" actualizado',"ok");
+  } catch(e) { showNotif("Error al guardar: "+e.message,"err"); }
+}
+
+/* ── VERIFICADOR DE DIRECCIÓN ── */
+async function _verificarDir(inputId, resultId) {
+  var dir = document.getElementById(inputId).value.trim();
+  var res = document.getElementById(resultId);
+  if (!dir) { res.style.display="none"; return; }
+  res.style.cssText="display:block;background:var(--s3);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--muted)";
+  res.textContent="🔍 Verificando…";
+  // Force fresh lookup
+  delete _geocodeCache[dir.toLowerCase()];
+  var coords = await geocodeAddress(dir);
+  if (coords) {
+    res.style.cssText="display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:7px;padding:7px 10px;color:#065f46";
+    res.innerHTML = "✅ Dirección encontrada — " +
+      '<a href="https://www.google.com/maps?q='+coords.lat+','+coords.lng+'" target="_blank" style="color:#1e56d0;font-weight:700">Ver en Maps →</a>';
+    // Show on mapa-entregas map if it's open
+    if(_mapaLeaflet){
+      _mapaLeaflet.setView([coords.lat,coords.lng],15);
+      var tmpIcon=L.divIcon({html:'<div style="background:#e63946;color:#fff;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">📍 '+dir+'</div>',iconAnchor:[0,0],className:""});
+      var tmp=L.marker([coords.lat,coords.lng],{icon:tmpIcon}).addTo(_mapaLeaflet).bindPopup("✅ "+dir).openPopup();
+      setTimeout(function(){_mapaLeaflet.removeLayer(tmp);},8000);
+    }
+  } else {
+    res.style.cssText="display:block;background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;padding:7px 10px;color:#991b1b";
+    res.innerHTML="❌ No se encontró. Agregá ciudad y provincia: <i>"+dir+", Ciudad, Provincia</i>";
   }
-  if (!conDir.length) {
-    container.innerHTML = '<div class="cli-empty-box">Ningún cliente tiene dirección registrada.<br>Agregala en Gestión de Clientes.</div>';
-    if (btnCalc) btnCalc.style.display="none";
-    return;
-  }
-  container.innerHTML = conDir.map(function(entry){
-    var key=entry[0], u=entry[1];
-    return '<label class="cli-check-item">' +
-      '<input type="checkbox" value="'+key+'" checked>' +
-      '<div><div class="cli-check-nom">'+(u.name||u.id)+'</div>' +
-      '<div class="cli-check-dir">'+u.direccion+'</div></div>' +
-    '</label>';
-  }).join("");
-  if (btnCalc) btnCalc.style.display="flex";
 }
+function verificarDirNuevo() { _verificarDir("nc-dir","nc-dir-result"); }
+function verificarDirEdit()  { _verificarDir("ec-dir","ec-dir-result"); }
 
-function obtenerPosicionCli() {
-  var btn = document.getElementById("btn-gps-cli");
-  var status = document.getElementById("gps-cli-status");
-  if (!navigator.geolocation) { status.textContent="Tu navegador no soporta GPS"; return; }
-  btn.disabled=true; btn.textContent="📡 Detectando…";
-  status.textContent="Buscando tu posición…";
-  navigator.geolocation.getCurrentPosition(
-    function(pos) {
-      _miPosicion = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      var acc = pos.coords.accuracy ? " (±"+Math.round(pos.coords.accuracy)+"m)" : "";
-      status.textContent = "✓ Posición obtenida"+acc;
-      btn.disabled=false; btn.innerHTML="📡 Actualizar posición";
-      _initMapaCli();
-      if (_miMarkerCli) _mapaCliInst.removeLayer(_miMarkerCli);
-      var youIcon = L.divIcon({
-        className:"",
-        html:'<div style="width:16px;height:16px;background:#059669;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"></div>',
-        iconSize:[16,16], iconAnchor:[8,8]
-      });
-      _miMarkerCli = L.marker([_miPosicion.lat,_miPosicion.lng],{icon:youIcon})
-        .addTo(_mapaCliInst).bindPopup("📍 Tu posición actual");
-      _mapaCliInst.setView([_miPosicion.lat,_miPosicion.lng],13);
-      var btnCalc = document.getElementById("btn-calc-cli");
-      if (btnCalc) { btnCalc.style.display="flex"; btnCalc.disabled=false; }
-    },
-    function(err) {
-      var msgs={1:"Permiso denegado — habilitá el GPS",2:"Posición no disponible",3:"Tiempo agotado"};
-      status.textContent = msgs[err.code]||"Error al obtener GPS";
-      btn.disabled=false; btn.innerHTML="📡 Reintentar";
-    },
-    { enableHighAccuracy:true, timeout:15000, maximumAge:60000 }
-  );
-}
-
-function _initMapaCli() {
-  var mapDiv = document.getElementById("mapa-cli-leaflet");
-  if (!mapDiv || typeof L === "undefined") return;
-  if (_mapaCliInst) { setTimeout(function(){_mapaCliInst.invalidateSize();},200); return; }
-  _mapaCliInst = L.map("mapa-cli-leaflet").setView([-38.5,-65.5],5);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom:19
-  }).addTo(_mapaCliInst);
-}
-
-/* Geocoding universal — busca en cualquier punto de Argentina */
-var _geocodeCacheLibre = {};
-async function _geocodeLibre(direccion) {
-  var key = direccion.trim().toLowerCase();
-  if (_geocodeCacheLibre[key]) return _geocodeCacheLibre[key];
-  /* Intentar primero sin ciudad añadida (si la dirección ya incluye ciudad/provincia) */
-  var queries = [direccion+", Argentina", direccion];
-  for (var i=0; i<queries.length; i++) {
-    try {
-      var url = "https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(queries[i])+"&limit=1&countrycodes=ar";
-      var r = await fetch(url, {headers:{"Accept-Language":"es","User-Agent":"CoreDistri-App/1.0"}});
-      var data = await r.json();
-      if (data && data[0]) {
-        var coords = {lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon)};
-        _geocodeCacheLibre[key] = coords;
-        return coords;
-      }
-    } catch(e) { console.warn("Geocode libre error:",e); }
-    if (i===0) await new Promise(function(res){setTimeout(res,600);});
-  }
-  return null;
-}
-
-function _haversineCli(lat1,lng1,lat2,lng2) {
-  var R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
-  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-
-function _nearestNeighborCli(origen, puntos) {
-  var rest = puntos.slice(), orden = [], actual = origen;
-  while (rest.length) {
-    var minD=Infinity, minI=0;
-    rest.forEach(function(p,i){ var d=_haversineCli(actual.lat,actual.lng,p.coord.lat,p.coord.lng); if(d<minD){minD=d;minI=i;} });
-    var sig = rest.splice(minI,1)[0];
-    sig.distDesde = minD;
-    sig.distAcum  = (orden.length ? orden[orden.length-1].distAcum : 0) + minD;
-    orden.push(sig);
-    actual = sig.coord;
-  }
-  return orden;
-}
-
-async function calcularRutaCli() {
-  if (!_miPosicion) { showNotif("Primero detectá tu ubicación","err"); return; }
-  var selKeys = Array.from(document.querySelectorAll("#cli-check-list input[type=checkbox]:checked")).map(function(cb){return cb.value;});
-  if (!selKeys.length) { showNotif("Seleccioná al menos un cliente","err"); return; }
-  var statusEl = document.getElementById("gps-cli-status");
-  var btnCalc  = document.getElementById("btn-calc-cli");
-  btnCalc.disabled=true; btnCalc.textContent="⏳ Calculando…";
-  var puntos = [];
-  for (var i=0; i<selKeys.length; i++) {
-    var key = selKeys[i], u = _clientesDB[key];
-    if (!u || !u.direccion) continue;
-    statusEl.textContent = "Geocodificando: "+(u.name||u.id)+"…";
-    var coord = await _geocodeLibre(u.direccion);
-    if (coord) { puntos.push({key:key, u:u, coord:coord}); }
-    else { showNotif("Sin resultado para: "+u.direccion.substring(0,35),"err"); }
-    if (i < selKeys.length-1) await new Promise(function(res){setTimeout(res,700);});
-  }
-  if (!puntos.length) {
-    statusEl.textContent="No se pudo geocodificar ninguna dirección";
-    btnCalc.disabled=false; btnCalc.textContent="🗺️ Calcular ruta óptima";
-    return;
-  }
-  var ruta = _nearestNeighborCli({lat:_miPosicion.lat,lng:_miPosicion.lng}, puntos);
-  _renderRutaCliEnMapa(ruta);
-  _renderRutaCliLista(ruta);
-  statusEl.textContent="✓ Ruta lista — "+ruta.length+" parada"+(ruta.length!==1?"s":"");
-  btnCalc.disabled=false; btnCalc.textContent="🗺️ Recalcular ruta";
-  document.getElementById("ruta-cli-result").style.display="block";
-}
-
-var COLORS_CLI=["#e63946","#e09f3e","#2d6a4f","#1e56d0","#7b2d8b","#e85d04","#023e8a","#b5179e","#588157","#9d0208"];
-
-function _renderRutaCliEnMapa(ruta) {
-  if (!_mapaCliInst) return;
-  _mapaCliMarkers.forEach(function(m){_mapaCliInst.removeLayer(m);});
-  _mapaCliMarkers=[];
-  if (_mapaCliRoute) _mapaCliInst.removeLayer(_mapaCliRoute);
-  var latlngs=[[_miPosicion.lat,_miPosicion.lng]];
-  ruta.forEach(function(p,i){
-    latlngs.push([p.coord.lat,p.coord.lng]);
-    var color=COLORS_CLI[i%COLORS_CLI.length];
-    var icon=L.divIcon({
-      className:"",
-      html:'<div style="background:'+color+';color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);">'+(i+1)+'</div>',
-      iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]
-    });
-    var marker=L.marker([p.coord.lat,p.coord.lng],{icon:icon}).addTo(_mapaCliInst)
-      .bindPopup("<b>"+(i+1)+". "+(p.u.name||p.u.id)+"</b><br>"+p.u.direccion+(p.u.tel?"<br>📞 "+p.u.tel:""));
-    _mapaCliMarkers.push(marker);
-  });
-  _mapaCliRoute=L.polyline(latlngs,{color:"#1a1a17",weight:3,opacity:.6,dashArray:"8,6"}).addTo(_mapaCliInst);
-  _mapaCliMarkers.push(_mapaCliRoute);
-  if (latlngs.length>1) _mapaCliInst.fitBounds(latlngs,{padding:[40,40]});
-  setTimeout(function(){_mapaCliInst.invalidateSize();},300);
-}
-
-function _renderRutaCliLista(ruta) {
-  var c=document.getElementById("ruta-cli-stops");
-  c.innerHTML='<div class="ruta-cli-stop is-start">'+
-    '<div class="ruta-stop-num start">●</div>'+
-    '<div class="ruta-stop-info"><div class="ruta-stop-nom">Tu posición actual</div><div class="ruta-stop-sub">Punto de partida</div></div>'+
-  '</div>'+
-  ruta.map(function(p,i){
-    var dir=p.u.direccion+", Argentina";
-    var gmaps="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir)+"&travelmode=driving";
-    var waze="https://waze.com/ul?q="+encodeURIComponent(dir)+"&navigate=yes";
-    return '<div class="ruta-cli-stop">'+
-      '<div class="ruta-stop-num">'+(i+1)+'</div>'+
-      '<div class="ruta-stop-info">'+
-        '<div class="ruta-stop-nom">'+(p.u.name||p.u.id)+'</div>'+
-        '<div class="ruta-stop-sub">'+p.u.direccion+
-          (p.u.tel?"<br>📞 "+p.u.tel:"")+
-          (p.u.nota?"<br>🗒 "+p.u.nota:"")+
-        '</div>'+
-      '</div>'+
-      '<div class="ruta-stop-right">'+
-        '<span class="ruta-stop-dist">≈'+p.distDesde.toFixed(1)+'km</span>'+
-        '<div class="ruta-stop-nav">'+
-          '<a href="'+gmaps+'" target="_blank">🗺️ Maps</a>'+
-          '<a href="'+waze+'" target="_blank">🚗 Waze</a>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  }).join("")+
-  '<div class="ruta-cli-total">Distancia total estimada: <b>'+ruta[ruta.length-1].distAcum.toFixed(1)+' km</b></div>';
-}
-
-/* Helper de notificación genérico (reutiliza el sync-msg o crea un toast propio) */
 function showNotif(msg, cls) {
   setStatus("sync-msg", cls||"ok", msg);
   setTimeout(function(){ setStatus("sync-msg","sync","☁️"); }, 3000);
 }
 
 document.addEventListener("DOMContentLoaded",function(){
+
   var ov=document.getElementById("overlay");
   if(ov)ov.addEventListener("click",function(){
     var sb=document.getElementById("sidebar");
