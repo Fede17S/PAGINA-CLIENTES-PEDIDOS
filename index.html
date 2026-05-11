@@ -599,7 +599,36 @@ select option { background:#fff }
 .geocoding-progress { padding:20px 14px; text-align:center; color:var(--muted); font-size:12.5px; line-height:1.6 }
 .me-warn-box { background:#fffbeb; border-bottom:1px solid #fcd34d; padding:10px 13px; font-size:11.5px; color:#92400e }
 
-/* ── BACKUP ── */
+/* ── DESCUENTOS en ruta ── */
+.rc-dsc-wrap { background:var(--s3); border:1px solid var(--border); border-radius:9px; padding:10px 12px; margin:8px 0 }
+.rc-dsc-title { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; display:flex; align-items:center; gap:6px }
+.rc-dsc-tabs { display:flex; gap:5px; margin-bottom:10px }
+.rc-dsc-tab { flex:1; padding:6px 8px; font-size:11.5px; font-weight:600; font-family:inherit; border:1px solid var(--border); border-radius:7px; background:var(--s2); color:var(--muted); cursor:pointer; transition:all .15s; text-align:center }
+.rc-dsc-tab.sel { background:var(--text); color:#fff; border-color:var(--text) }
+.rc-dsc-row { display:flex; gap:7px; align-items:center }
+.rc-dsc-tipo { display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; flex-shrink:0 }
+.rc-dsc-tipo button { padding:6px 10px; font-size:12px; font-weight:700; font-family:inherit; border:none; background:var(--s2); color:var(--muted); cursor:pointer; transition:all .15s }
+.rc-dsc-tipo button.sel { background:var(--text); color:#fff }
+.rc-dsc-input { flex:1; padding:7px 10px; font-size:13px; font-weight:600; border:1px solid var(--border); border-radius:7px; background:var(--s2); color:var(--text); font-family:inherit; outline:none; min-width:0 }
+.rc-dsc-input:focus { border-color:var(--text) }
+.rc-dsc-apply { padding:7px 12px; background:var(--text); color:#fff; border:none; border-radius:7px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer; white-space:nowrap; transition:opacity .15s; flex-shrink:0 }
+.rc-dsc-apply:hover { opacity:.85 }
+.rc-dsc-remove { padding:6px 9px; background:var(--red-bg); color:var(--red); border:1px solid var(--red-bg); border-radius:7px; font-size:11px; font-weight:700; font-family:inherit; cursor:pointer; white-space:nowrap; flex-shrink:0 }
+.rc-dsc-preview { font-size:11.5px; color:var(--muted); margin-top:8px; display:flex; justify-content:space-between; align-items:center }
+.rc-dsc-preview b { color:var(--text); font-size:13px }
+.rc-dsc-active { background:oklch(96% 0.04 155); border-color:oklch(85% 0.08 155) }
+.rc-dsc-active .rc-dsc-title { color:var(--green) }
+/* per-item discount inline */
+.rc-edit-item { flex-wrap:wrap }
+.rc-edit-dsc-row { width:100%; display:flex; gap:5px; align-items:center; padding:3px 0 5px; border-top:1px dashed var(--border2); margin-top:4px }
+.rc-edit-dsc-lbl { font-size:10.5px; color:var(--muted); flex-shrink:0; min-width:70px }
+.rc-edit-dsc-tipo { display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden }
+.rc-edit-dsc-tipo button { padding:3px 7px; font-size:11px; font-weight:700; font-family:inherit; border:none; background:var(--s2); color:var(--muted); cursor:pointer }
+.rc-edit-dsc-tipo button.sel { background:var(--text); color:#fff }
+.rc-edit-dsc-inp { width:64px; padding:4px 7px; font-size:12px; font-weight:600; border:1px solid var(--border); border-radius:5px; background:var(--s2); color:var(--text); font-family:inherit; outline:none }
+.rc-edit-dsc-ok { padding:3px 8px; background:var(--text); color:#fff; border:none; border-radius:5px; font-size:11px; font-weight:700; font-family:inherit; cursor:pointer }
+.rc-edit-dsc-info { font-size:11px; color:var(--green); font-weight:600; margin-left:auto }
+.rc-item-dsc-badge { font-size:10.5px; color:var(--green); font-weight:700; margin-left:4px } */
 .bk-counter { font-size:12px; font-weight:500; color:var(--muted); text-align:right; margin-bottom:10px }
 .bk-zero { text-align:center; padding:48px 20px }
 .bk-zero-icon { font-size:36px; margin-bottom:14px; opacity:.5 }
@@ -1972,7 +2001,7 @@ function buildClienteRow(rutaKey, cliKey, cli){
       : '<span class="rc-badge rc-badge-red">Sin pago</span>';
   head.innerHTML=
     '<div class="rc-head-info">'+
-      '<div class="rc-nom">'+cli.nom+'</div>'+
+      '<div class="rc-nom">'+cli.nom+(cli.dscGeneral?'<span class="rc-item-dsc-badge">🏷️ −'+(cli.dscGeneral.tipo==="%"?cli.dscGeneral.valor+"%":"$"+fM(cli.dscGeneral.valor))+'</span>':'')+'</div>'+
       '<div class="rc-sub">$'+fM(tot)+'</div>'+
     '</div>'+
     estadoHtml+
@@ -2135,25 +2164,68 @@ function renderEditItems(wrap, rk, ck){
   wrap.appendChild(toggle);
   wrap.appendChild(editBody);
 
-  /* Existing items */
+  /* Existing items con descuento por producto */
   items.forEach(function(it,i){
+    var disc=it.disc||null; // {tipo:"%"|"$", valor:number}
+    var precioBase=it.p*it.c;
+    var precioConDesc=disc ? (disc.tipo==="%"? precioBase*(1-disc.valor/100) : Math.max(0,precioBase-disc.valor)) : precioBase;
     var row=document.createElement("div");
     row.className="rc-edit-item";
     row.innerHTML=
       '<span class="rc-edit-name">'+it.n+'</span>'+
-      '<span class="rc-edit-price">$'+fM(it.p)+'</span>'+
+      '<span class="rc-edit-price">'+(disc?'<s style="font-size:10px;opacity:.5">$'+fM(precioBase)+'</s> <b>$'+fM(precioConDesc)+'</b>':'$'+fM(precioBase))+'</span>'+
       '<input type="number" min="0" step="1" class="rc-edit-cant" value="'+it.c+'" data-idx="'+i+'">'+
-      '<button class="rc-edit-del" data-idx="'+i+'">✕</button>';
+      '<button class="rc-edit-del" data-idx="'+i+'">✕</button>'+
+      /* Per-item discount row */
+      '<div class="rc-edit-dsc-row">'+
+        '<span class="rc-edit-dsc-lbl">Descuento:</span>'+
+        '<div class="rc-edit-dsc-tipo">'+
+          '<button class="'+(disc&&disc.tipo==="%"?"sel":"")+'" data-t="%">%</button>'+
+          '<button class="'+(disc&&disc.tipo==="$"?"sel":"")+'" data-t="$">$</button>'+
+        '</div>'+
+        '<input type="number" min="0" class="rc-edit-dsc-inp" placeholder="0" value="'+(disc?disc.valor:"")+'">'+
+        '<button class="rc-edit-dsc-ok">✓</button>'+
+        (disc?'<span class="rc-edit-dsc-info">−'+(disc.tipo==="%"?disc.valor+"%":"$"+fM(disc.valor))+'</span>':'')+
+      '</div>';
+
+    /* Cantidad change */
     row.querySelector(".rc-edit-cant").onchange=function(){
       var newC=parseFloat(this.value)||0;
       if(newC<=0) items.splice(i,1);
-      else items[i]=Object.assign({},it,{c:newC,sub:it.p*newC});
+      else {
+        var subBase=it.p*newC;
+        var d=items[i].disc||null;
+        var subFinal=d?(d.tipo==="%"?subBase*(1-d.valor/100):Math.max(0,subBase-d.valor)):subBase;
+        items[i]=Object.assign({},it,{c:newC,sub:subFinal});
+      }
       guardarItemsEditados(rk,ck,items,wrap);
     };
     row.querySelector(".rc-edit-del").onclick=function(){
       items.splice(i,1);
       guardarItemsEditados(rk,ck,items,wrap);
     };
+
+    /* Per-item discount tipo toggle */
+    var dscTipoBtns=row.querySelectorAll(".rc-edit-dsc-tipo button");
+    dscTipoBtns.forEach(function(btn){
+      btn.onclick=function(){
+        dscTipoBtns.forEach(function(b){b.classList.remove("sel");});
+        btn.classList.add("sel");
+      };
+    });
+    /* Apply per-item discount */
+    row.querySelector(".rc-edit-dsc-ok").onclick=function(){
+      var tipo=row.querySelector(".rc-edit-dsc-tipo button.sel").dataset.t||"%";
+      var val=parseFloat(row.querySelector(".rc-edit-dsc-inp").value)||0;
+      if(val<=0){ delete items[i].disc; items[i].sub=it.p*it.c; }
+      else {
+        items[i].disc={tipo:tipo,valor:val};
+        var base=it.p*it.c;
+        items[i].sub=tipo==="%"?base*(1-val/100):Math.max(0,base-val);
+      }
+      guardarItemsEditados(rk,ck,items,wrap);
+    };
+
     editBody.appendChild(row);
   });
 
@@ -2193,6 +2265,82 @@ function renderEditItems(wrap, rk, ck){
   sw.appendChild(si); sw.appendChild(dd);
   addRow.appendChild(sw);
   editBody.appendChild(addRow);
+
+  /* ── DESCUENTO GENERAL ── */
+  var dscWrap=document.createElement("div");
+  var dscG=cli.dscGeneral||null; // {tipo:"%"|"$", valor:number}
+  dscWrap.className="rc-dsc-wrap"+(dscG?" rc-dsc-active":"");
+  var subtotalBase=items.reduce(function(s,it){return s+(it.p*(it.c||1));},0);
+  var subtotalActual=items.reduce(function(s,it){return s+(it.sub||0);},0);
+  dscWrap.innerHTML=
+    '<div class="rc-dsc-title">🏷️ Descuento general'+(dscG?" — activo":"")+'</div>'+
+    '<div class="rc-dsc-row">'+
+      '<div class="rc-dsc-tipo">'+
+        '<button class="'+(dscG&&dscG.tipo==="%"?"sel":"")+'" data-t="%">%</button>'+
+        '<button class="'+(dscG&&dscG.tipo==="$"?"sel":"")+'" data-t="$">$</button>'+
+      '</div>'+
+      '<input type="number" min="0" class="rc-dsc-input" placeholder="Valor del descuento" value="'+(dscG?dscG.valor:"")+'">'+
+      '<button class="rc-dsc-apply">Aplicar</button>'+
+      (dscG?'<button class="rc-dsc-remove">✕ Quitar</button>':'')+
+    '</div>'+
+    '<div class="rc-dsc-preview">'+
+      (dscG
+        ? '<span>Total original: <s>$'+fM(subtotalBase)+'</s></span><b>Total con descuento: $'+fM(subtotalActual)+'</b>'
+        : '<span>Subtotal productos: $'+fM(subtotalActual)+'</span>')+
+    '</div>';
+
+  /* Tipo toggle */
+  var dscTipoBtnsG=dscWrap.querySelectorAll(".rc-dsc-tipo button");
+  dscTipoBtnsG.forEach(function(btn){
+    btn.onclick=function(){
+      dscTipoBtnsG.forEach(function(b){b.classList.remove("sel");});
+      btn.classList.add("sel");
+    };
+  });
+
+  /* Aplicar descuento general */
+  dscWrap.querySelector(".rc-dsc-apply").onclick=function(){
+    var tipo=dscWrap.querySelector(".rc-dsc-tipo button.sel");
+    if(!tipo){showNotif("Seleccioná % o $","err");return;}
+    var t=tipo.dataset.t;
+    var val=parseFloat(dscWrap.querySelector(".rc-dsc-input").value)||0;
+    if(val<=0){showNotif("Ingresá un valor mayor a 0","err");return;}
+    // Recalcular: el descuento se aplica sobre el subtotal sin discounts por item
+    var sumaBase=items.reduce(function(s,it){return s+(it.p*it.c);},0);
+    var montoDsc=t==="%"?sumaBase*val/100:val;
+    if(montoDsc>=sumaBase){showNotif("El descuento no puede superar el total","err");return;}
+    // Distribuir proporcionalmente entre items
+    var factor=1-(montoDsc/sumaBase);
+    var itemsConDsc=items.map(function(it){
+      return Object.assign({},it,{sub:parseFloat((it.p*it.c*factor).toFixed(2))});
+    });
+    var patch={items:itemsConDsc,importe:parseFloat((sumaBase*factor).toFixed(2)),dscGeneral:{tipo:t,valor:val}};
+    if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
+      Object.assign(rutasData[rk].clientes[ck],patch);
+    }
+    fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch)
+      .then(function(){
+        actualizarVentaDeRuta(rk,ck,patch.importe,itemsConDsc);
+        renderRutas();
+        showNotif("Descuento aplicado — "+fM(montoDsc)+" de descuento","ok");
+      }).catch(function(){showNotif("Error al guardar descuento","err");});
+  };
+
+  /* Quitar descuento general */
+  var btnQDsc=dscWrap.querySelector(".rc-dsc-remove");
+  if(btnQDsc) btnQDsc.onclick=function(){
+    var itemsOrig=items.map(function(it){return Object.assign({},it,{sub:it.p*it.c,disc:undefined});});
+    var totalOrig=itemsOrig.reduce(function(s,it){return s+it.sub;},0);
+    var patch={items:itemsOrig,importe:totalOrig,dscGeneral:null};
+    if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
+      Object.assign(rutasData[rk].clientes[ck],patch);
+    }
+    fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch)
+      .then(function(){actualizarVentaDeRuta(rk,ck,totalOrig,itemsOrig);renderRutas();showNotif("Descuento removido","ok");})
+      .catch(function(){showNotif("Error al guardar","err");});
+  };
+
+  editBody.appendChild(dscWrap);
 }
 
 function imprimirRemitoCli(rk, ck){
@@ -2719,13 +2867,28 @@ var diaAbierto = null;
 
 function cargarPedidosAcum(){
   setStatus("fb-ped-status","sync","☁️ Cargando...");
-  fbGet("empresas/"+empresaKey+"/pedidosAcum")
+  // Lee de backupPedidos (donde sí se guardan los pedidos enviados)
+  fbGet("empresas/"+empresaKey+"/backupPedidos")
     .then(function(data){
-      pedidosAcumData = data||{};
+      // Agrupa por día YYYYMMDD filtrando solo tipo "pedido"
+      pedidosAcumData = {};
+      if(data){
+        Object.entries(data).forEach(function(e){
+          var fbKey=e[0], item=e[1];
+          if(item.tipo && item.tipo!=="pedido") return; // skip remitos
+          var fecha=new Date(item.fecha||Date.now());
+          var y=fecha.getFullYear();
+          var mm=String(fecha.getMonth()+1).padStart(2,"0");
+          var dd=String(fecha.getDate()).padStart(2,"0");
+          var diaKey=y+""+mm+""+dd;
+          if(!pedidosAcumData[diaKey]) pedidosAcumData[diaKey]={};
+          pedidosAcumData[diaKey][fbKey]=item;
+        });
+      }
       setStatus("fb-ped-status","ok","✅");
       renderPedidosAcum();
     })
-    .catch(function(){setStatus("fb-ped-status","err","❌");});
+    .catch(function(){ setStatus("fb-ped-status","err","❌"); });
 }
 
 function renderPedidosAcum(){
@@ -2851,10 +3014,18 @@ function renderPedidosAcum(){
 
 
 function borrarDiaPedidos(diaKey){
-  if(!confirm("Borrar todos los pedidos de este día?"))return;
-  fbDel("empresas/"+empresaKey+"/pedidosAcum/"+diaKey)
-    .then(function(){delete pedidosAcumData[diaKey];if(diaAbierto===diaKey)diaAbierto=null;renderPedidosAcum();})
-    .catch(function(){alert("Error al borrar.");});
+  if(!confirm("¿Borrar todos los pedidos de este día?")) return;
+  var diaData = pedidosAcumData[diaKey]||{};
+  var fbKeys  = Object.keys(diaData);
+  // Borra cada pedido del día de backupPedidos
+  Promise.all(fbKeys.map(function(fbKey){
+    return fbDel("empresas/"+empresaKey+"/backupPedidos/"+fbKey);
+  })).then(function(){
+    delete pedidosAcumData[diaKey];
+    if(diaAbierto===diaKey) diaAbierto=null;
+    renderPedidosAcum();
+    showNotif("Pedidos del día eliminados","ok");
+  }).catch(function(){ showNotif("Error al borrar","err"); });
 }
 
 function descargarPDFDia(diaKey,fecha,prodList,obsItems,total){
