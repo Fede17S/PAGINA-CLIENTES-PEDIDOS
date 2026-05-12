@@ -600,7 +600,32 @@ select option { background:#fff }
 .geocoding-progress { padding:20px 14px; text-align:center; color:var(--muted); font-size:12.5px; line-height:1.6 }
 .me-warn-box { background:#fffbeb; border-bottom:1px solid #fcd34d; padding:10px 13px; font-size:11.5px; color:#92400e }
 
-/* ── DESCUENTO REMITO ── */
+/* ── EXPLORADOR DE CATEGORÍAS ── */
+.cat-toggle { width:100%; padding:9px 12px; background:var(--s2); border:1px solid var(--border); border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; display:flex; align-items:center; gap:7px; margin-bottom:6px; transition:all .15s; text-align:left }
+.cat-toggle:hover { background:var(--s3); color:var(--text) }
+.cat-toggle.open { background:var(--text); color:#fff; border-color:var(--text) }
+.cat-panel { display:none; background:var(--bg); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; overflow:hidden }
+.cat-panel.open { display:block }
+.cat-list { display:flex; flex-direction:column; max-height:260px; overflow-y:auto }
+.cat-list::-webkit-scrollbar { width:3px }
+.cat-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px }
+.cat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--s2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:1 }
+.cat-name { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted) }
+.cat-back { font-size:12px; font-weight:600; color:var(--text); background:none; border:none; cursor:pointer; font-family:inherit; padding:3px 7px; border-radius:5px; background:var(--s3) }
+.cat-grid { display:flex; flex-direction:column }
+.cat-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border2); cursor:pointer; transition:background .12s }
+.cat-item:last-child { border-bottom:none }
+.cat-item:hover { background:var(--s3) }
+.cat-item-name { flex:1; font-size:13px; font-weight:500; color:var(--text); min-width:0 }
+.cat-item-cod { font-size:10.5px; color:var(--muted); flex-shrink:0; background:var(--s3); padding:2px 6px; border-radius:4px; font-weight:600 }
+.cat-item-price { font-size:13.5px; font-weight:700; color:var(--text); flex-shrink:0 }
+.cat-cat-btn { display:flex; align-items:center; justify-content:space-between; padding:11px 13px; border-bottom:1px solid var(--border2); cursor:pointer; transition:background .12s }
+.cat-cat-btn:last-child { border-bottom:none }
+.cat-cat-btn:hover { background:var(--s3) }
+.cat-cat-btn-name { font-size:13.5px; font-weight:600; color:var(--text) }
+.cat-cat-btn-count { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px }
+
+/* ── EXPLORADOR DE CATEGORÍAS ── */
 .rem-dsc-toggle { background:none; border:1px solid var(--border); border-radius:6px; padding:3px 7px; font-size:13px; cursor:pointer; color:var(--muted); transition:all .15s; line-height:1 }
 .rem-dsc-toggle:hover, .rem-dsc-toggle.active { background:oklch(96% 0.04 80); border-color:oklch(85% 0.08 80); color:var(--text) }
 .rem-dsc-section-title { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:10px }
@@ -1094,6 +1119,11 @@ select option { background:#fff }
         <input type="text" id="bus-ped" placeholder="🔍 Buscar producto…" oninput="filtrar('ped')" autocomplete="off">
         <div id="res-ped" class="dropdown"></div>
       </div>
+      <button class="cat-toggle" id="cat-toggle-ped" onclick="toggleCatPanel('ped')">📂 Explorar por categoría</button>
+      <div class="cat-panel" id="cat-panel-ped">
+        <div class="cat-header"><span class="cat-name" id="cat-title-ped">Categorías</span><button class="cat-back" id="cat-back-ped" style="display:none" onclick="volverCats('ped')">← Volver</button></div>
+        <div class="cat-grid" id="cat-grid-ped"></div>
+      </div>
       <div class="add-row mt-8">
         <input type="number" id="cant-ped" value="1" min="1">
         <button class="btn btn-primary" style="flex:1" onclick="agregar('ped')">+ Agregar</button>
@@ -1124,6 +1154,11 @@ select option { background:#fff }
       <div class="search-wrap">
         <input type="text" id="bus-rem" placeholder="🔍 Buscar producto…" oninput="filtrar('rem')" autocomplete="off">
         <div id="res-rem" class="dropdown"></div>
+      </div>
+      <button class="cat-toggle" id="cat-toggle-rem" onclick="toggleCatPanel('rem')">📂 Explorar por categoría</button>
+      <div class="cat-panel" id="cat-panel-rem">
+        <div class="cat-header"><span class="cat-name" id="cat-title-rem">Categorías</span><button class="cat-back" id="cat-back-rem" style="display:none" onclick="volverCats('rem')">← Volver</button></div>
+        <div class="cat-grid" id="cat-grid-rem"></div>
       </div>
       <div class="add-row mt-8">
         <input type="number" id="cant-rem" value="1" min="1">
@@ -1426,7 +1461,7 @@ function fM(n){ return Number(n).toLocaleString("es-AR",{minimumFractionDigits:2
 function parseLocalFloat(v){ if(!v)return 0; var s=v.toString().trim().replace(/"/g,""); if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",","."); else if(s.includes(","))s=s.replace(",","."); return parseFloat(s)||0; }
 function splitCSV(row,sep){ var res=[],w="",q=false; for(var i=0;i<row.length;i++){var c=row[i];if(c==='"')q=!q;else if(c===sep&&!q){res.push(w);w="";}else w+=c;} res.push(w); return res.map(function(v){return v.trim().replace(/"/g,"");}); }
 function setStatus(id,cls,txt){ var el=document.getElementById(id); if(el){el.className="fb-pill "+cls;el.textContent=txt;} }
-function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; ordenes[t]=[]; if(t==="rem"){dscGenRem=null;_itemDscOpen=-1;var _p=document.getElementById("dsc-panel-rem");if(_p)_p.style.display="none";var _b=document.getElementById("btn-dsc-rem");if(_b)_b.classList.remove("active");var _v=document.getElementById("dsc-rem-val");if(_v)_v.value="";} renderItems(t); }
+function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; ordenes[t]=[]; if(t==="rem"){dscGenRem=null;_itemDscOpen=-1;var _p=document.getElementById("dsc-panel-rem");if(_p)_p.style.display="none";var _b=document.getElementById("btn-dsc-rem");if(_b)_b.classList.remove("active");var _v=document.getElementById("dsc-rem-val");if(_v)_v.value="";} var _cp=document.getElementById("cat-panel-"+t);var _ct=document.getElementById("cat-toggle-"+t);if(_cp){_cp.classList.remove("open");}if(_ct){_ct.classList.remove("open");} renderItems(t); }
 function cerrarModal(id){ document.getElementById(id).classList.remove("open"); }
 function abrirModal(id){ document.getElementById(id).classList.add("open"); }
 
@@ -1634,49 +1669,19 @@ function cargarCatalogo(){
     empresaData=Object.assign({},empresaData,emp);
     var productos=emp.productos||null;
     if(productos&&Object.keys(productos).length>0){
-      // ── DIAGNÓSTICO v2 ──────────────────────────────────────
-      var allProds = Object.values(productos).filter(function(p){return p.nombre;});
-      var camposUnicos = {};
-      allProds.forEach(function(p){ Object.keys(p).forEach(function(k){ camposUnicos[k]=(camposUnicos[k]||0)+1; }); });
-      // Detectar si alguno tiene sub-objetos (variantes anidadas)
-      var conSubObj = allProds.filter(function(p){
-        return Object.values(p).some(function(v){ return v && typeof v==="object" && !Array.isArray(v); });
-      });
-      console.group("🔍 DISTRIMAR — Diagnóstico completo");
-      console.log("Total productos en Firebase:", allProds.length);
-      console.log("Campos y frecuencia:", camposUnicos);
-      console.log("Productos con sub-objetos anidados:", conSubObj.length);
-      if(conSubObj.length) console.log("Ejemplo con sub-objeto:", JSON.stringify(conSubObj[0], null, 2));
-      // Mostrar 5 productos sample
-      console.log("Primeros 5:", allProds.slice(0,5).map(function(p){return p.codigo+" | "+p.nombre;}));
-      console.groupEnd();
-      // ────────────────────────────────────────────────────────
-
       dbStock=[];
+      var _catIndex = {}; // {catNombre: [prod, prod, ...]}
       Object.values(productos).filter(function(p){return p.nombre;}).forEach(function(p){
-        var pCli=p.precioClientes||0, pPat=p.precioPatagonia||0;
-        var id=p.codigo||p.nombre.substring(0,4);
-        // Buscar variantes anidadas — campo puede llamarse variantes, vars, variantes, variants
-        var varsObj = p.variantes||p.vars||p.variants||null;
-        if(varsObj && typeof varsObj==="object" && !Array.isArray(varsObj)){
-          var varList = Object.values(varsObj).filter(function(v){return v.nombre;});
-          if(varList.length){
-            // Agregar cada variante como producto individual
-            varList.forEach(function(v){
-              dbStock.push({
-                id: v.codigo||v.id||id+"-v",
-                n:  v.nombre,
-                pCli: v.precioClientes||v.pCli||pCli,
-                pPat: v.precioPatagonia||v.pPat||pPat,
-                padre: p.nombre  // referencia al grupo
-              });
-            });
-            return; // no agregar el padre si tiene variantes (ya están las hijas)
-          }
-        }
-        // Sin variantes anidadas — agregar el producto directo
-        dbStock.push({id:id, n:p.nombre, pCli:pCli, pPat:pPat});
+        // Limpiar categoria (puede venir con comillas escapadas: "\"Pilas & Filos\"")
+        var cat = (p.categoria||"Sin categoría").replace(/^"+|"+$/g,"").replace(/\\"/g,"").trim()||"Sin categoría";
+        var id  = p.codigo ? String(p.codigo) : p.nombre.substring(0,4);
+        var prod = {id:id, n:p.nombre, pCli:p.precioClientes||0, pPat:p.precioPatagonia||0, cat:cat};
+        dbStock.push(prod);
+        if(!_catIndex[cat]) _catIndex[cat]=[];
+        _catIndex[cat].push(prod);
       });
+      // Guardar índice de categorías globalmente
+      window._catIndex = _catIndex;
     } else {
       // Fallback: stockCSV
       var rawS=emp.stockCSV||"";
@@ -1730,7 +1735,15 @@ function actualizarDL(){
   document.getElementById("dl-cli-ped").innerHTML=h;
   document.getElementById("dl-cli-rem").innerHTML=h;
 }
-function vincularCli(origen,t){ var idIn=document.getElementById("idCli-"+t),nomIn=document.getElementById("nomCli-"+t); var c=origen==="id"?dbCli.find(function(x){return x.id.toString()===idIn.value.trim();}):dbCli.find(function(x){return x.nombre.trim()===nomIn.value.trim();}); if(c){idIn.value=c.id;nomIn.value=c.nombre;tipoLista[t]=c.lista.toLowerCase().includes("patagonia")?"Patagonia":"Clientes";document.getElementById("badge-"+t).textContent="📋 "+tipoLista[t];} }
+function vincularCli(origen,t){ var idIn=document.getElementById("idCli-"+t),nomIn=document.getElementById("nomCli-"+t); var c=origen==="id"?dbCli.find(function(x){return x.id.toString()===idIn.value.trim();}):dbCli.find(function(x){return x.nombre.trim()===nomIn.value.trim();}); if(c){idIn.value=c.id;nomIn.value=c.nombre;tipoLista[t]=c.lista.toLowerCase().includes("patagonia")?"Patagonia":"Clientes";document.getElementById("badge-"+t).textContent="📋 "+tipoLista[t];
+  // Refrescar panel de categorías con los nuevos precios
+  var grid=document.getElementById("cat-grid-"+t);
+  var panel=document.getElementById("cat-panel-"+t);
+  if(panel&&panel.classList.contains("open")&&grid&&grid.querySelector(".cat-item")){
+    var catTitle=document.getElementById("cat-title-"+t);
+    if(catTitle&&catTitle.textContent!=="Categorías") renderCatProds(t,catTitle.textContent);
+  }
+} }
 function filtrar(t){
   var box=document.getElementById("res-"+t),bus=document.getElementById("bus-"+t).value.toLowerCase().trim();
   box.innerHTML="";
@@ -1839,7 +1852,87 @@ function renderItems(t){
 }
 function quitarItem(t,i){ ordenes[t].splice(i,1); if(t==="rem"&&_itemDscOpen===i)_itemDscOpen=-1; renderItems(t); }
 
-/* ── Descuentos en Nuevo Remito ── */
+/* ── EXPLORADOR DE CATEGORÍAS ── */
+function toggleCatPanel(t) {
+  var panel  = document.getElementById("cat-panel-"+t);
+  var toggle = document.getElementById("cat-toggle-"+t);
+  var isOpen = panel.classList.contains("open");
+  panel.classList.toggle("open", !isOpen);
+  toggle.classList.toggle("open", !isOpen);
+  if (!isOpen) renderCatList(t);
+}
+
+function volverCats(t) {
+  renderCatList(t);
+}
+
+function renderCatList(t) {
+  var grid  = document.getElementById("cat-grid-"+t);
+  var title = document.getElementById("cat-title-"+t);
+  var back  = document.getElementById("cat-back-"+t);
+  title.textContent = "Categorías";
+  back.style.display = "none";
+  var cats = window._catIndex || {};
+  var catKeys = Object.keys(cats).sort();
+  if (!catKeys.length) {
+    grid.innerHTML = '<div style="padding:16px;text-align:center;font-size:13px;color:var(--muted)">Sin categorías — buscá por nombre arriba</div>';
+    return;
+  }
+  grid.innerHTML = "";
+  catKeys.forEach(function(cat) {
+    var btn = document.createElement("div");
+    btn.className = "cat-cat-btn";
+    btn.innerHTML = '<span class="cat-cat-btn-name">'+cat+'</span><span class="cat-cat-btn-count">'+cats[cat].length+' prods <span style="opacity:.5">›</span></span>';
+    btn.onclick = function() { renderCatProds(t, cat); };
+    grid.appendChild(btn);
+  });
+}
+
+function renderCatProds(t, cat) {
+  var grid  = document.getElementById("cat-grid-"+t);
+  var title = document.getElementById("cat-title-"+t);
+  var back  = document.getElementById("cat-back-"+t);
+  title.textContent = cat;
+  back.style.display = "inline-flex";
+  var prods = (window._catIndex || {})[cat] || [];
+  var lista = tipoLista[t] || "Clientes";
+  grid.innerHTML = "";
+  if (!prods.length) {
+    grid.innerHTML = '<div style="padding:16px;text-align:center;font-size:13px;color:var(--muted)">Sin productos</div>';
+    return;
+  }
+  prods.slice().sort(function(a,b){ return a.n.localeCompare(b.n); }).forEach(function(p) {
+    var pre = lista === "Patagonia" ? p.pPat : p.pCli;
+    var qty = stockData[p.id];
+    var stkHtml = "";
+    if (qty !== undefined) {
+      if (qty <= 0)       stkHtml = ' <span style="font-size:10px;color:var(--red);font-weight:700">Sin stock</span>';
+      else if (qty <= 5)  stkHtml = ' <span style="font-size:10px;color:var(--amber);font-weight:700">'+qty+' u.</span>';
+    }
+    var row = document.createElement("div");
+    row.className = "cat-item";
+    row.innerHTML =
+      '<span class="cat-item-cod">'+p.id+'</span>'+
+      '<span class="cat-item-name">'+p.n+stkHtml+'</span>'+
+      '<span class="cat-item-price">$'+fM(pre)+'</span>';
+    row.onclick = function() {
+      itemSel[t] = Object.assign({}, p, {pre: pre});
+      // Añadir directamente con cantidad 1 (o la que está en el input)
+      var cant = parseFloat(document.getElementById("cant-"+t).value) || 1;
+      var exist = ordenes[t].find(function(x){ return x.id === p.id && x.p === pre; });
+      if (exist) { exist.c += cant; exist.sub = exist.p * exist.c; }
+      else ordenes[t].push({id:p.id, n:p.n, p:pre, c:cant, sub:pre*cant});
+      renderItems(t);
+      // Feedback visual
+      row.style.background = "var(--ok-soft,#f0fdf4)";
+      setTimeout(function(){ row.style.background = ""; }, 600);
+      showNotif("✓ "+p.n+" agregado","ok");
+    };
+    grid.appendChild(row);
+  });
+}
+
+
 function toggleDscPanelRem(){
   var panel=document.getElementById("dsc-panel-rem");
   if(!panel) return;
