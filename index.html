@@ -600,32 +600,73 @@ select option { background:#fff }
 .geocoding-progress { padding:20px 14px; text-align:center; color:var(--muted); font-size:12.5px; line-height:1.6 }
 .me-warn-box { background:#fffbeb; border-bottom:1px solid #fcd34d; padding:10px 13px; font-size:11.5px; color:#92400e }
 
-/* ── EXPLORADOR DE CATEGORÍAS ── */
-.cat-toggle { width:100%; padding:9px 12px; background:var(--s2); border:1px solid var(--border); border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; display:flex; align-items:center; gap:7px; margin-bottom:6px; transition:all .15s; text-align:left }
-.cat-toggle:hover { background:var(--s3); color:var(--text) }
-.cat-toggle.open { background:var(--text); color:#fff; border-color:var(--text) }
-.cat-panel { display:none; background:var(--bg); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; overflow:hidden }
-.cat-panel.open { display:block }
-.cat-list { display:flex; flex-direction:column; max-height:260px; overflow-y:auto }
-.cat-list::-webkit-scrollbar { width:3px }
-.cat-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px }
-.cat-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:var(--s2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:1 }
-.cat-name { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted) }
-.cat-back { font-size:12px; font-weight:600; color:var(--text); background:none; border:none; cursor:pointer; font-family:inherit; padding:3px 7px; border-radius:5px; background:var(--s3) }
-.cat-grid { display:flex; flex-direction:column }
-.cat-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border2); cursor:pointer; transition:background .12s }
-.cat-item:last-child { border-bottom:none }
-.cat-item:hover { background:var(--s3) }
-.cat-item-name { flex:1; font-size:13px; font-weight:500; color:var(--text); min-width:0 }
-.cat-item-cod { font-size:10.5px; color:var(--muted); flex-shrink:0; background:var(--s3); padding:2px 6px; border-radius:4px; font-weight:600 }
-.cat-item-price { font-size:13.5px; font-weight:700; color:var(--text); flex-shrink:0 }
-.cat-cat-btn { display:flex; align-items:center; justify-content:space-between; padding:11px 13px; border-bottom:1px solid var(--border2); cursor:pointer; transition:background .12s }
-.cat-cat-btn:last-child { border-bottom:none }
-.cat-cat-btn:hover { background:var(--s3) }
-.cat-cat-btn-name { font-size:13.5px; font-weight:600; color:var(--text) }
-.cat-cat-btn-count { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px }
+/* ── EXPLORAR PRODUCTOS (bottom sheet) ── */
+.btn-elegir-prods { width:100%; padding:10px 14px; background:var(--s2); border:1.5px dashed var(--border); border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; color:var(--muted2); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:all .15s; margin-top:6px }
+.btn-elegir-prods:hover { background:var(--s3); color:var(--text); border-color:var(--text) }
 
-/* ── EXPLORADOR DE CATEGORÍAS ── */
+/* Sheet container */
+.cs-sheet { position:fixed; bottom:0; left:0; right:0; max-width:620px; margin:0 auto; background:var(--bg); border-radius:20px 20px 0 0; box-shadow:0 -8px 40px rgba(0,0,0,.18); z-index:901; display:flex; flex-direction:column; max-height:92dvh; transform:translateY(100%); transition:transform .28s cubic-bezier(.32,.72,0,1) }
+.cs-sheet.open { transform:translateY(0) }
+.cs-handle-wrap { padding:10px 0 4px; display:flex; justify-content:center; flex-shrink:0; cursor:grab }
+.cs-handle { width:36px; height:4px; border-radius:4px; background:var(--border) }
+.cs-header { display:flex; align-items:center; justify-content:space-between; padding:4px 16px 12px; flex-shrink:0 }
+.cs-header-left { display:flex; align-items:center; gap:8px; flex:1; min-width:0 }
+.cs-back { width:32px; height:32px; border-radius:50%; background:var(--s2); border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; color:var(--text) }
+.cs-title { font-size:17px; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.cs-header-right { display:flex; align-items:center; gap:8px; flex-shrink:0 }
+.cs-cart-badge { background:var(--text); color:#fff; font-size:11px; font-weight:800; padding:2px 7px; border-radius:20px; min-width:22px; text-align:center }
+.cs-close { width:28px; height:28px; border-radius:50%; background:var(--s2); border:none; font-size:14px; cursor:pointer; color:var(--muted); display:flex; align-items:center; justify-content:center }
+.cs-search-wrap { padding:0 16px 10px; flex-shrink:0 }
+.cs-search-input { width:100%; padding:11px 14px; background:var(--s2); border:1.5px solid var(--border); border-radius:12px; font-size:14px; font-family:inherit; color:var(--text); outline:none }
+.cs-search-input:focus { border-color:var(--text) }
+
+/* Body */
+.cs-body { flex:1; overflow-y:auto; padding:0 12px 8px; overscroll-behavior:contain }
+.cs-body::-webkit-scrollbar { width:3px }
+.cs-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px }
+.cs-empty { padding:40px 20px; text-align:center; font-size:14px; color:var(--muted) }
+
+/* Category list */
+.cs-cat-row { display:flex; align-items:center; gap:12px; padding:14px 12px; border-radius:12px; cursor:pointer; transition:background .12s; margin-bottom:4px }
+.cs-cat-row:hover, .cs-cat-row:active { background:var(--s2) }
+.cs-cat-icon { font-size:22px; flex-shrink:0 }
+.cs-cat-info { flex:1; min-width:0 }
+.cs-cat-nom { font-size:15px; font-weight:600; color:var(--text) }
+.cs-cat-cnt { font-size:12px; color:var(--muted); margin-top:1px }
+.cs-cat-arrow { font-size:22px; color:var(--muted2); flex-shrink:0 }
+
+/* Product cards — grid 2 col */
+.cs-body { display:block }
+.cs-body .cs-prod-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding-top:4px }
+.cs-prod-card { background:var(--s2); border:2px solid transparent; border-radius:14px; overflow:hidden; display:flex; flex-direction:column; cursor:default; transition:border-color .15s, box-shadow .15s }
+.cs-prod-card.cs-prod-sel { border-color:var(--text); background:#fff; box-shadow:0 4px 16px rgba(0,0,0,.12) }
+.cs-prod-card.cs-prod-nostock { opacity:.55 }
+.cs-prod-foto { width:100%; aspect-ratio:1; background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden }
+.cs-prod-foto img { width:100%; height:100%; object-fit:contain; padding:6px }
+.cs-prod-foto-ph { font-size:36px; opacity:.25 }
+.cs-prod-body { padding:8px 10px 10px; display:flex; flex-direction:column; gap:3px; flex:1 }
+.cs-prod-nom { font-size:12px; font-weight:700; color:var(--text); line-height:1.3 }
+.cs-prod-cod { font-size:10px; color:var(--muted); font-weight:600 }
+.cs-prod-price { font-size:14px; font-weight:800; color:var(--text); margin-top:2px; font-variant-numeric:tabular-nums }
+.cs-prod-stk { font-size:10px; font-weight:700; display:inline-block; padding:1px 5px; border-radius:4px }
+.cs-stk-0   { background:var(--red-bg); color:var(--red) }
+.cs-stk-low { background:#fef3c7; color:#92400e }
+
+/* Stepper */
+.cs-stepper { display:flex; align-items:center; justify-content:space-between; margin-top:6px; background:var(--s3); border-radius:10px; padding:2px }
+.cs-step-btn { width:34px; height:34px; border-radius:8px; border:none; background:none; font-size:20px; font-weight:700; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .12s; line-height:1 }
+.cs-step-btn:active { background:var(--border) }
+.cs-prod-sel .cs-step-btn { color:var(--text) }
+.cs-step-val { font-size:16px; font-weight:800; color:var(--text); min-width:24px; text-align:center; font-variant-numeric:tabular-nums }
+.cs-prod-sel .cs-step-minus { color:var(--red) }
+.cs-prod-sel .cs-step-plus  { color:var(--green,#059669) }
+
+/* Footer */
+.cs-footer { padding:12px 16px calc(12px + env(safe-area-inset-bottom)); flex-shrink:0; border-top:1px solid var(--border) }
+.cs-add-btn { width:100%; padding:15px; background:var(--text); color:#fff; border:none; border-radius:14px; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:opacity .15s }
+.cs-add-btn:active { opacity:.88 }
+
+/* ── EXPLORAR PRODUCTOS ── */
 .rem-dsc-toggle { background:none; border:1px solid var(--border); border-radius:6px; padding:3px 7px; font-size:13px; cursor:pointer; color:var(--muted); transition:all .15s; line-height:1 }
 .rem-dsc-toggle:hover, .rem-dsc-toggle.active { background:oklch(96% 0.04 80); border-color:oklch(85% 0.08 80); color:var(--text) }
 .rem-dsc-section-title { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:10px }
@@ -1119,11 +1160,10 @@ select option { background:#fff }
         <input type="text" id="bus-ped" placeholder="🔍 Buscar producto…" oninput="filtrar('ped')" autocomplete="off">
         <div id="res-ped" class="dropdown"></div>
       </div>
-      <button class="cat-toggle" id="cat-toggle-ped" onclick="toggleCatPanel('ped')">📂 Explorar por categoría</button>
-      <div class="cat-panel" id="cat-panel-ped">
-        <div class="cat-header"><span class="cat-name" id="cat-title-ped">Categorías</span><button class="cat-back" id="cat-back-ped" style="display:none" onclick="volverCats('ped')">← Volver</button></div>
-        <div class="cat-grid" id="cat-grid-ped"></div>
-      </div>
+      <button class="btn-elegir-prods" onclick="abrirCatalogSheet('ped')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Ver todos los productos
+      </button>
       <div class="add-row mt-8">
         <input type="number" id="cant-ped" value="1" min="1">
         <button class="btn btn-primary" style="flex:1" onclick="agregar('ped')">+ Agregar</button>
@@ -1155,11 +1195,10 @@ select option { background:#fff }
         <input type="text" id="bus-rem" placeholder="🔍 Buscar producto…" oninput="filtrar('rem')" autocomplete="off">
         <div id="res-rem" class="dropdown"></div>
       </div>
-      <button class="cat-toggle" id="cat-toggle-rem" onclick="toggleCatPanel('rem')">📂 Explorar por categoría</button>
-      <div class="cat-panel" id="cat-panel-rem">
-        <div class="cat-header"><span class="cat-name" id="cat-title-rem">Categorías</span><button class="cat-back" id="cat-back-rem" style="display:none" onclick="volverCats('rem')">← Volver</button></div>
-        <div class="cat-grid" id="cat-grid-rem"></div>
-      </div>
+      <button class="btn-elegir-prods" onclick="abrirCatalogSheet('rem')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Ver todos los productos
+      </button>
       <div class="add-row mt-8">
         <input type="number" id="cant-rem" value="1" min="1">
         <button class="btn btn-primary" style="flex:1" onclick="agregar('rem')">+ Agregar</button>
@@ -1461,7 +1500,7 @@ function fM(n){ return Number(n).toLocaleString("es-AR",{minimumFractionDigits:2
 function parseLocalFloat(v){ if(!v)return 0; var s=v.toString().trim().replace(/"/g,""); if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",","."); else if(s.includes(","))s=s.replace(",","."); return parseFloat(s)||0; }
 function splitCSV(row,sep){ var res=[],w="",q=false; for(var i=0;i<row.length;i++){var c=row[i];if(c==='"')q=!q;else if(c===sep&&!q){res.push(w);w="";}else w+=c;} res.push(w); return res.map(function(v){return v.trim().replace(/"/g,"");}); }
 function setStatus(id,cls,txt){ var el=document.getElementById(id); if(el){el.className="fb-pill "+cls;el.textContent=txt;} }
-function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; ordenes[t]=[]; if(t==="rem"){dscGenRem=null;_itemDscOpen=-1;var _p=document.getElementById("dsc-panel-rem");if(_p)_p.style.display="none";var _b=document.getElementById("btn-dsc-rem");if(_b)_b.classList.remove("active");var _v=document.getElementById("dsc-rem-val");if(_v)_v.value="";} var _cp=document.getElementById("cat-panel-"+t);var _ct=document.getElementById("cat-toggle-"+t);if(_cp){_cp.classList.remove("open");}if(_ct){_ct.classList.remove("open");} renderItems(t); }
+function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; ordenes[t]=[]; if(t==="rem"){dscGenRem=null;_itemDscOpen=-1;var _p=document.getElementById("dsc-panel-rem");if(_p)_p.style.display="none";var _b=document.getElementById("btn-dsc-rem");if(_b)_b.classList.remove("active");var _v=document.getElementById("dsc-rem-val");if(_v)_v.value="";} renderItems(t); }
 function cerrarModal(id){ document.getElementById(id).classList.remove("open"); }
 function abrirModal(id){ document.getElementById(id).classList.add("open"); }
 
@@ -1851,86 +1890,6 @@ function renderItems(t){
   }
 }
 function quitarItem(t,i){ ordenes[t].splice(i,1); if(t==="rem"&&_itemDscOpen===i)_itemDscOpen=-1; renderItems(t); }
-
-/* ── EXPLORADOR DE CATEGORÍAS ── */
-function toggleCatPanel(t) {
-  var panel  = document.getElementById("cat-panel-"+t);
-  var toggle = document.getElementById("cat-toggle-"+t);
-  var isOpen = panel.classList.contains("open");
-  panel.classList.toggle("open", !isOpen);
-  toggle.classList.toggle("open", !isOpen);
-  if (!isOpen) renderCatList(t);
-}
-
-function volverCats(t) {
-  renderCatList(t);
-}
-
-function renderCatList(t) {
-  var grid  = document.getElementById("cat-grid-"+t);
-  var title = document.getElementById("cat-title-"+t);
-  var back  = document.getElementById("cat-back-"+t);
-  title.textContent = "Categorías";
-  back.style.display = "none";
-  var cats = window._catIndex || {};
-  var catKeys = Object.keys(cats).sort();
-  if (!catKeys.length) {
-    grid.innerHTML = '<div style="padding:16px;text-align:center;font-size:13px;color:var(--muted)">Sin categorías — buscá por nombre arriba</div>';
-    return;
-  }
-  grid.innerHTML = "";
-  catKeys.forEach(function(cat) {
-    var btn = document.createElement("div");
-    btn.className = "cat-cat-btn";
-    btn.innerHTML = '<span class="cat-cat-btn-name">'+cat+'</span><span class="cat-cat-btn-count">'+cats[cat].length+' prods <span style="opacity:.5">›</span></span>';
-    btn.onclick = function() { renderCatProds(t, cat); };
-    grid.appendChild(btn);
-  });
-}
-
-function renderCatProds(t, cat) {
-  var grid  = document.getElementById("cat-grid-"+t);
-  var title = document.getElementById("cat-title-"+t);
-  var back  = document.getElementById("cat-back-"+t);
-  title.textContent = cat;
-  back.style.display = "inline-flex";
-  var prods = (window._catIndex || {})[cat] || [];
-  var lista = tipoLista[t] || "Clientes";
-  grid.innerHTML = "";
-  if (!prods.length) {
-    grid.innerHTML = '<div style="padding:16px;text-align:center;font-size:13px;color:var(--muted)">Sin productos</div>';
-    return;
-  }
-  prods.slice().sort(function(a,b){ return a.n.localeCompare(b.n); }).forEach(function(p) {
-    var pre = lista === "Patagonia" ? p.pPat : p.pCli;
-    var qty = stockData[p.id];
-    var stkHtml = "";
-    if (qty !== undefined) {
-      if (qty <= 0)       stkHtml = ' <span style="font-size:10px;color:var(--red);font-weight:700">Sin stock</span>';
-      else if (qty <= 5)  stkHtml = ' <span style="font-size:10px;color:var(--amber);font-weight:700">'+qty+' u.</span>';
-    }
-    var row = document.createElement("div");
-    row.className = "cat-item";
-    row.innerHTML =
-      '<span class="cat-item-cod">'+p.id+'</span>'+
-      '<span class="cat-item-name">'+p.n+stkHtml+'</span>'+
-      '<span class="cat-item-price">$'+fM(pre)+'</span>';
-    row.onclick = function() {
-      itemSel[t] = Object.assign({}, p, {pre: pre});
-      // Añadir directamente con cantidad 1 (o la que está en el input)
-      var cant = parseFloat(document.getElementById("cant-"+t).value) || 1;
-      var exist = ordenes[t].find(function(x){ return x.id === p.id && x.p === pre; });
-      if (exist) { exist.c += cant; exist.sub = exist.p * exist.c; }
-      else ordenes[t].push({id:p.id, n:p.n, p:pre, c:cant, sub:pre*cant});
-      renderItems(t);
-      // Feedback visual
-      row.style.background = "var(--ok-soft,#f0fdf4)";
-      setTimeout(function(){ row.style.background = ""; }, 600);
-      showNotif("✓ "+p.n+" agregado","ok");
-    };
-    grid.appendChild(row);
-  });
-}
 
 
 function toggleDscPanelRem(){
@@ -4091,5 +4050,240 @@ document.addEventListener("DOMContentLoaded",function(){
   });
 });
 </script>
+<!-- ═══════════════════════════════════
+     CATALOG BOTTOM SHEET
+═══════════════════════════════════ -->
+<div id="catalog-overlay" onclick="cerrarCatalogSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;transition:opacity .25s"></div>
+<div id="catalog-sheet" class="cs-sheet">
+  <!-- Handle -->
+  <div class="cs-handle-wrap" ontouchstart="csTouchStart(event)" ontouchmove="csTouchMove(event)" ontouchend="csTouchEnd(event)">
+    <div class="cs-handle"></div>
+  </div>
+  <!-- Header -->
+  <div class="cs-header">
+    <div class="cs-header-left">
+      <button class="cs-back" id="cs-back-btn" onclick="csVolverCats()" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <span class="cs-title" id="cs-title">Categorías</span>
+    </div>
+    <div class="cs-header-right">
+      <span class="cs-cart-badge" id="cs-cart-badge" style="display:none"></span>
+      <button class="cs-close" onclick="cerrarCatalogSheet()">✕</button>
+    </div>
+  </div>
+  <!-- Search (visible en vista de productos) -->
+  <div class="cs-search-wrap" id="cs-search-wrap" style="display:none">
+    <input type="text" class="cs-search-input" id="cs-search-input" placeholder="🔍 Buscar en esta categoría…" oninput="csFiltrarProds()">
+  </div>
+  <!-- Body -->
+  <div class="cs-body" id="cs-body"></div>
+  <!-- Footer -->
+  <div class="cs-footer" id="cs-footer" style="display:none">
+    <button class="cs-add-btn" id="cs-add-btn" onclick="csAgregarSeleccion()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span id="cs-add-label">Agregar al pedido</span>
+    </button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CATALOG BOTTOM SHEET
+═══════════════════════════════════════════════════ */
+var _csTab    = "ped";     // pedido o remito activo
+var _csCat    = null;      // categoría seleccionada
+var _csQtys   = {};        // {prodId: cantidad}
+var _csTouchY = 0;
+
+function abrirCatalogSheet(t) {
+  _csTab  = t;
+  _csCat  = null;
+  _csQtys = {};
+  var overlay = document.getElementById("catalog-overlay");
+  var sheet   = document.getElementById("catalog-sheet");
+  overlay.style.display = "block";
+  requestAnimationFrame(function(){
+    overlay.style.opacity = "1";
+    sheet.classList.add("open");
+  });
+  csRenderCats();
+  csActualizarFooter();
+}
+
+function cerrarCatalogSheet() {
+  var overlay = document.getElementById("catalog-overlay");
+  var sheet   = document.getElementById("catalog-sheet");
+  sheet.classList.remove("open");
+  overlay.style.opacity = "0";
+  setTimeout(function(){ overlay.style.display="none"; }, 280);
+}
+
+/* Swipe to close */
+function csTouchStart(e){ _csTouchY = e.touches[0].clientY; }
+function csTouchMove(e){
+  var dy = e.touches[0].clientY - _csTouchY;
+  if(dy > 60) cerrarCatalogSheet();
+}
+function csTouchEnd(e){}
+
+/* ── CATEGORÍAS ── */
+function csRenderCats() {
+  var body  = document.getElementById("cs-body");
+  var title = document.getElementById("cs-title");
+  var back  = document.getElementById("cs-back-btn");
+  var sw    = document.getElementById("cs-search-wrap");
+  title.textContent = "Categorías";
+  back.style.display  = "none";
+  sw.style.display    = "none";
+  document.getElementById("cs-search-input").value = "";
+
+  var cats = window._catIndex || {};
+  var keys = Object.keys(cats).sort();
+  if (!keys.length) {
+    body.innerHTML = '<div class="cs-empty">Sin categorías — cargá el catálogo desde el Admin</div>';
+    return;
+  }
+  body.innerHTML = "";
+  keys.forEach(function(cat) {
+    var n = cats[cat].length;
+    var div = document.createElement("div");
+    div.className = "cs-cat-row";
+    div.innerHTML =
+      '<div class="cs-cat-icon">📦</div>'+
+      '<div class="cs-cat-info"><div class="cs-cat-nom">'+cat+'</div><div class="cs-cat-cnt">'+n+' producto'+(n!==1?"s":"")+'</div></div>'+
+      '<div class="cs-cat-arrow">›</div>';
+    div.onclick = function(){ csAbrirCat(cat); };
+    body.appendChild(div);
+  });
+}
+
+/* ── PRODUCTOS DE CATEGORÍA ── */
+function csAbrirCat(cat) {
+  _csCat = cat;
+  document.getElementById("cs-title").textContent = cat;
+  document.getElementById("cs-back-btn").style.display = "flex";
+  document.getElementById("cs-search-wrap").style.display = "block";
+  document.getElementById("cs-search-input").value = "";
+  csRenderProds(cat, "");
+}
+
+function csVolverCats() {
+  _csCat = null;
+  csRenderCats();
+  document.getElementById("cs-footer").style.display = csConteoTotal()>0?"flex":"none";
+}
+
+function csFiltrarProds() {
+  if (!_csCat) return;
+  csRenderProds(_csCat, document.getElementById("cs-search-input").value);
+}
+
+function csRenderProds(cat, filtro) {
+  var body  = document.getElementById("cs-body");
+  var lista = tipoLista[_csTab] || "Clientes";
+  var q     = (filtro||"").toLowerCase().trim();
+  var prods = ((window._catIndex||{})[cat]||[])
+    .filter(function(p){ return !q || p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q); })
+    .slice().sort(function(a,b){ return a.n.localeCompare(b.n); });
+
+  body.innerHTML = "";
+  if (!prods.length) {
+    body.innerHTML = '<div class="cs-empty">Sin resultados</div>';
+    return;
+  }
+
+  var grid = document.createElement("div");
+  grid.className = "cs-prod-wrap";
+
+  prods.forEach(function(p) {
+    var pre = lista==="Patagonia" ? p.pPat : p.pCli;
+    var qty = _csQtys[p.id] || 0;
+    var stk = stockData[p.id];
+    var stkClass = stk===undefined?"":stk<=0?"cs-prod-nostock":stk<=5?"cs-prod-lowstock":"";
+
+    var card = document.createElement("div");
+    card.className = "cs-prod-card" + (qty>0?" cs-prod-sel":"") + (stkClass?" "+stkClass:"");
+    card.id = "cs-card-"+p.id;
+
+    var fotoHtml = p.foto
+      ? '<div class="cs-prod-foto"><img src="'+p.foto+'" onerror="this.parentNode.innerHTML=\'<div class=cs-prod-foto-ph>📦</div>\'" loading="lazy"></div>'
+      : '<div class="cs-prod-foto"><div class="cs-prod-foto-ph">📦</div></div>';
+
+    var stkLabel = stk===undefined?"": stk<=0?'<div class="cs-prod-stk cs-stk-0">Sin stock</div>':stk<=5?'<div class="cs-prod-stk cs-stk-low">'+stk+' u.</div>':'';
+
+    card.innerHTML = fotoHtml +
+      '<div class="cs-prod-body">'+
+        '<div class="cs-prod-nom">'+p.n+'</div>'+
+        '<div class="cs-prod-cod">'+p.id+'</div>'+
+        stkLabel+
+        '<div class="cs-prod-price">$'+fM(pre)+'</div>'+
+        '<div class="cs-stepper" id="cs-step-'+p.id+'">'+
+          '<button class="cs-step-btn cs-step-minus" onclick="csStep(\''+p.id+'\',event,-1)">−</button>'+
+          '<span class="cs-step-val" id="cs-qty-'+p.id+'">'+qty+'</span>'+
+          '<button class="cs-step-btn cs-step-plus" onclick="csStep(\''+p.id+'\',event,1)">+</button>'+
+        '</div>'+
+      '</div>';
+    grid.appendChild(card);
+  });
+  body.appendChild(grid);
+}
+
+function csStep(pid, e, delta) {
+  e.stopPropagation();
+  var cur = _csQtys[pid] || 0;
+  var nv  = Math.max(0, cur + delta);
+  _csQtys[pid] = nv;
+  var qEl = document.getElementById("cs-qty-"+pid);
+  if (qEl) qEl.textContent = nv;
+  var card = document.getElementById("cs-card-"+pid);
+  if (card) card.classList.toggle("cs-prod-sel", nv > 0);
+  csActualizarFooter();
+}
+
+function csConteoTotal() {
+  return Object.values(_csQtys).reduce(function(s,v){ return s+(v>0?1:0); },0);
+}
+function csCantTotal() {
+  return Object.values(_csQtys).reduce(function(s,v){ return s+v; },0);
+}
+
+function csActualizarFooter() {
+  var footer = document.getElementById("cs-footer");
+  var label  = document.getElementById("cs-add-label");
+  var badge  = document.getElementById("cs-cart-badge");
+  var n = csConteoTotal(), total = csCantTotal();
+  if (n > 0) {
+    footer.style.display = "flex";
+    label.textContent = "Agregar " + total + " unidad"+(total!==1?"es":"")+" ("+n+" prod"+(n!==1?"s":"")+")";;
+    badge.style.display = "inline-flex";
+    badge.textContent = total;
+  } else {
+    footer.style.display = "none";
+    badge.style.display  = "none";
+  }
+}
+
+function csAgregarSeleccion() {
+  var t     = _csTab;
+  var lista = tipoLista[t] || "Clientes";
+  var added = 0;
+  Object.entries(_csQtys).forEach(function(entry) {
+    var pid = entry[0], qty = entry[1];
+    if (qty <= 0) return;
+    var p = dbStock.find(function(x){ return x.id===pid; });
+    if (!p) return;
+    var pre = lista==="Patagonia" ? p.pPat : p.pCli;
+    var exist = ordenes[t].find(function(x){ return x.id===pid && x.p===pre; });
+    if (exist) { exist.c += qty; exist.sub = exist.p * exist.c; }
+    else ordenes[t].push({id:pid, n:p.n, p:pre, c:qty, sub:pre*qty});
+    added++;
+  });
+  renderItems(t);
+  cerrarCatalogSheet();
+  if (added > 0) showNotif("✓ "+added+" producto"+(added!==1?"s":"")+" agregado"+(added!==1?"s":""), "ok");
+}
+</script>
+
 </body>
 </html>
