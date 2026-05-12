@@ -307,6 +307,7 @@ select option { background:#fff }
 .dd-item:hover, .dd-item:active { background:var(--s3) }
 .dd-item * { pointer-events:none }
 .dd-name { font-size:14px; font-weight:500; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.dd-grupo { font-size:10.5px; color:var(--muted); font-weight:500; margin-left:3px }
 .dd-code { font-size:10.5px; font-weight:600; color:var(--muted); background:var(--s3); padding:3px 7px; border-radius:5px; white-space:nowrap; font-variant-numeric:tabular-nums }
 .dd-price { font-size:13.5px; font-weight:700; color:var(--text); white-space:nowrap; font-variant-numeric:tabular-nums }
 
@@ -1633,8 +1634,30 @@ function cargarCatalogo(){
     empresaData=Object.assign({},empresaData,emp);
     var productos=emp.productos||null;
     if(productos&&Object.keys(productos).length>0){
-      dbStock=Object.values(productos).filter(function(p){return p.nombre;}).map(function(p){
-        return{id:p.codigo||p.nombre.substring(0,4),n:p.nombre,pCli:p.precioClientes||0,pPat:p.precioPatagonia||0};
+      dbStock=[];
+      Object.values(productos).filter(function(p){return p.nombre;}).forEach(function(p){
+        var pCli=p.precioClientes||0, pPat=p.precioPatagonia||0;
+        var id=p.codigo||p.nombre.substring(0,4);
+        // Buscar variantes anidadas — campo puede llamarse variantes, vars, variantes, variants
+        var varsObj = p.variantes||p.vars||p.variants||null;
+        if(varsObj && typeof varsObj==="object" && !Array.isArray(varsObj)){
+          var varList = Object.values(varsObj).filter(function(v){return v.nombre;});
+          if(varList.length){
+            // Agregar cada variante como producto individual
+            varList.forEach(function(v){
+              dbStock.push({
+                id: v.codigo||v.id||id+"-v",
+                n:  v.nombre,
+                pCli: v.precioClientes||v.pCli||pCli,
+                pPat: v.precioPatagonia||v.pPat||pPat,
+                padre: p.nombre  // referencia al grupo
+              });
+            });
+            return; // no agregar el padre si tiene variantes (ya están las hijas)
+          }
+        }
+        // Sin variantes anidadas — agregar el producto directo
+        dbStock.push({id:id, n:p.nombre, pCli:pCli, pPat:pPat});
       });
     } else {
       // Fallback: stockCSV
@@ -1694,7 +1717,7 @@ function filtrar(t){
   var box=document.getElementById("res-"+t),bus=document.getElementById("bus-"+t).value.toLowerCase().trim();
   box.innerHTML="";
   if(bus.length<1){box.classList.remove("open");return;}
-  var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(bus)||p.n.toLowerCase().includes(bus);}).slice(0,12);
+  var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(bus)||p.n.toLowerCase().includes(bus)||(p.padre&&p.padre.toLowerCase().includes(bus));}).slice(0,20);
   if(res.length){
     box.classList.add("open");
     res.forEach(function(p){
@@ -1708,7 +1731,9 @@ function filtrar(t){
       }
       var div=document.createElement("div");
       div.className="dd-item";
-      div.innerHTML='<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span>'+stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
+      div.innerHTML='<span class="dd-code">'+p.id+'</span>'+
+        '<span class="dd-name">'+p.n+(p.padre?'<span class="dd-grupo"> · '+p.padre+'</span>':'')+'</span>'+
+        stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
       div.onclick=function(){itemSel[t]=Object.assign({},p,{pre:pre});document.getElementById("bus-"+t).value=p.n;box.classList.remove("open");};
       box.appendChild(div);
     });
@@ -2423,7 +2448,7 @@ function renderEditItems(wrap, rk, ck){
     var q=this.value.toLowerCase().trim();
     dd.innerHTML="";
     if(q.length<1){dd.classList.remove("open");return;}
-    var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(q)||p.n.toLowerCase().includes(q);}).slice(0,10);
+    var res=dbStock.filter(function(p){return p.id.toLowerCase().includes(q)||p.n.toLowerCase().includes(q)||(p.padre&&p.padre.toLowerCase().includes(q));}).slice(0,15);
     if(res.length){
       dd.classList.add("open");
       var lista=cli.lista||"Clientes";
