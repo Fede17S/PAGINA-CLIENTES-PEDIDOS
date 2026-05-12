@@ -4099,30 +4099,18 @@ function csCerrar() {
   document.getElementById("cs-sheet").classList.remove("open");
 }
 
-// ── Agrupación inteligente por prefijo de 2 palabras ──
-function _csPrefijo(nombre) {
-  var words = nombre.trim().split(/\s+/);
-  return words.length >= 3 ? words.slice(0, 2).join(" ").toUpperCase() : nombre.toUpperCase();
-}
-
+// ── Sin agrupación — cada producto individual ──
 function _csCalcularGrupos() {
-  var catProds = _csCat
+  var lista = _csCat
     ? ((window._catIndex||{})[_csCat]||[])
     : dbStock;
   var q = (document.getElementById("cs-search-inp").value||"").toLowerCase().trim();
   if (q) {
-    catProds = dbStock.filter(function(p){
+    lista = dbStock.filter(function(p){
       return p.n.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
     });
   }
-  // Agrupar por prefijo
-  var map = {}, order = [];
-  catProds.forEach(function(p) {
-    var key = _csPrefijo(p.n);
-    if (!map[key]) { map[key] = []; order.push(key); }
-    map[key].push(p);
-  });
-  _csGroups = order.map(function(k){ return { key:k, prods:map[k] }; });
+  _csGroups = lista.slice().sort(function(a,b){ return a.n.localeCompare(b.n); });
 }
 
 // ── Render categorías ──
@@ -4164,7 +4152,7 @@ function csBuscar() {
   csRenderProds();
 }
 
-// ── Render productos agrupados ──
+// ── Render productos (lista plana) ──
 function csRenderProds() {
   var body  = document.getElementById("cs-body");
   var lista = tipoLista[_csT] || "Clientes";
@@ -4175,73 +4163,29 @@ function csRenderProds() {
     return;
   }
 
-  _csGroups.forEach(function(g) {
-    var prods = g.prods;
-    var es_solo = prods.length === 1;
-    var p0 = prods[0];
-    var foto0 = p0.foto || "";
-
-    if (es_solo) {
-      // Tarjeta simple para producto único
-      var pre = lista==="Patagonia" ? p0.pPat : p0.pCli;
-      var qty = _csQ[p0.id] || 0;
-      var stk = stockData[p0.id];
-      var el = document.createElement("div");
-      el.className = "cs-solo" + (qty>0?" cs-var sel":"");
-      el.id = "csg-"+p0.id;
-      var stkHtml = stk===undefined?"":stk<=0?'<div class="cs-var-stk cs-stk-0">Sin stock</div>':stk<=5?'<div class="cs-var-stk cs-stk-low">'+stk+' u.</div>':"";
-      var fotoEl = foto0
-        ? '<img class="cs-solo-foto" src="'+foto0+'" onerror="this.outerHTML=\'<div class=cs-solo-foto-ph>📦</div>\'" loading="lazy">'
-        : '<div class="cs-solo-foto-ph">📦</div>';
-      el.innerHTML =
-        fotoEl +
-        '<div class="cs-solo-info">'+
-          '<div class="cs-solo-nom">'+p0.n+'</div>'+
-          '<div class="cs-solo-cod">Cód: '+p0.id+'</div>'+
-          stkHtml+
-          '<div class="cs-solo-price">$'+fM(pre)+'</div>'+
-        '</div>'+
-        '<div class="cs-solo-step">'+csStepHtml(p0.id, qty)+'</div>';
-      body.appendChild(el);
-
-    } else {
-      // Grupo con múltiples variantes
-      var el = document.createElement("div");
-      el.className = "cs-group";
-      var fotoEl = foto0
-        ? '<img class="cs-group-thumb" src="'+foto0+'" onerror="this.outerHTML=\'<div class=cs-group-thumb-ph>📦</div>\'" loading="lazy">'
-        : '<div class="cs-group-thumb-ph">📦</div>';
-      el.innerHTML =
-        '<div class="cs-group-head">'+
-          '<div class="cs-group-nom">'+g.key+'</div>'+
-          fotoEl+
-        '</div>'+
-        '<div class="cs-vars" id="csgv-'+encodeURIComponent(g.key)+'"></div>';
-      body.appendChild(el);
-
-      var varsEl = el.querySelector(".cs-vars");
-      prods.forEach(function(p) {
-        var pre = lista==="Patagonia" ? p.pPat : p.pCli;
-        var qty = _csQ[p.id] || 0;
-        var stk = stockData[p.id];
-        var stkHtml = stk===undefined?"":stk<=0?'<div class="cs-var-stk cs-stk-0">Sin stock</div>':stk<=5?'<div class="cs-var-stk cs-stk-low">'+stk+' u.</div>':"";
-        // Mostrar solo la parte diferenciadora del nombre (quitar prefijo)
-        var varNom = p.n;
-        if (p.n.toUpperCase().startsWith(g.key+" ")) varNom = p.n.slice(g.key.length+1);
-        else if (p.n.toUpperCase().startsWith(g.key)) varNom = p.n.slice(g.key.length).trim();
-
-        var vEl = document.createElement("div");
-        vEl.className = "cs-var" + (qty>0?" sel":"");
-        vEl.id = "csv-"+p.id;
-        vEl.innerHTML =
-          '<div class="cs-var-nom">'+varNom+'</div>'+
-          '<div class="cs-var-cod">'+p.id+'</div>'+
-          stkHtml+
-          '<div class="cs-var-price">$'+fM(pre)+'</div>'+
-          csStepHtml(p.id, qty);
-        varsEl.appendChild(vEl);
-      });
-    }
+  _csGroups.forEach(function(p) {
+    var pre = lista==="Patagonia" ? p.pPat : p.pCli;
+    var qty = _csQ[p.id] || 0;
+    var stk = stockData[p.id];
+    var stkHtml = stk===undefined ? "" :
+      stk<=0  ? '<div class="cs-var-stk cs-stk-0">Sin stock</div>' :
+      stk<=5  ? '<div class="cs-var-stk cs-stk-low">'+stk+' u.</div>' : "";
+    var fotoEl = p.foto
+      ? '<img class="cs-solo-foto" src="'+p.foto+'" onerror="this.outerHTML=\'<div class=cs-solo-foto-ph>📦</div>\'" loading="lazy">'
+      : '<div class="cs-solo-foto-ph">📦</div>';
+    var el = document.createElement("div");
+    el.className = "cs-solo" + (qty>0 ? " sel" : "");
+    el.id = "csg-"+p.id;
+    el.innerHTML =
+      fotoEl +
+      '<div class="cs-solo-info">'+
+        '<div class="cs-solo-nom">'+p.n+'</div>'+
+        '<div class="cs-solo-cod">Cód: '+p.id+'</div>'+
+        stkHtml+
+        '<div class="cs-solo-price">$'+fM(pre)+'</div>'+
+      '</div>'+
+      '<div class="cs-solo-step">'+csStepHtml(p.id, qty)+'</div>';
+    body.appendChild(el);
   });
 }
 
@@ -4255,13 +4199,11 @@ function csStepHtml(pid, qty) {
 
 function csDelta(pid, d, e) {
   if (e) e.stopPropagation();
-  var cur = _csQ[pid] || 0;
-  _csQ[pid] = Math.max(0, cur + d);
+  _csQ[pid] = Math.max(0, (_csQ[pid]||0) + d);
   var nEl = document.getElementById("csn-"+pid);
   if (nEl) nEl.textContent = _csQ[pid];
-  // Highlight card
-  var vEl = document.getElementById("csv-"+pid) || document.getElementById("csg-"+pid);
-  if (vEl) vEl.classList.toggle("sel", _csQ[pid]>0);
+  var card = document.getElementById("csg-"+pid);
+  if (card) card.classList.toggle("sel", _csQ[pid]>0);
   csActBadge();
 }
 
