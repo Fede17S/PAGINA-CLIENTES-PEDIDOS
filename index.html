@@ -1634,13 +1634,21 @@ function cargarCatalogo(){
     empresaData=Object.assign({},empresaData,emp);
     var productos=emp.productos||null;
     if(productos&&Object.keys(productos).length>0){
-      // ── DIAGNÓSTICO (temporal) ──────────────────────────────
-      var sample = Object.values(productos).slice(0,3);
-      console.group("🔍 DISTRIMAR — Estructura de productos (primeros 3)");
-      sample.forEach(function(p,i){
-        console.log("Producto "+i+":", JSON.stringify(p, null, 2));
+      // ── DIAGNÓSTICO v2 ──────────────────────────────────────
+      var allProds = Object.values(productos).filter(function(p){return p.nombre;});
+      var camposUnicos = {};
+      allProds.forEach(function(p){ Object.keys(p).forEach(function(k){ camposUnicos[k]=(camposUnicos[k]||0)+1; }); });
+      // Detectar si alguno tiene sub-objetos (variantes anidadas)
+      var conSubObj = allProds.filter(function(p){
+        return Object.values(p).some(function(v){ return v && typeof v==="object" && !Array.isArray(v); });
       });
-      console.log("Campos detectados en producto[0]:", Object.keys(sample[0]||{}));
+      console.group("🔍 DISTRIMAR — Diagnóstico completo");
+      console.log("Total productos en Firebase:", allProds.length);
+      console.log("Campos y frecuencia:", camposUnicos);
+      console.log("Productos con sub-objetos anidados:", conSubObj.length);
+      if(conSubObj.length) console.log("Ejemplo con sub-objeto:", JSON.stringify(conSubObj[0], null, 2));
+      // Mostrar 5 productos sample
+      console.log("Primeros 5:", allProds.slice(0,5).map(function(p){return p.codigo+" | "+p.nombre;}));
       console.groupEnd();
       // ────────────────────────────────────────────────────────
 
