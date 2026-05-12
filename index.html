@@ -883,6 +883,26 @@ select option { background:#fff }
 .rc-act-btn { flex:1; padding:10px 6px; border-radius:8px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; border:1px solid; transition:all .15s; text-align:center }
 .rc-act-btn:active { filter:brightness(.95); transform:scale(.98) }
 .rc-act-firma  { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
+
+/* ── COMPROBANTES DE PAGO ── */
+.rc-comp-wrap { margin:10px 0 4px }
+.rc-comp-title { font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:8px }
+.rc-comp-grid { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:4px }
+.rc-comp-thumb { position:relative; width:72px; height:72px; border-radius:10px; overflow:hidden; border:1.5px solid var(--border); cursor:pointer; flex-shrink:0 }
+.rc-comp-thumb img { width:100%; height:100%; object-fit:cover; display:block }
+.rc-comp-del { position:absolute; top:3px; right:3px; width:20px; height:20px; background:rgba(0,0,0,.65); color:#fff; border:none; border-radius:50%; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1 }
+.rc-comp-lbl { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.5); color:#fff; font-size:8px; text-align:center; padding:2px; line-height:1.2 }
+.rc-comp-add { width:72px; height:72px; border-radius:10px; border:1.5px dashed var(--border); background:var(--s2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; flex-shrink:0; transition:background .15s }
+.rc-comp-add:active { background:var(--s3) }
+.rc-comp-add-icon { font-size:24px; line-height:1 }
+.rc-comp-add-lbl { font-size:9px; font-weight:700; color:var(--muted); text-align:center; line-height:1.2 }
+.rc-comp-loading { width:72px; height:72px; border-radius:10px; border:1.5px solid var(--border); background:var(--s2); display:flex; align-items:center; justify-content:center; flex-shrink:0 }
+/* Lightbox */
+#comp-lb { position:fixed; inset:0; background:rgba(0,0,0,.93); z-index:1100; display:none; flex-direction:column; align-items:center; justify-content:center; padding:16px }
+#comp-lb.on { display:flex }
+#comp-lb img { max-width:100%; max-height:80dvh; border-radius:10px; object-fit:contain }
+#comp-lb-close { position:absolute; top:14px; right:14px; width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.18); border:none; color:#fff; font-size:20px; cursor:pointer }
+#comp-lb-info { color:rgba(255,255,255,.55); font-size:12px; margin-top:10px; text-align:center }
 .rc-act-mover  { background:var(--blue-bg);  color:#1f4ea8; border-color:oklch(88% 0.04 245) }
 .rc-act-quitar { background:var(--red-bg);   color:var(--red); border-color:oklch(88% 0.05 25) }
 
@@ -2382,6 +2402,13 @@ function buildClienteRow(rutaKey, cliKey, cli){
   pagosHist.id="pagos-hist-"+rutaKey+"-"+cliKey;
   renderPagosHist(pagosHist, rutaKey, cliKey);
   body.appendChild(pagosHist);
+
+  /* Comprobantes de pago */
+  var compWrap=document.createElement("div");
+  compWrap.className="rc-comp-wrap";
+  compWrap.id="comp-wrap-"+rutaKey+"-"+cliKey;
+  renderComprobantes(compWrap, rutaKey, cliKey, cli.comprobantes||{});
+  body.appendChild(compWrap);
 
   /* Acciones */
   var cliAct=document.createElement("div");
@@ -4004,6 +4031,135 @@ function showNotif(msg, cls) {
   setTimeout(function(){ setStatus("sync-msg","sync","☁️"); }, 3000);
 }
 
+/* ══════════════════════════════════════════════════════
+   COMPROBANTES DE PAGO
+══════════════════════════════════════════════════════ */
+var _compTarget = null; // {rk, ck}
+
+function renderComprobantes(wrap, rk, ck, compObj) {
+  wrap.innerHTML = "";
+  var comps = Object.entries(compObj||{}).sort(function(a,b){ return a[0].localeCompare(b[0]); });
+
+  var title = document.createElement("div");
+  title.className = "rc-comp-title";
+  title.textContent = "📎 Comprobantes" + (comps.length ? " ("+comps.length+")" : "");
+  wrap.appendChild(title);
+
+  var grid = document.createElement("div");
+  grid.className = "rc-comp-grid";
+
+  // Thumbnails existentes
+  comps.forEach(function(entry) {
+    var tid = entry[0], comp = entry[1];
+    var fecha = new Date(comp.ts||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+    var th = document.createElement("div");
+    th.className = "rc-comp-thumb";
+    th.innerHTML =
+      '<img src="'+comp.url+'" loading="lazy">'+
+      '<div class="rc-comp-lbl">'+fecha+'</div>'+
+      '<button class="rc-comp-del" onclick="compBorrar(\''+rk+'\',\''+ck+'\',\''+tid+'\',event)" title="Borrar">✕</button>';
+    th.querySelector("img").onclick = function(){ compLbAbrir(comp.url, fecha); };
+    grid.appendChild(th);
+  });
+
+  // Botón agregar
+  var addBtn = document.createElement("div");
+  addBtn.className = "rc-comp-add";
+  addBtn.innerHTML = '<div class="rc-comp-add-icon">📷</div><div class="rc-comp-add-lbl">Subir<br>comprobante</div>';
+  addBtn.onclick = function(){ compIniciarSubida(rk, ck); };
+  grid.appendChild(addBtn);
+
+  wrap.appendChild(grid);
+}
+
+function compIniciarSubida(rk, ck) {
+  _compTarget = {rk:rk, ck:ck};
+  var input = document.getElementById("comp-file-input");
+  input.value = "";
+  input.click();
+}
+
+function compHandleFile(e) {
+  var file = e.target.files[0];
+  if (!file || !_compTarget) return;
+  var rk = _compTarget.rk, ck = _compTarget.ck;
+
+  // Mostrar spinner en el grid
+  var wrap = document.getElementById("comp-wrap-"+rk+"-"+ck);
+  var grid = wrap ? wrap.querySelector(".rc-comp-grid") : null;
+  var loader = document.createElement("div");
+  loader.className = "rc-comp-loading";
+  loader.innerHTML = '<div class="spinner-ring" style="width:24px;height:24px;border-width:3px"></div>';
+  if (grid) grid.insertBefore(loader, grid.lastElementChild);
+
+  // Comprimir imagen con Canvas
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var img = new Image();
+    img.onload = function() {
+      var MAX = 1200;
+      var w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX/w); w = MAX; }
+        else       { w = Math.round(w * MAX/h); h = MAX; }
+      }
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      var base64 = canvas.toDataURL("image/jpeg", 0.75);
+      compGuardarEnFB(rk, ck, base64, loader);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function compGuardarEnFB(rk, ck, base64, loaderEl) {
+  var ts   = Date.now();
+  var path = "empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck+"/comprobantes/"+ts;
+  var data = { url: base64, ts: ts };
+  try {
+    await fbPatch(path, data);
+    // Actualizar local
+    if (!rutasData[rk].clientes[ck].comprobantes) rutasData[rk].clientes[ck].comprobantes = {};
+    rutasData[rk].clientes[ck].comprobantes[ts] = data;
+    // Re-render solo el wrap
+    var wrap = document.getElementById("comp-wrap-"+rk+"-"+ck);
+    if (wrap) renderComprobantes(wrap, rk, ck, rutasData[rk].clientes[ck].comprobantes);
+    showNotif("✓ Comprobante guardado","ok");
+  } catch(err) {
+    if (loaderEl && loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
+    showNotif("Error al subir comprobante","err");
+  }
+}
+
+async function compBorrar(rk, ck, tid, e) {
+  e.stopPropagation();
+  if (!confirm("¿Borrar este comprobante?")) return;
+  try {
+    await fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck+"/comprobantes/"+tid);
+    if (rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]&&rutasData[rk].clientes[ck].comprobantes)
+      delete rutasData[rk].clientes[ck].comprobantes[tid];
+    var wrap = document.getElementById("comp-wrap-"+rk+"-"+ck);
+    if (wrap) renderComprobantes(wrap, rk, ck, rutasData[rk].clientes[ck].comprobantes||{});
+    showNotif("Comprobante eliminado","ok");
+  } catch(err) { showNotif("Error al borrar","err"); }
+}
+
+function compLbAbrir(url, fecha) {
+  document.getElementById("comp-lb-img").src  = url;
+  document.getElementById("comp-lb-info").textContent = fecha;
+  document.getElementById("comp-lb").classList.add("on");
+}
+function compLbCerrar() {
+  document.getElementById("comp-lb").classList.remove("on");
+  document.getElementById("comp-lb-img").src = "";
+}
+document.addEventListener("DOMContentLoaded", function(){
+  var lb = document.getElementById("comp-lb");
+  if (lb) lb.addEventListener("click", function(e){ if(e.target===this) compLbCerrar(); });
+});
+
 document.addEventListener("DOMContentLoaded",function(){
 
   var ov=document.getElementById("overlay");
@@ -4042,6 +4198,14 @@ document.addEventListener("DOMContentLoaded",function(){
   });
 });
 </script>
+<!-- ── COMPROBANTES lightbox ── -->
+<div id="comp-lb">
+  <button id="comp-lb-close" onclick="compLbCerrar()">✕</button>
+  <img id="comp-lb-img" src="">
+  <div id="comp-lb-info"></div>
+</div>
+<input type="file" id="comp-file-input" accept="image/*" style="display:none" onchange="compHandleFile(event)">
+
 <!-- ══════════════════════════════════════════
      CATÁLOGO DE PEDIDOS — Bottom Sheet
 ══════════════════════════════════════════ -->
