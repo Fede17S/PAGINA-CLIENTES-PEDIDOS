@@ -1098,149 +1098,113 @@ select option { background:#fff }
 /* ══════════════════════════════════
    GESTIÓN DE PRODUCTOS (vendedor)
 ══════════════════════════════════ */
-/* ══ TOOLBAR PRODUCTOS ══ */
+/* ══════════════════════════════════════
+   MIS PRODUCTOS — scroll propio, optimizado
+══════════════════════════════════════ */
+
+/* La sección maneja su propio scroll, independiente de .main */
+#productos { display:none }
+#productos.active {
+  display:block;
+  position:fixed;
+  top:var(--header-h); left:0; right:0; bottom:0;
+  overflow-y:scroll;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  background:var(--bg);
+  padding:12px 12px calc(20px + var(--safe-bottom));
+}
+@media (min-width:900px) {
+  #productos.active { left:264px; padding:20px 24px calc(20px + var(--safe-bottom)) }
+}
+
+/* Toolbar sticky dentro de la sección */
 .prod-toolbar {
   display:flex; gap:8px; align-items:center;
-  margin-bottom:12px;
+  position:sticky; top:0; z-index:10;
+  background:var(--bg); padding:0 0 10px; margin-bottom:2px;
 }
-.prod-toolbar-search {
-  flex:1; position:relative; display:flex; align-items:center;
+.prod-toolbar input[type=text] {
+  flex:1; font-size:14px;
 }
-.prod-toolbar-search input {
-  flex:1; font-size:14px; padding-left:36px !important;
-}
-.prod-toolbar-search-icon {
-  position:absolute; left:11px; font-size:15px; pointer-events:none; opacity:.5; z-index:1;
-}
-.prod-toolbar-actions { display:flex; gap:6px; flex-shrink:0; align-items:center }
+.prod-toolbar-btns { display:flex; gap:6px; flex-shrink:0 }
 
-/* ══ STATS BAR ══ */
+/* Stats */
 .prod-stats {
-  display:flex; gap:0; margin-bottom:14px;
-  background:var(--s2); border:1px solid var(--border);
-  border-radius:12px; overflow:hidden; box-shadow:var(--shadow-sm);
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:1px; background:var(--border);
+  border:1px solid var(--border); border-radius:10px;
+  overflow:hidden; margin-bottom:12px;
 }
-.prod-stat {
-  flex:1; padding:11px 8px; text-align:center;
-  border-right:1px solid var(--border);
-}
-.prod-stat:last-child { border-right:none }
-.prod-stat-val { font-size:18px; font-weight:700; color:var(--text); line-height:1 }
-.prod-stat-lbl { font-size:9.5px; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:.6px }
+.prod-stat { background:var(--s2); padding:10px 6px; text-align:center }
+.prod-stat-val { font-size:17px; font-weight:700; color:var(--text) }
+.prod-stat-lbl { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:2px }
 
-/* ══ GRID — mobile first: 2 cols ══ */
+/* Grid — 2 cols mobile, 3 cols tablet, 4+ desktop */
 .prod-grid {
   display:grid;
-  grid-template-columns:repeat(2, 1fr);
-  gap:10px;
-  touch-action:pan-y;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
 }
-@media (min-width:480px) {
-  .prod-grid { grid-template-columns:repeat(3, 1fr); gap:12px }
-}
-@media (min-width:720px) {
-  .prod-grid { grid-template-columns:repeat(4, 1fr); gap:14px }
-}
-@media (min-width:1100px) {
-  .prod-grid { grid-template-columns:repeat(5, 1fr); gap:14px }
-}
+@media (min-width:500px) { .prod-grid { grid-template-columns:repeat(3,1fr) } }
+@media (min-width:900px)  { .prod-grid { grid-template-columns:repeat(4,1fr); gap:12px } }
+@media (min-width:1200px) { .prod-grid { grid-template-columns:repeat(5,1fr) } }
 
-/* ══ TARJETA PRODUCTO ══ */
+/* Tarjeta — sin sombras ni transforms pesados */
 .prod-card {
   background:var(--s2); border:1px solid var(--border);
-  border-radius:14px; overflow:hidden; cursor:pointer;
-  transition:box-shadow .15s, border-color .15s;
+  border-radius:10px; overflow:hidden;
   display:flex; flex-direction:column;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
 }
-.prod-card:active { opacity:.88 }
-
-/* Imagen cuadrada */
-.prod-card-img-wrap {
-  width:100%; aspect-ratio:1; overflow:hidden;
-  background:var(--s3); flex-shrink:0;
-}
+.prod-card:active { background:var(--s3) }
+.prod-card-img-wrap { width:100%; aspect-ratio:1; background:var(--s3); overflow:hidden; flex-shrink:0 }
 .prod-card-img { width:100%; height:100%; object-fit:cover; display:block }
-.prod-card-img-ph {
-  width:100%; height:100%; display:flex; align-items:center; justify-content:center;
-  font-size:36px; color:var(--muted2);
-}
-
-/* Cuerpo de la tarjeta */
-.prod-card-body {
-  padding:9px 10px 8px; flex:1; display:flex; flex-direction:column; gap:3px;
-}
-.prod-card-top {
-  display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:2px;
-}
-.prod-card-cod {
-  font-size:9px; font-weight:700; color:var(--muted);
-  text-transform:uppercase; letter-spacing:.7px; flex-shrink:0;
-}
-.prod-card-cat-pill {
-  font-size:8.5px; font-weight:700; color:var(--accent);
-  background:var(--accent-bg); border:1px solid oklch(88% 0.05 35);
-  padding:2px 6px; border-radius:20px;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  max-width:100px;
-}
+.prod-card-img-ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:32px }
+.prod-card-body { padding:8px 9px; flex:1; display:flex; flex-direction:column; gap:2px }
+.prod-card-cod { font-size:9px; font-weight:600; color:var(--muted); text-transform:uppercase }
 .prod-card-name {
-  font-size:12px; font-weight:600; color:var(--text);
-  line-height:1.35; flex:1;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-  overflow:hidden; min-height:2.7em;
+  font-size:11.5px; font-weight:600; color:var(--text); line-height:1.3;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  min-height:2.4em; flex:1;
 }
-/* Precios compactos */
-.prod-card-prices { display:flex; flex-direction:column; gap:2px; margin-top:5px }
-.prod-card-price {
-  display:flex; justify-content:space-between; align-items:baseline; gap:4px;
-}
-.prod-card-price-lbl {
-  font-size:9px; font-weight:700; color:var(--muted2);
-  text-transform:uppercase; letter-spacing:.4px; flex-shrink:0;
-}
-.prod-card-price-val {
-  font-size:11.5px; font-weight:700; color:var(--text);
-  font-variant-numeric:tabular-nums;
-}
-
-/* Acciones: fáciles de tocar */
-.prod-card-actions {
-  display:flex; gap:6px; padding:8px 9px 9px;
-  border-top:1px solid var(--border2);
-}
+.prod-card-cat { font-size:9px; color:var(--accent); font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.prod-card-prices { display:flex; flex-direction:column; gap:1px; margin-top:5px; padding-top:5px; border-top:1px solid var(--border2) }
+.prod-card-price { display:flex; justify-content:space-between; font-size:10px }
+.prod-card-price b { font-size:11px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums }
+.prod-card-actions { display:flex; border-top:1px solid var(--border2) }
 .prod-card-btn {
-  flex:1; padding:7px 4px; border:1px solid var(--border);
-  background:var(--s3); border-radius:8px;
-  font-size:11.5px; font-weight:600; cursor:pointer;
-  color:var(--text2); transition:all .13s;
-  display:flex; align-items:center; justify-content:center; gap:4px;
-  min-height:34px;
+  flex:1; padding:8px 4px; border:none; background:none;
+  font-size:11.5px; font-weight:600; cursor:pointer; color:var(--muted);
+  font-family:inherit; min-height:36px;
+  border-right:1px solid var(--border2);
 }
-.prod-card-btn:active { background:var(--s4) }
+.prod-card-btn:last-child { border-right:none }
+.prod-card-btn:active { background:var(--s3) }
 .prod-card-btn.danger:active { background:var(--red-bg); color:var(--red) }
 
-/* FAB */
-.prod-add-fab {
-  position:fixed; bottom:calc(24px + var(--safe-bottom)); right:20px; z-index:120;
-  width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff;
-  border:none; font-size:24px; cursor:pointer;
-  box-shadow:0 4px 16px rgba(0,0,0,.22); display:none;
-  align-items:center; justify-content:center; transition:transform .13s;
+/* Vacío / carga */
+.prod-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:var(--muted); text-align:center }
+.prod-empty-icon { font-size:48px; margin-bottom:12px; opacity:.4 }
+.prod-empty-msg { font-size:14px }
+
+/* Botón cargar más */
+.prod-load-more {
+  display:block; width:100%; margin-top:14px; padding:13px;
+  background:var(--s2); border:1px solid var(--border); border-radius:10px;
+  font-family:inherit; font-size:13px; font-weight:600; color:var(--text2);
+  cursor:pointer; text-align:center;
 }
-.prod-add-fab:hover { transform:scale(1.08) }
-#productos.active ~ .prod-add-fab,
-#productos.active + .prod-add-fab { display:flex }
-/* Modal producto */
-.mprod-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:500; align-items:flex-end; justify-content:center }
+.prod-load-more:active { background:var(--s3) }
+
+/* Modal agregar/editar — sin cambios */
+.mprod-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:600; align-items:flex-end; justify-content:center }
 .mprod-overlay.open { display:flex }
-.mprod-box { background:#fff; border-radius:20px 20px 0 0; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; padding:24px 20px calc(20px + var(--safe-bottom)); animation:slideUp .22s ease-out }
-@keyframes slideUp { from { transform:translateY(60px); opacity:0 } to { transform:translateY(0); opacity:1 } }
+.mprod-box { background:#fff; border-radius:20px 20px 0 0; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; padding:24px 20px calc(20px + var(--safe-bottom)) }
 .mprod-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px }
 .mprod-title { font-size:17px; font-weight:700; color:var(--text) }
 .mprod-cls { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); padding:4px 6px; border-radius:6px; line-height:1 }
-.mprod-cls:hover { background:var(--s3); color:var(--text) }
-.mprod-photo-area { width:100%; aspect-ratio:3/1; background:var(--s3); border:2px dashed var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; cursor:pointer; margin-bottom:14px; overflow:hidden; position:relative; transition:border-color .15s }
-.mprod-photo-area:hover { border-color:var(--accent) }
+.mprod-photo-area { width:100%; aspect-ratio:3/1; background:var(--s3); border:2px dashed var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; cursor:pointer; margin-bottom:14px; overflow:hidden; position:relative }
 .mprod-photo-area img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0 }
 .mprod-photo-lbl { font-size:12px; color:var(--muted); font-weight:500; position:relative; z-index:1 }
 .mprod-photo-icon { font-size:24px; position:relative; z-index:1 }
@@ -1248,20 +1212,16 @@ select option { background:#fff }
 .mprod-field { display:flex; flex-direction:column; gap:5px }
 .mprod-field.full { grid-column:1/-1 }
 .mprod-field label { font-size:11px; font-weight:600; color:var(--text2) }
-.mprod-field input, .mprod-field select, .mprod-field textarea { padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text); font-size:13.5px; font-family:inherit; outline:none; transition:border-color .15s }
+.mprod-field input, .mprod-field select, .mprod-field textarea { padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text); font-size:13.5px; font-family:inherit; outline:none }
 .mprod-field input:focus, .mprod-field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg) }
 .mprod-precio-mode { display:flex; gap:6px; margin-bottom:10px }
-.mprod-modo-btn { flex:1; padding:7px; border:1px solid var(--border); background:var(--s3); border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer; color:var(--muted); transition:all .13s; text-align:center }
+.mprod-modo-btn { flex:1; padding:7px; border:1px solid var(--border); background:var(--s3); border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer; color:var(--muted); text-align:center }
 .mprod-modo-btn.active { background:var(--accent-bg); border-color:var(--accent); color:var(--accent) }
 .mprod-precio-panel { display:none }
 .mprod-precio-panel.show { display:contents }
 .mprod-foot { display:flex; gap:8px; margin-top:18px }
-.mprod-save { flex:1; padding:12px; background:var(--text); color:#fff; border:none; border-radius:10px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .13s }
-.mprod-save:hover { background:#000 }
+.mprod-save { flex:1; padding:12px; background:var(--text); color:#fff; border:none; border-radius:10px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit }
 .mprod-cancel { padding:12px 18px; background:var(--s3); color:var(--text2); border:1px solid var(--border); border-radius:10px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit }
-.prod-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 20px; color:var(--muted); text-align:center }
-.prod-empty-icon { font-size:48px; margin-bottom:12px; opacity:.5 }
-.prod-empty-msg { font-size:14px; margin-bottom:16px }
 
 </style>
 </head>
@@ -1639,19 +1599,14 @@ select option { background:#fff }
 ══════════════════════════════════ -->
 <div id="productos" class="section">
   <div class="prod-toolbar">
-    <div class="prod-toolbar-search">
-      <span class="prod-toolbar-search-icon">🔍</span>
-      <input type="text" id="prod-buscar" placeholder="Buscar producto…" oninput="filtrarProductos()" autocomplete="off" autocorrect="off" spellcheck="false">
-    </div>
-    <div class="prod-toolbar-actions">
-      <button class="btn btn-ghost btn-sm" onclick="cargarProductos()" title="Recargar">🔄</button>
-      <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)" style="white-space:nowrap">+ Nuevo</button>
+    <input type="text" id="prod-buscar" placeholder="🔍 Buscar…" oninput="filtrarProductos()" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="prod-toolbar-btns">
+      <button class="btn btn-ghost btn-sm" onclick="cargarProductos()">🔄</button>
+      <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)">+ Nuevo</button>
     </div>
   </div>
   <div class="prod-stats" id="prod-stats" style="display:none"></div>
-  <div id="prod-grid" class="prod-grid">
-    <div class="prod-empty"><div class="prod-empty-icon">🏪</div><div class="prod-empty-msg">Cargando productos…</div></div>
-  </div>
+  <div id="prod-grid" class="prod-grid"></div>
 </div>
 
 <!-- MODAL AGREGAR / EDITAR PRODUCTO -->
@@ -4748,10 +4703,13 @@ function abrirCatalogSheet(t) { csAbrir(t); }
 // ══════════════════════════════════════════════════
 //  GESTIÓN DE PRODUCTOS — Mis Productos
 // ══════════════════════════════════════════════════
-var _prodData = {};       // {firebaseKey: productObj}
+var _prodData = {};
 var _prodFiltro = "";
-var _prodModo = "listas"; // "listas" | "pct" | "custom"
-var _prodFotoB64 = "";    // base64 foto actual en modal
+var _prodModo = "listas";
+var _prodFotoB64 = "";
+var _prodPage = 0;
+var _PROD_PER_PAGE = 24;
+var _prodFiltered = []; // cache del filtrado actual
 
 function cargarProductos() {
   var grid = document.getElementById("prod-grid");
@@ -4762,12 +4720,11 @@ function cargarProductos() {
     _sincronizarDbStock();
     renderProductos();
   }).catch(function() {
-    if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar productos</div></div>';
+    if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>';
   });
 }
 
 function _sincronizarDbStock() {
-  // Sincroniza dbStock global con _prodData para que el resto de la app los use
   var _catIndex = {};
   dbStock = [];
   Object.values(_prodData).filter(function(p) { return p && p.nombre; }).forEach(function(p) {
@@ -4788,80 +4745,117 @@ function _prodImgFail(img) {
 
 function filtrarProductos() {
   _prodFiltro = (document.getElementById("prod-buscar") || {}).value || "";
+  _prodPage = 0;
   renderProductos();
-  // Volver al tope para que los resultados se vean desde el principio
-  var mainEl = document.querySelector(".main");
-  if(mainEl) mainEl.scrollTop = 0;
+  // scroll al tope de la sección (no del .main)
+  var sec = document.getElementById("productos");
+  if (sec) sec.scrollTop = 0;
+}
+
+function _buildCard(key, p) {
+  var cat = (p.categoria || "Sin cat.").replace(/^"+|"+$/g,"").replace(/\\"/g,"").trim() || "Sin cat.";
+  var imgHtml = p.foto
+    ? '<img class="prod-card-img" src="' + p.foto + '" loading="lazy" alt="" onerror="_prodImgFail(this)">'
+    : '<div class="prod-card-img-ph">📦</div>';
+  var card = document.createElement("div");
+  card.className = "prod-card";
+  card.innerHTML =
+    '<div class="prod-card-img-wrap">' + imgHtml + '</div>' +
+    '<div class="prod-card-body">' +
+      '<div class="prod-card-cod">' + (p.codigo || "—") + '</div>' +
+      '<div class="prod-card-name">' + (p.nombre || "") + '</div>' +
+      '<div class="prod-card-cat">' + cat + '</div>' +
+      '<div class="prod-card-prices">' +
+        '<div class="prod-card-price"><span>CLI</span><b>' + _fmt(p.precioClientes || 0) + '</b></div>' +
+        '<div class="prod-card-price"><span>PAT</span><b>' + _fmt(p.precioPatagonia || 0) + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="prod-card-actions">' +
+      '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
+      '<button class="prod-card-btn danger" data-key="' + key + '">🗑</button>' +
+    '</div>';
+  card.querySelector('[data-key]').onclick = function(e) { e.stopPropagation(); abrirModalProducto(this.dataset.key); };
+  card.querySelectorAll('[data-key]')[1].onclick = function(e) { e.stopPropagation(); eliminarProducto(this.dataset.key); };
+  card.onclick = function() { abrirModalProducto(key); };
+  return card;
 }
 
 function renderProductos() {
   var grid = document.getElementById("prod-grid");
   var statsEl = document.getElementById("prod-stats");
   if (!grid) return;
+
   var q = _prodFiltro.toLowerCase().trim();
-  var prods = Object.entries(_prodData).filter(function(e) {
+  var total = 0;
+  var cats = new Set();
+  _prodFiltered = [];
+
+  Object.entries(_prodData).forEach(function(e) {
     var p = e[1];
-    if (!p || !p.nombre) return false;
-    if (!q) return true;
-    return (p.nombre || "").toLowerCase().includes(q) ||
-           (p.codigo || "").toLowerCase().includes(q) ||
-           (p.categoria || "").toLowerCase().includes(q);
+    if (!p || !p.nombre) return;
+    total++;
+    cats.add(p.categoria || "Sin categoría");
+    if (!q ||
+        (p.nombre || "").toLowerCase().includes(q) ||
+        (p.codigo || "").toLowerCase().includes(q) ||
+        (p.categoria || "").toLowerCase().includes(q)) {
+      _prodFiltered.push(e);
+    }
   });
-  var total = Object.keys(_prodData).filter(function(k) { return _prodData[k] && _prodData[k].nombre; }).length;
-  var cats = new Set(Object.values(_prodData).filter(function(p) { return p && p.nombre; }).map(function(p) { return p.categoria || "Sin categoría"; })).size;
+
+  // Stats
   if (statsEl) {
     if (total > 0) {
       statsEl.style.display = "grid";
       statsEl.innerHTML =
         '<div class="prod-stat"><div class="prod-stat-val">' + total + '</div><div class="prod-stat-lbl">Productos</div></div>' +
-        '<div class="prod-stat"><div class="prod-stat-val">' + cats + '</div><div class="prod-stat-lbl">Categorías</div></div>' +
-        '<div class="prod-stat"><div class="prod-stat-val stk-green">' + prods.length + '</div><div class="prod-stat-lbl">Mostrados</div></div>';
+        '<div class="prod-stat"><div class="prod-stat-val">' + cats.size + '</div><div class="prod-stat-lbl">Categorías</div></div>' +
+        '<div class="prod-stat"><div class="prod-stat-val">' + _prodFiltered.length + '</div><div class="prod-stat-lbl">Mostrados</div></div>';
     } else {
       statsEl.style.display = "none";
     }
   }
-  if (!prods.length) {
+
+  // Datalist categorías para el modal
+  var dl = document.getElementById("mprod-cats-dl");
+  if (dl) dl.innerHTML = Array.from(cats).filter(Boolean).map(function(c){return '<option value="'+c+'">';}).join("");
+
+  // Sin resultados
+  if (!_prodFiltered.length) {
     grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">🏪</div><div class="prod-empty-msg">' +
-      (total ? 'Sin resultados para tu búsqueda' : 'Aún no tenés productos.<br>Tocá <b>+ Nuevo</b> para agregar.') + '</div></div>';
+      (total ? 'Sin resultados para "' + _prodFiltro + '"' : 'Tocá <b>+ Nuevo</b> para agregar productos.') + '</div></div>';
     return;
   }
-  // Poblar datalist de categorías
-  var cats2 = new Set(Object.values(_prodData).filter(function(p){return p&&p.nombre;}).map(function(p){return p.categoria||"";}));
-  var dl = document.getElementById("mprod-cats-dl");
-  if (dl) dl.innerHTML = Array.from(cats2).filter(Boolean).map(function(c){return '<option value="'+c+'">';}).join("");
-  grid.innerHTML = "";
-  prods.forEach(function(entry) {
-    var key = entry[0], p = entry[1];
-    var catLabel = (p.categoria || "Sin cat.").replace(/^"+|"+$/g,"").replace(/\\"/g,"").trim() || "Sin cat.";
-    var imgInner = p.foto
-      ? '<img class="prod-card-img" src="' + p.foto + '" alt="" onerror="_prodImgFail(this)">'
-      : '<div class="prod-card-img-ph">📦</div>';
-    var preciosCli = _fmt(p.precioClientes || 0);
-    var preciosPat = _fmt(p.precioPatagonia || 0);
-    var card = document.createElement("div");
-    card.className = "prod-card";
-    card.innerHTML =
-      '<div class="prod-card-img-wrap">' + imgInner + '</div>' +
-      '<div class="prod-card-body">' +
-        '<div class="prod-card-top">' +
-          '<span class="prod-card-cod">' + (p.codigo || "—") + '</span>' +
-          '<span class="prod-card-cat-pill">' + catLabel + '</span>' +
-        '</div>' +
-        '<div class="prod-card-name">' + (p.nombre || "") + '</div>' +
-        '<div class="prod-card-prices">' +
-          '<div class="prod-card-price"><span class="prod-card-price-lbl">CLI</span><span class="prod-card-price-val">' + preciosCli + '</span></div>' +
-          '<div class="prod-card-price"><span class="prod-card-price-lbl">PAT</span><span class="prod-card-price-val">' + preciosPat + '</span></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="prod-card-actions">' +
-        '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
-        '<button class="prod-card-btn danger" data-key="' + key + '">🗑</button>' +
-      '</div>';
-    card.querySelectorAll(".prod-card-btn")[0].onclick = function(e) { e.stopPropagation(); abrirModalProducto(this.dataset.key); };
-    card.querySelectorAll(".prod-card-btn")[1].onclick = function(e) { e.stopPropagation(); eliminarProducto(this.dataset.key); };
-    card.onclick = function() { abrirModalProducto(key); };
-    grid.appendChild(card);
+
+  // Renderizar página actual con DocumentFragment (más rápido que appendChild individual)
+  var start = _prodPage * _PROD_PER_PAGE;
+  var slice = _prodFiltered.slice(start, start + _PROD_PER_PAGE);
+  var frag = document.createDocumentFragment();
+
+  if (_prodPage === 0) grid.innerHTML = "";
+
+  slice.forEach(function(entry) {
+    frag.appendChild(_buildCard(entry[0], entry[1]));
   });
+  grid.appendChild(frag);
+
+  // Botón "cargar más" si hay más páginas
+  var oldBtn = document.getElementById("prod-load-more-btn");
+  if (oldBtn) oldBtn.remove();
+  var hayMas = start + _PROD_PER_PAGE < _prodFiltered.length;
+  if (hayMas) {
+    var btn = document.createElement("button");
+    btn.id = "prod-load-more-btn";
+    btn.className = "prod-load-more";
+    var resto = _prodFiltered.length - (start + _PROD_PER_PAGE);
+    btn.textContent = "Ver " + Math.min(resto, _PROD_PER_PAGE) + " más de " + _prodFiltered.length + " productos";
+    btn.onclick = function() {
+      _prodPage++;
+      renderProductos();
+    };
+    // Insertar después del grid
+    grid.parentNode.insertBefore(btn, grid.nextSibling);
+  }
 }
 
 function _fmt(n) {
