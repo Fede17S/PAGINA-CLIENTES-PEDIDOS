@@ -1065,6 +1065,68 @@ select option { background:#fff }
 .ruta-stop-nav a:hover { text-decoration:underline }
 .ruta-cli-total { text-align:right; padding:7px 0 0; font-size:12px; color:var(--muted); border-top:1px solid var(--border2); margin-top:4px }
 
+/* ══════════════════════════════════
+   GESTIÓN DE PRODUCTOS (vendedor)
+══════════════════════════════════ */
+.prod-toolbar { display:flex; gap:8px; margin-bottom:14px; align-items:center }
+.prod-toolbar input { flex:1; font-size:13px }
+.prod-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px }
+.prod-stat { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; text-align:center }
+.prod-stat-val { font-size:20px; font-weight:700; color:var(--text) }
+.prod-stat-lbl { font-size:10.5px; color:var(--muted); margin-top:2px; text-transform:uppercase; letter-spacing:.5px }
+.prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px }
+.prod-card { background:var(--s2); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:box-shadow .15s, border-color .15s; position:relative }
+.prod-card:hover { box-shadow:var(--shadow-lg); border-color:var(--accent) }
+.prod-card-img { width:100%; aspect-ratio:1; object-fit:cover; background:var(--s3); display:block }
+.prod-card-img-ph { width:100%; aspect-ratio:1; background:var(--s3); display:flex; align-items:center; justify-content:center; font-size:32px; color:var(--muted2) }
+.prod-card-body { padding:9px 10px 10px }
+.prod-card-cod { font-size:9.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:2px }
+.prod-card-name { font-size:12.5px; font-weight:600; color:var(--text); line-height:1.3; margin-bottom:5px }
+.prod-card-cat { font-size:10.5px; color:var(--muted); margin-bottom:6px; display:flex; align-items:center; gap:4px }
+.prod-card-prices { display:flex; flex-direction:column; gap:2px }
+.prod-card-price { font-size:11.5px; color:var(--text2); display:flex; justify-content:space-between }
+.prod-card-price span:last-child { font-weight:600; color:var(--text) }
+.prod-card-actions { display:flex; gap:5px; margin-top:8px }
+.prod-card-btn { flex:1; padding:5px 0; border:1px solid var(--border); background:var(--s3); border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; color:var(--text2); transition:all .13s }
+.prod-card-btn:hover { background:var(--s4); color:var(--text) }
+.prod-card-btn.danger:hover { background:var(--red-bg); border-color:var(--red); color:var(--red) }
+.prod-add-fab { position:fixed; bottom:calc(24px + var(--safe-bottom)); right:20px; z-index:120; width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff; border:none; font-size:24px; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,.18); display:none; align-items:center; justify-content:center; transition:transform .13s }
+.prod-add-fab:hover { transform:scale(1.08) }
+#productos.active ~ .prod-add-fab,
+#productos.active + .prod-add-fab { display:flex }
+/* Modal producto */
+.mprod-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:500; align-items:flex-end; justify-content:center }
+.mprod-overlay.open { display:flex }
+.mprod-box { background:#fff; border-radius:20px 20px 0 0; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; padding:24px 20px calc(20px + var(--safe-bottom)); animation:slideUp .22s ease-out }
+@keyframes slideUp { from { transform:translateY(60px); opacity:0 } to { transform:translateY(0); opacity:1 } }
+.mprod-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px }
+.mprod-title { font-size:17px; font-weight:700; color:var(--text) }
+.mprod-cls { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); padding:4px 6px; border-radius:6px; line-height:1 }
+.mprod-cls:hover { background:var(--s3); color:var(--text) }
+.mprod-photo-area { width:100%; aspect-ratio:3/1; background:var(--s3); border:2px dashed var(--border); border-radius:12px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; cursor:pointer; margin-bottom:14px; overflow:hidden; position:relative; transition:border-color .15s }
+.mprod-photo-area:hover { border-color:var(--accent) }
+.mprod-photo-area img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0 }
+.mprod-photo-lbl { font-size:12px; color:var(--muted); font-weight:500; position:relative; z-index:1 }
+.mprod-photo-icon { font-size:24px; position:relative; z-index:1 }
+.mprod-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px }
+.mprod-field { display:flex; flex-direction:column; gap:5px }
+.mprod-field.full { grid-column:1/-1 }
+.mprod-field label { font-size:11px; font-weight:600; color:var(--text2) }
+.mprod-field input, .mprod-field select, .mprod-field textarea { padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text); font-size:13.5px; font-family:inherit; outline:none; transition:border-color .15s }
+.mprod-field input:focus, .mprod-field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg) }
+.mprod-precio-mode { display:flex; gap:6px; margin-bottom:10px }
+.mprod-modo-btn { flex:1; padding:7px; border:1px solid var(--border); background:var(--s3); border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer; color:var(--muted); transition:all .13s; text-align:center }
+.mprod-modo-btn.active { background:var(--accent-bg); border-color:var(--accent); color:var(--accent) }
+.mprod-precio-panel { display:none }
+.mprod-precio-panel.show { display:contents }
+.mprod-foot { display:flex; gap:8px; margin-top:18px }
+.mprod-save { flex:1; padding:12px; background:var(--text); color:#fff; border:none; border-radius:10px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .13s }
+.mprod-save:hover { background:#000 }
+.mprod-cancel { padding:12px 18px; background:var(--s3); color:var(--text2); border:1px solid var(--border); border-radius:10px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit }
+.prod-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 20px; color:var(--muted); text-align:center }
+.prod-empty-icon { font-size:48px; margin-bottom:12px; opacity:.5 }
+.prod-empty-msg { font-size:14px; margin-bottom:16px }
+
 </style>
 </head>
 <body>
@@ -1120,6 +1182,9 @@ select option { background:#fff }
     <div class="sb-group-lbl">Inventario</div>
     <button class="sb-item" id="nav-stock" onclick="verTab('stock',this)">
       <span class="sb-icon">📦</span>Mi Stock
+    </button>
+    <button class="sb-item" id="nav-productos" onclick="verTab('productos',this)">
+      <span class="sb-icon">🏪</span>Mis Productos
     </button>
     <div class="sb-group-lbl">Más</div>
     <button class="sb-item" id="nav-backup" onclick="verTab('backup',this)">
@@ -1433,6 +1498,131 @@ select option { background:#fff }
 </div>
 </div>
 
+<!-- ══════════════════════════════════
+     SECCIÓN: MIS PRODUCTOS
+══════════════════════════════════ -->
+<div id="productos" class="section">
+  <div class="prod-toolbar">
+    <input type="text" id="prod-buscar" placeholder="🔍 Buscar producto…" oninput="filtrarProductos()">
+    <button class="btn btn-ghost btn-sm" onclick="cargarProductos()">🔄</button>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)" style="white-space:nowrap">+ Nuevo</button>
+  </div>
+  <div class="prod-stats" id="prod-stats" style="display:none"></div>
+  <div id="prod-grid" class="prod-grid">
+    <div class="prod-empty"><div class="prod-empty-icon">🏪</div><div class="prod-empty-msg">Cargando productos…</div></div>
+  </div>
+</div>
+
+<!-- MODAL AGREGAR / EDITAR PRODUCTO -->
+<div class="mprod-overlay" id="mprod-overlay" onclick="if(event.target===this)cerrarModalProducto()">
+  <div class="mprod-box">
+    <div class="mprod-head">
+      <div class="mprod-title" id="mprod-title">Nuevo producto</div>
+      <button class="mprod-cls" onclick="cerrarModalProducto()">✕</button>
+    </div>
+
+    <!-- Foto -->
+    <div class="mprod-photo-area" id="mprod-photo-area" onclick="document.getElementById('mprod-foto-input').click()">
+      <span class="mprod-photo-icon">📷</span>
+      <span class="mprod-photo-lbl">Tocá para agregar foto del producto</span>
+      <img id="mprod-foto-preview" src="" alt="" style="display:none">
+    </div>
+    <input type="file" id="mprod-foto-input" accept="image/*" style="display:none" onchange="subirFotoProducto(this)">
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="document.getElementById('mprod-foto-input').click()">📷 Cambiar foto</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red)" onclick="quitarFotoProducto()">🗑 Quitar foto</button>
+      <div style="flex:1"></div>
+      <div id="mprod-foto-size" style="font-size:10.5px;color:var(--muted);align-self:center"></div>
+    </div>
+
+    <div class="mprod-grid">
+      <div class="mprod-field">
+        <label>Código / SKU</label>
+        <input type="text" id="mprod-codigo" placeholder="ej: PROD001" autocapitalize="characters">
+      </div>
+      <div class="mprod-field">
+        <label>Categoría</label>
+        <input type="text" id="mprod-categoria" placeholder="ej: Bebidas" list="mprod-cats-dl">
+        <datalist id="mprod-cats-dl"></datalist>
+      </div>
+      <div class="mprod-field full">
+        <label>Nombre del producto *</label>
+        <input type="text" id="mprod-nombre" placeholder="ej: Agua mineral 500ml">
+      </div>
+    </div>
+
+    <!-- Modo precio -->
+    <div style="margin-top:14px;margin-bottom:8px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">Precios</div>
+    <div class="mprod-precio-mode">
+      <button class="mprod-modo-btn active" id="mprod-modo-listas" onclick="setPrecioModo('listas')">📋 Por listas</button>
+      <button class="mprod-modo-btn" id="mprod-modo-pct" onclick="setPrecioModo('pct')">% Porcentaje</button>
+      <button class="mprod-modo-btn" id="mprod-modo-custom" onclick="setPrecioModo('custom')">$ Personalizado</button>
+    </div>
+
+    <!-- Panel listas -->
+    <div id="mprod-panel-listas" class="mprod-precio-panel show">
+      <div class="mprod-grid">
+        <div class="mprod-field">
+          <label>Lista Clientes ($)</label>
+          <input type="number" id="mprod-precio-cli" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="mprod-field">
+          <label>Lista Patagonia ($)</label>
+          <input type="number" id="mprod-precio-pat" placeholder="0.00" min="0" step="0.01">
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel porcentaje -->
+    <div id="mprod-panel-pct" class="mprod-precio-panel" style="display:none">
+      <div class="mprod-grid">
+        <div class="mprod-field">
+          <label>Precio base ($)</label>
+          <input type="number" id="mprod-precio-base" placeholder="0.00" min="0" step="0.01" oninput="calcPrecioPct()">
+        </div>
+        <div class="mprod-field">
+          <label>% sobre lista Clientes</label>
+          <input type="number" id="mprod-pct-cli" placeholder="ej: 10" step="0.1" oninput="calcPrecioPct()">
+        </div>
+        <div class="mprod-field">
+          <label>% sobre lista Patagonia</label>
+          <input type="number" id="mprod-pct-pat" placeholder="ej: 15" step="0.1" oninput="calcPrecioPct()">
+        </div>
+        <div class="mprod-field" style="align-self:flex-end">
+          <label style="color:var(--muted)">Resultado</label>
+          <div id="mprod-pct-result" style="font-size:12px;color:var(--text2);padding:6px 0;line-height:1.6">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel custom -->
+    <div id="mprod-panel-custom" class="mprod-precio-panel" style="display:none">
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Definí un precio especial que no sigue ninguna lista.</div>
+      <div class="mprod-grid">
+        <div class="mprod-field">
+          <label>Precio especial ($)</label>
+          <input type="number" id="mprod-precio-esp" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="mprod-field">
+          <label>Aplica a</label>
+          <select id="mprod-esp-aplica">
+            <option value="ambas">Ambas listas</option>
+            <option value="Clientes">Solo Clientes</option>
+            <option value="Patagonia">Solo Patagonia</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <input type="hidden" id="mprod-key">
+
+    <div class="mprod-foot">
+      <button class="mprod-cancel" onclick="cerrarModalProducto()">Cancelar</button>
+      <button class="mprod-save" onclick="guardarProducto()">💾 Guardar producto</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL FIRMA DIGITAL -->
 <div class="firma-modal" id="modal-firma">
   <div class="firma-box">
@@ -1492,7 +1682,7 @@ select option { background:#fff }
 
 var FB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock",clientes:"Gestión de Clientes"};
+var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock",clientes:"Gestión de Clientes",productos:"Mis Productos"};
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
@@ -1674,11 +1864,11 @@ function aplicarRol(){
   // Todos pueden acceder a pedido, remito, hoja, backup, mapa, pedidos-acum
   // Solo admin ve resumen
   var allNav = ["nav-pedido","nav-remito","nav-hoja","nav-mapa-entregas",
-                "nav-backup","nav-pedidos-acum","nav-resumen","nav-clientes"];
+                "nav-backup","nav-pedidos-acum","nav-resumen","nav-clientes","nav-productos"];
   allNav.forEach(function(id){
     var el = document.getElementById(id);
     if (!el) return;
-    if (id === "nav-resumen") {
+    if (id === "nav-resumen" || id === "nav-clientes") {
       el.style.display = isAdmin ? "flex" : "none";
     } else {
       el.style.display = "flex";
@@ -1702,6 +1892,7 @@ function verTab(id,btn){
   if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
   if(id==="stock")cargarStock();
+  if(id==="productos")cargarProductos();
 }
 function cargarCatalogo(){
   var msg=document.getElementById("sync-msg");
@@ -4409,6 +4600,311 @@ function csConfirmar() {
 
 // Compatibility alias
 function abrirCatalogSheet(t) { csAbrir(t); }
+
+// ══════════════════════════════════════════════════
+//  GESTIÓN DE PRODUCTOS — Mis Productos
+// ══════════════════════════════════════════════════
+var _prodData = {};       // {firebaseKey: productObj}
+var _prodFiltro = "";
+var _prodModo = "listas"; // "listas" | "pct" | "custom"
+var _prodFotoB64 = "";    // base64 foto actual en modal
+
+function cargarProductos() {
+  var grid = document.getElementById("prod-grid");
+  if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">⏳</div><div class="prod-empty-msg">Cargando…</div></div>';
+  if (!empresaKey) return;
+  fbGet("empresas/" + empresaKey + "/productos").then(function(data) {
+    _prodData = data || {};
+    _sincronizarDbStock();
+    renderProductos();
+  }).catch(function() {
+    if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar productos</div></div>';
+  });
+}
+
+function _sincronizarDbStock() {
+  // Sincroniza dbStock global con _prodData para que el resto de la app los use
+  var _catIndex = {};
+  dbStock = [];
+  Object.values(_prodData).filter(function(p) { return p && p.nombre; }).forEach(function(p) {
+    var cat = (p.categoria || "Sin categoría").replace(/^"+|"+$/g, "").trim() || "Sin categoría";
+    var id = p.codigo ? String(p.codigo) : p.nombre.substring(0, 4);
+    var prod = { id: id, n: p.nombre, pCli: p.precioClientes || 0, pPat: p.precioPatagonia || 0, cat: cat, foto: p.foto || "" };
+    dbStock.push(prod);
+    if (!_catIndex[cat]) _catIndex[cat] = [];
+    _catIndex[cat].push(prod);
+  });
+  window._catIndex = _catIndex;
+}
+
+function filtrarProductos() {
+  _prodFiltro = (document.getElementById("prod-buscar") || {}).value || "";
+  renderProductos();
+}
+
+function renderProductos() {
+  var grid = document.getElementById("prod-grid");
+  var statsEl = document.getElementById("prod-stats");
+  if (!grid) return;
+  var q = _prodFiltro.toLowerCase().trim();
+  var prods = Object.entries(_prodData).filter(function(e) {
+    var p = e[1];
+    if (!p || !p.nombre) return false;
+    if (!q) return true;
+    return (p.nombre || "").toLowerCase().includes(q) ||
+           (p.codigo || "").toLowerCase().includes(q) ||
+           (p.categoria || "").toLowerCase().includes(q);
+  });
+  var total = Object.keys(_prodData).filter(function(k) { return _prodData[k] && _prodData[k].nombre; }).length;
+  var cats = new Set(Object.values(_prodData).filter(function(p) { return p && p.nombre; }).map(function(p) { return p.categoria || "Sin categoría"; })).size;
+  if (statsEl) {
+    if (total > 0) {
+      statsEl.style.display = "grid";
+      statsEl.innerHTML =
+        '<div class="prod-stat"><div class="prod-stat-val">' + total + '</div><div class="prod-stat-lbl">Productos</div></div>' +
+        '<div class="prod-stat"><div class="prod-stat-val">' + cats + '</div><div class="prod-stat-lbl">Categorías</div></div>' +
+        '<div class="prod-stat"><div class="prod-stat-val stk-green">' + prods.length + '</div><div class="prod-stat-lbl">Mostrados</div></div>';
+    } else {
+      statsEl.style.display = "none";
+    }
+  }
+  if (!prods.length) {
+    grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">🏪</div><div class="prod-empty-msg">' +
+      (total ? 'Sin resultados para tu búsqueda' : 'Aún no tenés productos.<br>Tocá <b>+ Nuevo</b> para agregar.') + '</div></div>';
+    return;
+  }
+  // Poblar datalist de categorías
+  var cats2 = new Set(Object.values(_prodData).filter(function(p){return p&&p.nombre;}).map(function(p){return p.categoria||"";}));
+  var dl = document.getElementById("mprod-cats-dl");
+  if (dl) dl.innerHTML = Array.from(cats2).filter(Boolean).map(function(c){return '<option value="'+c+'">';}).join("");
+  grid.innerHTML = "";
+  prods.forEach(function(entry) {
+    var key = entry[0], p = entry[1];
+    var imgHtml = p.foto
+      ? '<img class="prod-card-img" src="' + p.foto + '" alt="' + (p.nombre||"") + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+        '<div class="prod-card-img-ph" style="display:none">📦</div>'
+      : '<div class="prod-card-img-ph">📦</div>';
+    var preciosCli = _fmt(p.precioClientes || 0);
+    var preciosPat = _fmt(p.precioPatagonia || 0);
+    var card = document.createElement("div");
+    card.className = "prod-card";
+    card.innerHTML =
+      imgHtml +
+      '<div class="prod-card-body">' +
+        '<div class="prod-card-cod">' + (p.codigo || "—") + '</div>' +
+        '<div class="prod-card-name">' + (p.nombre || "") + '</div>' +
+        '<div class="prod-card-cat">🏷️ ' + (p.categoria || "Sin cat.") + '</div>' +
+        '<div class="prod-card-prices">' +
+          '<div class="prod-card-price"><span>Clientes</span><span>' + preciosCli + '</span></div>' +
+          '<div class="prod-card-price"><span>Patagonia</span><span>' + preciosPat + '</span></div>' +
+        '</div>' +
+        '<div class="prod-card-actions">' +
+          '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
+          '<button class="prod-card-btn danger" data-key="' + key + '">🗑</button>' +
+        '</div>' +
+      '</div>';
+    card.querySelectorAll(".prod-card-btn")[0].onclick = function(e) { e.stopPropagation(); abrirModalProducto(this.dataset.key); };
+    card.querySelectorAll(".prod-card-btn")[1].onclick = function(e) { e.stopPropagation(); eliminarProducto(this.dataset.key); };
+    card.onclick = function() { abrirModalProducto(key); };
+    grid.appendChild(card);
+  });
+}
+
+function _fmt(n) {
+  if (!n && n !== 0) return "—";
+  return "$" + Number(n).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function abrirModalProducto(key) {
+  var overlay = document.getElementById("mprod-overlay");
+  var p = key ? (_prodData[key] || {}) : {};
+  document.getElementById("mprod-title").textContent = key ? "Editar producto" : "Nuevo producto";
+  document.getElementById("mprod-key").value = key || "";
+  document.getElementById("mprod-codigo").value = p.codigo || "";
+  document.getElementById("mprod-nombre").value = p.nombre || "";
+  document.getElementById("mprod-categoria").value = p.categoria || "";
+  // Foto
+  _prodFotoB64 = p.foto || "";
+  _actualizarPrevFoto();
+  // Precios — detectar modo guardado o default listas
+  var modo = p._precioModo || "listas";
+  setPrecioModo(modo);
+  document.getElementById("mprod-precio-cli").value = p.precioClientes || "";
+  document.getElementById("mprod-precio-pat").value = p.precioPatagonia || "";
+  document.getElementById("mprod-precio-base").value = p._precioBase || "";
+  document.getElementById("mprod-pct-cli").value = p._pctCli || "";
+  document.getElementById("mprod-pct-pat").value = p._pctPat || "";
+  document.getElementById("mprod-precio-esp").value = p._precioEsp || "";
+  document.getElementById("mprod-esp-aplica").value = p._espAplica || "ambas";
+  if (modo === "pct") calcPrecioPct();
+  // Poblar datalist categorías
+  var cats = new Set(Object.values(_prodData).filter(function(p){return p&&p.nombre;}).map(function(p){return p.categoria||"";}));
+  var dl = document.getElementById("mprod-cats-dl");
+  if (dl) dl.innerHTML = Array.from(cats).filter(Boolean).map(function(c){return '<option value="'+c+'">';}).join("");
+  overlay.classList.add("open");
+  document.getElementById("mprod-nombre").focus();
+}
+
+function cerrarModalProducto() {
+  document.getElementById("mprod-overlay").classList.remove("open");
+  _prodFotoB64 = "";
+}
+
+function setPrecioModo(modo) {
+  _prodModo = modo;
+  ["listas","pct","custom"].forEach(function(m) {
+    document.getElementById("mprod-modo-" + m).classList.toggle("active", m === modo);
+    var panel = document.getElementById("mprod-panel-" + m);
+    if (panel) panel.style.display = (m === modo) ? "" : "none";
+    // show class for CSS grid
+    if (panel) panel.classList.toggle("show", m === modo);
+  });
+}
+
+function calcPrecioPct() {
+  var base = parseFloat(document.getElementById("mprod-precio-base").value) || 0;
+  var pctCli = parseFloat(document.getElementById("mprod-pct-cli").value) || 0;
+  var pctPat = parseFloat(document.getElementById("mprod-pct-pat").value) || 0;
+  var resCli = base * (1 + pctCli / 100);
+  var resPat = base * (1 + pctPat / 100);
+  document.getElementById("mprod-pct-result").innerHTML =
+    'Clientes: <b>' + _fmt(resCli) + '</b><br>Patagonia: <b>' + _fmt(resPat) + '</b>';
+}
+
+function subirFotoProducto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var maxMB = 1.5;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result;
+    // Comprimir si es muy grande
+    var sizeKB = Math.round(b64.length * 3 / 4 / 1024);
+    if (sizeKB > maxMB * 1024) {
+      _comprimirImagen(file, 800, 0.75, function(b64c) {
+        _prodFotoB64 = b64c;
+        _actualizarPrevFoto();
+        document.getElementById("mprod-foto-size").textContent = Math.round(b64c.length * 3 / 4 / 1024) + " KB";
+      });
+    } else {
+      _prodFotoB64 = b64;
+      _actualizarPrevFoto();
+      document.getElementById("mprod-foto-size").textContent = sizeKB + " KB";
+    }
+  };
+  reader.readAsDataURL(file);
+  input.value = "";
+}
+
+function _comprimirImagen(file, maxW, quality, cb) {
+  var img = new Image();
+  var url = URL.createObjectURL(file);
+  img.onload = function() {
+    var w = img.width, h = img.height;
+    var ratio = Math.min(1, maxW / w);
+    var canvas = document.createElement("canvas");
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(h * ratio);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    cb(canvas.toDataURL("image/jpeg", quality));
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function _actualizarPrevFoto() {
+  var prev = document.getElementById("mprod-foto-preview");
+  var area = document.getElementById("mprod-photo-area");
+  if (!prev || !area) return;
+  if (_prodFotoB64) {
+    prev.src = _prodFotoB64;
+    prev.style.display = "block";
+    area.querySelector(".mprod-photo-icon").style.display = "none";
+    area.querySelector(".mprod-photo-lbl").style.display = "none";
+  } else {
+    prev.style.display = "none";
+    prev.src = "";
+    area.querySelector(".mprod-photo-icon").style.display = "";
+    area.querySelector(".mprod-photo-lbl").style.display = "";
+    document.getElementById("mprod-foto-size").textContent = "";
+  }
+}
+
+function quitarFotoProducto() {
+  _prodFotoB64 = "";
+  _actualizarPrevFoto();
+}
+
+function guardarProducto() {
+  var nombre = (document.getElementById("mprod-nombre").value || "").trim();
+  if (!nombre) { showNotif("El nombre del producto es obligatorio", "err"); document.getElementById("mprod-nombre").focus(); return; }
+  var codigo = (document.getElementById("mprod-codigo").value || "").trim().toUpperCase();
+  var categoria = (document.getElementById("mprod-categoria").value || "").trim();
+  var precioCli = 0, precioPat = 0;
+  var extra = { _precioModo: _prodModo };
+  if (_prodModo === "listas") {
+    precioCli = parseFloat(document.getElementById("mprod-precio-cli").value) || 0;
+    precioPat = parseFloat(document.getElementById("mprod-precio-pat").value) || 0;
+  } else if (_prodModo === "pct") {
+    var base = parseFloat(document.getElementById("mprod-precio-base").value) || 0;
+    var pctCli = parseFloat(document.getElementById("mprod-pct-cli").value) || 0;
+    var pctPat = parseFloat(document.getElementById("mprod-pct-pat").value) || 0;
+    precioCli = base * (1 + pctCli / 100);
+    precioPat = base * (1 + pctPat / 100);
+    extra._precioBase = base; extra._pctCli = pctCli; extra._pctPat = pctPat;
+  } else if (_prodModo === "custom") {
+    var esp = parseFloat(document.getElementById("mprod-precio-esp").value) || 0;
+    var aplica = document.getElementById("mprod-esp-aplica").value;
+    if (aplica === "ambas" || aplica === "Clientes") precioCli = esp;
+    if (aplica === "ambas" || aplica === "Patagonia") precioPat = esp;
+    extra._precioEsp = esp; extra._espAplica = aplica;
+  }
+  var prodObj = Object.assign({
+    nombre: nombre,
+    codigo: codigo || nombre.substring(0, 4).toUpperCase(),
+    categoria: categoria || "Sin categoría",
+    precioClientes: precioCli,
+    precioPatagonia: precioPat,
+    foto: _prodFotoB64 || ""
+  }, extra);
+  var key = document.getElementById("mprod-key").value;
+  var btn = document.querySelector(".mprod-save");
+  if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
+  var promise;
+  if (key) {
+    promise = fbPatch("empresas/" + empresaKey + "/productos/" + key, prodObj).then(function() {
+      _prodData[key] = Object.assign(_prodData[key] || {}, prodObj);
+    });
+  } else {
+    promise = fbPush("empresas/" + empresaKey + "/productos", prodObj).then(function(newKey) {
+      _prodData[newKey] = prodObj;
+    });
+  }
+  promise.then(function() {
+    _sincronizarDbStock();
+    renderProductos();
+    cerrarModalProducto();
+    showNotif(key ? "✅ Producto actualizado" : "✅ Producto agregado", "ok");
+  }).catch(function(e) {
+    showNotif("Error al guardar: " + (e.message || "Error desconocido"), "err");
+  }).finally(function() {
+    if (btn) { btn.disabled = false; btn.textContent = "💾 Guardar producto"; }
+  });
+}
+
+function eliminarProducto(key) {
+  var p = _prodData[key];
+  if (!p) return;
+  if (!confirm("¿Eliminar el producto \"" + (p.nombre || key) + "\"?\nEsta acción no se puede deshacer.")) return;
+  fbDel("empresas/" + empresaKey + "/productos/" + key).then(function() {
+    delete _prodData[key];
+    _sincronizarDbStock();
+    renderProductos();
+    showNotif("🗑 Producto eliminado", "ok");
+  }).catch(function() {
+    showNotif("Error al eliminar el producto", "err");
+  });
+}
 </script>
 </body>
 </html>
