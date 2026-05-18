@@ -241,7 +241,7 @@ body {
    MAIN
 ══════════════ */
 #main-wrapper { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; background:var(--bg) }
-.main { flex:1; overflow-y:auto; padding:18px 16px calc(20px + var(--safe-bottom)); max-width:560px; margin:0 auto; width:100% }
+.main { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:18px 16px calc(20px + var(--safe-bottom)); max-width:560px; margin:0 auto; width:100% }
 .main:has(.me-root.active) { padding:0; max-width:none; overflow:hidden; display:flex; flex-direction:column }
 
 .section { display:none }
@@ -1071,10 +1071,7 @@ select option { background:#fff }
 /* ══ TOOLBAR PRODUCTOS ══ */
 .prod-toolbar {
   display:flex; gap:8px; align-items:center;
-  position:sticky; top:0; z-index:30;
-  background:var(--bg);
-  padding:4px 0 12px;
-  margin-bottom:4px;
+  margin-bottom:12px;
 }
 .prod-toolbar-search {
   flex:1; position:relative; display:flex; align-items:center;
@@ -1106,6 +1103,7 @@ select option { background:#fff }
   display:grid;
   grid-template-columns:repeat(2, 1fr);
   gap:10px;
+  touch-action:pan-y;
 }
 @media (min-width:480px) {
   .prod-grid { grid-template-columns:repeat(3, 1fr); gap:12px }
@@ -1121,67 +1119,76 @@ select option { background:#fff }
 .prod-card {
   background:var(--s2); border:1px solid var(--border);
   border-radius:14px; overflow:hidden; cursor:pointer;
-  transition:box-shadow .15s, border-color .15s, transform .12s;
-  position:relative; display:flex; flex-direction:column;
+  transition:box-shadow .15s, border-color .15s;
+  display:flex; flex-direction:column;
+  touch-action:manipulation;
 }
-.prod-card:hover { box-shadow:var(--shadow-lg); border-color:var(--accent); transform:translateY(-1px) }
-.prod-card:active { transform:scale(.985) }
+.prod-card:active { opacity:.88 }
 
 /* Imagen cuadrada */
-.prod-card-img-wrap { position:relative; width:100%; aspect-ratio:1; overflow:hidden; background:var(--s3) }
-.prod-card-img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .2s }
-.prod-card:hover .prod-card-img { transform:scale(1.04) }
+.prod-card-img-wrap {
+  width:100%; aspect-ratio:1; overflow:hidden;
+  background:var(--s3); flex-shrink:0;
+}
+.prod-card-img { width:100%; height:100%; object-fit:cover; display:block }
 .prod-card-img-ph {
   width:100%; height:100%; display:flex; align-items:center; justify-content:center;
-  font-size:36px; color:var(--muted2); background:var(--s3);
-}
-/* Badge categoría flotante sobre imagen */
-.prod-card-cat-badge {
-  position:absolute; bottom:7px; left:7px;
-  background:rgba(0,0,0,.52); color:#fff;
-  font-size:9px; font-weight:700; padding:3px 7px;
-  border-radius:20px; max-width:calc(100% - 14px);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  backdrop-filter:blur(4px);
+  font-size:36px; color:var(--muted2);
 }
 
 /* Cuerpo de la tarjeta */
-.prod-card-body { padding:10px 11px 11px; flex:1; display:flex; flex-direction:column; gap:4px }
+.prod-card-body {
+  padding:9px 10px 8px; flex:1; display:flex; flex-direction:column; gap:3px;
+}
+.prod-card-top {
+  display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:2px;
+}
 .prod-card-cod {
   font-size:9px; font-weight:700; color:var(--muted);
-  text-transform:uppercase; letter-spacing:.7px;
+  text-transform:uppercase; letter-spacing:.7px; flex-shrink:0;
+}
+.prod-card-cat-pill {
+  font-size:8.5px; font-weight:700; color:var(--accent);
+  background:var(--accent-bg); border:1px solid oklch(88% 0.05 35);
+  padding:2px 6px; border-radius:20px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  max-width:100px;
 }
 .prod-card-name {
-  font-size:12.5px; font-weight:600; color:var(--text);
+  font-size:12px; font-weight:600; color:var(--text);
   line-height:1.35; flex:1;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-  overflow:hidden;
+  overflow:hidden; min-height:2.7em;
 }
-/* Precios: fila compacta */
-.prod-card-prices { display:flex; flex-direction:column; gap:2px; margin-top:6px }
+/* Precios compactos */
+.prod-card-prices { display:flex; flex-direction:column; gap:2px; margin-top:5px }
 .prod-card-price {
   display:flex; justify-content:space-between; align-items:baseline; gap:4px;
-  font-size:10.5px; color:var(--muted2);
 }
-.prod-card-price-lbl { font-size:9.5px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; flex-shrink:0 }
-.prod-card-price-val { font-size:12px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums }
+.prod-card-price-lbl {
+  font-size:9px; font-weight:700; color:var(--muted2);
+  text-transform:uppercase; letter-spacing:.4px; flex-shrink:0;
+}
+.prod-card-price-val {
+  font-size:11.5px; font-weight:700; color:var(--text);
+  font-variant-numeric:tabular-nums;
+}
 
-/* Acciones: siempre visibles, bien grandes para touch */
+/* Acciones: fáciles de tocar */
 .prod-card-actions {
-  display:flex; gap:6px; padding:8px 10px 10px;
-  border-top:1px solid var(--border2); background:var(--s3);
+  display:flex; gap:6px; padding:8px 9px 9px;
+  border-top:1px solid var(--border2);
 }
 .prod-card-btn {
   flex:1; padding:7px 4px; border:1px solid var(--border);
-  background:#fff; border-radius:8px;
-  font-size:12px; font-weight:600; cursor:pointer;
+  background:var(--s3); border-radius:8px;
+  font-size:11.5px; font-weight:600; cursor:pointer;
   color:var(--text2); transition:all .13s;
   display:flex; align-items:center; justify-content:center; gap:4px;
-  min-height:32px;
+  min-height:34px; touch-action:manipulation;
 }
-.prod-card-btn:hover { background:var(--s4); border-color:var(--muted2); color:var(--text) }
-.prod-card-btn.danger { background:var(--s3) }
-.prod-card-btn.danger:hover { background:var(--red-bg); border-color:var(--red); color:var(--red) }
+.prod-card-btn:active { background:var(--s4) }
+.prod-card-btn.danger:active { background:var(--red-bg); color:var(--red) }
 
 /* FAB */
 .prod-add-fab {
@@ -4745,6 +4752,11 @@ function _sincronizarDbStock() {
   window._catIndex = _catIndex;
 }
 
+function _prodImgFail(img) {
+  var wrap = img.parentNode;
+  if (wrap) wrap.innerHTML = '<div class="prod-card-img-ph">📦</div>';
+}
+
 function filtrarProductos() {
   _prodFiltro = (document.getElementById("prod-buscar") || {}).value || "";
   renderProductos();
@@ -4791,21 +4803,21 @@ function renderProductos() {
   grid.innerHTML = "";
   prods.forEach(function(entry) {
     var key = entry[0], p = entry[1];
-    var catLabel = (p.categoria || "Sin cat.").replace(/^"+|"+$/g,"").trim() || "Sin cat.";
+    var catLabel = (p.categoria || "Sin cat.").replace(/^"+|"+$/g,"").replace(/\\"/g,"").trim() || "Sin cat.";
     var imgInner = p.foto
-      ? '<img class="prod-card-img" src="' + p.foto + '" alt="' + (p.nombre||"") + '" onerror="this.parentNode.innerHTML=\'<div class=\\\"prod-card-img-ph\\\">📦</div>\'">'
+      ? '<img class="prod-card-img" src="' + p.foto + '" alt="" onerror="_prodImgFail(this)">'
       : '<div class="prod-card-img-ph">📦</div>';
     var preciosCli = _fmt(p.precioClientes || 0);
     var preciosPat = _fmt(p.precioPatagonia || 0);
     var card = document.createElement("div");
     card.className = "prod-card";
     card.innerHTML =
-      '<div class="prod-card-img-wrap">' +
-        imgInner +
-        '<div class="prod-card-cat-badge">' + catLabel + '</div>' +
-      '</div>' +
+      '<div class="prod-card-img-wrap">' + imgInner + '</div>' +
       '<div class="prod-card-body">' +
-        '<div class="prod-card-cod">' + (p.codigo || "—") + '</div>' +
+        '<div class="prod-card-top">' +
+          '<span class="prod-card-cod">' + (p.codigo || "—") + '</span>' +
+          '<span class="prod-card-cat-pill">' + catLabel + '</span>' +
+        '</div>' +
         '<div class="prod-card-name">' + (p.nombre || "") + '</div>' +
         '<div class="prod-card-prices">' +
           '<div class="prod-card-price"><span class="prod-card-price-lbl">CLI</span><span class="prod-card-price-val">' + preciosCli + '</span></div>' +
