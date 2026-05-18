@@ -57,6 +57,9 @@
   --shadow-sm: 0 1px 2px rgba(20,18,12,.04);
   --shadow:    0 1px 3px rgba(20,18,12,.06), 0 1px 2px rgba(20,18,12,.04);
   --shadow-lg: 0 8px 24px rgba(20,18,12,.08), 0 2px 6px rgba(20,18,12,.04);
+
+  /* Header height — used to calculate .main scroll area */
+  --header-h: 56px;
 }
 
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent }
@@ -222,7 +225,7 @@ body {
    HEADER
 ══════════════ */
 .app-header {
-  background:var(--s1); height:56px;
+  background:var(--s1); height:var(--header-h);
   display:flex; align-items:center; gap:12px; padding:0 16px;
   position:sticky; top:0; z-index:200;
   border-bottom:1px solid var(--border);
@@ -240,8 +243,20 @@ body {
 /* ══════════════
    MAIN
 ══════════════ */
-#main-wrapper { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; background:var(--bg) }
-.main { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:18px 16px calc(20px + var(--safe-bottom)); max-width:560px; margin:0 auto; width:100% }
+#main-wrapper { flex:1; display:flex; flex-direction:column; min-width:0; background:var(--bg); overflow:hidden }
+.main {
+  display:block;
+  width:100%;
+  height:calc(100vh - var(--header-h));
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  padding:18px 16px calc(20px + var(--safe-bottom));
+  max-width:560px;
+  margin:0 auto;
+  box-sizing:border-box;
+}
 .main:has(.me-root.active) { padding:0; max-width:none; overflow:hidden; display:flex; flex-direction:column }
 
 .section { display:none }
@@ -1997,7 +2012,7 @@ function verTab(id,btn){
   document.getElementById("header-title").textContent=TITLES[id]||id;
   // Resetear scroll al cambiar de sección
   var mainEl = document.querySelector(".main");
-  if(mainEl) mainEl.scrollTop = 0;
+  if(mainEl) { mainEl.scrollTop = 0; mainEl.scrollLeft = 0; }
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes")cargarClientesSection();
