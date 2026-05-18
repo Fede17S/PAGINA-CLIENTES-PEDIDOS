@@ -614,6 +614,39 @@ select option { background:#fff }
 .bk-act-del { background:#fff; border-color:oklch(88% 0.05 25); color:var(--red); padding:9px 12px }
 .bk-act-del:hover { background:var(--red-bg) }
 
+/* ══════════════════════════════════════
+   MIS CLIENTES
+══════════════════════════════════════ */
+.cli-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px }
+.cli-search { flex:1; font-size:13px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; background:var(--s2); color:var(--text); outline:none; transition:border-color .15s }
+.cli-search:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg) }
+.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:8px; transition:box-shadow .15s }
+.cli-card:hover { box-shadow:var(--shadow) }
+.cli-card-head { display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer; user-select:none }
+.cli-card-avatar { width:38px; height:38px; border-radius:50%; background:var(--accent-bg); color:var(--accent); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; text-transform:uppercase }
+.cli-card-info { flex:1; min-width:0 }
+.cli-card-nom { font-size:14px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.cli-card-sub { font-size:11.5px; color:var(--muted); margin-top:2px }
+.cli-card-chevron { color:var(--muted2); font-size:12px; transition:transform .2s; flex-shrink:0 }
+.cli-card.open .cli-card-chevron { transform:rotate(90deg) }
+.cli-card-body { display:none; border-top:1px solid var(--border2); padding:14px 16px; background:var(--s3) }
+.cli-card.open .cli-card-body { display:block }
+.cli-detail-row { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px }
+.cli-detail-icon { font-size:15px; width:22px; text-align:center; flex-shrink:0; margin-top:1px }
+.cli-detail-txt { font-size:13px; color:var(--text2); flex:1; word-break:break-word }
+.cli-detail-lbl { font-size:10.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; display:block; margin-bottom:1px }
+.cli-actions { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap }
+.cli-act-btn { padding:8px 13px; border-radius:8px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; border:1px solid; transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:5px }
+.cli-act-btn:active { transform:scale(.97) }
+.cli-act-wa { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
+.cli-act-wa:hover { background:#dcfce7 }
+.cli-act-edit { background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
+.cli-act-edit:hover { background:#dbeafe }
+.cli-act-del { background:#fff; color:var(--red); border-color:oklch(88% 0.05 25) }
+.cli-act-del:hover { background:var(--red-bg) }
+.cli-badge-lista { font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; background:var(--accent-bg); color:var(--accent); letter-spacing:.5px }
+.cli-badge-lista.patagonia { background:var(--blue-bg); color:#1f4ea8 }
+
 /* ── SCROLLBARS ── */
 .dropdown::-webkit-scrollbar { width:4px }
 .dropdown::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px }
@@ -908,6 +941,10 @@ select option { background:#fff }
     <button class="sb-item" id="nav-stock" onclick="verTab('stock',this)">
       <span class="sb-icon">📦</span>Mi Stock
     </button>
+    <div class="sb-group-lbl">Clientes</div>
+    <button class="sb-item" id="nav-clientes" onclick="verTab('clientes',this)">
+      <span class="sb-icon">👥</span>Mis Clientes
+    </button>
     <div class="sb-group-lbl">Más</div>
     <button class="sb-item" id="nav-backup" onclick="verTab('backup',this)">
       <span class="sb-icon">💾</span>Backup Pedidos
@@ -1072,6 +1109,16 @@ select option { background:#fff }
   <div id="resumen-body"></div>
 </div>
 
+<!-- ══════════════ SECCIÓN MIS CLIENTES ══════════════ -->
+<div id="clientes" class="section">
+  <div class="cli-toolbar">
+    <input type="text" id="cli-buscar" placeholder="🔍 Buscar cliente…" oninput="filtrarClientesDB()" class="cli-search">
+    <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Nuevo cliente</button>
+  </div>
+  <div id="cli-status-bar" style="display:none;padding:8px 12px;font-size:12px;border-radius:8px;margin-bottom:10px"></div>
+  <div id="cli-list"><div class="empty-box"><div class="empty-icon">👥</div>Cargando clientes…</div></div>
+</div>
+
 </div>
 </div>
 
@@ -1089,6 +1136,56 @@ select option { background:#fff }
     <div class="firma-foot">
       <button class="btn btn-ghost btn-sm" onclick="limpiarFirma()">🗑 Limpiar</button>
       <button class="btn btn-primary btn-sm" style="flex:1" onclick="confirmarFirma()">✅ Confirmar firma</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-bg" id="modal-cliente">
+  <div class="modal-box" style="max-width:420px;width:100%">
+    <div class="modal-head">
+      <div class="modal-ttl" id="modal-cli-titulo">➕ Nuevo cliente</div>
+      <button class="modal-cls" onclick="cerrarModal('modal-cliente')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label class="modal-label">Nombre completo</label>
+        <input class="modal-input" type="text" id="mcli-nombre" placeholder="Ej: Juan Pérez">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="modal-label">ID / Usuario</label>
+          <input class="modal-input" type="text" id="mcli-id" placeholder="Ej: CLI001">
+        </div>
+        <div>
+          <label class="modal-label">Contraseña</label>
+          <input class="modal-input" type="text" id="mcli-pass" placeholder="Ej: 1234">
+        </div>
+      </div>
+      <div>
+        <label class="modal-label">Lista de precios</label>
+        <select class="modal-input" id="mcli-lista">
+          <option value="Clientes">Clientes</option>
+          <option value="Patagonia">Patagonia</option>
+        </select>
+      </div>
+      <div>
+        <label class="modal-label">Dirección (calle, número, ciudad, provincia)</label>
+        <input class="modal-input" type="text" id="mcli-dir" placeholder="Ej: Av. San Martín 1234, Neuquén Capital, Neuquén">
+      </div>
+      <div>
+        <label class="modal-label">Teléfono / WhatsApp</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="modal-input" type="tel" id="mcli-tel" placeholder="Ej: 2994123456" style="flex:1">
+          <span style="font-size:11px;color:var(--muted);white-space:nowrap">sin 0 ni 15</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Ingresá el número con código de área (ej: 299 para Neuquén). Se usará para WhatsApp directo.</div>
+      </div>
+      <div id="mcli-error" style="display:none;color:var(--red);font-size:12px;font-weight:600"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn mbtn-ghost" onclick="cerrarModal('modal-cliente')">Cancelar</button>
+      <button class="mbtn mbtn-primary" id="mcli-guardar-btn" onclick="guardarCliente()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1134,7 +1231,7 @@ select option { background:#fff }
 
 var FB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock"};
+var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock",clientes:"Mis Clientes"};
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
@@ -1343,6 +1440,7 @@ function verTab(id,btn){
   if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
   if(id==="stock")cargarStock();
+  if(id==="clientes")cargarClientesDB();
 }
 function cargarCatalogo(){
   var msg=document.getElementById("sync-msg");
@@ -3135,6 +3233,194 @@ async function testDireccion() {
     res.style.cssText="display:block;background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;padding:8px 12px;font-size:12px;color:#991b1b";
     res.innerHTML="❌ No se encontró esa dirección. Intentá con más detalle, por ejemplo: <i>San Martín 450, Puerto Madryn</i>";
   }
+}
+
+// ══════════════════════════════════════════════════════
+// MIS CLIENTES — gestión de base de datos de clientes
+// ══════════════════════════════════════════════════════
+var clientesDB = {};      // { firebaseKey: {id,name,pass,role,lista,direccion,telefono} }
+var clienteEditKey = null; // key del cliente que se está editando
+
+function cargarClientesDB(){
+  var el=document.getElementById("cli-list");
+  if(el)el.innerHTML='<div class="empty-box"><div class="empty-icon">👥</div>Cargando…</div>';
+  if(!empresaKey)return;
+  fbGet("empresas/"+empresaKey+"/usuarios").then(function(data){
+    clientesDB={};
+    if(data){
+      Object.keys(data).forEach(function(k){
+        var u=data[k];
+        if(u && u.id && u.id!==currentUser.id && (u.role==="cliente"||!u.role)){
+          clientesDB[k]=u;
+        }
+      });
+    }
+    renderClientesDB("");
+  }).catch(function(e){
+    var el=document.getElementById("cli-list");
+    if(el)el.innerHTML='<div class="empty-box"><div class="empty-icon">❌</div>Error al cargar clientes</div>';
+  });
+}
+
+function renderClientesDB(filtro){
+  var container=document.getElementById("cli-list");
+  if(!container)return;
+  var keys=Object.keys(clientesDB);
+  var q=(filtro||"").toLowerCase().trim();
+  var filtrados=keys.filter(function(k){
+    var c=clientesDB[k];
+    return !q||(c.name||c.id||"").toLowerCase().includes(q)||(c.id||"").toLowerCase().includes(q)||(c.direccion||"").toLowerCase().includes(q);
+  });
+  filtrados.sort(function(a,b){
+    return (clientesDB[a].name||clientesDB[a].id||"").localeCompare(clientesDB[b].name||clientesDB[b].id||"","es");
+  });
+  if(!filtrados.length){
+    container.innerHTML='<div class="empty-box"><div class="empty-icon">👥</div>'+(q?"Sin resultados para «"+q+"»":"No hay clientes. Agregá el primero con el botón +.")+'</div>';
+    return;
+  }
+  container.innerHTML=filtrados.map(function(k){
+    return buildCliCard(k,clientesDB[k]);
+  }).join("");
+}
+
+function buildCliCard(k,c){
+  var nom=c.name||c.id||"Sin nombre";
+  var ini=nom.trim().charAt(0).toUpperCase();
+  var lista=c.lista||"Clientes";
+  var isPat=lista.toLowerCase().includes("patagonia");
+  var listaLabel='<span class="cli-badge-lista'+(isPat?" patagonia":"")+'">'+(isPat?"Patagonia":"Clientes")+'</span>';
+  var detalles="";
+  if(c.id){
+    detalles+='<div class="cli-detail-row"><span class="cli-detail-icon">🪪</span><div class="cli-detail-txt"><span class="cli-detail-lbl">ID / Usuario</span>'+escH(c.id)+'</div></div>';
+  }
+  if(c.pass){
+    detalles+='<div class="cli-detail-row"><span class="cli-detail-icon">🔑</span><div class="cli-detail-txt"><span class="cli-detail-lbl">Contraseña</span>'+escH(c.pass)+'</div></div>';
+  }
+  detalles+='<div class="cli-detail-row"><span class="cli-detail-icon">📋</span><div class="cli-detail-txt"><span class="cli-detail-lbl">Lista de precios</span>'+listaLabel+'</div></div>';
+  if(c.direccion){
+    var mapsQ=encodeURIComponent(c.direccion);
+    detalles+='<div class="cli-detail-row"><span class="cli-detail-icon">📍</span><div class="cli-detail-txt"><span class="cli-detail-lbl">Dirección</span>'+escH(c.direccion)+'<br><a href="https://www.google.com/maps/search/?api=1&query='+mapsQ+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;margin-top:2px;display:inline-block">Ver en Google Maps ↗</a></div></div>';
+  }
+  var waBtn="";
+  if(c.telefono){
+    var telLimpio=c.telefono.replace(/\D/g,"");
+    var telWA=telLimpio.startsWith("54")?"54"+telLimpio.slice(2):"54"+telLimpio;
+    waBtn='<a class="cli-act-btn cli-act-wa" href="https://wa.me/'+telWA+'" target="_blank">💬 WhatsApp</a>';
+    detalles+='<div class="cli-detail-row"><span class="cli-detail-icon">📱</span><div class="cli-detail-txt"><span class="cli-detail-lbl">Teléfono</span>'+escH(c.telefono)+'</div></div>';
+  }
+  var acciones='<div class="cli-actions">'+waBtn+'<button class="cli-act-btn cli-act-edit" onclick="editarClienteDB(\''+k+'\')">✏️ Editar</button><button class="cli-act-btn cli-act-del" onclick="borrarClienteDB(\''+k+'\')">🗑 Eliminar</button></div>';
+  return '<div class="cli-card" id="clicard-'+k+'"><div class="cli-card-head" onclick="toggleCliCard(\''+k+'\')">'+'<div class="cli-card-avatar">'+ini+'</div>'+'<div class="cli-card-info"><div class="cli-card-nom">'+escH(nom)+'</div><div class="cli-card-sub">ID: '+escH(c.id||"–")+'</div></div>'+'<span class="cli-card-chevron">▶</span></div>'+'<div class="cli-card-body">'+detalles+acciones+'</div></div>';
+}
+
+function escH(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function toggleCliCard(k){
+  var card=document.getElementById("clicard-"+k);
+  if(card)card.classList.toggle("open");
+}
+
+function filtrarClientesDB(){
+  var q=document.getElementById("cli-buscar");
+  renderClientesDB(q?q.value:"");
+}
+
+function abrirModalCliente(){
+  clienteEditKey=null;
+  document.getElementById("modal-cli-titulo").textContent="➕ Nuevo cliente";
+  document.getElementById("mcli-nombre").value="";
+  document.getElementById("mcli-id").value="";
+  document.getElementById("mcli-pass").value="";
+  document.getElementById("mcli-lista").value="Clientes";
+  document.getElementById("mcli-dir").value="";
+  document.getElementById("mcli-tel").value="";
+  document.getElementById("mcli-error").style.display="none";
+  document.getElementById("modal-cliente").classList.add("open");
+  setTimeout(function(){document.getElementById("mcli-nombre").focus();},100);
+}
+
+function editarClienteDB(k){
+  var c=clientesDB[k];
+  if(!c)return;
+  clienteEditKey=k;
+  document.getElementById("modal-cli-titulo").textContent="✏️ Editar cliente";
+  document.getElementById("mcli-nombre").value=c.name||"";
+  document.getElementById("mcli-id").value=c.id||"";
+  document.getElementById("mcli-pass").value=c.pass||"";
+  document.getElementById("mcli-lista").value=c.lista||"Clientes";
+  document.getElementById("mcli-dir").value=c.direccion||"";
+  document.getElementById("mcli-tel").value=c.telefono||"";
+  document.getElementById("mcli-error").style.display="none";
+  document.getElementById("modal-cliente").classList.add("open");
+  setTimeout(function(){document.getElementById("mcli-nombre").focus();},100);
+}
+
+function guardarCliente(){
+  var nom=document.getElementById("mcli-nombre").value.trim();
+  var cid=document.getElementById("mcli-id").value.trim();
+  var pass=document.getElementById("mcli-pass").value.trim();
+  var lista=document.getElementById("mcli-lista").value;
+  var dir=document.getElementById("mcli-dir").value.trim();
+  var tel=document.getElementById("mcli-tel").value.trim();
+  var errEl=document.getElementById("mcli-error");
+  if(!nom){errEl.textContent="El nombre es obligatorio.";errEl.style.display="block";return;}
+  if(!cid){errEl.textContent="El ID/usuario es obligatorio.";errEl.style.display="block";return;}
+  if(!pass){errEl.textContent="La contraseña es obligatoria.";errEl.style.display="block";return;}
+  // Verificar ID único (excepto el mismo en edición)
+  var idDuplicado=Object.keys(clientesDB).some(function(k){
+    return k!==clienteEditKey && clientesDB[k].id===cid;
+  });
+  if(idDuplicado){errEl.textContent="Ya existe un cliente con ese ID.";errEl.style.display="block";return;}
+  errEl.style.display="none";
+  var btn=document.getElementById("mcli-guardar-btn");
+  btn.disabled=true; btn.textContent="Guardando…";
+  var data={id:cid,name:nom,pass:pass,role:"cliente",lista:lista,direccion:dir,telefono:tel};
+  var promise=clienteEditKey
+    ? fbPatch("empresas/"+empresaKey+"/usuarios/"+clienteEditKey,data).then(function(){return clienteEditKey;})
+    : fbPush("empresas/"+empresaKey+"/usuarios",data).then(function(k){return k;});
+  promise.then(function(key){
+    if(clienteEditKey){ clientesDB[key]=Object.assign(clientesDB[key]||{},data); }
+    else{ clientesDB[key]=data; }
+    // Actualizar dbCli global también
+    dbCli=dbCli.filter(function(c){return c.id!==cid;});
+    dbCli.push({id:cid,nombre:nom,lista:lista,direccion:dir,telefono:tel});
+    dbCli.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es");});
+    actualizarDL();
+    cerrarModal("modal-cliente");
+    renderClientesDB(document.getElementById("cli-buscar")?document.getElementById("cli-buscar").value:"");
+    mostrarStatusCli("✅ Cliente guardado correctamente","ok");
+  }).catch(function(e){
+    errEl.textContent="Error al guardar: "+(e.message||"Sin conexión");
+    errEl.style.display="block";
+  }).finally(function(){
+    btn.disabled=false; btn.textContent="Guardar";
+  });
+}
+
+function borrarClienteDB(k){
+  var c=clientesDB[k];
+  if(!c)return;
+  if(!confirm("¿Eliminar a "+(c.name||c.id)+"? Esta acción no se puede deshacer."))return;
+  fbDel("empresas/"+empresaKey+"/usuarios/"+k).then(function(){
+    var cid=c.id;
+    delete clientesDB[k];
+    dbCli=dbCli.filter(function(x){return x.id!==cid;});
+    actualizarDL();
+    renderClientesDB(document.getElementById("cli-buscar")?document.getElementById("cli-buscar").value:"");
+    mostrarStatusCli("🗑 Cliente eliminado","warn");
+  }).catch(function(){
+    alert("Error al eliminar el cliente. Revisá la conexión.");
+  });
+}
+
+function mostrarStatusCli(msg,tipo){
+  var el=document.getElementById("cli-status-bar");
+  if(!el)return;
+  el.textContent=msg;
+  el.style.display="block";
+  el.style.background=tipo==="ok"?"var(--green-bg)":tipo==="warn"?"var(--amber-bg)":"var(--red-bg)";
+  el.style.color=tipo==="ok"?"#0a7048":tipo==="warn"?"var(--text2)":"var(--red)";
+  el.style.fontWeight="600";
+  setTimeout(function(){el.style.display="none";},3500);
 }
 
 // ══════════════════════════════════════════════════════
