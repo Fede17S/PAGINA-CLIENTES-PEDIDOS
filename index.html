@@ -1068,7 +1068,13 @@ select option { background:#fff }
 /* ══════════════════════════════════
    GESTIÓN DE PRODUCTOS (vendedor)
 ══════════════════════════════════ */
-.prod-toolbar { display:flex; gap:8px; margin-bottom:14px; align-items:center }
+.prod-toolbar {
+  display:flex; gap:8px; align-items:center;
+  position:sticky; top:0; z-index:30;
+  background:var(--bg);
+  padding:4px 0 10px;
+  margin-bottom:4px;
+}
 .prod-toolbar input { flex:1; font-size:13px }
 .prod-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px }
 .prod-stat { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; text-align:center }
@@ -1884,6 +1890,9 @@ function verTab(id,btn){
   document.getElementById(id).classList.add("active");
   if(btn)btn.classList.add("active");
   document.getElementById("header-title").textContent=TITLES[id]||id;
+  // Resetear scroll al cambiar de sección
+  var mainEl = document.querySelector(".main");
+  if(mainEl) mainEl.scrollTop = 0;
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes")cargarClientesSection();
@@ -4640,6 +4649,9 @@ function _sincronizarDbStock() {
 function filtrarProductos() {
   _prodFiltro = (document.getElementById("prod-buscar") || {}).value || "";
   renderProductos();
+  // Volver al tope para que los resultados se vean desde el principio
+  var mainEl = document.querySelector(".main");
+  if(mainEl) mainEl.scrollTop = 0;
 }
 
 function renderProductos() {
