@@ -1068,35 +1068,129 @@ select option { background:#fff }
 /* ══════════════════════════════════
    GESTIÓN DE PRODUCTOS (vendedor)
 ══════════════════════════════════ */
+/* ══ TOOLBAR PRODUCTOS ══ */
 .prod-toolbar {
   display:flex; gap:8px; align-items:center;
   position:sticky; top:0; z-index:30;
   background:var(--bg);
-  padding:4px 0 10px;
+  padding:4px 0 12px;
   margin-bottom:4px;
 }
-.prod-toolbar input { flex:1; font-size:13px }
-.prod-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px }
-.prod-stat { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; text-align:center }
-.prod-stat-val { font-size:20px; font-weight:700; color:var(--text) }
-.prod-stat-lbl { font-size:10.5px; color:var(--muted); margin-top:2px; text-transform:uppercase; letter-spacing:.5px }
-.prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px }
-.prod-card { background:var(--s2); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:box-shadow .15s, border-color .15s; position:relative }
-.prod-card:hover { box-shadow:var(--shadow-lg); border-color:var(--accent) }
-.prod-card-img { width:100%; aspect-ratio:1; object-fit:cover; background:var(--s3); display:block }
-.prod-card-img-ph { width:100%; aspect-ratio:1; background:var(--s3); display:flex; align-items:center; justify-content:center; font-size:32px; color:var(--muted2) }
-.prod-card-body { padding:9px 10px 10px }
-.prod-card-cod { font-size:9.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:2px }
-.prod-card-name { font-size:12.5px; font-weight:600; color:var(--text); line-height:1.3; margin-bottom:5px }
-.prod-card-cat { font-size:10.5px; color:var(--muted); margin-bottom:6px; display:flex; align-items:center; gap:4px }
-.prod-card-prices { display:flex; flex-direction:column; gap:2px }
-.prod-card-price { font-size:11.5px; color:var(--text2); display:flex; justify-content:space-between }
-.prod-card-price span:last-child { font-weight:600; color:var(--text) }
-.prod-card-actions { display:flex; gap:5px; margin-top:8px }
-.prod-card-btn { flex:1; padding:5px 0; border:1px solid var(--border); background:var(--s3); border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; color:var(--text2); transition:all .13s }
-.prod-card-btn:hover { background:var(--s4); color:var(--text) }
+.prod-toolbar-search {
+  flex:1; position:relative; display:flex; align-items:center;
+}
+.prod-toolbar-search input {
+  flex:1; font-size:14px; padding-left:36px !important;
+}
+.prod-toolbar-search-icon {
+  position:absolute; left:11px; font-size:15px; pointer-events:none; opacity:.5; z-index:1;
+}
+.prod-toolbar-actions { display:flex; gap:6px; flex-shrink:0; align-items:center }
+
+/* ══ STATS BAR ══ */
+.prod-stats {
+  display:flex; gap:0; margin-bottom:14px;
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden; box-shadow:var(--shadow-sm);
+}
+.prod-stat {
+  flex:1; padding:11px 8px; text-align:center;
+  border-right:1px solid var(--border);
+}
+.prod-stat:last-child { border-right:none }
+.prod-stat-val { font-size:18px; font-weight:700; color:var(--text); line-height:1 }
+.prod-stat-lbl { font-size:9.5px; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:.6px }
+
+/* ══ GRID — mobile first: 2 cols ══ */
+.prod-grid {
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:10px;
+}
+@media (min-width:480px) {
+  .prod-grid { grid-template-columns:repeat(3, 1fr); gap:12px }
+}
+@media (min-width:720px) {
+  .prod-grid { grid-template-columns:repeat(4, 1fr); gap:14px }
+}
+@media (min-width:1100px) {
+  .prod-grid { grid-template-columns:repeat(5, 1fr); gap:14px }
+}
+
+/* ══ TARJETA PRODUCTO ══ */
+.prod-card {
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:14px; overflow:hidden; cursor:pointer;
+  transition:box-shadow .15s, border-color .15s, transform .12s;
+  position:relative; display:flex; flex-direction:column;
+}
+.prod-card:hover { box-shadow:var(--shadow-lg); border-color:var(--accent); transform:translateY(-1px) }
+.prod-card:active { transform:scale(.985) }
+
+/* Imagen cuadrada */
+.prod-card-img-wrap { position:relative; width:100%; aspect-ratio:1; overflow:hidden; background:var(--s3) }
+.prod-card-img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .2s }
+.prod-card:hover .prod-card-img { transform:scale(1.04) }
+.prod-card-img-ph {
+  width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+  font-size:36px; color:var(--muted2); background:var(--s3);
+}
+/* Badge categoría flotante sobre imagen */
+.prod-card-cat-badge {
+  position:absolute; bottom:7px; left:7px;
+  background:rgba(0,0,0,.52); color:#fff;
+  font-size:9px; font-weight:700; padding:3px 7px;
+  border-radius:20px; max-width:calc(100% - 14px);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  backdrop-filter:blur(4px);
+}
+
+/* Cuerpo de la tarjeta */
+.prod-card-body { padding:10px 11px 11px; flex:1; display:flex; flex-direction:column; gap:4px }
+.prod-card-cod {
+  font-size:9px; font-weight:700; color:var(--muted);
+  text-transform:uppercase; letter-spacing:.7px;
+}
+.prod-card-name {
+  font-size:12.5px; font-weight:600; color:var(--text);
+  line-height:1.35; flex:1;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+/* Precios: fila compacta */
+.prod-card-prices { display:flex; flex-direction:column; gap:2px; margin-top:6px }
+.prod-card-price {
+  display:flex; justify-content:space-between; align-items:baseline; gap:4px;
+  font-size:10.5px; color:var(--muted2);
+}
+.prod-card-price-lbl { font-size:9.5px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; flex-shrink:0 }
+.prod-card-price-val { font-size:12px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums }
+
+/* Acciones: siempre visibles, bien grandes para touch */
+.prod-card-actions {
+  display:flex; gap:6px; padding:8px 10px 10px;
+  border-top:1px solid var(--border2); background:var(--s3);
+}
+.prod-card-btn {
+  flex:1; padding:7px 4px; border:1px solid var(--border);
+  background:#fff; border-radius:8px;
+  font-size:12px; font-weight:600; cursor:pointer;
+  color:var(--text2); transition:all .13s;
+  display:flex; align-items:center; justify-content:center; gap:4px;
+  min-height:32px;
+}
+.prod-card-btn:hover { background:var(--s4); border-color:var(--muted2); color:var(--text) }
+.prod-card-btn.danger { background:var(--s3) }
 .prod-card-btn.danger:hover { background:var(--red-bg); border-color:var(--red); color:var(--red) }
-.prod-add-fab { position:fixed; bottom:calc(24px + var(--safe-bottom)); right:20px; z-index:120; width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff; border:none; font-size:24px; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,.18); display:none; align-items:center; justify-content:center; transition:transform .13s }
+
+/* FAB */
+.prod-add-fab {
+  position:fixed; bottom:calc(24px + var(--safe-bottom)); right:20px; z-index:120;
+  width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff;
+  border:none; font-size:24px; cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,.22); display:none;
+  align-items:center; justify-content:center; transition:transform .13s;
+}
 .prod-add-fab:hover { transform:scale(1.08) }
 #productos.active ~ .prod-add-fab,
 #productos.active + .prod-add-fab { display:flex }
@@ -1509,9 +1603,14 @@ select option { background:#fff }
 ══════════════════════════════════ -->
 <div id="productos" class="section">
   <div class="prod-toolbar">
-    <input type="text" id="prod-buscar" placeholder="🔍 Buscar producto…" oninput="filtrarProductos()">
-    <button class="btn btn-ghost btn-sm" onclick="cargarProductos()">🔄</button>
-    <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)" style="white-space:nowrap">+ Nuevo</button>
+    <div class="prod-toolbar-search">
+      <span class="prod-toolbar-search-icon">🔍</span>
+      <input type="text" id="prod-buscar" placeholder="Buscar producto…" oninput="filtrarProductos()" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="prod-toolbar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="cargarProductos()" title="Recargar">🔄</button>
+      <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)" style="white-space:nowrap">+ Nuevo</button>
+    </div>
   </div>
   <div class="prod-stats" id="prod-stats" style="display:none"></div>
   <div id="prod-grid" class="prod-grid">
@@ -4692,28 +4791,30 @@ function renderProductos() {
   grid.innerHTML = "";
   prods.forEach(function(entry) {
     var key = entry[0], p = entry[1];
-    var imgHtml = p.foto
-      ? '<img class="prod-card-img" src="' + p.foto + '" alt="' + (p.nombre||"") + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-        '<div class="prod-card-img-ph" style="display:none">📦</div>'
+    var catLabel = (p.categoria || "Sin cat.").replace(/^"+|"+$/g,"").trim() || "Sin cat.";
+    var imgInner = p.foto
+      ? '<img class="prod-card-img" src="' + p.foto + '" alt="' + (p.nombre||"") + '" onerror="this.parentNode.innerHTML=\'<div class=\\\"prod-card-img-ph\\\">📦</div>\'">'
       : '<div class="prod-card-img-ph">📦</div>';
     var preciosCli = _fmt(p.precioClientes || 0);
     var preciosPat = _fmt(p.precioPatagonia || 0);
     var card = document.createElement("div");
     card.className = "prod-card";
     card.innerHTML =
-      imgHtml +
+      '<div class="prod-card-img-wrap">' +
+        imgInner +
+        '<div class="prod-card-cat-badge">' + catLabel + '</div>' +
+      '</div>' +
       '<div class="prod-card-body">' +
         '<div class="prod-card-cod">' + (p.codigo || "—") + '</div>' +
         '<div class="prod-card-name">' + (p.nombre || "") + '</div>' +
-        '<div class="prod-card-cat">🏷️ ' + (p.categoria || "Sin cat.") + '</div>' +
         '<div class="prod-card-prices">' +
-          '<div class="prod-card-price"><span>Clientes</span><span>' + preciosCli + '</span></div>' +
-          '<div class="prod-card-price"><span>Patagonia</span><span>' + preciosPat + '</span></div>' +
+          '<div class="prod-card-price"><span class="prod-card-price-lbl">CLI</span><span class="prod-card-price-val">' + preciosCli + '</span></div>' +
+          '<div class="prod-card-price"><span class="prod-card-price-lbl">PAT</span><span class="prod-card-price-val">' + preciosPat + '</span></div>' +
         '</div>' +
-        '<div class="prod-card-actions">' +
-          '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
-          '<button class="prod-card-btn danger" data-key="' + key + '">🗑</button>' +
-        '</div>' +
+      '</div>' +
+      '<div class="prod-card-actions">' +
+        '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
+        '<button class="prod-card-btn danger" data-key="' + key + '">🗑</button>' +
       '</div>';
     card.querySelectorAll(".prod-card-btn")[0].onclick = function(e) { e.stopPropagation(); abrirModalProducto(this.dataset.key); };
     card.querySelectorAll(".prod-card-btn")[1].onclick = function(e) { e.stopPropagation(); eliminarProducto(this.dataset.key); };
