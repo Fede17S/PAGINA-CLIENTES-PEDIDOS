@@ -1363,6 +1363,21 @@ select option { background:#fff }
 .cat-prod-name-prev { font-size:10px; font-weight:600; color:var(--text); text-align:center; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical }
 .cat-prod-price-prev { font-size:11px; font-weight:700; color:var(--accent) }
 
+/* ── Mobile browser compatibility ── */
+* { -webkit-tap-highlight-color: transparent; }
+button, .btn, .sb-item, .ruta-list-btn, .dd-item, .mprod-cls, .item-del, .cat-item-btn
+  { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+input, select, textarea { -webkit-appearance: none; appearance: none; }
+input[type="number"] { -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* Prevent iOS zoom on input focus (font-size must be ≥16px) */
+input, select, textarea { font-size: max(16px, 1em) !important; }
+.dropdown { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+/* Fix iOS Safari 100vh */
+@supports (-webkit-touch-callout: none) {
+  .section.active { -webkit-overflow-scrolling: touch; }
+}
 </style>
 </head>
 <body>
@@ -1471,9 +1486,16 @@ select option { background:#fff }
     <div class="card-head"><span class="card-title">Cliente</span></div>
     <div class="card-body">
       <div class="row">
-        <input type="text" id="idCli-ped" placeholder="ID" oninput="vincularCli('id','ped')" style="width:70px;flex-shrink:0">
-        <input list="dl-cli-ped" id="nomCli-ped" placeholder="Nombre del cliente" oninput="vincularCli('nom','ped')">
-        <datalist id="dl-cli-ped"></datalist>
+        <div style="display:flex;gap:6px;align-items:center;position:relative">
+          <input type="text" id="idCli-ped" placeholder="ID" oninput="vincularCli('id','ped')" onchange="vincularCli('id','ped')" style="width:70px;flex-shrink:0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
+          <div class="search-wrap" style="flex:1;position:relative">
+            <input type="text" id="nomCli-ped" placeholder="Nombre del cliente"
+              oninput="filtrarClientes('ped')" onchange="filtrarClientes('ped')" onkeyup="filtrarClientes('ped')"
+              onfocus="filtrarClientes('ped')"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
+            <div id="res-cli-ped" class="dropdown"></div>
+          </div>
+        </div>
       </div>
       <div id="badge-ped" class="lista-pill">📋 Clientes</div>
     </div>
@@ -1482,8 +1504,12 @@ select option { background:#fff }
     <div class="card-head"><span class="card-title">Productos</span></div>
     <div class="card-body">
       <div class="search-wrap">
-        <input type="text" id="bus-ped" placeholder="🔍 Buscar producto…" oninput="filtrar('ped')" autocomplete="off">
-        <div id="res-ped" class="dropdown"></div>
+        <div class="search-wrap" style="position:relative">
+          <input type="text" id="bus-ped" placeholder="🔍 Buscar producto…"
+            oninput="filtrar('ped')" onchange="filtrar('ped')" onkeyup="filtrar('ped')"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search">
+          <div id="res-ped" class="dropdown"></div>
+        </div>
       </div>
       <button class="btn-elegir-prods" onclick="abrirCatalogSheet('ped')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -1526,9 +1552,16 @@ select option { background:#fff }
     <div class="card-head"><span class="card-title">Cliente</span></div>
     <div class="card-body">
       <div class="row">
-        <input type="text" id="idCli-rem" placeholder="ID" oninput="vincularCli('id','rem')" style="width:70px;flex-shrink:0">
-        <input list="dl-cli-rem" id="nomCli-rem" placeholder="Nombre del cliente" oninput="vincularCli('nom','rem')">
-        <datalist id="dl-cli-rem"></datalist>
+        <div style="display:flex;gap:6px;align-items:center;position:relative">
+          <input type="text" id="idCli-rem" placeholder="ID" oninput="vincularCli('id','rem')" onchange="vincularCli('id','rem')" style="width:70px;flex-shrink:0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
+          <div class="search-wrap" style="flex:1;position:relative">
+            <input type="text" id="nomCli-rem" placeholder="Nombre del cliente"
+              oninput="filtrarClientes('rem')" onchange="filtrarClientes('rem')" onkeyup="filtrarClientes('rem')"
+              onfocus="filtrarClientes('rem')"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
+            <div id="res-cli-rem" class="dropdown"></div>
+          </div>
+        </div>
       </div>
       <div id="badge-rem" class="lista-pill">📋 Clientes</div>
     </div>
@@ -1537,8 +1570,12 @@ select option { background:#fff }
     <div class="card-head"><span class="card-title">Productos</span></div>
     <div class="card-body">
       <div class="search-wrap">
-        <input type="text" id="bus-rem" placeholder="🔍 Buscar producto…" oninput="filtrar('rem')" autocomplete="off">
-        <div id="res-rem" class="dropdown"></div>
+        <div class="search-wrap" style="position:relative">
+          <input type="text" id="bus-rem" placeholder="🔍 Buscar producto…"
+            oninput="filtrar('rem')" onchange="filtrar('rem')" onkeyup="filtrar('rem')"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search">
+          <div id="res-rem" class="dropdown"></div>
+        </div>
       </div>
       <button class="btn-elegir-prods" onclick="abrirCatalogSheet('rem')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -2755,22 +2792,69 @@ function cargarCatalogo(){
   });
 }
 function actualizarDL(){
-  var h=dbCli.map(function(c){
-    var extra=c.direccion?' ('+c.direccion+')':'';
-    return '<option value="'+c.nombre+'" data-id="'+c.id+'" data-lista="'+c.lista+'">'+c.nombre+extra+'</option>';
-  }).join("");
-  document.getElementById("dl-cli-ped").innerHTML=h;
-  document.getElementById("dl-cli-rem").innerHTML=h;
+  // No-op — usando dropdowns custom en lugar de datalist para compatibilidad mobile
 }
-function vincularCli(origen,t){ var idIn=document.getElementById("idCli-"+t),nomIn=document.getElementById("nomCli-"+t); var c=origen==="id"?dbCli.find(function(x){return x.id.toString()===idIn.value.trim();}):dbCli.find(function(x){return x.nombre.trim()===nomIn.value.trim();}); if(c){idIn.value=c.id;nomIn.value=c.nombre;tipoLista[t]=c.lista.toLowerCase().includes("patagonia")?"Patagonia":"Clientes";document.getElementById("badge-"+t).textContent="📋 "+tipoLista[t];
-  // Refrescar panel de categorías con los nuevos precios
-  var grid=document.getElementById("cat-grid-"+t);
-  var panel=document.getElementById("cat-panel-"+t);
-  if(panel&&panel.classList.contains("open")&&grid&&grid.querySelector(".cat-item")){
-    var catTitle=document.getElementById("cat-title-"+t);
-    if(catTitle&&catTitle.textContent!=="Categorías") renderCatProds(t,catTitle.textContent);
+
+function filtrarClientes(t){
+  var inp = document.getElementById("nomCli-"+t);
+  var box = document.getElementById("res-cli-"+t);
+  if(!inp || !box) return;
+  var q = (inp.value||"").toLowerCase().trim();
+  box.innerHTML = "";
+  if(!q || !dbCli.length){ box.classList.remove("open"); return; }
+  var res = dbCli.filter(function(c){
+    return c.nombre.toLowerCase().includes(q) || (c.id||"").toLowerCase().includes(q);
+  }).slice(0,15);
+  if(!res.length){ box.classList.remove("open"); return; }
+  box.classList.add("open");
+  res.forEach(function(c){
+    var div = document.createElement("div");
+    div.className = "dd-item";
+    div.setAttribute("role","button");
+    div.innerHTML = '<span class="dd-code">'+(c.id||"")+'</span>'+
+      '<span class="dd-name">'+c.nombre+'</span>'+
+      '<span class="dd-price" style="font-size:11px;color:var(--muted)">'+(c.lista||"Clientes")+'</span>';
+    function elegir(ev){
+      if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+      var idEl  = document.getElementById("idCli-"+t);
+      var nomEl = document.getElementById("nomCli-"+t);
+      if(idEl)  idEl.value  = c.id||"";
+      if(nomEl) nomEl.value = c.nombre;
+      box.classList.remove("open");
+      box.innerHTML = "";
+      tipoLista[t] = (c.lista||"").toLowerCase().includes("patagonia")?"Patagonia":"Clientes";
+      var badge = document.getElementById("badge-"+t);
+      if(badge) badge.textContent = "📋 "+tipoLista[t];
+      var grid=document.getElementById("cat-grid-"+t);
+      var panel=document.getElementById("cat-panel-"+t);
+      if(panel&&panel.classList.contains("open")&&grid&&grid.querySelector(".cat-item")){
+        var catTitle=document.getElementById("cat-title-"+t);
+        if(catTitle&&catTitle.textContent!=="Categorías") renderCatProds(t,catTitle.textContent);
+      }
+    }
+    div.addEventListener("touchstart", elegir, {passive:false});
+    div.addEventListener("mousedown",  elegir);
+    box.appendChild(div);
+  });
+}
+
+function vincularCli(origen, t){
+  var idIn  = document.getElementById("idCli-"+t);
+  var nomIn = document.getElementById("nomCli-"+t);
+  if(!idIn || !nomIn) return;
+  if(origen === "id"){
+    var v = (idIn.value||"").trim();
+    var c = dbCli.find(function(x){ return (x.id||"").toString() === v; });
+    if(c){
+      nomIn.value = c.nombre;
+      tipoLista[t] = (c.lista||"").toLowerCase().includes("patagonia")?"Patagonia":"Clientes";
+      var badge = document.getElementById("badge-"+t);
+      if(badge) badge.textContent = "📋 "+tipoLista[t];
+    }
+  } else {
+    filtrarClientes(t);
   }
-} }
+}
 function filtrar(t){
   var box=document.getElementById("res-"+t),bus=document.getElementById("bus-"+t).value.toLowerCase().trim();
   box.innerHTML="";
@@ -2801,14 +2885,26 @@ function filtrar(t){
       div.innerHTML='<span class="dd-code">'+p.id+'</span>'+
         '<span class="dd-name">'+p.n+(p.padre?'<span class="dd-grupo"> · '+p.padre+'</span>':'')+'</span>'+
         stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
-      div.onclick=function(){
+      div.addEventListener("touchstart", function(e){
+        e.preventDefault();
+        e.stopPropagation();
         itemSel[t]=Object.assign({},p,{pre:pre});
         document.getElementById("bus-"+t).value=p.n;
         box.classList.remove("open");
+        box.innerHTML="";
         // Mover foco al input de cantidad — teclado se queda abierto
         var cantInp=document.getElementById("cant-"+t);
         if(cantInp){ cantInp.focus(); cantInp.select(); }
-      };
+      }, {passive:false});
+      div.addEventListener("mousedown", function(e){
+        e.preventDefault();
+        itemSel[t]=Object.assign({},p,{pre:pre});
+        document.getElementById("bus-"+t).value=p.n;
+        box.classList.remove("open");
+        box.innerHTML="";
+        var cantInp=document.getElementById("cant-"+t);
+        if(cantInp){ cantInp.focus(); cantInp.select(); }
+      });
       box.appendChild(div);
     });
   } else box.classList.remove("open");
@@ -5238,9 +5334,44 @@ function focusParada(i, lat, lng) {
 // ══════════════════════════════════════════════════════
 // Modales: cerrar al click en fondo
 document.addEventListener("click",function(e){
-  if(e.target.classList.contains("modal-bg"))e.target.classList.remove("open");
-  if(!e.target.closest(".search-wrap"))document.querySelectorAll(".dropdown").forEach(function(d){d.classList.remove("open");});
+  if(e.target.classList&&e.target.classList.contains("modal-bg")) e.target.classList.remove("open");
 });
+
+// ── Polyfills para compatibilidad mobile ──
+if(!Element.prototype.closest){
+  Element.prototype.closest=function(s){
+    var el=this;
+    do{ if(typeof el.matches==="function"&&el.matches(s))return el; el=el.parentElement||el.parentNode; }
+    while(el!==null&&el.nodeType===1);
+    return null;
+  };
+}
+if(!Element.prototype.matches){
+  Element.prototype.matches=Element.prototype.msMatchesSelector||Element.prototype.webkitMatchesSelector;
+}
+// String.prototype.includes polyfill
+if(!String.prototype.includes){
+  String.prototype.includes=function(s,i){ return this.indexOf(s,i)!==-1; };
+}
+// Array.prototype.includes polyfill
+if(!Array.prototype.includes){
+  Array.prototype.includes=function(v){ return this.indexOf(v)!==-1; };
+}
+
+function _cerrarDropdowns(target){
+  var inSearch = false;
+  var el = target;
+  while(el){
+    if(el.classList&&(el.classList.contains("search-wrap")||el.classList.contains("dropdown"))){ inSearch=true; break; }
+    el=el.parentElement;
+  }
+  if(!inSearch){
+    var dds = document.querySelectorAll(".dropdown");
+    for(var i=0;i<dds.length;i++) dds[i].classList.remove("open");
+  }
+}
+document.addEventListener("touchstart", function(e){ _cerrarDropdowns(e.target); }, {passive:true});
+document.addEventListener("mousedown",  function(e){ _cerrarDropdowns(e.target); });
 // Sidebar overlay close
 document.getElementById("overlay").addEventListener("click", closeSidebar);
 // URL param empresa
