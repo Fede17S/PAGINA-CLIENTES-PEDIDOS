@@ -1564,6 +1564,45 @@ select option { background:#fff }
      SECCIÓN: GESTIÓN DE CLIENTES
 ══════════════════════════════════ -->
 <div id="clientes" class="section">
+
+  <!-- ── IMPORTADOR CSV ── -->
+  <div class="cli-form-card" id="csv-importer-card">
+    <div class="cli-form-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>📥 Importar clientes desde CSV</span>
+      <button onclick="toggleCsvImporter()" id="btn-toggle-csv" style="font-size:11px;font-weight:600;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);cursor:pointer">Abrir</button>
+    </div>
+    <div id="csv-importer-body" style="display:none;margin-top:12px">
+      <div style="font-size:12px;color:var(--muted);background:var(--s3);border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.6">
+        El CSV debe tener encabezados en la primera fila. Columnas reconocidas:<br>
+        <code style="font-size:11px;background:var(--s2);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">ID, NOMBRE, DIRECCION, TELEFONO, ZONA, RECEPCIONA</code><br>
+        <span style="font-size:11px;color:var(--muted2)">Separador: coma o punto y coma. Codificación: UTF-8.</span>
+      </div>
+      <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
+        style="border:2px dashed var(--border);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px"
+        ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--accent-bg)'"
+        ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
+        ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='';procesarCSVFile(event.dataTransfer.files[0])">
+        <div style="font-size:28px;margin-bottom:6px">📂</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2)">Arrastrá el CSV acá</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:3px">o tocá para elegir archivo</div>
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" onchange="procesarCSVFile(this.files[0])">
+
+      <!-- Preview -->
+      <div id="csv-preview" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div id="csv-preview-title" style="font-size:12px;font-weight:700;color:var(--text)"></div>
+          <div style="display:flex;gap:6px">
+            <button onclick="limpiarCSV()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);cursor:pointer">✕ Cancelar</button>
+            <button onclick="importarCSV()" id="btn-importar-csv" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:6px;background:var(--text);color:#fff;cursor:pointer">⬆ Importar</button>
+          </div>
+        </div>
+        <div id="csv-preview-table-wrap" style="overflow-x:auto;border:1px solid var(--border);border-radius:8px;max-height:260px;overflow-y:auto"></div>
+        <div id="csv-import-result" style="display:none;margin-top:8px;font-size:12.5px;padding:9px 12px;border-radius:8px"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Formulario agregar -->
   <div class="cli-form-card">
     <div class="cli-form-title">Agregar nuevo cliente</div>
@@ -1598,6 +1637,14 @@ select option { background:#fff }
           <button class="btn btn-ghost btn-sm" onclick="verificarDirNuevo()" title="Verificar en mapa" style="white-space:nowrap;flex-shrink:0">🔍 Verificar</button>
         </div>
         <div id="nc-dir-result" style="display:none;margin-top:6px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
+      </div>
+      <div class="cli-field">
+        <label>Zona</label>
+        <input type="text" id="nc-zona" placeholder="ej: Norte, Centro, Sur">
+      </div>
+      <div class="cli-field">
+        <label>Recepciona</label>
+        <input type="text" id="nc-rec" placeholder="Nombre de quien recibe">
       </div>
       <div class="cli-field full">
         <label>Notas</label>
@@ -1653,6 +1700,14 @@ select option { background:#fff }
       <div class="cli-field full">
         <label>Notas</label>
         <input type="text" id="ec-nota">
+      </div>
+      <div class="cli-field">
+        <label>Zona</label>
+        <input type="text" id="ec-zona" placeholder="ej: Norte, Centro, Sur">
+      </div>
+      <div class="cli-field">
+        <label>Recepciona</label>
+        <input type="text" id="ec-rec" placeholder="Nombre de quien recibe">
       </div>
     </div>
     <input type="hidden" id="ec-key">
@@ -4567,7 +4622,14 @@ function _renderClientesList() {
   body.innerHTML = entries.map(function(entry) {
     var key = entry[0], u = entry[1];
     var inicial = (u.name||u.id||"?").charAt(0).toUpperCase();
-    var meta = [u.id ? "ID: "+u.id : null, u.tel ? "📞 "+u.tel : null, u.nota ? u.nota : null].filter(Boolean).join(" · ");
+    var metaParts = [
+      u.id   ? "ID: "+u.id : null,
+      u.tel  ? "📞 "+u.tel : null,
+      u.zona ? "🗺 "+u.zona : null,
+      u.rec  ? "👤 "+u.rec : null,
+      u.nota ? u.nota : null
+    ].filter(Boolean);
+    var meta = metaParts.join(" · ");
     return '<div class="cli-card">' +
       '<div class="cli-avatar">'+inicial+'</div>' +
       '<div class="cli-info">' +
@@ -4593,6 +4655,8 @@ async function guardarNuevoCliente() {
   var lista= document.getElementById("nc-lista").value;
   var dir  = document.getElementById("nc-dir").value.trim();
   var tel  = document.getElementById("nc-tel").value.trim();
+  var zona = document.getElementById("nc-zona").value.trim();
+  var rec  = document.getElementById("nc-rec").value.trim();
   var nota = document.getElementById("nc-nota").value.trim();
   if (!id)   { showNotif("El ID es obligatorio","err"); return; }
   if (!name) { showNotif("El nombre es obligatorio","err"); return; }
@@ -4601,11 +4665,13 @@ async function guardarNuevoCliente() {
   var nuevo = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true };
   if (dir)  nuevo.direccion = dir;
   if (tel)  nuevo.tel = tel;
+  if (zona) nuevo.zona = zona;
+  if (rec)  nuevo.rec  = rec;
   if (nota) nuevo.nota = nota;
   try {
     var pushKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
     _clientesDB[pushKey] = nuevo;
-    ["nc-id","nc-pass","nc-name","nc-dir","nc-tel","nc-nota"].forEach(function(fid){
+    ["nc-id","nc-pass","nc-name","nc-dir","nc-tel","nc-zona","nc-rec","nc-nota"].forEach(function(fid){
       var el=document.getElementById(fid); if(el)el.value="";
     });
     document.getElementById("nc-lista").value="Clientes";
@@ -4652,6 +4718,8 @@ function abrirEditCliente(pushKey) {
   document.getElementById("ec-tel").value   = u.tel   || "";
   document.getElementById("ec-dir").value   = u.direccion || "";
   document.getElementById("ec-nota").value  = u.nota  || "";
+  document.getElementById("ec-zona").value  = u.zona  || "";
+  document.getElementById("ec-rec").value   = u.rec   || "";
   var res=document.getElementById("ec-dir-result"); if(res)res.style.display="none";
   document.getElementById("modal-edit-cli").classList.add("open");
 }
@@ -4666,15 +4734,18 @@ async function guardarEditCliente() {
   var dir  = document.getElementById("ec-dir").value.trim();
   var tel  = document.getElementById("ec-tel").value.trim();
   var nota = document.getElementById("ec-nota").value.trim();
+  var zona = document.getElementById("ec-zona").value.trim();
+  var rec  = document.getElementById("ec-rec").value.trim();
   if (!id)   { showNotif("El ID es obligatorio","err"); return; }
   if (!name) { showNotif("El nombre es obligatorio","err"); return; }
-  // Check duplicate ID (ignore self)
   var dup = Object.entries(_clientesDB).find(function(e){ return e[0]!==pushKey && e[1].id===id; });
   if (dup) { showNotif("Ese ID ya lo usa otro cliente","err"); return; }
   var updated = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true };
   if (dir)  updated.direccion = dir;
   if (tel)  updated.tel = tel;
   if (nota) updated.nota = nota;
+  if (zona) updated.zona = zona;
+  if (rec)  updated.rec  = rec;
   try {
     await fbPatch("empresas/"+empresaKey+"/usuarios/"+pushKey, updated);
     _clientesDB[pushKey] = updated;
@@ -4682,6 +4753,194 @@ async function guardarEditCliente() {
     _renderClientesList();
     showNotif('✓ Cliente "'+name+'" actualizado',"ok");
   } catch(e) { showNotif("Error al guardar: "+e.message,"err"); }
+}
+
+/* ══ IMPORTADOR CSV DE CLIENTES ══ */
+var _csvRows = []; // filas parseadas listas para importar
+
+function toggleCsvImporter(){
+  var body = document.getElementById("csv-importer-body");
+  var btn  = document.getElementById("btn-toggle-csv");
+  var open = body.style.display !== "none";
+  body.style.display = open ? "none" : "block";
+  btn.textContent = open ? "Abrir" : "Cerrar";
+}
+
+function procesarCSVFile(file){
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var text = e.target.result;
+    _parsearCSVClientes(text, file.name);
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+function _parsearCSVClientes(text, filename){
+  // Detectar separador
+  var firstLine = text.split(/\r?\n/)[0] || "";
+  var sep = (firstLine.split(";").length >= firstLine.split(",").length) ? ";" : ",";
+
+  // Parsear líneas respetando comillas
+  function parseLine(line){
+    var result=[], cur="", inQ=false;
+    for(var c=0;c<line.length;c++){
+      var ch=line[c];
+      if(ch==='"'){ inQ=!inQ; }
+      else if(ch===sep && !inQ){ result.push(cur.trim()); cur=""; }
+      else{ cur+=ch; }
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  var lines = text.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length < 2){ _csvError("El archivo no tiene datos (mínimo encabezado + 1 fila)"); return; }
+
+  // Mapear encabezados → índices (flexible, ignora mayúsculas/acentos)
+  var rawHeaders = parseLine(lines[0]).map(function(h){ return h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,""); });
+  function findCol(keywords){
+    for(var k=0;k<keywords.length;k++){
+      var idx = rawHeaders.findIndex(function(h){ return h.includes(keywords[k]); });
+      if(idx>=0) return idx;
+    }
+    return -1;
+  }
+  var cols = {
+    id:     findCol(["id","codigo","cod","usuario"]),
+    nombre: findCol(["nombre","name","razon","cliente"]),
+    dir:    findCol(["direccion","domicilio","dir","address"]),
+    tel:    findCol(["telefono","tel","celular","phone","whatsapp"]),
+    zona:   findCol(["zona","area","sector","barrio"]),
+    rec:    findCol(["recepciona","recibe","recepcion","contacto","referente"])
+  };
+
+  if(cols.id < 0 && cols.nombre < 0){
+    _csvError("No se encontraron columnas de ID o NOMBRE. Verificá los encabezados del CSV."); return;
+  }
+
+  // Parsear filas
+  _csvRows = [];
+  var errores = [];
+  for(var i=1;i<lines.length;i++){
+    var r = parseLine(lines[i]);
+    var id     = cols.id>=0     ? (r[cols.id]||"").trim()     : "";
+    var nombre = cols.nombre>=0 ? (r[cols.nombre]||"").trim() : "";
+    var dir    = cols.dir>=0    ? (r[cols.dir]||"").trim()    : "";
+    var tel    = cols.tel>=0    ? (r[cols.tel]||"").trim()    : "";
+    var zona   = cols.zona>=0   ? (r[cols.zona]||"").trim()   : "";
+    var rec    = cols.rec>=0    ? (r[cols.rec]||"").trim()    : "";
+    if(!id && !nombre){ errores.push("Fila "+(i+1)+": sin ID ni nombre"); continue; }
+    if(!id) id = nombre.toLowerCase().replace(/\s+/g,"-").substring(0,12);
+    _csvRows.push({ id:id, nombre:nombre, dir:dir, tel:tel, zona:zona, rec:rec, _row:i+1 });
+  }
+
+  if(!_csvRows.length){ _csvError("No se pudieron leer filas válidas. "+errores.join(", ")); return; }
+
+  // Detectar duplicados con base existente
+  var idsExistentes = new Set(Object.values(_clientesDB).map(function(u){return u.id;}));
+  _csvRows.forEach(function(r){ r._dup = idsExistentes.has(r.id); });
+
+  var dups = _csvRows.filter(function(r){return r._dup;}).length;
+  var prevTitle = document.getElementById("csv-preview-title");
+  prevTitle.innerHTML = '<b>'+_csvRows.length+' clientes</b> encontrados en <i>'+filename+'</i>' +
+    (dups ? ' · <span style="color:var(--amber)">⚠ '+dups+' ya existen (se actualizarán)</span>' : ' · <span style="color:var(--green)">✓ Sin duplicados</span>');
+
+  // Tabla preview
+  var tableHTML = '<table style="width:100%;border-collapse:collapse;font-size:11.5px">'+
+    '<thead><tr style="position:sticky;top:0;background:var(--s3)">'+
+    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">ID</th>'+
+    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Nombre</th>'+
+    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Dirección</th>'+
+    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Teléfono</th>'+
+    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Zona</th>'+
+    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Recepciona</th>'+
+    '<th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Estado</th>'+
+    '</tr></thead><tbody>';
+  _csvRows.forEach(function(r){
+    var bg = r._dup ? "background:#fffbeb" : "";
+    var badge = r._dup
+      ? '<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:10px">Actualizar</span>'
+      : '<span style="font-size:10px;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 6px;border-radius:10px">Nuevo</span>';
+    tableHTML += '<tr style="border-bottom:1px solid var(--border2);'+bg+'">' +
+      '<td style="padding:6px 10px;font-family:monospace;color:var(--text)">'+escHtml(r.id)+'</td>'+
+      '<td style="padding:6px 10px;font-weight:600">'+escHtml(r.nombre)+'</td>'+
+      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.dir)+'</td>'+
+      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.tel)+'</td>'+
+      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.zona)+'</td>'+
+      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.rec)+'</td>'+
+      '<td style="padding:6px 10px;text-align:center">'+badge+'</td>'+
+    '</tr>';
+  });
+  tableHTML += '</tbody></table>';
+
+  document.getElementById("csv-preview-table-wrap").innerHTML = tableHTML;
+  document.getElementById("csv-import-result").style.display = "none";
+  document.getElementById("csv-preview").style.display = "block";
+}
+
+function escHtml(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function _csvError(msg){
+  document.getElementById("csv-preview").style.display="none";
+  showNotif("⚠ "+msg,"err");
+}
+
+function limpiarCSV(){
+  _csvRows = [];
+  document.getElementById("csv-preview").style.display = "none";
+  document.getElementById("csv-file-input").value = "";
+  document.getElementById("csv-import-result").style.display = "none";
+}
+
+async function importarCSV(){
+  if(!_csvRows.length){ showNotif("No hay datos para importar","err"); return; }
+  var btn = document.getElementById("btn-importar-csv");
+  btn.disabled = true; btn.textContent = "Importando…";
+
+  var idsExistentes = {}; // id → pushKey
+  Object.entries(_clientesDB).forEach(function(e){ idsExistentes[e[1].id] = e[0]; });
+
+  var importados=0, actualizados=0, errores=0;
+  var resultEl = document.getElementById("csv-import-result");
+
+  for(var i=0;i<_csvRows.length;i++){
+    var r = _csvRows[i];
+    var obj = { id:r.id, pass:r.id, name:r.nombre||r.id, lista:"Clientes", catalogo:true };
+    if(r.dir)  obj.direccion = r.dir;
+    if(r.tel)  obj.tel  = r.tel;
+    if(r.zona) obj.zona = r.zona;
+    if(r.rec)  obj.rec  = r.rec;
+
+    try {
+      if(r._dup && idsExistentes[r.id]){
+        // Actualizar existente
+        var pk = idsExistentes[r.id];
+        await fbPatchQ("empresas/"+empresaKey+"/usuarios/"+pk, obj, "CSV update: "+r.id);
+        _clientesDB[pk] = Object.assign(_clientesDB[pk]||{}, obj);
+        actualizados++;
+      } else {
+        // Nuevo
+        var newKey = await fbPushQ("empresas/"+empresaKey+"/usuarios", obj, "CSV nuevo: "+r.id);
+        if(newKey) _clientesDB[newKey] = obj;
+        importados++;
+      }
+    } catch(e){ errores++; console.warn("CSV import error row "+r._row, e); }
+
+    // Actualizar progreso
+    btn.textContent = "Importando "+(i+1)+"/"+_csvRows.length+"…";
+  }
+
+  btn.disabled = false; btn.textContent = "⬆ Importar";
+  _renderClientesList();
+
+  var resMsg = "✅ "+importados+" nuevo"+(importados!==1?"s":"")+
+    (actualizados>0 ? " · "+actualizados+" actualizado"+(actualizados!==1?"s":"") : "")+
+    (errores>0     ? " · ⚠ "+errores+" error"+(errores!==1?"es":"") : "");
+  resultEl.style.cssText = "display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:9px 12px;color:#065f46;font-weight:600";
+  resultEl.textContent = resMsg;
+  showNotif(resMsg,"ok");
+  _csvRows = [];
 }
 
 /* ── VERIFICADOR DE DIRECCIÓN ── */
