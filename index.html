@@ -2358,8 +2358,8 @@ function aplicarRol(){
       // Admin ve todo EXCEPTO mis-ventas (tiene vendedores en su lugar)
       show = (id !== "nav-mis-ventas");
     } else if (isVendedor) {
-      // Vendedor solo ve Nuevo Pedido y Mis Ventas
-      show = (id === "nav-pedido" || id === "nav-mis-ventas");
+      // Vendedor ve: Nuevo Pedido, Mis Ventas, Gestión de Clientes
+      show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes");
     } else {
       // Cualquier otro rol (cliente, etc.): solo pedido
       show = (id === "nav-pedido");
@@ -2386,7 +2386,7 @@ function verTab(id,btn){
   var role = currentUser ? (currentUser.role || "vendedor") : "vendedor";
   var isAdmin = role === "admin";
   var isVendedor = role === "vendedor" || !currentUser.role;
-  if (isVendedor && id !== "pedido" && id !== "mis-ventas") return;
+  if (isVendedor && id !== "pedido" && id !== "mis-ventas" && id !== "clientes") return;
   if (!isAdmin && id === "vendedores") return;
 
   document.querySelectorAll(".section").forEach(function(s){s.classList.remove("active");});
