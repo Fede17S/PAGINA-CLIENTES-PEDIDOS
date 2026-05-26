@@ -2118,6 +2118,26 @@ select option { background:#fff }
   </div>
 </div>
 
+<!-- MODAL ASIGNAR REPARTIDOR -->
+<div class="modal-bg" id="modal-asignar-rep">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-head">
+      <div class="modal-title">🚚 Asignar repartidor</div>
+      <button class="modal-cls" onclick="cerrarModal('modal-asignar-rep')">✕</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">El repartidor asignado verá esta hoja de ruta en su cuenta. Solo puede ver sus rutas asignadas.</div>
+    <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Repartidor</label>
+    <select id="sel-repartidor" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;background:#fff;margin-bottom:16px">
+      <option value="">— Sin asignar —</option>
+    </select>
+    <input type="hidden" id="asig-ruta-key">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="guardarAsignacion()" class="mbtn mbtn-primary" style="flex:1">💾 Guardar</button>
+      <button onclick="cerrarModal('modal-asignar-rep')" class="mbtn mbtn-ghost">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL RENOMBRAR -->
 <div class="modal-bg" id="modal-renombrar">
   <div class="modal-box">
@@ -2232,7 +2252,11 @@ function fbPatch(path, data){
   if(r==="usuarios" && id)  return _sbPatchUsuario(id, data);
   if(r==="ventas" && id)    return sbPatch("ventas","id=eq."+id, _ventaToRow(data));
   if(r==="rutas"){
-    if(p.length===4) return sbPatch("rutas","id=eq."+id+"&empresa_id=eq."+_sbEmpId, {nombre:data.nombre});
+    if(p.length===4) return sbPatch("rutas","id=eq."+id+"&empresa_id=eq."+_sbEmpId, {
+      nombre:          data.nombre          !== undefined ? data.nombre          : undefined,
+      repartidor_id:   data.repartidorId    !== undefined ? data.repartidorId    : undefined,
+      repartidor_nom:  data.repartidorNom   !== undefined ? data.repartidorNom   : undefined
+    });
     if(p.length>=6 && p[4]==="clientes") return _sbPatchRutaCli(p[3],p[5],data);
   }
   if(r==="cuentas_corrientes" && id) return _sbPatchCC(decodeURIComponent(id), data);
@@ -2364,7 +2388,7 @@ async function _sbInsertUsuario(u){ var rows=await sbPost("usuarios",{empresa_id
 async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
 async function _sbGetRutas(){
-  var rutas=await sbGet("rutas","select=id,nombre,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
+  var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
   if(!rutas||!rutas.length) return null;
   var ids=rutas.map(function(r){return r.id;}).join(",");
   var clis=await sbGet("ruta_clientes","select=*&ruta_id=in.("+ids+")&order=created_at.asc");
@@ -2372,7 +2396,7 @@ async function _sbGetRutas(){
   rutas.forEach(function(r){
     var cm={};
     (clis||[]).filter(function(c){return c.ruta_id===r.id;}).forEach(function(c){cm[c.id]={id:c.id,nom:c.nom,id:c.cliente_id,importe:c.importe,efectivo:c.efectivo,transferencia:c.transferencia,modo:c.modo,items:c.items||[],fecha:c.fecha,firma:c.firma||"",firmadoEn:c.firmado_en||"",pagosAdicionales:c.pagos_adicionales||[],comprobantes:c.comprobantes||[]};});
-    result[r.id]={nombre:r.nombre,fecha:r.fecha,clientes:cm};
+    result[r.id]={nombre:r.nombre,fecha:r.fecha,repartidorId:r.repartidor_id||null,repartidorNom:r.repartidor_nom||null,clientes:cm};
   });
   return result;
 }
@@ -2575,9 +2599,10 @@ function doLogout(){ if(!confirm("¿Cerrar sesión?"))return; sessionStorage.rem
 function iniciarApp(){ document.getElementById("login-screen").style.display="none"; document.getElementById("app").classList.add("on"); document.getElementById("sb-username").textContent=currentUser.name||currentUser.id; aplicarRol(); cargarCatalogo(); }
 function aplicarRol(){
   var role = currentUser.role || "vendedor";
-  var isAdmin    = role === "admin";
-  var isVendedor = role === "vendedor" || !currentUser.role;
-  var isCliente  = role === "cliente";
+  var isAdmin      = role === "admin";
+  var isVendedor   = role === "vendedor" || (!currentUser.role);
+  var isRepartidor = role === "repartidor";
+  var isCliente    = role === "cliente";
 
   var allNav = ["nav-pedido","nav-remito","nav-hoja","nav-mapa-entregas",
                 "nav-backup","nav-pedidos-acum","nav-resumen","nav-clientes","nav-productos",
@@ -2587,15 +2612,14 @@ function aplicarRol(){
     var el = document.getElementById(id);
     if (!el) return;
     var show = false;
-
     if (isAdmin) {
-      // Admin ve todo EXCEPTO mis-ventas (tiene vendedores en su lugar)
       show = (id !== "nav-mis-ventas");
     } else if (isVendedor) {
-      // Vendedor ve: Nuevo Pedido, Mis Ventas, Gestión de Clientes
       show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes");
+    } else if (isRepartidor) {
+      // Repartidor: solo Hoja de Ruta y Mapa de Entregas
+      show = (id === "nav-hoja" || id === "nav-mapa-entregas");
     } else {
-      // Cualquier otro rol (cliente, etc.): solo pedido
       show = (id === "nav-pedido");
     }
     el.style.display = show ? "flex" : "none";
@@ -2606,11 +2630,11 @@ function aplicarRol(){
   if(remVndWrap) remVndWrap.style.display = isAdmin ? "block" : "none";
   if(isAdmin) _poblarSelectorVendedores();
 
-  // Si el vendedor carga la app, lo mandamos directo a Nuevo Pedido
+  // Navegación inicial por rol
   if (isVendedor) {
-    setTimeout(function(){
-      verTab("pedido", document.getElementById("nav-pedido"));
-    }, 100);
+    setTimeout(function(){ verTab("pedido", document.getElementById("nav-pedido")); }, 100);
+  } else if (isRepartidor) {
+    setTimeout(function(){ verTab("hoja", document.getElementById("nav-hoja")); }, 100);
   }
 }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
@@ -2618,10 +2642,12 @@ function closeSidebar(){ document.getElementById("sidebar").classList.remove("op
 function verTab(id,btn){
   // Guard: vendedor solo puede acceder a pedido y mis-ventas
   var role = currentUser ? (currentUser.role || "vendedor") : "vendedor";
-  var isAdmin = role === "admin";
-  var isVendedor = role === "vendedor" || !currentUser.role;
-  if (isVendedor && id !== "pedido" && id !== "mis-ventas" && id !== "clientes") return;
-  if (!isAdmin && id === "vendedores") return;
+  var isAdmin      = role === "admin";
+  var isVendedor   = role === "vendedor" || !currentUser.role;
+  var isRepartidor = role === "repartidor";
+  if (isVendedor    && id !== "pedido" && id !== "mis-ventas" && id !== "clientes") return;
+  if (isRepartidor  && id !== "hoja"   && id !== "mapa-entregas") return;
+  if (!isAdmin      && id === "vendedores") return;
 
   document.querySelectorAll(".section").forEach(function(s){s.classList.remove("active");});
   document.querySelectorAll(".sb-item").forEach(function(b){b.classList.remove("active");});
@@ -3317,7 +3343,86 @@ function descontarStock(items){
 
 
 // ══ RUTAS ══
-function cargarRutasFirebase(){ setStatus("fb-hoja-status","sync","☁️ Cargando…"); fbGet("empresas/"+empresaKey+"/rutas").then(function(d){rutasData=d||{};setStatus("fb-hoja-status","ok","✅");renderRutas();}).catch(function(){setStatus("fb-hoja-status","err","❌");}); }
+// ══ SISTEMA REPARTIDOR ══
+
+function _getRepartidores(){
+  // Obtener todos los usuarios con role=repartidor
+  if(!empresaData || !empresaData.usuarios) return [];
+  return Object.entries(empresaData.usuarios)
+    .filter(function(e){ return e[1].role === "repartidor"; })
+    .map(function(e){ return { sbId: e[0], uid: e[1].id||e[0], nombre: e[1].name||e[1].id||"Repartidor" }; });
+}
+
+function abrirAsignarRepartidor(rutaKey){
+  var reps = _getRepartidores();
+  var sel  = document.getElementById("sel-repartidor");
+  var ruta = rutasData[rutaKey] || {};
+
+  if(!reps.length){
+    showNotif("No hay repartidores registrados. Creá un usuario con rol 'repartidor' en Gestión de Clientes.", "err");
+    return;
+  }
+
+  sel.innerHTML = '<option value="">— Sin asignar —</option>' +
+    reps.map(function(r){
+      var sel2 = ruta.repartidorId === r.uid ? " selected" : "";
+      return '<option value="'+r.uid+'"'+sel2+'>'+r.nombre+'</option>';
+    }).join('');
+
+  document.getElementById("asig-ruta-key").value = rutaKey;
+  abrirModal("modal-asignar-rep");
+}
+
+async function guardarAsignacion(){
+  var rutaKey = document.getElementById("asig-ruta-key").value;
+  var repUid  = document.getElementById("sel-repartidor").value;
+  if(!rutaKey) return;
+
+  var repNom = "";
+  if(repUid){
+    var reps = _getRepartidores();
+    var rep  = reps.find(function(r){ return r.uid === repUid; });
+    repNom   = rep ? rep.nombre : repUid;
+  }
+
+  try {
+    await fbPatch("empresas/"+empresaKey+"/rutas/"+rutaKey, {
+      repartidorId:  repUid  || null,
+      repartidorNom: repNom  || null
+    });
+    // Actualizar en memoria
+    if(rutasData[rutaKey]){
+      rutasData[rutaKey].repartidorId  = repUid  || null;
+      rutasData[rutaKey].repartidorNom = repNom  || null;
+    }
+    cerrarModal("modal-asignar-rep");
+    renderRutas();
+    showNotif(repUid ? "✓ Ruta asignada a "+repNom : "✓ Asignación removida", "ok");
+  } catch(e){
+    showNotif("Error al guardar asignación", "err");
+  }
+}
+
+function cargarRutasFirebase(){
+  var role = currentUser ? (currentUser.role||"vendedor") : "vendedor";
+  setStatus("fb-hoja-status","sync","☁️ Cargando…");
+  fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
+    var all = d || {};
+    // Repartidor: filtrar solo sus rutas asignadas
+    if(role === "repartidor"){
+      var uid = currentUser.id;
+      var filtradas = {};
+      Object.entries(all).forEach(function(e){
+        if(e[1].repartidorId === uid) filtradas[e[0]] = e[1];
+      });
+      rutasData = filtradas;
+    } else {
+      rutasData = all;
+    }
+    setStatus("fb-hoja-status","ok","✅");
+    renderRutas();
+  }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
+}
 function crearNuevaRuta(){ var nombre=prompt("Nombre para esta ruta:"); if(!nombre||!nombre.trim())return; var nv={nombre:nombre.trim(),fecha:new Date().toISOString(),clientes:{}}; fbPush("empresas/"+empresaKey+"/rutas",nv).then(function(key){rutasData[key]=nv;rutaAbierta=key;renderRutas();}).catch(function(){alert("Error al crear ruta.");}); }
 function borrarRuta(rk){ if(!confirm("¿Borrar esta hoja de ruta completa?"))return; fbDel("empresas/"+empresaKey+"/rutas/"+rk).then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();}).catch(function(){alert("Error al borrar.");}); }
 function calcRuta(ruta){
@@ -3364,7 +3469,10 @@ function renderRutas(){
     toggleBtn.className="ruta-list-btn"+(isOpen?" open":"");
     toggleBtn.dataset.rk=rutaKey;
     toggleBtn.innerHTML=
-      '<div style="flex:1;min-width:0"><div class="ruta-fecha">'+(ruta.nombre||fecha)+'</div><div class="ruta-resumen">'+fecha+' · '+calc.clientes+' clientes · '+calc.pagados+'/'+calc.clientes+' pagados</div></div>'+
+      '<div style="flex:1;min-width:0"><div class="ruta-fecha">'+(ruta.nombre||fecha)+'</div>'+
+      '<div class="ruta-resumen">'+fecha+' · '+calc.clientes+' clientes · '+calc.pagados+'/'+calc.clientes+' pagados'+
+        (ruta.repartidorNom ? ' · <span style="color:var(--green);font-weight:600">🚚 '+ruta.repartidorNom+'</span>' : '')+
+      '</div></div>'+
       '<div class="ruta-chips">'+
         (calc.saldo<=0?'<span class="chip chip-ok">✓ Cobrado</span>':'<span class="chip chip-warn">$'+fM(calc.saldo)+' pend.</span>')+
         '<span style="color:var(--muted2);font-size:15px">'+(isOpen?"▲":"▼")+'</span>'+
@@ -3408,13 +3516,30 @@ function renderRutas(){
     btnRen.className="btn-rename"; btnRen.textContent="✏️ Renombrar";
     btnRen.onclick=function(){abrirRenombrar(rutaKey);};
 
-    var btnDel=document.createElement("button");
-    btnDel.className="btn-del-ruta"; btnDel.textContent="🗑 Borrar ruta";
-    btnDel.onclick=function(){borrarRuta(rutaKey);};
+    // Asignar repartidor (solo admin)
+    var role = currentUser ? (currentUser.role||"vendedor") : "vendedor";
+    if(role==="admin"){
+      var btnAsign=document.createElement("button");
+      var rutaAsig = ruta.repartidorId ? ruta.repartidorNom||"Asignado" : null;
+      btnAsign.className="btn-rename";
+      btnAsign.style.background = rutaAsig ? "var(--green-bg)" : "";
+      btnAsign.style.color      = rutaAsig ? "var(--green)"    : "";
+      btnAsign.style.border     = rutaAsig ? "1px solid oklch(88% 0.04 155)" : "";
+      btnAsign.textContent = rutaAsig ? "🚚 "+rutaAsig : "🚚 Asignar repartidor";
+      btnAsign.onclick=function(){abrirAsignarRepartidor(rutaKey);};
+      actBtns.appendChild(btnPDF);
+      actBtns.appendChild(btnRen);
+      actBtns.appendChild(btnAsign);
+    } else {
+      actBtns.appendChild(btnPDF);
+    }
 
-    actBtns.appendChild(btnPDF);
-    actBtns.appendChild(btnRen);
-    actBtns.appendChild(btnDel);
+    var btnDel=document.createElement("button");
+    if(role==="admin"){
+      btnDel.className="btn-del-ruta"; btnDel.textContent="🗑 Borrar ruta";
+      btnDel.onclick=function(){borrarRuta(rutaKey);};
+      actBtns.appendChild(btnDel);
+    }
     detail.appendChild(actBtns);
 
     outer.appendChild(detail);
