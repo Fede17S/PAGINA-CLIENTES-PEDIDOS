@@ -1571,6 +1571,14 @@ select option { background:#fff }
     </div>
   </div>
   <div class="card"><div class="card-body"><textarea id="obs-rem" placeholder="Observaciones para el remito…" rows="2"></textarea></div></div>
+  <!-- Atribución de vendedor (solo admin) -->
+  <div id="rem-vendedor-wrap" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;display:none">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Atribuir remito a vendedor</div>
+    <select id="rem-vendedor-uid" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
+      <option value="">— Sin atribución (admin) —</option>
+    </select>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">Este remito contará en las ventas y comisión del vendedor seleccionado.</div>
+  </div>
   <button class="btn btn-primary" onclick="generarPDF('remito')">💾 Guardar en Ruta</button>
 </div>
 
@@ -2359,8 +2367,12 @@ function aplicarRol(){
     el.style.display = show ? "flex" : "none";
   });
 
-  // Si el vendedor carga la app, lo mandamos directo a Mis Ventas
-  // (o a Nuevo Pedido si se lo configuró así)
+  // Mostrar selector de vendedor en remito solo para admin
+  var remVndWrap = document.getElementById("rem-vendedor-wrap");
+  if(remVndWrap) remVndWrap.style.display = isAdmin ? "block" : "none";
+  if(isAdmin) _poblarSelectorVendedores();
+
+  // Si el vendedor carga la app, lo mandamos directo a Nuevo Pedido
   if (isVendedor) {
     setTimeout(function(){
       verTab("pedido", document.getElementById("nav-pedido"));
@@ -2421,6 +2433,8 @@ function cargarCatalogo(){
     }
     if(!navigator.onLine && msg){ msg.className="warn"; msg.textContent="📦 Catálogo offline (cache)"; }
     empresaData=Object.assign({},empresaData,emp);
+    // Actualizar selector de vendedores si es admin
+    if(currentUser && (currentUser.role==="admin")) _poblarSelectorVendedores();
     var productos=emp.productos||null;
     if(productos&&Object.keys(productos).length>0){
       dbStock=[];
@@ -2801,7 +2815,16 @@ function generarPDF(m){
 
   if(m==="remito"){
     var totalNum=totalFinal, ahora=new Date();
-    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),total:totalNum,usuario:currentUser.id};
+    // Determinar a quién atribuir el remito
+    var vendedorSel = document.getElementById("rem-vendedor-uid");
+    var usuarioRemito = (vendedorSel && vendedorSel.value) ? vendedorSel.value : currentUser.id;
+    var usuarioNom = usuarioRemito === currentUser.id ? (currentUser.name||currentUser.id) : usuarioRemito;
+    // Si el admin eligió un vendedor, buscar el nombre
+    if(usuarioRemito !== currentUser.id && empresaData.usuarios){
+      var uObj=Object.values(empresaData.usuarios).find(function(u){return u.id===usuarioRemito;});
+      if(uObj) usuarioNom=uObj.name||uObj.id;
+    }
+    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),total:totalNum,usuario:usuarioRemito,usuarioNom:usuarioNom};
     var itemsCopy=ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};});
     var cliIdRem=document.getElementById("idCli-rem").value;
     fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Venta remito "+nom).then(function(){
@@ -6559,6 +6582,29 @@ function _poblarFiltrosVnd(){
   if(selM) selM.innerHTML='<option value="">Todo el año</option>'+MESES.map(function(m,i){return '<option value="'+i+'"'+(i===now.getMonth()?" selected":"")+'>'+m+'</option>';}).join('');
 }
 
+function _poblarSelectorVendedores(){
+  var sel = document.getElementById("rem-vendedor-uid");
+  if(!sel || !empresaData.usuarios) return;
+  var usuarios = Object.values(empresaData.usuarios);
+  var vendedores = usuarios.filter(function(u){ return u.role==="vendedor" || (!u.role && u.id !== currentUser.id); });
+  vendedores.sort(function(a,b){ return (a.name||a.id).localeCompare(b.name||b.id,"es"); });
+  sel.innerHTML = '<option value="">— Sin atribución (admin) —</option>' +
+    vendedores.map(function(u){
+      return '<option value="'+u.id+'">'+(u.name||u.id)+'</option>';
+    }).join('');
+}
+
+function borrarVentaVnd(fbKey, vendorName, total){
+  if(!confirm('¿Eliminar este remito de '+vendorName+'?\n\nMonto: $'+fM(total)+'\n\nEsto afectará el total de ventas y la comisión de este vendedor.')) return;
+  fbDel("empresas/"+empresaKey+"/ventas/"+fbKey)
+    .then(function(){
+      _vndVentas = _vndVentas.filter(function(v){ return v.fbKey!==fbKey; });
+      renderVendedores();
+      showNotif("Remito eliminado","ok");
+    })
+    .catch(function(){ showNotif("Error al eliminar","err"); });
+}
+
 function renderVendedores(){
   var body=document.getElementById("vnd-body"); if(!body) return;
   var anio=parseInt((document.getElementById("vnd-fil-anio")||{}).value)||new Date().getFullYear();
@@ -6615,7 +6661,8 @@ function renderVendedores(){
           ventasOrd.map(function(v){
             var fecha=new Date(v.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"});
             var itemsHTML=(v.items||[]).map(function(it){return '<div class="mv-prod-row"><span style="flex:1">'+escHtml(it.n)+'</span><span style="color:var(--muted)">×'+it.c+'</span><span style="font-weight:700;width:80px;text-align:right">$'+fM(it.sub||it.p*it.c)+'</span></div>';}).join('');
-            return '<div class="vnd-detail-row" onclick="event.stopPropagation();var nx=this.nextElementSibling;nx.classList.toggle(&quot;open&quot;)"><span class="vnd-det-date">'+fecha+'</span><span class="vnd-det-cli">'+escHtml(v.clienteNom||"")+'</span><span class="vnd-det-tot">$'+fM(v.total)+'</span></div>'+
+            var delBtn='<button onclick="event.stopPropagation();borrarVentaVnd(\''+v.fbKey+'\',\''+escHtml(vnd.nombre)+'\','+v.total+')" title="Eliminar este remito" style="flex-shrink:0;padding:3px 8px;border:1px solid #fca5a5;background:#fff0f0;color:#b91c1c;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑</button>';
+            return '<div class="vnd-detail-row" onclick="event.stopPropagation();var nx=this.nextElementSibling;nx.classList.toggle(&quot;open&quot;)"><span class="vnd-det-date">'+fecha+'</span><span class="vnd-det-cli">'+escHtml(v.clienteNom||"")+'</span><span class="vnd-det-tot">$'+fM(v.total)+'</span>'+delBtn+'</div>'+
               '<div class="mv-remito-detail" style="border-radius:0;margin-bottom:0">'+(itemsHTML||'<div style="font-size:11px;color:var(--muted)">Sin detalle</div>')+'</div>';
           }).join('')+
         '</div>'+
