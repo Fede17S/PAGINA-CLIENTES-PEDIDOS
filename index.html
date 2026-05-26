@@ -1321,8 +1321,11 @@ select option { background:#fff }
 <div id="main-wrapper">
 
 <!-- OFFLINE BANNER -->
-<div id="offline-banner" style="display:none;background:#dc2626;color:#fff;padding:8px 16px;text-align:center;font-size:12px;font-weight:700;position:sticky;top:0;z-index:250">
-  📶 Sin conexión — los datos se sincronizarán al reconectarse
+<div id="offline-banner" style="display:none;background:#1a0e00;color:#fbbf24;padding:10px 16px;text-align:center;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;display:flex;align-items:center;justify-content:center;gap:10px">
+  <span>📵</span>
+  <span id="offline-text">Sin conexión — Modo offline activo</span>
+  <span id="offline-pending-badge" style="display:none;background:#dc2626;color:#fff;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:800"></span>
+  <span id="offline-syncing" style="display:none;font-size:11px;opacity:.8;font-weight:400">↻ Sincronizando…</span>
 </div>
 
 <header class="app-header">
@@ -1826,6 +1829,7 @@ window.onload = function(){
   var saved = sessionStorage.getItem("dm_session");
   if(saved){ try{ var s=JSON.parse(saved); empresaKey=s.empresaKey; currentUser=s.user; empresaData=s.empresaData; aplicarBranding();
     if (!checkEmpresaAccess(s.empresaData||{})) { sessionStorage.removeItem("dm_session"); return; }
+    _loadReadCache(); _loadQueue(); _updateBanner();
     aplicarRestricciones();
     iniciarApp(); }catch(e){ sessionStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
@@ -1879,6 +1883,8 @@ function doLogin(){
     sessionStorage.setItem("dm_session",JSON.stringify({empresaKey:key,user:currentUser,empresaData:emp}));
     document.getElementById("l-pass").value="";
     err.textContent=""; dbg.style.display="none";
+    // Cargar queue offline pendiente y cache de lecturas con la key de empresa correcta
+    _loadReadCache(); _loadQueue(); _updateBanner();
     aplicarBranding(); aplicarRestricciones(); iniciarApp();
   }).catch(function(e){if(e.message!=="blocked"){err.textContent="❌ Error: "+e.message;addLog("Error: "+e.message);}});
 }
@@ -2027,19 +2033,20 @@ function cargarCatalogo(){
     console.error("cargarCatalogo: empresaKey vacío");
     return;
   }
-  fbGet("empresas/"+empresaKey).then(function(emp){
+  _loadReadCache();
+  fbGetCached("empresas/"+empresaKey).then(function(emp){
     if(!emp){
       if(msg){msg.className="err"; msg.textContent="❌ Empresa no encontrada";}
       alert("Error: No se encontraron datos de la empresa (key="+empresaKey+"). Avisá al admin.");
       return;
     }
+    if(!navigator.onLine && msg){ msg.className="warn"; msg.textContent="📦 Catálogo offline (cache)"; }
     empresaData=Object.assign({},empresaData,emp);
     var productos=emp.productos||null;
     if(productos&&Object.keys(productos).length>0){
       dbStock=[];
-      var _catIndex = {}; // {catNombre: [prod, prod, ...]}
+      var _catIndex = {};
       Object.values(productos).filter(function(p){return p.nombre;}).forEach(function(p){
-        // Limpiar categoria (puede venir con comillas escapadas: "\"Pilas & Filos\"")
         var cat = (p.categoria||"Sin categoría").replace(/^"+|"+$/g,"").replace(/\\"/g,"").trim()||"Sin categoría";
         var id  = p.codigo ? String(p.codigo) : p.nombre.substring(0,4);
         var prod = {id:id, n:p.nombre, pCli:p.precioClientes||0, pPat:p.precioPatagonia||0, cat:cat, foto:p.foto||""};
@@ -2047,7 +2054,6 @@ function cargarCatalogo(){
         if(!_catIndex[cat]) _catIndex[cat]=[];
         _catIndex[cat].push(prod);
       });
-      // Guardar índice de categorías globalmente
       window._catIndex = _catIndex;
     } else {
       // Fallback: stockCSV
@@ -2063,20 +2069,19 @@ function cargarCatalogo(){
     }
     if(msg){
       if(dbStock.length>0){
-        msg.className="ok"; msg.textContent="✅ "+dbStock.length+" prods";
+        msg.className="ok"; msg.textContent= navigator.onLine ? "✅ "+dbStock.length+" prods" : "📦 "+dbStock.length+" prods (offline)";
       } else {
         msg.className="warn"; msg.textContent="⚠️ Sin productos";
         console.warn("cargarCatalogo: dbStock vacío para empresa key="+empresaKey);
       }
     }
-    // Cargar clientes — solo rol cliente/sin rol (excluir al vendedor logueado)
+    // Cargar clientes
     var usuarios=emp.usuarios||{};
     var cliDeUsu=Object.values(usuarios).filter(function(u){
       return u.id && u.id !== currentUser.id && (u.role==="cliente"||!u.role);
     }).map(function(u){
       return{id:u.id,nombre:u.name||u.id,lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.telefono||""};
     });
-    // Fallback CSV
     var rawC=emp.clientesCSV||"";
     var lC=rawC.split("\n").filter(function(l){return l.trim();});
     var cliDeCSV=[];
@@ -2091,7 +2096,9 @@ function cargarCatalogo(){
   }).catch(function(e){
     console.error("cargarCatalogo error:", e);
     if(msg){msg.className="err"; msg.textContent="❌ Error red";}
-    alert("Error al cargar productos: "+e.message+". Revisá la conexión o las reglas de Firebase.");
+    if(navigator.onLine){
+      alert("Error al cargar productos: "+e.message+". Revisá la conexión o las reglas de Firebase.");
+    }
   });
 }
 function actualizarDL(){
@@ -2341,17 +2348,18 @@ function generarPDF(m){
     var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),total:totalNum,usuario:currentUser.id};
     var itemsCopy=ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};});
     var cliIdVal=document.getElementById("idCli-rem").value;
-    fbPush("empresas/"+empresaKey+"/ventas",venta).then(function(){
+    fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Venta remito "+nom).then(function(){
       var hoy=new Date().toLocaleDateString("es-AR");
       var keys=Object.keys(rutasData);
       var rutaHoy=keys.find(function(k){return rutasData[k].fecha&&new Date(rutasData[k].fecha).toLocaleDateString("es-AR")===hoy;});
       var rkPromise;
       if(rutaAbierta)rkPromise=Promise.resolve(rutaAbierta);
       else if(rutaHoy)rkPromise=Promise.resolve(rutaHoy);
-      else{var nn="Ruta "+new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});var nv={nombre:nn,fecha:ahora.toISOString(),clientes:{}};rkPromise=fbPush("empresas/"+empresaKey+"/rutas",nv).then(function(k){rutasData[k]=nv;rutaAbierta=k;return k;});}
+      else{var nn="Ruta "+new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});var nv={nombre:nn,fecha:ahora.toISOString(),clientes:{}};rkPromise=fbPushQ("empresas/"+empresaKey+"/rutas",nv,"Nueva ruta offline").then(function(k){if(k&&k.length>5){rutasData[k]=nv;rutaAbierta=k;}return k;});}
       return rkPromise.then(function(rk){
+        if(!rk||rk.startsWith("op_"))return; // offline — ruta se creará al sincronizar
         var cd={nom:nom,id:cliIdVal,importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:itemsCopy,fecha:ahora.toISOString()};
-        return fbPush("empresas/"+empresaKey+"/rutas/"+rk+"/clientes",cd).then(function(ck){if(!rutasData[rk])rutasData[rk]={clientes:{}};if(!rutasData[rk].clientes)rutasData[rk].clientes={};rutasData[rk].clientes[ck]=cd;});
+        return fbPushQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes",cd,"Cliente ruta: "+nom).then(function(ck){if(ck&&!ck.startsWith("op_")){if(!rutasData[rk])rutasData[rk]={clientes:{}};if(!rutasData[rk].clientes)rutasData[rk].clientes={};rutasData[rk].clientes[ck]=cd;}});
       });
     }).catch(function(e){console.warn("Firebase:",e);});
   }
@@ -2410,9 +2418,10 @@ function cargarStock(){
   var list=document.getElementById("stk-list");
   if(list)list.innerHTML='<div class="empty-box"><div class="empty-icon">⏳</div>Cargando…</div>';
   if(!empresaKey)return;
+  _loadReadCache();
   Promise.all([
-    fbGet("empresas/"+empresaKey+"/stock"),
-    fbGet("empresas/"+empresaKey+"/stockConfig")
+    fbGetCached("empresas/"+empresaKey+"/stock"),
+    fbGetCached("empresas/"+empresaKey+"/stockConfig")
   ]).then(function(res){
     stockData=res[0]||{};
     stockConfig=res[1]||{};
@@ -2505,9 +2514,8 @@ function setStock(pid, val){
 function _guardarStockProd(pid, qty){
   stockData[pid]=qty;
   var patch={}; patch[pid]=qty;
-  fbPatch("empresas/"+empresaKey+"/stock", patch)
-    .then(function(){ renderStock(); })
-    .catch(function(){ alert("Error al guardar stock"); });
+  fbPatchQ("empresas/"+empresaKey+"/stock", patch, "Stock: "+pid+" = "+qty)
+    .then(function(){ renderStock(); });
 }
 
 function guardarUmbral(pid){
@@ -2516,9 +2524,8 @@ function guardarUmbral(pid){
   if(!stockConfig[pid])stockConfig[pid]={};
   stockConfig[pid].umbral=val;
   var patch={}; patch[pid]={umbral:val};
-  fbPatch("empresas/"+empresaKey+"/stockConfig", patch)
-    .then(function(){ renderStock(); showNotif("Umbral actualizado para este producto","ok"); })
-    .catch(function(){ showNotif("Error al guardar umbral","err"); });
+  fbPatchQ("empresas/"+empresaKey+"/stockConfig", patch, "Umbral: "+pid)
+    .then(function(){ renderStock(); showNotif("Umbral actualizado"+(navigator.onLine?"":" (offline, se sincronizará)"), "ok"); });
 }
 
 function descontarStock(items){
@@ -2527,13 +2534,13 @@ function descontarStock(items){
   items.forEach(function(it){
     var actual=stockData[it.id]!==undefined ? stockData[it.id] : null;
     if(actual!==null){
-      var nuevo=actual-it.c; // puede quedar negativo — es intencional
+      var nuevo=actual-it.c;
       patch[it.id]=nuevo;
       stockData[it.id]=nuevo;
       changed=true;
     }
   });
-  if(changed) fbPatch("empresas/"+empresaKey+"/stock", patch).catch(function(){});
+  if(changed) fbPatchQ("empresas/"+empresaKey+"/stock", patch, "Descuento stock remito");
 }
 
 
@@ -3846,11 +3853,141 @@ function borrarFirma(rk, ck) {
 }
 
 
-/* ── ONLINE/OFFLINE ── */
-function actualizarEstadoConexion() {
-  var banner = document.getElementById("offline-banner");
-  if (banner) banner.style.display = navigator.onLine ? "none" : "block";
-  if (navigator.onLine) sincronizarPendientesBackup();
+/* ══════════════════════════════════════════════════════
+   SISTEMA OFFLINE COMPLETO
+   ─ Queue persistente de escrituras en localStorage
+   ─ Cache de lecturas para catálogo / clientes / stock
+   ─ Auto-sync al reconectarse
+   ─ Generación de PDF siempre disponible (100% local)
+══════════════════════════════════════════════════════ */
+
+var _offlineQueue  = [];   // ops pendientes de sync: [{id,method,path,data,ts,desc}]
+var _readCache     = {};   // {path: {data, ts}}
+var _isSyncing     = false;
+
+function _ofKey(suffix){ return "dm_offq_"+(empresaKey||"global")+(suffix||""); }
+function _cacheKey(suffix){ return "dm_rcache_"+(empresaKey||"global")+(suffix||""); }
+
+/* ─ Persistencia de queue ─ */
+function _loadQueue(){
+  try { _offlineQueue = JSON.parse(localStorage.getItem(_ofKey())||"[]"); } catch(e){ _offlineQueue=[]; }
+}
+function _saveQueue(){
+  try { localStorage.setItem(_ofKey(), JSON.stringify(_offlineQueue)); } catch(e){}
+}
+
+/* ─ Cache de lecturas ─ */
+function _saveReadCache(path, data){
+  _readCache[path] = { data: data, ts: Date.now() };
+  try {
+    var raw = JSON.parse(localStorage.getItem(_cacheKey())||"{}");
+    raw[path] = _readCache[path];
+    localStorage.setItem(_cacheKey(), JSON.stringify(raw));
+  } catch(e){}
+}
+function _loadReadCache(){
+  try { _readCache = JSON.parse(localStorage.getItem(_cacheKey())||"{}"); } catch(e){ _readCache={}; }
+}
+function _getCached(path){
+  return (_readCache[path] || null);
+}
+
+/* ─ fbGet con cache automático ─ */
+function fbGetCached(p){
+  return fbGet(p)
+    .then(function(data){ _saveReadCache(p, data); return data; })
+    .catch(function(){
+      var cached = _getCached(p);
+      if(cached){ console.log("[Offline] cache hit:", p); return cached.data; }
+      return null;
+    });
+}
+
+/* ─ Encolar operación offline ─ */
+function _enqueue(method, path, data, desc){
+  var op = { id:"op_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), method:method, path:path, data:data, ts:new Date().toISOString(), desc:desc||"" };
+  _offlineQueue.push(op);
+  _saveQueue();
+  _updateBanner();
+  return Promise.resolve(op.id);
+}
+
+/* ─ Firebase wrappers offline-aware ─ */
+function fbPushQ(path, data, desc){
+  if(!navigator.onLine) return _enqueue("POST", path, data, desc);
+  return fbPush(path, data).catch(function(){ return _enqueue("POST", path, data, desc); });
+}
+function fbPatchQ(path, data, desc){
+  if(!navigator.onLine){ _enqueue("PATCH", path, data, desc); return Promise.resolve(); }
+  return fbPatch(path, data).catch(function(){ _enqueue("PATCH", path, data, desc); return Promise.resolve(); });
+}
+function fbDelQ(path, desc){
+  if(!navigator.onLine){ _enqueue("DELETE", path, null, desc); return Promise.resolve(); }
+  return fbDel(path).catch(function(){ _enqueue("DELETE", path, null, desc); return Promise.resolve(); });
+}
+
+/* ─ Sincronizar cola al reconectarse ─ */
+function _syncQueue(){
+  if(_isSyncing || !navigator.onLine || !_offlineQueue.length) return;
+  _isSyncing = true;
+  _showSyncing(true);
+  var ops = _offlineQueue.slice();
+  var synced = 0, failed = [];
+  var total = ops.length;
+  function _done(){
+    synced + failed.length === total && (function(){
+      _offlineQueue = failed;
+      _saveQueue();
+      _isSyncing = false;
+      _showSyncing(false);
+      _updateBanner();
+      if(synced > 0){
+        showNotif("☁️ "+synced+" operación"+(synced>1?"es":"")+" sincronizada"+(synced>1?"s":"")+" con éxito","ok");
+        // Recargar stock si había cambios pendientes
+        if(ops.some(function(o){return o.path&&o.path.includes("/stock");})) cargarStock();
+      }
+    })();
+  }
+  ops.forEach(function(op){
+    var prom;
+    if(op.method==="POST")        prom = fbPush(op.path, op.data);
+    else if(op.method==="PATCH")  prom = fbPatch(op.path, op.data);
+    else if(op.method==="DELETE") prom = fbDel(op.path);
+    else prom = Promise.resolve();
+    prom.then(function(){ synced++; _done(); }).catch(function(){ failed.push(op); _done(); });
+  });
+}
+
+/* ─ Banner ─ */
+function _updateBanner(){
+  var banner  = document.getElementById("offline-banner");
+  var badge   = document.getElementById("offline-pending-badge");
+  var txt     = document.getElementById("offline-text");
+  if(!banner) return;
+  if(navigator.onLine){
+    banner.style.display = "none";
+  } else {
+    banner.style.display = "flex";
+    var n = _offlineQueue.length;
+    if(badge){
+      badge.style.display = n > 0 ? "inline-block" : "none";
+      badge.textContent   = n+" pendiente"+(n>1?"s":"");
+    }
+    if(txt) txt.textContent = "📵 Sin conexión — modo offline activo, podés seguir trabajando";
+  }
+}
+function _showSyncing(on){
+  var el = document.getElementById("offline-syncing");
+  if(el) el.style.display = on ? "inline" : "none";
+}
+
+/* ─ ONLINE / OFFLINE handlers ─ */
+function actualizarEstadoConexion(){
+  _updateBanner();
+  if(navigator.onLine){
+    _syncQueue();
+    sincronizarPendientesBackup();
+  }
 }
 window.addEventListener("online",  actualizarEstadoConexion);
 window.addEventListener("offline", actualizarEstadoConexion);
@@ -5140,18 +5277,78 @@ function eliminarProducto(key) {
   });
 }
 
-// ── PWA: Registrar Service Worker ──
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./sw.js')
-      .then(function(reg) {
-        console.log('[PWA] SW registrado:', reg.scope);
+// ── PWA: Service Worker offline (single-file blob approach) ──
+(function(){
+  var SW_CODE = `
+const CACHE = 'distrimax-v2';
+const ASSETS = [
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'
+];
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => {
+      // Cache CDN assets — ignore failures
+      return Promise.allSettled(ASSETS.map(u => c.add(u).catch(()=>{})));
+    })
+  );
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+self.addEventListener('fetch', e => {
+  const url = e.request.url;
+  // Firebase REST — red primero, no interferir
+  if(url.includes('firebaseio.com') || url.includes('firebase.google')) return;
+  // CDN libs — cache primero
+  if(url.includes('unpkg.com') || url.includes('cdnjs.cloudflare') || url.includes('fonts.g')) {
+    e.respondWith(
+      caches.match(e.request).then(c => c || fetch(e.request).then(r => {
+        const clone = r.clone();
+        caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        return r;
+      }))
+    );
+    return;
+  }
+  // HTML y resto — red primero, cache de fallback
+  e.respondWith(
+    fetch(e.request)
+      .then(r => {
+        if(r.ok && e.request.method === 'GET'){
+          const clone = r.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return r;
       })
-      .catch(function(err) {
-        console.warn('[PWA] SW falló:', err);
+      .catch(() => caches.match(e.request))
+  );
+});
+`;
+  if(!('serviceWorker' in navigator)) return;
+  try {
+    var blob = new Blob([SW_CODE], {type:'application/javascript'});
+    var swURL = URL.createObjectURL(blob);
+    // Primero intentar sw.js real (mismo origen), fallback al blob
+    navigator.serviceWorker.register('./sw.js')
+      .then(function(r){ console.log('[SW] Registrado:', r.scope); })
+      .catch(function(){
+        // sw.js no existe — usar blob SW para cache de CDN
+        navigator.serviceWorker.register(swURL, {scope:'./'})
+          .then(function(r){ console.log('[SW] Blob SW activo'); })
+          .catch(function(e){ console.warn('[SW] No disponible:', e.message); });
       });
-  });
-}
+  } catch(e){ console.warn('[SW] Error init:', e.message); }
+})();
+
+// ── Inicializar sistema offline al cargar ──
+window.addEventListener('load', function(){
+  _loadReadCache();
+  _loadQueue();
+  _updateBanner();
+});
 </script>
 </body>
 </html>
