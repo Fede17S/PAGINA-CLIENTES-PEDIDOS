@@ -1244,6 +1244,28 @@ select option { background:#fff }
 
 /* ══ CATÁLOGO PDF ══ */
 .prod-csv-drag { border-color:var(--accent) !important; background:var(--accent-bg) !important; }
+/* ── Filas de precio por lista ── */
+.mprod-lista-row { display:grid; grid-template-columns:1fr 90px 1fr auto; align-items:center; gap:8px; padding:9px 12px; background:var(--s2); border:1px solid var(--border); border-radius:9px; transition:border-color .15s }
+.mprod-lista-row:focus-within { border-color:var(--accent) }
+.mprod-lista-row-name { font-size:12.5px; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.mprod-lista-pct-wrap { display:flex; align-items:center; gap:4px; background:var(--s3); border:1px solid var(--border); border-radius:7px; padding:0 8px; height:36px }
+.mprod-lista-pct-wrap input { width:48px; border:none; background:transparent; font-size:13px; font-weight:700; font-family:inherit; color:var(--text); outline:none; -moz-appearance:textfield }
+.mprod-lista-pct-wrap input::-webkit-inner-spin-button { -webkit-appearance:none }
+.mprod-lista-pct-wrap span { font-size:12px; color:var(--muted); font-weight:600 }
+.mprod-lista-price-inp { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; font-weight:700; font-family:inherit; color:var(--text); background:#fff; outline:none; -moz-appearance:textfield }
+.mprod-lista-price-inp::-webkit-inner-spin-button { -webkit-appearance:none }
+.mprod-lista-price-inp:focus { border-color:var(--accent) }
+.mprod-lista-price-inp.manual { border-color:var(--amber); background:#fffbeb }
+/* ── Gestor de listas ── */
+.lista-mgr-row { display:grid; grid-template-columns:1fr 90px 80px auto; gap:8px; align-items:center; padding:10px 12px; background:var(--s2); border:1px solid var(--border); border-radius:9px; margin-bottom:6px }
+.lista-mgr-inp { padding:7px 10px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); background:#fff; outline:none; width:100% }
+.lista-mgr-inp:focus { border-color:var(--accent) }
+.lista-mgr-del { padding:6px 10px; background:var(--red-bg); color:var(--red); border:1px solid oklch(88% 0.05 25); border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap }
+.lista-mgr-default { padding:6px 10px; font-size:11px; font-weight:700; color:var(--muted); background:var(--s3); border:1px solid var(--border); border-radius:7px; white-space:nowrap; cursor:default }
+@media (max-width:420px) {
+  .mprod-lista-row { grid-template-columns:1fr 80px 1fr auto }
+  .lista-mgr-row { grid-template-columns:1fr 72px 60px auto }
+}
 #catalogo { display:none }
 #catalogo.active {
   display:block;
@@ -1731,6 +1753,7 @@ select option { background:#fff }
     <input type="text" id="prod-buscar" placeholder="🔍 Buscar…" oninput="filtrarProductos()" autocomplete="off" autocorrect="off" spellcheck="false">
     <div class="prod-toolbar-btns">
       <button class="btn btn-ghost btn-sm" onclick="cargarProductos()">🔄</button>
+      <button class="btn btn-ghost btn-sm" onclick="abrirGestorListas()" title="Gestionar listas de precios">⚙️ Listas</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleProdCsvImporter()" id="btn-toggle-prod-csv" title="Importar CSV">📥</button>
       <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)">+ Nuevo</button>
     </div>
@@ -1865,6 +1888,30 @@ select option { background:#fff }
   <div id="cat-progress" style="display:none;margin-top:8px;padding:12px;background:var(--s2);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text2);text-align:center"></div>
 </div>
 
+<!-- MODAL GESTOR DE LISTAS DE PRECIOS -->
+<div class="mprod-overlay" id="listas-overlay" onclick="if(event.target===this)cerrarGestorListas()">
+  <div class="mprod-box" style="max-width:480px">
+    <div class="mprod-head">
+      <div class="mprod-title">⚙️ Listas de precios</div>
+      <button class="mprod-cls" onclick="cerrarGestorListas()">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">
+      Cada lista puede tener un nombre y un porcentaje de markup sobre el precio base del producto. Podés editarlos directamente acá.
+    </div>
+
+    <div id="listas-manager-body"></div>
+
+    <button onclick="agregarLista()" style="width:100%;margin-top:10px;padding:10px;border:2px dashed var(--border);border-radius:9px;background:none;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      + Agregar nueva lista
+    </button>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="guardarListasConfig()" class="mprod-save" style="flex:1">💾 Guardar listas</button>
+      <button onclick="cerrarGestorListas()" class="mprod-cancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL AGREGAR / EDITAR PRODUCTO -->
 <div class="mprod-overlay" id="mprod-overlay" onclick="if(event.target===this)cerrarModalProducto()">
   <div class="mprod-box">
@@ -1904,69 +1951,35 @@ select option { background:#fff }
     </div>
 
     <!-- Modo precio -->
-    <div style="margin-top:14px;margin-bottom:8px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">Precios</div>
-    <div class="mprod-precio-mode">
-      <button class="mprod-modo-btn active" id="mprod-modo-listas" onclick="setPrecioModo('listas')">📋 Por listas</button>
-      <button class="mprod-modo-btn" id="mprod-modo-pct" onclick="setPrecioModo('pct')">% Porcentaje</button>
-      <button class="mprod-modo-btn" id="mprod-modo-custom" onclick="setPrecioModo('custom')">$ Personalizado</button>
-    </div>
+    <div style="margin-top:14px;margin-bottom:6px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">Precios</div>
 
-    <!-- Panel listas -->
-    <div id="mprod-panel-listas" class="mprod-precio-panel show">
-      <div class="mprod-grid">
-        <div class="mprod-field">
-          <label>Lista Clientes ($)</label>
-          <input type="number" id="mprod-precio-cli" placeholder="0.00" min="0" step="0.01">
+    <!-- Precio base -->
+    <div style="background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px">
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">PRECIO BASE / COSTO ($)</label>
+          <input type="number" id="mprod-precio-base" placeholder="0.00" min="0" step="0.01"
+            style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;font-family:inherit;outline:none;background:#fff;color:var(--text)"
+            oninput="recalcularPrecios()">
         </div>
-        <div class="mprod-field">
-          <label>Lista Patagonia ($)</label>
-          <input type="number" id="mprod-precio-pat" placeholder="0.00" min="0" step="0.01">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--muted);padding-top:20px">
+          <input type="checkbox" id="mprod-auto-calc" checked onchange="recalcularPrecios()" style="width:15px;height:15px">
+          <label for="mprod-auto-calc" style="cursor:pointer">Calcular automáticamente</label>
         </div>
       </div>
     </div>
 
-    <!-- Panel porcentaje -->
-    <div id="mprod-panel-pct" class="mprod-precio-panel" style="display:none">
-      <div class="mprod-grid">
-        <div class="mprod-field">
-          <label>Precio base ($)</label>
-          <input type="number" id="mprod-precio-base" placeholder="0.00" min="0" step="0.01" oninput="calcPrecioPct()">
-        </div>
-        <div class="mprod-field">
-          <label>% sobre lista Clientes</label>
-          <input type="number" id="mprod-pct-cli" placeholder="ej: 10" step="0.1" oninput="calcPrecioPct()">
-        </div>
-        <div class="mprod-field">
-          <label>% sobre lista Patagonia</label>
-          <input type="number" id="mprod-pct-pat" placeholder="ej: 15" step="0.1" oninput="calcPrecioPct()">
-        </div>
-        <div class="mprod-field" style="align-self:flex-end">
-          <label style="color:var(--muted)">Resultado</label>
-          <div id="mprod-pct-result" style="font-size:12px;color:var(--text2);padding:6px 0;line-height:1.6">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Panel custom -->
-    <div id="mprod-panel-custom" class="mprod-precio-panel" style="display:none">
-      <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Definí un precio especial que no sigue ninguna lista.</div>
-      <div class="mprod-grid">
-        <div class="mprod-field">
-          <label>Precio especial ($)</label>
-          <input type="number" id="mprod-precio-esp" placeholder="0.00" min="0" step="0.01">
-        </div>
-        <div class="mprod-field">
-          <label>Aplica a</label>
-          <select id="mprod-esp-aplica">
-            <option value="ambas">Ambas listas</option>
-            <option value="Clientes">Solo Clientes</option>
-            <option value="Patagonia">Solo Patagonia</option>
-          </select>
-        </div>
-      </div>
-    </div>
+    <!-- Filas dinámicas por lista -->
+    <div id="mprod-listas-rows" style="display:flex;flex-direction:column;gap:6px"></div>
 
     <input type="hidden" id="mprod-key">
+    <input type="hidden" id="mprod-precio-cli">
+    <input type="hidden" id="mprod-precio-pat">
+    <!-- legacy inputs needed by old code -->
+    <input type="hidden" id="mprod-pct-cli">
+    <input type="hidden" id="mprod-pct-pat">
+    <input type="hidden" id="mprod-precio-esp">
+    <input type="hidden" id="mprod-esp-aplica" value="ambas">
 
     <div class="mprod-foot">
       <button class="mprod-cancel" onclick="cerrarModalProducto()">Cancelar</button>
@@ -2065,6 +2078,7 @@ window.onload = function(){
     if (!checkEmpresaAccess(s.empresaData||{})) { sessionStorage.removeItem("dm_session"); return; }
     _loadReadCache(); _loadQueue(); _updateBanner();
     aplicarRestricciones();
+    cargarListasPrecios();
     iniciarApp(); }catch(e){ sessionStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
 };
@@ -2119,7 +2133,9 @@ function doLogin(){
     err.textContent=""; dbg.style.display="none";
     // Cargar queue offline pendiente y cache de lecturas con la key de empresa correcta
     _loadReadCache(); _loadQueue(); _updateBanner();
-    aplicarBranding(); aplicarRestricciones(); iniciarApp();
+    aplicarBranding(); aplicarRestricciones();
+    cargarListasPrecios();
+    iniciarApp();
   }).catch(function(e){if(e.message!=="blocked"){err.textContent="❌ Error: "+e.message;addLog("Error: "+e.message);}});
 }
 
@@ -2361,7 +2377,18 @@ function filtrar(t){
   if(res.length){
     box.classList.add("open");
     res.forEach(function(p){
-      var pre=tipoLista[t]==="Patagonia"?p.pPat:p.pCli;
+      var pre = (function(){
+        // Buscar el precio para la lista actual
+        var lista = tipoLista[t];
+        if(p.precios){
+          // Intentar por nombre de lista
+          var listas = getListasOrdenadas();
+          for(var li=0;li<listas.length;li++){
+            if(listas[li][1].nombre===lista) return p.precios[listas[li][0]]||0;
+          }
+        }
+        return lista==="Patagonia"?p.pPat:p.pCli;
+      })();
       var qty=stockData[p.id];
       var stkHtml="";
       if(qty!==undefined){
@@ -5452,10 +5479,21 @@ function cargarProductos() {
 function _sincronizarDbStock() {
   var _catIndex = {};
   dbStock = [];
+  var listas = getListasOrdenadas();
   Object.values(_prodData).filter(function(p) { return p && p.nombre; }).forEach(function(p) {
     var cat = (p.categoria || "Sin categoría").replace(/^"+|"+$/g, "").trim() || "Sin categoría";
     var id = p.codigo ? String(p.codigo) : p.nombre.substring(0, 4);
-    var prod = { id: id, n: p.nombre, pCli: p.precioClientes || 0, pPat: p.precioPatagonia || 0, cat: cat, foto: p.foto || "" };
+    // Backward compat: pCli y pPat siguen existiendo
+    var pCli = (p.precios && p.precios.cli!=null) ? p.precios.cli : (p.precioClientes||0);
+    var pPat = (p.precios && p.precios.pat!=null) ? p.precios.pat : (p.precioPatagonia||0);
+    // Mapa completo de precios por id de lista
+    var preciosPorLista = {};
+    listas.forEach(function(e){
+      var lid=e[0];
+      preciosPorLista[lid] = (p.precios && p.precios[lid]!=null) ? p.precios[lid]
+        : lid==="cli" ? pCli : lid==="pat" ? pPat : 0;
+    });
+    var prod = { id:id, n:p.nombre, pCli:pCli, pPat:pPat, precios:preciosPorLista, cat:cat, foto:p.foto||"" };
     dbStock.push(prod);
     if (!_catIndex[cat]) _catIndex[cat] = [];
     _catIndex[cat].push(prod);
@@ -5482,6 +5520,16 @@ function _buildCard(key, p) {
   var imgHtml = p.foto
     ? '<img class="prod-card-img" src="' + p.foto + '" loading="lazy" alt="" onerror="_prodImgFail(this)">'
     : '<div class="prod-card-img-ph">📦</div>';
+  // Mostrar precios de todas las listas configuradas
+  var listas = getListasOrdenadas();
+  var preciosHtml = listas.map(function(e){
+    var id=e[0], l=e[1];
+    var precio = (p.precios && p.precios[id]!=null) ? p.precios[id]
+               : id==="cli" ? (p.precioClientes||0)
+               : id==="pat" ? (p.precioPatagonia||0) : 0;
+    var abrev = l.nombre.substring(0,3).toUpperCase();
+    return '<div class="prod-card-price"><span>'+abrev+'</span><b>'+_fmt(precio)+'</b></div>';
+  }).join('');
   var card = document.createElement("div");
   card.className = "prod-card";
   card.innerHTML =
@@ -5490,10 +5538,7 @@ function _buildCard(key, p) {
       '<div class="prod-card-cod">' + (p.codigo || "—") + '</div>' +
       '<div class="prod-card-name">' + (p.nombre || "") + '</div>' +
       '<div class="prod-card-cat">' + cat + '</div>' +
-      '<div class="prod-card-prices">' +
-        '<div class="prod-card-price"><span>CLI</span><b>' + _fmt(p.precioClientes || 0) + '</b></div>' +
-        '<div class="prod-card-price"><span>PAT</span><b>' + _fmt(p.precioPatagonia || 0) + '</b></div>' +
-      '</div>' +
+      '<div class="prod-card-prices">' + preciosHtml + '</div>' +
     '</div>' +
     '<div class="prod-card-actions">' +
       '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
@@ -5778,6 +5823,283 @@ function eliminarProducto(key) {
     showNotif("Error al eliminar el producto", "err");
   });
 }
+
+// ══ SISTEMA DE LISTAS DE PRECIOS ══
+var _listasPrecios = null; // {id: {nombre, pct, orden}} — null = no cargado aún
+var DEFAULT_LISTAS = {
+  cli: { nombre:"Clientes",  pct:0,  orden:0 },
+  pat: { nombre:"Patagonia", pct:15, orden:1 }
+};
+
+function getListas(){
+  if(!_listasPrecios) return Object.assign({}, DEFAULT_LISTAS);
+  return _listasPrecios;
+}
+
+function getListasOrdenadas(){
+  var listas = getListas();
+  return Object.entries(listas).sort(function(a,b){ return (a[1].orden||0)-(b[1].orden||0); });
+}
+
+async function cargarListasPrecios(){
+  if(!empresaKey) return;
+  try {
+    var data = await fbGetCached("empresas/"+empresaKey+"/listasPrecios");
+    _listasPrecios = data || Object.assign({}, DEFAULT_LISTAS);
+    // Asegurar que cli y pat siempre existen (backward compat)
+    if(!_listasPrecios.cli) _listasPrecios.cli = { nombre:"Clientes",  pct:0,  orden:0 };
+    if(!_listasPrecios.pat) _listasPrecios.pat = { nombre:"Patagonia", pct:15, orden:1 };
+  } catch(e){ _listasPrecios = Object.assign({}, DEFAULT_LISTAS); }
+  _actualizarSelectsListas();
+}
+
+function _actualizarSelectsListas(){
+  // Actualizar selects de lista en clientes y pedidos
+  var listas = getListasOrdenadas();
+  var opts = listas.map(function(e){ return '<option value="'+e[1].nombre+'">'+e[1].nombre+'</option>'; }).join('');
+  ['nc-lista','ec-lista'].forEach(function(id){
+    var sel = document.getElementById(id);
+    if(!sel) return;
+    var val = sel.value;
+    sel.innerHTML = opts;
+    // Intentar mantener el valor anterior
+    if(Array.from(sel.options).some(function(o){return o.value===val;})) sel.value=val;
+  });
+}
+
+// ── Gestor de listas ──
+var _listasEdit = null; // copia de trabajo
+
+function abrirGestorListas(){
+  _listasEdit = JSON.parse(JSON.stringify(getListas()));
+  _renderGestorListas();
+  document.getElementById("listas-overlay").classList.add("open");
+}
+function cerrarGestorListas(){
+  document.getElementById("listas-overlay").classList.remove("open");
+  _listasEdit = null;
+}
+
+function _renderGestorListas(){
+  var body = document.getElementById("listas-manager-body");
+  var ordenadas = Object.entries(_listasEdit).sort(function(a,b){return (a[1].orden||0)-(b[1].orden||0);});
+  var esDefecto = function(id){ return id==="cli"||id==="pat"; };
+  body.innerHTML = ordenadas.map(function(e, i){
+    var id=e[0], l=e[1];
+    var delBtn = esDefecto(id)
+      ? '<span class="lista-mgr-default">Base</span>'
+      : '<button class="lista-mgr-del" onclick="_eliminarListaEdit(\''+id+'\')">🗑</button>';
+    return '<div class="lista-mgr-row" data-lid="'+id+'">' +
+      '<input class="lista-mgr-inp" type="text" placeholder="Nombre" value="'+escHtml(l.nombre||"")+'" oninput="_listasEdit[\''+id+'\'].nombre=this.value">' +
+      '<div style="position:relative">' +
+        '<input class="lista-mgr-inp" type="number" min="-100" max="999" step="0.1" style="padding-right:22px" placeholder="0" value="'+(l.pct||0)+'" oninput="_listasEdit[\''+id+'\'].pct=parseFloat(this.value)||0">' +
+        '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);font-weight:700;pointer-events:none">%</span>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);text-align:center;line-height:1.3">Base $1000<br><b style="color:var(--text)">→ $'+Math.round(1000*(1+(l.pct||0)/100))+'</b></div>' +
+      delBtn +
+    '</div>';
+  }).join('');
+}
+
+function _eliminarListaEdit(id){
+  if(!confirm('¿Eliminar la lista "'+(_listasEdit[id]||{}).nombre+'"?\nLos productos que la usen quedarán sin precio para esta lista.')) return;
+  delete _listasEdit[id];
+  _renderGestorListas();
+}
+
+function agregarLista(){
+  var id = 'lista_'+Date.now();
+  var orden = Object.keys(_listasEdit).length;
+  _listasEdit[id] = { nombre:"Nueva lista", pct:0, orden:orden };
+  _renderGestorListas();
+  // Enfocar el nuevo input de nombre
+  var body = document.getElementById("listas-manager-body");
+  var inputs = body.querySelectorAll('.lista-mgr-inp[type="text"]');
+  var last = inputs[inputs.length-1];
+  if(last){ last.focus(); last.select(); }
+}
+
+async function guardarListasConfig(){
+  // Leer valores actuales del DOM antes de guardar
+  document.querySelectorAll("#listas-manager-body .lista-mgr-row").forEach(function(row){
+    var id = row.dataset.lid;
+    if(!id || !_listasEdit[id]) return;
+    var inputs = row.querySelectorAll('input');
+    if(inputs[0]) _listasEdit[id].nombre = inputs[0].value.trim() || "Lista";
+    if(inputs[1]) _listasEdit[id].pct    = parseFloat(inputs[1].value)||0;
+  });
+  // Reasignar orden
+  Object.entries(_listasEdit).sort(function(a,b){return (a[1].orden||0)-(b[1].orden||0);}).forEach(function(e,i){ e[1].orden=i; });
+  try {
+    await fbPatchQ("empresas/"+empresaKey+"/listasPrecios", _listasEdit, "Guardar listas");
+    _listasPrecios = _listasEdit;
+    _actualizarSelectsListas();
+    cerrarGestorListas();
+    showNotif("✅ Listas guardadas","ok");
+    // Rerender cards con nuevas listas
+    renderProductos();
+  } catch(e){ showNotif("Error al guardar listas: "+e.message,"err"); }
+}
+
+// ── Modal de producto — precios dinámicos ──
+function _renderListasRows(preciosGuardados, baseGuardada){
+  var rows = document.getElementById("mprod-listas-rows");
+  if(!rows) return;
+  var listas = getListasOrdenadas();
+  rows.innerHTML = listas.map(function(e){
+    var id=e[0], l=e[1];
+    var precioGuardado = preciosGuardados && preciosGuardados[id]!=null ? preciosGuardados[id] : null;
+    // Legacy mapping
+    if(precioGuardado===null && id==="cli" && preciosGuardados && preciosGuardados._cli!=null) precioGuardado=preciosGuardados._cli;
+    if(precioGuardado===null && id==="pat" && preciosGuardados && preciosGuardados._pat!=null) precioGuardado=preciosGuardados._pat;
+    var isManual = precioGuardado!==null; // Si había precio guardado explícito, lo tratamos como manual inicialmente
+    return '<div class="mprod-lista-row" data-lid="'+id+'">' +
+      '<div class="mprod-lista-row-name">'+escHtml(l.nombre)+'</div>' +
+      '<div class="mprod-lista-pct-wrap" title="Markup % para esta lista">'+
+        '<input type="number" class="mprod-pct-inp" data-lid="'+id+'" value="'+(l.pct||0)+'" step="0.1" min="-100" oninput="recalcularPrecios(\''+id+'\')" placeholder="0">'+
+        '<span>%</span>'+
+      '</div>'+
+      '<input type="number" class="mprod-lista-price-inp'+(isManual?" manual":"")+'" data-lid="'+id+'" '+
+        'value="'+(precioGuardado!=null?precioGuardado:"")+'" '+
+        'placeholder="Auto" min="0" step="0.01" '+
+        'oninput="this.classList.add(\'manual\')" '+
+        'onfocus="this.select()">'+
+      '<button title="Recalcular desde base" onclick="recalcularPrecio(\''+id+'\')" style="background:none;border:1px solid var(--border);border-radius:7px;padding:6px 9px;cursor:pointer;font-size:14px;color:var(--muted)" title="↺">↺</button>'+
+    '</div>';
+  }).join('');
+  // Header
+  if(listas.length){
+    rows.insertAdjacentHTML('afterbegin',
+      '<div style="display:grid;grid-template-columns:1fr 90px 1fr auto;gap:8px;padding:0 12px;margin-bottom:4px">'+
+        '<span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">Lista</span>'+
+        '<span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">Markup</span>'+
+        '<span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">Precio final ($)</span>'+
+        '<span></span>'+
+      '</div>');
+  }
+}
+
+function recalcularPrecios(changedListaId){
+  var base = parseFloat(document.getElementById("mprod-precio-base").value)||0;
+  var auto = document.getElementById("mprod-auto-calc").checked;
+  document.querySelectorAll(".mprod-lista-row").forEach(function(row){
+    var id = row.dataset.lid;
+    var pctInp = row.querySelector(".mprod-pct-inp");
+    var priceInp = row.querySelector(".mprod-lista-price-inp");
+    if(!pctInp || !priceInp) return;
+    var pct = parseFloat(pctInp.value)||0;
+    var isManual = priceInp.classList.contains("manual");
+    // Si el usuario cambió el markup de ESTA lista → recalcular su precio
+    if(id===changedListaId || (auto && !isManual)){
+      var calc = base>0 ? Math.round(base*(1+pct/100)*100)/100 : 0;
+      priceInp.value = base>0 ? calc : "";
+      priceInp.classList.remove("manual");
+    }
+  });
+}
+
+function recalcularPrecio(listaId){
+  var base = parseFloat(document.getElementById("mprod-precio-base").value)||0;
+  var row = document.querySelector('.mprod-lista-row[data-lid="'+listaId+'"]');
+  if(!row) return;
+  var pct = parseFloat((row.querySelector(".mprod-pct-inp")||{}).value)||0;
+  var priceInp = row.querySelector(".mprod-lista-price-inp");
+  if(priceInp){
+    priceInp.value = base>0 ? Math.round(base*(1+pct/100)*100)/100 : "";
+    priceInp.classList.remove("manual");
+  }
+}
+
+function _leerPreciosModal(){
+  var precios = {};
+  document.querySelectorAll(".mprod-lista-row").forEach(function(row){
+    var id = row.dataset.lid;
+    var val = parseFloat((row.querySelector(".mprod-lista-price-inp")||{}).value)||0;
+    precios[id] = val;
+  });
+  return precios;
+}
+
+// Reescribir abrirModalProducto
+function abrirModalProducto(key) {
+  var overlay = document.getElementById("mprod-overlay");
+  var p = key ? (_prodData[key] || {}) : {};
+  document.getElementById("mprod-title").textContent = key ? "Editar producto" : "Nuevo producto";
+  document.getElementById("mprod-key").value = key || "";
+  document.getElementById("mprod-codigo").value = p.codigo || "";
+  document.getElementById("mprod-nombre").value = p.nombre || "";
+  document.getElementById("mprod-categoria").value = p.categoria || "";
+  // Foto
+  _prodFotoB64 = p.foto || "";
+  _actualizarPrevFoto();
+  // Precio base
+  var base = p.precioBase || p._precioBase || 0;
+  document.getElementById("mprod-precio-base").value = base || "";
+  document.getElementById("mprod-auto-calc").checked = true;
+  // Precios guardados por lista
+  var preciosGuardados = p.precios || {};
+  // Backward compat: mapear precioClientes/precioPatagonia
+  if(!preciosGuardados.cli && p.precioClientes) preciosGuardados = Object.assign({cli:p.precioClientes, pat:p.precioPatagonia||0}, preciosGuardados);
+  _renderListasRows(preciosGuardados, base);
+  // Poblar datalist categorías
+  var cats = new Set(Object.values(_prodData).filter(function(p){return p&&p.nombre;}).map(function(p){return p.categoria||"";}));
+  var dl = document.getElementById("mprod-cats-dl");
+  if(dl) dl.innerHTML = Array.from(cats).filter(Boolean).map(function(c){return '<option value="'+c+'">';}).join("");
+  overlay.classList.add("open");
+  document.getElementById("mprod-nombre").focus();
+}
+
+// Reescribir guardarProducto
+function guardarProducto() {
+  var nombre = (document.getElementById("mprod-nombre").value || "").trim();
+  if (!nombre) { showNotif("El nombre del producto es obligatorio","err"); document.getElementById("mprod-nombre").focus(); return; }
+  var codigo    = (document.getElementById("mprod-codigo").value||"").trim().toUpperCase();
+  var categoria = (document.getElementById("mprod-categoria").value||"").trim();
+  var base      = parseFloat(document.getElementById("mprod-precio-base").value)||0;
+  var precios   = _leerPreciosModal();
+  // Backward compat
+  var precioCli = precios.cli || 0;
+  var precioPat = precios.pat || 0;
+
+  var prodObj = {
+    nombre: nombre,
+    codigo: codigo || nombre.substring(0,4).toUpperCase(),
+    categoria: categoria || "Sin categoría",
+    precioBase: base,
+    precios: precios,
+    precioClientes:  precioCli,
+    precioPatagonia: precioPat,
+    foto: _prodFotoB64 || ""
+  };
+
+  var key = document.getElementById("mprod-key").value;
+  var btn = document.querySelector(".mprod-save");
+  if(btn){ btn.disabled=true; btn.textContent="Guardando…"; }
+  var promise;
+  if(key){
+    promise = fbPatch("empresas/"+empresaKey+"/productos/"+key, prodObj).then(function(){
+      _prodData[key] = Object.assign(_prodData[key]||{}, prodObj);
+    });
+  } else {
+    promise = fbPush("empresas/"+empresaKey+"/productos", prodObj).then(function(newKey){
+      _prodData[newKey] = prodObj;
+    });
+  }
+  promise.then(function(){
+    _sincronizarDbStock();
+    renderProductos();
+    cerrarModalProducto();
+    showNotif(key?"✅ Producto actualizado":"✅ Producto agregado","ok");
+  }).catch(function(e){
+    showNotif("Error al guardar: "+(e.message||"Error desconocido"),"err");
+  }).finally(function(){
+    if(btn){ btn.disabled=false; btn.textContent="💾 Guardar producto"; }
+  });
+}
+
+// Stub para compatibilidad con código viejo que llame setPrecioModo/calcPrecioPct
+function setPrecioModo(m){ /* no-op en nuevo sistema */ }
+function calcPrecioPct(){ recalcularPrecios(); }
 
 // ══ IMPORTADOR CSV DE PRODUCTOS ══
 var _prodCsvRows = [];
