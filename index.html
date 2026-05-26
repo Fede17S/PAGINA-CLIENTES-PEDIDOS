@@ -2386,13 +2386,27 @@ function cerrarModal(id){ document.getElementById(id).classList.remove("open"); 
 function abrirModal(id){ document.getElementById(id).classList.add("open"); }
 
 window.onload = function(){
+  // Limpiar cache viejo de Firebase que pueda interferir
+  try {
+    var cacheKeys = Object.keys(localStorage).filter(function(k){ return k.startsWith("dm_rcache_"); });
+    cacheKeys.forEach(function(k){ localStorage.removeItem(k); });
+  } catch(e){}
+
   var saved = sessionStorage.getItem("dm_session");
-  if(saved){ try{ var s=JSON.parse(saved); empresaKey=s.empresaKey; currentUser=s.user; empresaData=s.empresaData; aplicarBranding();
+  if(saved){ try{
+    var s=JSON.parse(saved);
+    empresaKey=s.empresaKey;
+    currentUser=s.user;
+    empresaData=s.empresaData;
+    // Crítico: setear _sbEmpId desde la sesión guardada
+    _sbEmpId = empresaKey;
+    aplicarBranding();
     if (!checkEmpresaAccess(s.empresaData||{})) { sessionStorage.removeItem("dm_session"); return; }
     _loadReadCache(); _loadQueue(); _updateBanner();
     aplicarRestricciones();
     cargarListasPrecios();
-    iniciarApp(); }catch(e){ sessionStorage.removeItem("dm_session"); } }
+    iniciarApp();
+  }catch(e){ sessionStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
 };
 
@@ -2407,19 +2421,15 @@ function doLogin(){
   err.textContent="🔄 Conectando…";
   var log="";
   function addLog(txt){log+=txt+"\n"; var dbg=document.getElementById("l-debug"); if(dbg){dbg.textContent=log; dbg.style.display="block"; dbg.style.cssText="display:block!important;margin-top:10px;padding:10px;background:rgba(0,0,0,.4);border-radius:7px;font-size:11px;font-family:monospace;color:#94a3b8;white-space:pre-wrap;max-height:200px;overflow-y:auto";}  }
-  fetch(FB+"/empresas.json").then(function(resp){
-    addLog("HTTP: "+resp.status);
-    if(resp.status===401||resp.status===403){err.textContent="🔒 Firebase bloqueado — revisá las reglas";throw new Error("blocked");}
-    return resp.json();
-  }).then(function(empresas){
-    if(!empresas){err.textContent="⚠️ Base vacía — creá una empresa en el admin";addLog("Base vacía");return;}
-    addLog("Empresas: "+Object.keys(empresas).length);
+  // Usar Supabase (no más Firebase directo)
+  fbGet("empresas").then(function(empresas){
+    if(!empresas){err.textContent="⚠️ Base vacía — creá una empresa en Supabase";addLog("Base vacía");return;}
+    addLog("Empresas en Supabase: "+Object.keys(empresas).length);
     Object.entries(empresas).forEach(function(e){addLog("  codigo='"+( e[1].codigo||"?")+"' usuarios="+Object.keys(e[1].usuarios||{}).length);});
     var key=null;
     Object.keys(empresas).forEach(function(k){var e=empresas[k];if(e&&e.codigo&&e.codigo.toString().toLowerCase().trim()===empCod)key=k;});
     if(!key){err.textContent="❌ Empresa '"+empCod+"' no encontrada";addLog("Códigos: "+Object.values(empresas).map(function(e){return e.codigo||"?";}).join(", "));return;}
     var emp=empresas[key];
-    // Check estado and vencimiento BEFORE user auth
     if(emp.estado==="inactiva"){
       showSuspendedCli("Esta cuenta está suspendida. Contactá al administrador.");
       err.textContent=""; dbg.style.display="none";
@@ -2440,16 +2450,17 @@ function doLogin(){
     else{Object.keys(users).forEach(function(k){if(users[k].id===uid&&users[k].pass===pass)foundUser=users[k];});}
     if(!foundUser){err.textContent="❌ Usuario o contraseña incorrectos";addLog("Usuario '"+uid+"' no encontrado o contraseña incorrecta");return;}
     empresaKey=key; empresaData=emp; currentUser=foundUser;
+    // Crítico: setear _sbEmpId inmediatamente al login
+    _sbEmpId = key;
     if (!checkEmpresaAccess(emp)) return;
     sessionStorage.setItem("dm_session",JSON.stringify({empresaKey:key,user:currentUser,empresaData:emp}));
     document.getElementById("l-pass").value="";
     err.textContent=""; dbg.style.display="none";
-    // Cargar queue offline pendiente y cache de lecturas con la key de empresa correcta
     _loadReadCache(); _loadQueue(); _updateBanner();
     aplicarBranding(); aplicarRestricciones();
     cargarListasPrecios();
     iniciarApp();
-  }).catch(function(e){if(e.message!=="blocked"){err.textContent="❌ Error: "+e.message;addLog("Error: "+e.message);}});
+  }).catch(function(e){err.textContent="❌ Error: "+e.message;addLog("Error: "+e.message);});
 }
 
 function aplicarBranding(){
