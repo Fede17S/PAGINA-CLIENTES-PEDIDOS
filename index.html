@@ -1243,6 +1243,7 @@ select option { background:#fff }
 .mprod-cancel { padding:12px 18px; background:var(--s3); color:var(--text2); border:1px solid var(--border); border-radius:10px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit }
 
 /* ══ CATÁLOGO PDF ══ */
+.prod-csv-drag { border-color:var(--accent) !important; background:var(--accent-bg) !important; }
 #catalogo { display:none }
 #catalogo.active {
   display:block;
@@ -1730,9 +1731,77 @@ select option { background:#fff }
     <input type="text" id="prod-buscar" placeholder="🔍 Buscar…" oninput="filtrarProductos()" autocomplete="off" autocorrect="off" spellcheck="false">
     <div class="prod-toolbar-btns">
       <button class="btn btn-ghost btn-sm" onclick="cargarProductos()">🔄</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleProdCsvImporter()" id="btn-toggle-prod-csv" title="Importar CSV">📥</button>
       <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)">+ Nuevo</button>
     </div>
   </div>
+
+  <!-- ── IMPORTADOR CSV PRODUCTOS ── -->
+  <div id="prod-csv-panel" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--s3)">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">📥 Importar productos desde CSV</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Encabezados requeridos (en cualquier idioma/capitalización):<br>
+          <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">ID, NOMBRE, PRECIO_BASE, STOCK, CATEGORIA</code>
+          <span style="margin-left:6px;opacity:.7">· Separador: , o ;</span>
+        </div>
+      </div>
+      <button onclick="toggleProdCsvImporter()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px 8px;line-height:1">✕</button>
+    </div>
+
+    <div style="padding:12px 14px">
+      <!-- Drop zone -->
+      <div id="prod-csv-drop"
+        onclick="document.getElementById('prod-csv-input').click()"
+        ondragover="event.preventDefault();this.classList.add('prod-csv-drag')"
+        ondragleave="this.classList.remove('prod-csv-drag')"
+        ondrop="event.preventDefault();this.classList.remove('prod-csv-drag');procesarProdCSV(event.dataTransfer.files[0])"
+        style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px">
+        <div style="font-size:26px;margin-bottom:5px">📂</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2)">Arrastrá el CSV acá</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">o tocá para elegir archivo</div>
+      </div>
+      <input type="file" id="prod-csv-input" accept=".csv,text/csv" style="display:none" onchange="procesarProdCSV(this.files[0])">
+
+      <!-- Opciones de precio -->
+      <div id="prod-csv-opts" style="display:none;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">¿Qué representa el PRECIO_BASE?</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
+            <input type="radio" name="prod-csv-precio-modo" value="ambas" checked> Igual para ambas listas
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
+            <input type="radio" name="prod-csv-precio-modo" value="clientes"> Solo lista Clientes
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
+            <input type="radio" name="prod-csv-precio-modo" value="patagonia"> Solo lista Patagonia
+          </label>
+        </div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:500">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" id="prod-csv-update-stock" checked> Actualizar stock al importar
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" id="prod-csv-overwrite"> Sobreescribir duplicados
+          </label>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div id="prod-csv-preview" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+          <div id="prod-csv-preview-title" style="font-size:12.5px;font-weight:700;color:var(--text)"></div>
+          <div style="display:flex;gap:6px">
+            <button onclick="limpiarProdCSV()" style="font-size:11px;padding:5px 11px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);cursor:pointer;font-family:inherit">✕ Cancelar</button>
+            <button onclick="importarProdCSV()" id="btn-importar-prod-csv" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:6px;background:var(--text);color:#fff;cursor:pointer;font-family:inherit">⬆ Importar</button>
+          </div>
+        </div>
+        <div id="prod-csv-table-wrap" style="overflow-x:auto;border:1px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto;margin-bottom:8px"></div>
+        <div id="prod-csv-result" style="display:none;font-size:12.5px;padding:9px 12px;border-radius:8px"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="prod-stats" id="prod-stats" style="display:none"></div>
   <div id="prod-grid" class="prod-grid"></div>
 </div>
@@ -5708,6 +5777,215 @@ function eliminarProducto(key) {
   }).catch(function() {
     showNotif("Error al eliminar el producto", "err");
   });
+}
+
+// ══ IMPORTADOR CSV DE PRODUCTOS ══
+var _prodCsvRows = [];
+
+function toggleProdCsvImporter(){
+  var panel = document.getElementById("prod-csv-panel");
+  var open  = panel.style.display !== "none";
+  panel.style.display = open ? "none" : "block";
+  if(open) limpiarProdCSV();
+}
+
+function procesarProdCSV(file){
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){ _parsearProdCSV(e.target.result, file.name); };
+  reader.readAsText(file, "UTF-8");
+  document.getElementById("prod-csv-input").value = "";
+}
+
+function _parsearProdCSV(text, filename){
+  // Detectar separador
+  var first = (text.split(/\r?\n/)[0]||"");
+  var sep = (first.split(";").length >= first.split(",").length) ? ";" : ",";
+
+  function parseLine(line){
+    var res=[], cur="", inQ=false;
+    for(var i=0;i<line.length;i++){
+      var c=line[i];
+      if(c==='"'){ inQ=!inQ; }
+      else if(c===sep&&!inQ){ res.push(cur.trim()); cur=""; }
+      else cur+=c;
+    }
+    res.push(cur.trim());
+    return res;
+  }
+
+  var lines = text.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length < 2){ showNotif("El CSV necesita al menos encabezado + 1 fila","err"); return; }
+
+  // Mapear encabezados flexibles
+  var hdrs = parseLine(lines[0]).map(function(h){
+    return h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+  });
+  function col(kws){ for(var k=0;k<kws.length;k++){ var i=hdrs.findIndex(function(h){return h.includes(kws[k]);}); if(i>=0)return i; } return -1; }
+
+  var iId    = col(["id","codigo","cod","sku","referencia"]);
+  var iNom   = col(["nombre","name","descripcion","producto","articulo"]);
+  var iPrecio= col(["preciobase","precio","price","costo","base","pvp"]);
+  var iStock = col(["stock","cantidad","cant","qty","existencia","inventario"]);
+  var iCat   = col(["categoria","category","cat","rubro","familia","grupo"]);
+  // opcionales
+  var iPrecioCli = col(["precioclientes","preciolist","listacli","cli"]);
+  var iPrecioPat = col(["preciopatagonia","pat","mayorista","patagonia"]);
+
+  if(iNom < 0 && iId < 0){ showNotif("No se encontró columna de ID o NOMBRE en el CSV","err"); return; }
+
+  // Codigos existentes en _prodData
+  var existentes = {}; // codigo → fbKey
+  Object.entries(_prodData).forEach(function(e){
+    var cod = (e[1].codigo||"").trim().toUpperCase();
+    if(cod) existentes[cod] = e[0];
+  });
+
+  _prodCsvRows = [];
+  var errores = [];
+  for(var i=1;i<lines.length;i++){
+    var r = parseLine(lines[i]);
+    var id    = iId>=0    ? (r[iId]||"").trim().toUpperCase()   : "";
+    var nom   = iNom>=0   ? (r[iNom]||"").trim()                : "";
+    var prBase= iPrecio>=0? parseFloat((r[iPrecio]||"0").replace(/[,$]/g,""))||0 : 0;
+    var stk   = iStock>=0 ? parseInt((r[iStock]||"0").replace(/[.,]/g,""))||0   : 0;
+    var cat   = iCat>=0   ? (r[iCat]||"").trim()                : "Sin categoría";
+    var pCli  = iPrecioCli>=0 ? parseFloat((r[iPrecioCli]||"0").replace(/[,$]/g,""))||0 : null;
+    var pPat  = iPrecioPat>=0 ? parseFloat((r[iPrecioPat]||"0").replace(/[,$]/g,""))||0 : null;
+
+    if(!nom && !id){ errores.push("Fila "+(i+1)+": sin nombre ni ID"); continue; }
+    if(!id) id = nom.substring(0,6).toUpperCase().replace(/\s/g,"");
+    if(!nom) nom = id;
+    if(!cat || cat==="") cat = "Sin categoría";
+
+    _prodCsvRows.push({ id:id, nombre:nom, precioBase:prBase, stock:stk, categoria:cat, pCli:pCli, pPat:pPat, _dup: !!existentes[id], _fbKey: existentes[id]||null, _row:i+1 });
+  }
+
+  if(!_prodCsvRows.length){ showNotif("No se encontraron filas válidas: "+errores.slice(0,3).join(", "),"err"); return; }
+
+  document.getElementById("prod-csv-opts").style.display="block";
+
+  var dups = _prodCsvRows.filter(function(r){return r._dup;}).length;
+  document.getElementById("prod-csv-preview-title").innerHTML =
+    '<b>'+_prodCsvRows.length+' productos</b> en <i>'+filename+'</i>' +
+    (dups ? ' · <span style="color:var(--amber)">⚠ '+dups+' ya existen</span>' : ' · <span style="color:var(--green)">✓ Sin duplicados</span>');
+
+  // Tabla preview
+  var cols = ['ID/Código','Nombre','Precio base','Stock','Categoría','Estado'];
+  var th = cols.map(function(c){return '<th style="padding:7px 10px;text-align:left;font-weight:700;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s3)">'+c+'</th>';}).join('');
+  var rows = _prodCsvRows.map(function(r){
+    var badge = r._dup
+      ? '<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:10px">Actualizar</span>'
+      : '<span style="font-size:10px;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 6px;border-radius:10px">Nuevo</span>';
+    var bg = r._dup ? "background:#fffbeb;" : "";
+    return '<tr style="border-bottom:1px solid var(--border2);'+bg+'">' +
+      '<td style="padding:6px 10px;font-family:monospace;font-size:11.5px">'+escHtml(r.id)+'</td>' +
+      '<td style="padding:6px 10px;font-weight:600;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(r.nombre)+'</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">$'+_fmt(r.precioBase)+'</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+r.stock+'</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+escHtml(r.categoria)+'</td>' +
+      '<td style="padding:6px 10px">'+badge+'</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById("prod-csv-table-wrap").innerHTML =
+    '<table style="width:100%;border-collapse:collapse"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table>';
+  document.getElementById("prod-csv-result").style.display = "none";
+  document.getElementById("prod-csv-preview").style.display = "block";
+}
+
+function limpiarProdCSV(){
+  _prodCsvRows = [];
+  document.getElementById("prod-csv-preview").style.display = "none";
+  document.getElementById("prod-csv-opts").style.display = "none";
+  document.getElementById("prod-csv-result").style.display = "none";
+  document.getElementById("prod-csv-input").value = "";
+}
+
+async function importarProdCSV(){
+  if(!_prodCsvRows.length){ showNotif("No hay datos para importar","err"); return; }
+  var btn = document.getElementById("btn-importar-prod-csv");
+  btn.disabled = true; btn.textContent = "Importando…";
+
+  // Leer opciones
+  var precioModo = document.querySelector('input[name="prod-csv-precio-modo"]:checked').value;
+  var updateStock = document.getElementById("prod-csv-update-stock").checked;
+  var overwrite   = document.getElementById("prod-csv-overwrite").checked;
+
+  var nuevos=0, actualizados=0, omitidos=0, errores=0;
+  var stockPatch = {};
+
+  for(var i=0;i<_prodCsvRows.length;i++){
+    var r = _prodCsvRows[i];
+    btn.textContent = "Importando "+(i+1)+"/"+_prodCsvRows.length+"…";
+
+    // Si es duplicado y no se quiere sobreescribir → omitir
+    if(r._dup && !overwrite){ omitidos++; continue; }
+
+    // Calcular precios según modo
+    var pCli=0, pPat=0;
+    if(r.pCli!==null && r.pPat!==null){
+      // CSV tiene ambas columnas explícitas
+      pCli = r.pCli; pPat = r.pPat;
+    } else if(r.pCli!==null){
+      pCli = r.pCli; pPat = r.pPat!==null ? r.pPat : r.pCli;
+    } else {
+      // Usar precioBase según modo elegido
+      if(precioModo==="ambas")     { pCli=r.precioBase; pPat=r.precioBase; }
+      else if(precioModo==="clientes")  { pCli=r.precioBase; pPat=0; }
+      else if(precioModo==="patagonia") { pCli=0; pPat=r.precioBase; }
+    }
+
+    var prodObj = {
+      nombre: r.nombre,
+      codigo: r.id,
+      categoria: r.categoria || "Sin categoría",
+      precioClientes:  pCli,
+      precioPatagonia: pPat,
+      _precioModo: precioModo==="ambas" ? "listas" : "listas",
+      foto: ""
+    };
+
+    try {
+      if(r._dup && r._fbKey){
+        // Conservar foto existente
+        var existing = _prodData[r._fbKey];
+        if(existing && existing.foto) prodObj.foto = existing.foto;
+        await fbPatchQ("empresas/"+empresaKey+"/productos/"+r._fbKey, prodObj, "CSV prod update: "+r.id);
+        _prodData[r._fbKey] = Object.assign(_prodData[r._fbKey]||{}, prodObj);
+        actualizados++;
+      } else {
+        var newKey = await fbPushQ("empresas/"+empresaKey+"/productos", prodObj, "CSV prod nuevo: "+r.id);
+        if(newKey && !newKey.startsWith("op_")) _prodData[newKey] = prodObj;
+        nuevos++;
+      }
+      // Preparar patch de stock
+      if(updateStock && r.stock !== 0){
+        stockPatch[r.id] = r.stock;
+        stockData[r.id] = r.stock;
+      }
+    } catch(e){ errores++; console.warn("Error importando prod "+r.id, e); }
+  }
+
+  // Subir stock de una vez
+  if(updateStock && Object.keys(stockPatch).length){
+    await fbPatchQ("empresas/"+empresaKey+"/stock", stockPatch, "CSV stock import");
+  }
+
+  _sincronizarDbStock();
+  renderProductos();
+
+  var msg = "✅ "+nuevos+" nuevo"+(nuevos!==1?"s":"")+
+    (actualizados>0 ? " · "+actualizados+" actualizado"+(actualizados!==1?"s":"") : "")+
+    (omitidos>0     ? " · "+omitidos+" omitido"+(omitidos!==1?"s":"") : "")+
+    (errores>0      ? " · ⚠ "+errores+" error"+(errores!==1?"es":"") : "");
+
+  var res = document.getElementById("prod-csv-result");
+  res.style.cssText = "display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:9px 12px;color:#065f46;font-weight:600;font-size:12.5px";
+  res.textContent = msg;
+  showNotif(msg,"ok");
+  btn.disabled = false; btn.textContent = "⬆ Importar";
+  _prodCsvRows = [];
 }
 
 // ══ CATÁLOGO PDF ══
