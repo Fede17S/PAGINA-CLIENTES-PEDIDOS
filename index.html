@@ -2307,23 +2307,41 @@ async function _sbGetEmpresa(empId){
 
 function _ventaToRow(v){
   var row={};
-  if(_sbEmpId) row.empresa_id=_sbEmpId;
-  if(v.fecha) row.fecha=v.fecha;
-  if(v.clienteId!==undefined) row.cliente_id=v.clienteId||"";
-  if(v.clienteNom!==undefined) row.cliente_nom=v.clienteNom||"";
-  if(v.lista!==undefined) row.lista=v.lista||"Clientes";
-  if(v.items!==undefined) row.items=v.items||[];
-  if(v.total!==undefined) row.total=v.total||0;
-  if(v.usuario!==undefined) row.usuario=v.usuario||"";
-  if(v.usuarioNom!==undefined) row.usuario_nom=v.usuarioNom||"";
-  if(v.descuentos!==undefined) row.descuentos=v.descuentos||null;
+  var d = new Date(v.fecha||new Date());
+  if(_sbEmpId)          row.empresa_id  = _sbEmpId;
+  if(v.fecha)           row.fecha       = v.fecha;
+  if(v.clienteId!==undefined)   row.cliente_id  = v.clienteId||"";
+  if(v.clienteNom!==undefined)  row.cliente_nom = v.clienteNom||"";
+  if(v.lista!==undefined)       row.lista       = v.lista||"Clientes";
+  if(v.items!==undefined)       row.items       = v.items||[];
+  if(v.total!==undefined)       row.total       = v.total||0;
+  if(v.usuario!==undefined)     row.usuario     = v.usuario||"";
+  if(v.usuarioNom!==undefined)  row.usuario_nom = v.usuarioNom||"";
+  if(v.descuentos!==undefined)  row.descuentos  = v.descuentos||null;
   return row;
 }
 
 async function _sbGetVentas(){
   var rows=await sbGet("ventas","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
   if(!rows) return null;
-  var r={};rows.forEach(function(v){r[v.id]={fecha:v.fecha,clienteId:v.cliente_id,clienteNom:v.cliente_nom,lista:v.lista,items:v.items,total:v.total,usuario:v.usuario,usuarioNom:v.usuario_nom,descuentos:v.descuentos};});return r;
+  var r={};
+  rows.forEach(function(v){
+    var d = new Date(v.fecha);
+    r[v.id]={
+      fecha:      v.fecha,
+      mes:        d.getMonth(),      // ← necesario para renderResumen
+      anio:       d.getFullYear(),   // ← necesario para renderResumen
+      clienteId:  v.cliente_id,
+      clienteNom: v.cliente_nom,
+      lista:      v.lista,
+      items:      v.items,
+      total:      v.total,
+      usuario:    v.usuario,
+      usuarioNom: v.usuario_nom,
+      descuentos: v.descuentos
+    };
+  });
+  return r;
 }
 async function _sbInsertVenta(v){ var rows=await sbPost("ventas",_ventaToRow(v)); return rows&&rows[0]?rows[0].id:null; }
 
