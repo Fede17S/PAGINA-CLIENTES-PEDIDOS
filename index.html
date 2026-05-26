@@ -984,8 +984,27 @@ select option { background:#fff }
 .pa-act-del { background:#fff; color:var(--red); border-color:oklch(88% 0.05 25) }
 .pa-act-del:hover { background:var(--red-bg) }
 
+.stk-badge-neg { background:#fff0f0; color:#b91c1c; border-color:#fca5a5 }
+.dd-stk-neg { background:#fff0f0; color:#b91c1c; border-color:#fca5a5 }
+.stk-stat-val.stk-neg { color:#b91c1c }
+.stk-umbral-wrap { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); flex-shrink:0 }
+.stk-umbral-wrap label { white-space:nowrap }
+.stk-umbral-inp {
+  width:42px; height:26px; border:1px solid var(--border); border-radius:6px;
+  text-align:center; font-size:12px; font-weight:600; font-family:inherit;
+  background:#fff; color:var(--text); padding:0;
+  -moz-appearance:textfield;
+}
+.stk-umbral-inp::-webkit-inner-spin-button { -webkit-appearance:none }
+.stk-umbral-btn { height:26px; padding:0 8px; border:1px solid var(--border); border-radius:6px; background:#fff; font-size:11px; font-weight:600; cursor:pointer; color:var(--muted); transition:all .15s; font-family:inherit }
+.stk-umbral-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent) }
+.item-stk-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:20px; white-space:nowrap; border:1px solid; flex-shrink:0 }
+.item-stk-ok  { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
+.item-stk-low { background:var(--amber-bg); color:#88571f; border-color:oklch(88% 0.05 75) }
+.item-stk-0   { background:var(--red-bg);   color:var(--red); border-color:oklch(88% 0.05 25) }
+.item-stk-neg { background:#fff0f0; color:#b91c1c; border-color:#fca5a5 }
 /* ── STOCK ── */
-.stk-summary { display:none; grid-template-columns:1fr 1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:12px; box-shadow:var(--shadow-sm) }
+.stk-summary { display:none; grid-template-columns:1fr 1fr 1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:12px; box-shadow:var(--shadow-sm) }
 .stk-stat { background:var(--s2); padding:13px 10px; text-align:center }
 .stk-stat-val { font-size:18px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-0.01em }
 .stk-stat-val.stk-green { color:#0a7048 }
@@ -1783,6 +1802,7 @@ var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
 var stockData = {};
+var stockConfig = {}; // { [prodId]: { umbral: N } } — umbral de bajo stock por producto
 var dbStock = [], dbCli = [], ventas = [], rutasData = {};
 var rutaAbierta = null, clienteAbierto = {};
 var modalRutaKey = null, modalCliKey = null;
@@ -1990,7 +2010,13 @@ function verTab(id,btn){
   if(id==="mapa-entregas")iniciarMapaEntregas();
   if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
-  if(id==="stock")cargarStock();
+  if(id==="stock") cargarStock();
+  if(id==="pedido"||id==="remito"||id==="hoja"){
+    // Asegurar stockConfig cargado para badges en pedidos
+    if(empresaKey && !Object.keys(stockConfig).length){
+      fbGet("empresas/"+empresaKey+"/stockConfig").then(function(d){ stockConfig=d||{}; }).catch(function(){});
+    }
+  }
   if(id==="productos")cargarProductos();
 }
 function cargarCatalogo(){
@@ -2097,9 +2123,7 @@ function filtrar(t){
       var qty=stockData[p.id];
       var stkHtml="";
       if(qty!==undefined){
-        if(qty<=0)      stkHtml='<span class="dd-stk dd-stk-0">Sin stock</span>';
-        else if(qty<=5) stkHtml='<span class="dd-stk dd-stk-low">'+qty+' u.</span>';
-        else            stkHtml='<span class="dd-stk dd-stk-ok">'+qty+' u.</span>';
+        stkHtml='<span class="'+ddStkClass(p.id,qty)+'">'+stkBadgeLabel(qty)+'</span>';
       }
       var div=document.createElement("div");
       div.className="dd-item";
@@ -2154,9 +2178,18 @@ function renderItems(t){
     var subBase = it.p*it.c;
     var hasDsc  = it.disc && it.disc.valor>0;
     var abierto = (t==="rem" && _itemDscOpen===i);
+    // Stock disponible para este producto
+    var stkDisp = stockData[it.id];
+    var stkBadge="";
+    if(stkDisp!==undefined){
+      var stkCls=itemStkClass(it.id, stkDisp);
+      var stkLbl=stkDisp<0 ? stkDisp+" u. ⚠️" : stkDisp===0 ? "Sin stock" : stkDisp+" u.";
+      stkBadge='<span class="'+stkCls+'" title="Stock actual">📦 '+stkLbl+'</span>';
+    }
     html2 += '<div class="item-row" style="flex-wrap:wrap">'+
       '<span class="item-cant">'+it.c+'×</span>'+
       '<span class="item-name">'+it.n+'</span>'+
+      stkBadge+
       '<span class="item-sub">'+
         (hasDsc ? '<span class="rem-item-precio-orig">$'+fM(subBase)+'</span> $'+fM(it.sub) : '$'+fM(it.sub))+
       '</span>'+
@@ -2347,12 +2380,42 @@ function generarPDF(m){
 /* ══ STOCK ══ */
 var _stkFiltro = "";
 
+function stkUmbral(pid){ return (stockConfig[pid]&&stockConfig[pid].umbral!=null) ? stockConfig[pid].umbral : 5; }
+
+function stkBadgeClass(pid, qty){
+  if(qty < 0)                   return "stk-badge-neg";
+  if(qty === 0)                 return "stk-badge-0";
+  if(qty <= stkUmbral(pid))    return "stk-badge-low";
+  return "stk-badge-ok";
+}
+function stkBadgeLabel(qty){
+  if(qty < 0)  return qty+" u. ⚠️";
+  if(qty === 0) return "Sin stock";
+  return qty+" u.";
+}
+function ddStkClass(pid, qty){
+  if(qty < 0)                   return "dd-stk dd-stk-neg";
+  if(qty === 0)                 return "dd-stk dd-stk-0";
+  if(qty <= stkUmbral(pid))    return "dd-stk dd-stk-low";
+  return "dd-stk dd-stk-ok";
+}
+function itemStkClass(pid, qty){
+  if(qty < 0)                   return "item-stk-badge item-stk-neg";
+  if(qty === 0)                 return "item-stk-badge item-stk-0";
+  if(qty <= stkUmbral(pid))    return "item-stk-badge item-stk-low";
+  return "item-stk-badge item-stk-ok";
+}
+
 function cargarStock(){
   var list=document.getElementById("stk-list");
   if(list)list.innerHTML='<div class="empty-box"><div class="empty-icon">⏳</div>Cargando…</div>';
   if(!empresaKey)return;
-  fbGet("empresas/"+empresaKey+"/stock").then(function(data){
-    stockData=data||{};
+  Promise.all([
+    fbGet("empresas/"+empresaKey+"/stock"),
+    fbGet("empresas/"+empresaKey+"/stockConfig")
+  ]).then(function(res){
+    stockData=res[0]||{};
+    stockConfig=res[1]||{};
     renderStock();
   }).catch(function(){
     if(list)list.innerHTML='<div class="empty-box"><div class="empty-icon">❌</div>Error al cargar stock</div>';
@@ -2375,79 +2438,102 @@ function renderStock(){
     if(sumEl)sumEl.style.display="none";
     return;
   }
-  var enStock=prods.filter(function(p){return (stockData[p.id]||0)>0;}).length;
-  var sinStock=prods.filter(function(p){return (stockData[p.id]||0)<=0;}).length;
+  var enStock  = prods.filter(function(p){ var q=stockData[p.id]||0; return q > stkUmbral(p.id); }).length;
+  var bajoStk  = prods.filter(function(p){ var q=stockData[p.id]||0; return q > 0 && q <= stkUmbral(p.id); }).length;
+  var sinStock = prods.filter(function(p){ return (stockData[p.id]||0) === 0; }).length;
+  var negativo = prods.filter(function(p){ return (stockData[p.id]||0) < 0; }).length;
+
   if(sumEl){
     sumEl.style.display="grid";
     sumEl.innerHTML=
-      '<div class="stk-stat"><div class="stk-stat-val">'+prods.length+'</div><div class="stk-stat-lbl">Productos</div></div>'+
+      '<div class="stk-stat"><div class="stk-stat-val">'+prods.length+'</div><div class="stk-stat-lbl">Total</div></div>'+
       '<div class="stk-stat"><div class="stk-stat-val stk-green">'+enStock+'</div><div class="stk-stat-lbl">Con stock</div></div>'+
-      '<div class="stk-stat"><div class="stk-stat-val stk-red">'+sinStock+'</div><div class="stk-stat-lbl">Sin stock</div></div>';
+      '<div class="stk-stat"><div class="stk-stat-val" style="color:#88571f">'+bajoStk+'</div><div class="stk-stat-lbl">Bajo stock</div></div>'+
+      '<div class="stk-stat"><div class="stk-stat-val stk-neg">'+negativo+'</div><div class="stk-stat-lbl">Negativos</div></div>';
   }
   list.innerHTML="";
   prods.forEach(function(p){
-    var qty=stockData[p.id]||0;
-    var bc=qty<=0?"stk-badge-0":qty<=5?"stk-badge-low":"stk-badge-ok";
+    var qty=stockData[p.id]!==undefined ? stockData[p.id] : 0;
+    var umbral=stkUmbral(p.id);
+    var bc=stkBadgeClass(p.id, qty);
+    var lbl=stkBadgeLabel(qty);
     var card=document.createElement("div");
     card.className="stk-row";
+    card.style.flexWrap="wrap";
     card.dataset.pid = p.id;
     card.innerHTML=
       '<div class="stk-row-info">'+
         '<div class="stk-row-cod">'+p.id+'</div>'+
         '<div class="stk-row-name">'+p.n+'</div>'+
       '</div>'+
-      '<div class="stk-row-right">'+
-        '<span class="stk-badge '+bc+'">'+(qty<=0?"Sin stock":qty+" u.")+'</span>'+
+      '<div class="stk-row-right" style="gap:6px">'+
+        '<span class="stk-badge '+bc+'">'+lbl+'</span>'+
+        '<div class="stk-umbral-wrap" title="Umbral de alerta de bajo stock">'+
+          '<label>⚠️ desde:</label>'+
+          '<input type="number" class="stk-umbral-inp" id="stk-umb-'+p.id+'" value="'+umbral+'" min="0" data-pid="'+p.id+'">'+
+          '<button class="stk-umbral-btn" data-pid="'+p.id+'">✓</button>'+
+        '</div>'+
         '<div class="stk-qty-wrap">'+
           '<button class="stk-btn-minus" data-pid="'+p.id+'" data-d="-1">−</button>'+
-          '<input type="number" class="stk-qty-input" id="stk-qty-'+p.id+'" value="'+qty+'" min="0" data-pid="'+p.id+'">'+
+          '<input type="number" class="stk-qty-input" id="stk-qty-'+p.id+'" value="'+qty+'" data-pid="'+p.id+'">'+
           '<button class="stk-btn-plus" data-pid="'+p.id+'" data-d="1">+</button>'+
         '</div>'+
       '</div>';
-    card.querySelector(".stk-btn-minus").onclick=function(){cambiarStock(this.dataset.pid,parseInt(this.dataset.d));};
-    card.querySelector(".stk-btn-plus").onclick=function(){cambiarStock(this.dataset.pid,parseInt(this.dataset.d));};
-    card.querySelector(".stk-qty-input").onchange=function(){setStock(this.dataset.pid,this.value);};
+    card.querySelector(".stk-btn-minus").onclick=function(){ cambiarStock(this.dataset.pid, -1); };
+    card.querySelector(".stk-btn-plus").onclick=function(){  cambiarStock(this.dataset.pid,  1); };
+    card.querySelector(".stk-qty-input").onchange=function(){ setStock(this.dataset.pid, this.value); };
+    card.querySelector(".stk-umbral-btn").onclick=function(){ guardarUmbral(this.dataset.pid); };
     list.appendChild(card);
   });
 }
 
-function cambiarStock(pid,delta){
+function cambiarStock(pid, delta){
   var inp=document.getElementById("stk-qty-"+pid);
   var actual=parseInt((inp?inp.value:0)||0);
-  var nuevo=Math.max(0,actual+delta);
+  var nuevo=actual+delta; // sin límite inferior — puede ser negativo
   if(inp)inp.value=nuevo;
-  _guardarStockProd(pid,nuevo);
+  _guardarStockProd(pid, nuevo);
 }
 
-function setStock(pid,val){
-  var nuevo=Math.max(0,parseInt(val)||0);
+function setStock(pid, val){
+  var nuevo=parseInt(val); if(isNaN(nuevo))nuevo=0;
   var inp=document.getElementById("stk-qty-"+pid);
   if(inp)inp.value=nuevo;
-  _guardarStockProd(pid,nuevo);
+  _guardarStockProd(pid, nuevo);
 }
 
-function _guardarStockProd(pid,qty){
+function _guardarStockProd(pid, qty){
   stockData[pid]=qty;
-  var patch={};
-  patch[pid]=qty;
-  fbPatch("empresas/"+empresaKey+"/stock",patch)
-    .then(function(){renderStock();})
-    .catch(function(){alert("Error al guardar stock");});
+  var patch={}; patch[pid]=qty;
+  fbPatch("empresas/"+empresaKey+"/stock", patch)
+    .then(function(){ renderStock(); })
+    .catch(function(){ alert("Error al guardar stock"); });
+}
+
+function guardarUmbral(pid){
+  var inp=document.getElementById("stk-umb-"+pid);
+  var val=parseInt((inp?inp.value:"5")||5); if(isNaN(val)||val<0)val=0;
+  if(!stockConfig[pid])stockConfig[pid]={};
+  stockConfig[pid].umbral=val;
+  var patch={}; patch[pid]={umbral:val};
+  fbPatch("empresas/"+empresaKey+"/stockConfig", patch)
+    .then(function(){ renderStock(); showNotif("Umbral actualizado para este producto","ok"); })
+    .catch(function(){ showNotif("Error al guardar umbral","err"); });
 }
 
 function descontarStock(items){
   if(!items||!items.length||!empresaKey)return;
-  var patch={};
-  var changed=false;
+  var patch={}, changed=false;
   items.forEach(function(it){
-    if(stockData[it.id]!==undefined){
-      var nuevo=Math.max(0,(stockData[it.id]||0)-it.c);
+    var actual=stockData[it.id]!==undefined ? stockData[it.id] : null;
+    if(actual!==null){
+      var nuevo=actual-it.c; // puede quedar negativo — es intencional
       patch[it.id]=nuevo;
       stockData[it.id]=nuevo;
       changed=true;
     }
   });
-  if(changed) fbPatch("empresas/"+empresaKey+"/stock",patch).catch(function(){});
+  if(changed) fbPatch("empresas/"+empresaKey+"/stock", patch).catch(function(){});
 }
 
 
