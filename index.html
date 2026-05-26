@@ -1378,6 +1378,44 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 @supports (-webkit-touch-callout: none) {
   .section.active { -webkit-overflow-scrolling: touch; }
 }
+/* ── CLIENT PICKER ── */
+.cli-picker { position:relative; }
+.cli-search-inp {
+  width:100%; padding:12px 14px;
+  border:2px solid var(--border); border-radius:10px;
+  font-size:16px; font-family:inherit;
+  background:#fff; color:var(--text);
+  outline:none; box-sizing:border-box; -webkit-appearance:none; appearance:none;
+  transition:border-color .15s;
+}
+.cli-search-inp:focus { border-color:var(--accent); }
+.cli-selected {
+  display:none; align-items:center; justify-content:space-between;
+  padding:11px 14px; background:var(--green-bg);
+  border:2px solid oklch(88% 0.08 155); border-radius:10px; margin-top:4px;
+}
+.cli-selected-nom { font-size:14px; font-weight:700; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cli-clear-btn { background:none; border:none; font-size:18px; cursor:pointer; color:var(--muted); padding:4px 8px; border-radius:6px; flex-shrink:0; touch-action:manipulation; line-height:1; }
+.cli-results {
+  position:absolute; left:0; right:0; top:calc(100% + 4px);
+  background:#fff; border:1.5px solid var(--accent);
+  border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,.15);
+  z-index:2000; overflow:hidden; max-height:260px; overflow-y:auto;
+  -webkit-overflow-scrolling:touch; display:none;
+}
+.cli-result-item {
+  display:flex; align-items:center; gap:10px;
+  padding:14px 14px; border-bottom:1px solid var(--border2);
+  cursor:pointer; -webkit-user-select:none; user-select:none;
+  touch-action:manipulation; min-height:52px;
+}
+.cli-result-item:last-child { border-bottom:none; }
+.cli-result-item:active, .cli-result-item.hover { background:var(--s3); }
+.cli-result-id { font-size:11px; font-weight:700; color:var(--muted); background:var(--s3); padding:3px 8px; border-radius:5px; white-space:nowrap; flex-shrink:0; }
+.cli-result-nom { font-size:14px; font-weight:600; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cli-result-lista { font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0; }
+.cli-empty { padding:16px; text-align:center; font-size:13px; color:var(--muted); }
+
 </style>
 </head>
 <body>
@@ -1486,17 +1524,16 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="card-head"><span class="card-title">Cliente</span></div>
     <div class="card-body">
       <div class="row">
-        <div style="display:flex;gap:6px;align-items:center;position:relative">
-          <input type="text" id="idCli-ped" placeholder="ID" oninput="vincularCli('id','ped')" onchange="vincularCli('id','ped')" style="width:70px;flex-shrink:0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
-          <div class="search-wrap" style="flex:1;position:relative">
-            <input type="text" id="nomCli-ped" placeholder="Nombre del cliente"
-              oninput="filtrarClientes('ped')"
-              onkeyup="filtrarClientes('ped')"
-              onblur="cerrarDropdownCli('ped')"
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-            <div id="res-cli-ped" class="dropdown" style="display:none"></div>
+        <div id="cli-picker-ped" class="cli-picker">
+          <input type="text" id="cli-search-ped" class="cli-search-inp" placeholder="🔍 Escribí nombre o ID del cliente…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+          <div id="cli-selected-ped" class="cli-selected">
+            <span id="cli-selected-nom-ped" class="cli-selected-nom"></span>
+            <button class="cli-clear-btn" type="button" onclick="limpiarCliente('ped')">✕</button>
           </div>
+          <div id="cli-results-ped" class="cli-results"></div>
         </div>
+        <input type="hidden" id="idCli-ped">
+        <input type="hidden" id="nomCli-ped">
       </div>
       <div id="badge-ped" class="lista-pill">📋 Clientes</div>
     </div>
@@ -1553,17 +1590,16 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="card-head"><span class="card-title">Cliente</span></div>
     <div class="card-body">
       <div class="row">
-        <div style="display:flex;gap:6px;align-items:center;position:relative">
-          <input type="text" id="idCli-rem" placeholder="ID" oninput="vincularCli('id','rem')" onchange="vincularCli('id','rem')" style="width:70px;flex-shrink:0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
-          <div class="search-wrap" style="flex:1;position:relative">
-            <input type="text" id="nomCli-rem" placeholder="Nombre del cliente"
-              oninput="filtrarClientes('rem')"
-              onkeyup="filtrarClientes('rem')"
-              onblur="cerrarDropdownCli('rem')"
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-            <div id="res-cli-rem" class="dropdown" style="display:none"></div>
+        <div id="cli-picker-rem" class="cli-picker">
+          <input type="text" id="cli-search-rem" class="cli-search-inp" placeholder="🔍 Escribí nombre o ID del cliente…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+          <div id="cli-selected-rem" class="cli-selected">
+            <span id="cli-selected-nom-rem" class="cli-selected-nom"></span>
+            <button class="cli-clear-btn" type="button" onclick="limpiarCliente('rem')">✕</button>
           </div>
+          <div id="cli-results-rem" class="cli-results"></div>
         </div>
+        <input type="hidden" id="idCli-rem">
+        <input type="hidden" id="nomCli-rem">
       </div>
       <div id="badge-rem" class="lista-pill">📋 Clientes</div>
     </div>
@@ -2794,8 +2830,139 @@ function cargarCatalogo(){
   });
 }
 function actualizarDL(){
-  // no-op — usando autocomplete custom
+  // inicializar pickers cuando dbCli esté listo
+  iniciarCliPickers();
 }
+function filtrarClientes(t){ /* legacy */ }
+function cerrarDropdownCli(t){ /* legacy */ }
+function vincularCli(origen, t){ /* legacy */ }
+
+// ══ CLIENT PICKER — robusto en todos los browsers ══
+var _cliPickerReady = { ped:false, rem:false };
+
+function _initCliPicker(t){
+  var inp = document.getElementById("cli-search-"+t);
+  var box = document.getElementById("cli-results-"+t);
+  if(!inp || !box) return;
+  _cliPickerReady[t] = true;
+
+  function render(q){
+    box.innerHTML = "";
+    if(!q){ box.style.display="none"; return; }
+    var hits = dbCli.filter(function(c){
+      return c.nombre.toLowerCase().indexOf(q)!==-1 || (c.id||"").toLowerCase().indexOf(q)!==-1;
+    }).slice(0,25);
+    if(!hits.length){
+      box.innerHTML = '<div class="cli-empty">Sin resultados para "'+q+'"</div>';
+      box.style.display = "block"; return;
+    }
+    box.style.display = "block";
+    hits.forEach(function(c){
+      var row = document.createElement("div");
+      row.className = "cli-result-item";
+      row.innerHTML =
+        '<span class="cli-result-id">'+(c.id||"—")+'</span>'+
+        '<span class="cli-result-nom">'+c.nombre+'</span>'+
+        '<span class="cli-result-lista">'+(c.lista||"Clientes")+'</span>';
+
+      // Pointer events (PC y Android moderno)
+      row.addEventListener("pointerdown", function(e){
+        e.preventDefault(); // evita que el input pierda el foco antes de la selección
+        _elegirCliente(t, c);
+      });
+      // Fallback táctil explícito para iOS Safari
+      row.addEventListener("touchend", function(e){
+        e.preventDefault();
+        _elegirCliente(t, c);
+      });
+      // Fallback mousedown
+      row.addEventListener("mousedown", function(e){
+        e.preventDefault();
+        _elegirCliente(t, c);
+      });
+      box.appendChild(row);
+    });
+  }
+
+  var _debounce = null;
+  function onInput(){
+    clearTimeout(_debounce);
+    _debounce = setTimeout(function(){ render(inp.value.toLowerCase().trim()); }, 80);
+  }
+
+  inp.addEventListener("input",   onInput);
+  inp.addEventListener("keyup",   onInput);  // fallback iOS
+  inp.addEventListener("compositionend", onInput);  // IME
+
+  inp.addEventListener("keydown", function(e){
+    if(e.key==="Escape"||e.keyCode===27){ box.style.display="none"; }
+    if(e.key==="Enter"||e.keyCode===13){
+      var first = box.querySelector(".cli-result-item");
+      if(first){ var ev=new Event("pointerdown"); first.dispatchEvent(ev); }
+    }
+  });
+
+  inp.addEventListener("blur", function(){
+    // Delay para que pointerdown/touchend se procesen antes del cierre
+    setTimeout(function(){ box.style.display="none"; }, 250);
+  });
+
+  inp.addEventListener("focus", function(){
+    var q = inp.value.toLowerCase().trim();
+    if(q) render(q);
+  });
+}
+
+function _elegirCliente(t, c){
+  var inp      = document.getElementById("cli-search-"+t);
+  var selBox   = document.getElementById("cli-selected-"+t);
+  var selNom   = document.getElementById("cli-selected-nom-"+t);
+  var box      = document.getElementById("cli-results-"+t);
+  var idHid    = document.getElementById("idCli-"+t);
+  var nomHid   = document.getElementById("nomCli-"+t);
+
+  box.style.display = "none";
+  box.innerHTML = "";
+  inp.style.display = "none";
+  inp.value = "";
+  selBox.style.display = "flex";
+  selNom.textContent = c.nombre + (c.id ? "  ("+c.id+")" : "");
+  idHid.value  = c.id||"";
+  nomHid.value = c.nombre;
+
+  tipoLista[t] = (c.lista||"").toLowerCase().indexOf("patagonia")!==-1?"Patagonia":"Clientes";
+  var badge = document.getElementById("badge-"+t);
+  if(badge) badge.textContent = "📋 "+tipoLista[t];
+}
+
+function limpiarCliente(t){
+  var inp    = document.getElementById("cli-search-"+t);
+  var selBox = document.getElementById("cli-selected-"+t);
+  var idHid  = document.getElementById("idCli-"+t);
+  var nomHid = document.getElementById("nomCli-"+t);
+  var box    = document.getElementById("cli-results-"+t);
+
+  inp.style.display   = "block";
+  selBox.style.display = "none";
+  if(idHid)  idHid.value  = "";
+  if(nomHid) nomHid.value = "";
+  if(box)    { box.style.display="none"; box.innerHTML=""; }
+
+  tipoLista[t] = "Clientes";
+  var badge = document.getElementById("badge-"+t);
+  if(badge) badge.textContent = "📋 Clientes";
+
+  setTimeout(function(){ inp.focus(); }, 50);
+}
+
+var _pickersInitialized = false;
+function iniciarCliPickers(){
+  if(_pickersInitialized) return;
+  _pickersInitialized = true;
+  _initCliPicker("ped");
+  _initCliPicker("rem");
+}
+
 
 var _cliSelecting = false; // evita que el cierre global interfiera con la selección
 
