@@ -1490,10 +1490,11 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <input type="text" id="idCli-ped" placeholder="ID" oninput="vincularCli('id','ped')" onchange="vincularCli('id','ped')" style="width:70px;flex-shrink:0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
           <div class="search-wrap" style="flex:1;position:relative">
             <input type="text" id="nomCli-ped" placeholder="Nombre del cliente"
-              oninput="filtrarClientes('ped')" onchange="filtrarClientes('ped')" onkeyup="filtrarClientes('ped')"
-              onfocus="filtrarClientes('ped')"
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
-            <div id="res-cli-ped" class="dropdown"></div>
+              oninput="filtrarClientes('ped')"
+              onkeyup="filtrarClientes('ped')"
+              onblur="cerrarDropdownCli('ped')"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <div id="res-cli-ped" class="dropdown" style="display:none"></div>
           </div>
         </div>
       </div>
@@ -1556,10 +1557,11 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <input type="text" id="idCli-rem" placeholder="ID" oninput="vincularCli('id','rem')" onchange="vincularCli('id','rem')" style="width:70px;flex-shrink:0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
           <div class="search-wrap" style="flex:1;position:relative">
             <input type="text" id="nomCli-rem" placeholder="Nombre del cliente"
-              oninput="filtrarClientes('rem')" onchange="filtrarClientes('rem')" onkeyup="filtrarClientes('rem')"
-              onfocus="filtrarClientes('rem')"
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text">
-            <div id="res-cli-rem" class="dropdown"></div>
+              oninput="filtrarClientes('rem')"
+              onkeyup="filtrarClientes('rem')"
+              onblur="cerrarDropdownCli('rem')"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <div id="res-cli-rem" class="dropdown" style="display:none"></div>
           </div>
         </div>
       </div>
@@ -2792,8 +2794,10 @@ function cargarCatalogo(){
   });
 }
 function actualizarDL(){
-  // No-op — usando dropdowns custom en lugar de datalist para compatibilidad mobile
+  // no-op — usando autocomplete custom
 }
+
+var _cliSelecting = false; // evita que el cierre global interfiera con la selección
 
 function filtrarClientes(t){
   var inp = document.getElementById("nomCli-"+t);
@@ -2801,41 +2805,51 @@ function filtrarClientes(t){
   if(!inp || !box) return;
   var q = (inp.value||"").toLowerCase().trim();
   box.innerHTML = "";
-  if(!q || !dbCli.length){ box.classList.remove("open"); return; }
+  if(!q || !dbCli.length){ box.style.display="none"; return; }
   var res = dbCli.filter(function(c){
-    return c.nombre.toLowerCase().includes(q) || (c.id||"").toLowerCase().includes(q);
+    return c.nombre.toLowerCase().indexOf(q)!==-1 || (c.id||"").toLowerCase().indexOf(q)!==-1;
   }).slice(0,15);
-  if(!res.length){ box.classList.remove("open"); return; }
-  box.classList.add("open");
+  if(!res.length){ box.style.display="none"; return; }
+  box.style.display = "block";
   res.forEach(function(c){
     var div = document.createElement("div");
     div.className = "dd-item";
-    div.setAttribute("role","button");
-    div.innerHTML = '<span class="dd-code">'+(c.id||"")+'</span>'+
+    div.innerHTML =
+      '<span class="dd-code">'+(c.id||"")+'</span>'+
       '<span class="dd-name">'+c.nombre+'</span>'+
       '<span class="dd-price" style="font-size:11px;color:var(--muted)">'+(c.lista||"Clientes")+'</span>';
-    function elegir(ev){
-      if(ev){ ev.preventDefault(); ev.stopPropagation(); }
-      var idEl  = document.getElementById("idCli-"+t);
-      var nomEl = document.getElementById("nomCli-"+t);
-      if(idEl)  idEl.value  = c.id||"";
-      if(nomEl) nomEl.value = c.nombre;
-      box.classList.remove("open");
+
+    function seleccionar(){
+      _cliSelecting = false;
+      document.getElementById("idCli-"+t).value  = c.id||"";
+      document.getElementById("nomCli-"+t).value = c.nombre;
+      box.style.display = "none";
       box.innerHTML = "";
-      tipoLista[t] = (c.lista||"").toLowerCase().includes("patagonia")?"Patagonia":"Clientes";
+      tipoLista[t] = (c.lista||"").toLowerCase().indexOf("patagonia")!==-1?"Patagonia":"Clientes";
       var badge = document.getElementById("badge-"+t);
       if(badge) badge.textContent = "📋 "+tipoLista[t];
-      var grid=document.getElementById("cat-grid-"+t);
-      var panel=document.getElementById("cat-panel-"+t);
-      if(panel&&panel.classList.contains("open")&&grid&&grid.querySelector(".cat-item")){
-        var catTitle=document.getElementById("cat-title-"+t);
-        if(catTitle&&catTitle.textContent!=="Categorías") renderCatProds(t,catTitle.textContent);
-      }
     }
-    div.addEventListener("touchstart", elegir, {passive:false});
-    div.addEventListener("mousedown",  elegir);
+
+    // mousedown: marcar que estamos seleccionando (evita que onblur cierre el dropdown primero)
+    div.addEventListener("mousedown", function(e){
+      e.preventDefault();  // evita blur del input
+      _cliSelecting = true;
+      seleccionar();
+    });
+    // touchend: para mobile (touchstart podría hacer scroll)
+    div.addEventListener("touchend", function(e){
+      e.preventDefault();
+      _cliSelecting = false;
+      seleccionar();
+    });
     box.appendChild(div);
   });
+}
+
+function cerrarDropdownCli(t){
+  if(_cliSelecting) return;
+  var box = document.getElementById("res-cli-"+t);
+  if(box) { box.style.display="none"; box.innerHTML=""; }
 }
 
 function vincularCli(origen, t){
@@ -2844,15 +2858,13 @@ function vincularCli(origen, t){
   if(!idIn || !nomIn) return;
   if(origen === "id"){
     var v = (idIn.value||"").trim();
-    var c = dbCli.find(function(x){ return (x.id||"").toString() === v; });
+    var c = dbCli.filter(function(x){ return (x.id||"").toString()===v; })[0];
     if(c){
       nomIn.value = c.nombre;
-      tipoLista[t] = (c.lista||"").toLowerCase().includes("patagonia")?"Patagonia":"Clientes";
+      tipoLista[t] = (c.lista||"").toLowerCase().indexOf("patagonia")!==-1?"Patagonia":"Clientes";
       var badge = document.getElementById("badge-"+t);
       if(badge) badge.textContent = "📋 "+tipoLista[t];
     }
-  } else {
-    filtrarClientes(t);
   }
 }
 function filtrar(t){
@@ -5359,15 +5371,18 @@ if(!Array.prototype.includes){
 }
 
 function _cerrarDropdowns(target){
+  // Solo cerrar dropdowns de productos (res-ped, res-rem)
+  // Los dropdowns de clientes se cierran con onblur
   var inSearch = false;
   var el = target;
-  while(el){
-    if(el.classList&&(el.classList.contains("search-wrap")||el.classList.contains("dropdown"))){ inSearch=true; break; }
+  while(el && el !== document.body){
+    if(el.id && (el.id==="res-ped"||el.id==="res-rem"||el.id==="res-sto")){ inSearch=true; break; }
+    if(el.className && typeof el.className==="string" && el.className.indexOf("search-wrap")!==-1){ inSearch=true; break; }
     el=el.parentElement;
   }
   if(!inSearch){
-    var dds = document.querySelectorAll(".dropdown");
-    for(var i=0;i<dds.length;i++) dds[i].classList.remove("open");
+    var dd = document.getElementById("res-ped"); if(dd) dd.classList.remove("open");
+    var dr = document.getElementById("res-rem"); if(dr) dr.classList.remove("open");
   }
 }
 document.addEventListener("touchstart", function(e){ _cerrarDropdowns(e.target); }, {passive:true});
