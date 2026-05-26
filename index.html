@@ -1365,7 +1365,27 @@ select option { background:#fff }
       </div>
     </div>
     <div id="items-ped"><div class="items-empty">Sin productos aún</div></div>
-    <div class="total-row"><span class="total-lbl">Total</span><span class="total-val">$<span id="total-ped">0,00</span></span></div>
+    <div class="total-row" id="total-row-ped">
+      <span class="total-lbl">Total</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="rem-dsc-toggle" id="btn-dsc-ped" onclick="toggleDscPanel('ped')" title="Agregar descuento">🏷️</button>
+        <span class="total-val">$<span id="total-ped">0,00</span></span>
+      </div>
+    </div>
+    <!-- Panel de descuento pedido -->
+    <div id="dsc-panel-ped" style="display:none;border-top:1px solid var(--border);padding:12px 14px">
+      <div class="rem-dsc-section-title">Descuento general</div>
+      <div class="rc-dsc-row" style="margin-bottom:0">
+        <div class="rc-dsc-tipo" id="dsc-ped-tipo">
+          <button class="sel" data-t="%">%</button>
+          <button data-t="$">$</button>
+        </div>
+        <input type="number" min="0" class="rc-dsc-input" id="dsc-ped-val" placeholder="Valor">
+        <button class="rc-dsc-apply" onclick="aplicarDscGen('ped')">Aplicar</button>
+        <button class="rc-dsc-remove" id="btn-quitar-dsc-ped" onclick="quitarDscGen('ped')" style="display:none">✕ Quitar</button>
+      </div>
+      <div id="dsc-ped-preview" style="display:none" class="rc-dsc-preview"></div>
+    </div>
   </div>
   <div class="card"><div class="card-body"><textarea id="obs-ped" placeholder="Observaciones…" rows="2"></textarea></div></div>
   <button class="btn btn-green" onclick="generarPDF('pedido')">🟢 Enviar Pedido</button>
@@ -1821,7 +1841,7 @@ function fM(n){ return Number(n).toLocaleString("es-AR",{minimumFractionDigits:2
 function parseLocalFloat(v){ if(!v)return 0; var s=v.toString().trim().replace(/"/g,""); if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",","."); else if(s.includes(","))s=s.replace(",","."); return parseFloat(s)||0; }
 function splitCSV(row,sep){ var res=[],w="",q=false; for(var i=0;i<row.length;i++){var c=row[i];if(c==='"')q=!q;else if(c===sep&&!q){res.push(w);w="";}else w+=c;} res.push(w); return res.map(function(v){return v.trim().replace(/"/g,"");}); }
 function setStatus(id,cls,txt){ var el=document.getElementById(id); if(el){el.className="fb-pill "+cls;el.textContent=txt;} }
-function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; ordenes[t]=[]; if(t==="rem"){dscGenRem=null;_itemDscOpen=-1;var _p=document.getElementById("dsc-panel-rem");if(_p)_p.style.display="none";var _b=document.getElementById("btn-dsc-rem");if(_b)_b.classList.remove("active");var _v=document.getElementById("dsc-rem-val");if(_v)_v.value="";} renderItems(t); }
+function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; ordenes[t]=[]; dscGen[t]=null; if(t==="rem")dscGenRem=null; _itemDscOpen[t]=-1; var _p=document.getElementById("dsc-panel-"+t); if(_p)_p.style.display="none"; var _b=document.getElementById("btn-dsc-"+t); if(_b)_b.classList.remove("active"); var _v=document.getElementById("dsc-"+t+"-val"); if(_v)_v.value=""; renderItems(t); }
 function cerrarModal(id){ document.getElementById(id).classList.remove("open"); }
 function abrirModal(id){ document.getElementById(id).classList.add("open"); }
 
@@ -2143,8 +2163,9 @@ function filtrar(t){
   } else box.classList.remove("open");
 }
 function agregar(t){ var cant=parseFloat(document.getElementById("cant-"+t).value)||1; if(!itemSel[t])return; var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id&&x.p===itemSel[t].pre;}); if(exist){exist.c+=cant;exist.sub=exist.p*exist.c;}else ordenes[t].push({id:itemSel[t].id,n:itemSel[t].n,p:itemSel[t].pre,c:cant,sub:itemSel[t].pre*cant}); renderItems(t); document.getElementById("bus-"+t).value=""; document.getElementById("cant-"+t).value="1"; itemSel[t]=null; }
-var dscGenRem = null; // {tipo:"%"|"$", valor:number} — descuento general del remito activo
-var _itemDscOpen = -1; // index del item con panel de descuento abierto
+var dscGenRem = null; // legacy alias — usar dscGen.rem
+var dscGen = { ped: null, rem: null };
+var _itemDscOpen = { ped: -1, rem: -1 };
 
 function renderItems(t){
   var wrap=document.getElementById("items-"+t);
@@ -2154,38 +2175,40 @@ function renderItems(t){
   // Calcular total final con descuento general
   var totalFinal = subtotalConItemDsc;
   var montoDscGen = 0;
-  if(t==="rem" && dscGenRem){
-    montoDscGen = dscGenRem.tipo==="%" ? subtotalConItemDsc*dscGenRem.valor/100 : Math.min(dscGenRem.valor, subtotalConItemDsc);
+  var dg = dscGen[t];
+  if(dg){
+    montoDscGen = dg.tipo==="%" ? subtotalConItemDsc*dg.valor/100 : Math.min(dg.valor, subtotalConItemDsc);
     totalFinal = subtotalConItemDsc - montoDscGen;
   }
 
   document.getElementById("total-"+t).textContent = fM(totalFinal);
 
-  // Actualizar preview del descuento general
-  if(t==="rem"){
-    var preview = document.getElementById("dsc-rem-preview");
-    var btnQ    = document.getElementById("btn-quitar-dsc-rem");
-    var toggleBtn = document.getElementById("btn-dsc-rem");
-    if(dscGenRem && montoDscGen>0){
-      if(preview){ preview.style.display="flex"; preview.innerHTML='<span>Subtotal: $'+fM(subtotalConItemDsc)+' — Descuento: −$'+fM(montoDscGen)+'</span><b>Total: $'+fM(totalFinal)+'</b>'; }
-      if(btnQ) btnQ.style.display="inline-flex";
-      if(toggleBtn) toggleBtn.classList.add("active");
-    } else {
-      if(preview) preview.style.display="none";
-      if(btnQ) btnQ.style.display="none";
-      if(!dscGenRem && toggleBtn) toggleBtn.classList.remove("active");
-    }
+  // Preview descuento general
+  var preview  = document.getElementById("dsc-"+t+"-preview");
+  var btnQ     = document.getElementById("btn-quitar-dsc-"+t);
+  var toggleBtn= document.getElementById("btn-dsc-"+t);
+  if(dg && montoDscGen>0){
+    var totalDscItems = subtotalBase - subtotalConItemDsc;
+    var previewHtml = '';
+    if(totalDscItems>0) previewHtml += '<span>Subtotal lista: $'+fM(subtotalBase)+' — Descuento items: −$'+fM(totalDscItems)+'</span>';
+    previewHtml += '<span>Subtotal: $'+fM(subtotalConItemDsc)+' — Dsc. general: −$'+fM(montoDscGen)+'</span>';
+    previewHtml += '<b>Total: $'+fM(totalFinal)+'</b>';
+    if(preview){ preview.style.display="flex"; preview.style.flexDirection="column"; preview.style.gap="3px"; preview.innerHTML=previewHtml; }
+    if(btnQ)    btnQ.style.display="inline-flex";
+    if(toggleBtn) toggleBtn.classList.add("active");
+  } else {
+    if(preview) preview.style.display="none";
+    if(btnQ)    btnQ.style.display="none";
+    if(!dg && toggleBtn) toggleBtn.classList.remove("active");
   }
 
   if(!ordenes[t].length){ wrap.innerHTML='<div class="items-empty">Sin productos aún</div>'; return; }
 
-  // Render items
   var html2="";
   ordenes[t].forEach(function(it,i){
     var subBase = it.p*it.c;
     var hasDsc  = it.disc && it.disc.valor>0;
-    var abierto = (t==="rem" && _itemDscOpen===i);
-    // Stock disponible para este producto
+    var abierto = (_itemDscOpen[t]===i);
     var stkDisp = stockData[it.id];
     var stkBadge="";
     if(stkDisp!==undefined){
@@ -2200,101 +2223,106 @@ function renderItems(t){
       '<span class="item-sub">'+
         (hasDsc ? '<span class="rem-item-precio-orig">$'+fM(subBase)+'</span> $'+fM(it.sub) : '$'+fM(it.sub))+
       '</span>'+
-      (t==="rem"
-        ? '<button class="rem-item-dsc-toggle'+(hasDsc?" has-dsc":"")+'" onclick="toggleItemDscRem('+i+')">'+
-            (hasDsc ? '🏷️ −'+(it.disc.tipo==="%"?it.disc.valor+"%":"$"+fM(it.disc.valor)) : '🏷️')+
-          '</button>'
-        : '')+
+      '<button class="rem-item-dsc-toggle'+(hasDsc?" has-dsc":"")+'" onclick="toggleItemDsc(\''+t+'\','+i+')">'+
+        (hasDsc ? '🏷️ −'+(it.disc.tipo==="%"?it.disc.valor+"%":"$"+fM(it.disc.valor)) : '🏷️')+
+      '</button>'+
       '<button class="item-del" data-t="'+t+'" data-i="'+i+'" onclick="quitarItem(this.dataset.t,+this.dataset.i)">✕</button>'+
-      // Per-item discount panel (only for rem, only if open)
-      (t==="rem" && abierto
+      (abierto
         ? '<div class="rem-item-dsc">'+
             '<span style="font-size:10.5px;color:var(--muted);flex-shrink:0">Descuento:</span>'+
-            '<div class="rem-item-dsc-tipo" id="rim-tipo-'+i+'">'+
+            '<div class="rem-item-dsc-tipo" id="rim-tipo-'+t+'-'+i+'">'+
               '<button class="'+(hasDsc&&it.disc.tipo==="%"?"sel":"")+'" data-t="%">%</button>'+
               '<button class="'+(hasDsc&&it.disc.tipo==="$"?"sel":"")+'" data-t="$">$</button>'+
             '</div>'+
-            '<input type="number" min="0" class="rem-item-dsc-inp" id="rim-val-'+i+'" placeholder="0" value="'+(hasDsc?it.disc.valor:"")+'" style="width:56px">'+
-            '<button class="rem-item-dsc-ok" onclick="aplicarItemDscRem('+i+')">✓ Aplicar</button>'+
-            (hasDsc?'<button class="rem-item-dsc-rm" onclick="quitarItemDscRem('+i+')">✕</button>':'')+
+            '<input type="number" min="0" class="rem-item-dsc-inp" id="rim-val-'+t+'-'+i+'" placeholder="0" value="'+(hasDsc?it.disc.valor:"")+'" style="width:56px">'+
+            '<button class="rem-item-dsc-ok" onclick="aplicarItemDsc(\''+t+'\','+i+')">✓ Aplicar</button>'+
+            (hasDsc?'<button class="rem-item-dsc-rm" onclick="quitarItemDsc(\''+t+'\','+i+')">✕</button>':'')+
           '</div>'
         : '')+
     '</div>';
   });
   wrap.innerHTML=html2;
 
-  // Bind tipo toggles for open item
-  if(t==="rem" && _itemDscOpen>=0){
-    var tipoBtns=wrap.querySelectorAll("#rim-tipo-"+_itemDscOpen+" button");
+  if(_itemDscOpen[t]>=0){
+    var tipoBtns=wrap.querySelectorAll("#rim-tipo-"+t+"-"+_itemDscOpen[t]+" button");
     tipoBtns.forEach(function(btn){
       btn.onclick=function(){tipoBtns.forEach(function(b){b.classList.remove("sel");}); btn.classList.add("sel");};
     });
   }
 }
-function quitarItem(t,i){ ordenes[t].splice(i,1); if(t==="rem"&&_itemDscOpen===i)_itemDscOpen=-1; renderItems(t); }
+function quitarItem(t,i){ ordenes[t].splice(i,1); _itemDscOpen[t]=-1; renderItems(t); }
 
-
-function toggleDscPanelRem(){
-  var panel=document.getElementById("dsc-panel-rem");
+function toggleDscPanel(t){
+  var panel=document.getElementById("dsc-panel-"+t);
   if(!panel) return;
   var open=panel.style.display!=="none";
   panel.style.display=open?"none":"block";
-  document.getElementById("btn-dsc-rem").classList.toggle("active",!open);
+  document.getElementById("btn-dsc-"+t).classList.toggle("active",!open);
 }
 
-function aplicarDscGenRem(){
-  var tipoBtns=document.querySelectorAll("#dsc-rem-tipo button");
+function aplicarDscGen(t){
+  var tipoBtns=document.querySelectorAll("#dsc-"+t+"-tipo button");
   var tipo=null;
   tipoBtns.forEach(function(b){if(b.classList.contains("sel"))tipo=b.dataset.t;});
   if(!tipo){showNotif("Seleccioná % o $","err");return;}
-  var val=parseFloat(document.getElementById("dsc-rem-val").value)||0;
+  var val=parseFloat(document.getElementById("dsc-"+t+"-val").value)||0;
   if(val<=0){showNotif("Ingresá un valor mayor a 0","err");return;}
-  var subtotal=ordenes.rem.reduce(function(s,i){return s+i.sub;},0);
+  var subtotal=ordenes[t].reduce(function(s,i){return s+i.sub;},0);
   var montoDsc=tipo==="%"?subtotal*val/100:val;
   if(montoDsc>=subtotal){showNotif("El descuento no puede superar el total","err");return;}
-  dscGenRem={tipo:tipo,valor:val};
-  renderItems("rem");
+  dscGen[t]={tipo:tipo,valor:val};
+  if(t==="rem") dscGenRem=dscGen[t]; // legacy sync
+  renderItems(t);
   showNotif("Descuento de "+(tipo==="%"?val+"%":"$"+fM(val))+" aplicado","ok");
 }
 
-function quitarDscGenRem(){
-  dscGenRem=null;
-  renderItems("rem");
-  var val=document.getElementById("dsc-rem-val"); if(val) val.value="";
+function quitarDscGen(t){
+  dscGen[t]=null;
+  if(t==="rem") dscGenRem=null;
+  renderItems(t);
+  var val=document.getElementById("dsc-"+t+"-val"); if(val) val.value="";
   showNotif("Descuento general removido","ok");
 }
 
-function toggleItemDscRem(i){
-  _itemDscOpen=(_itemDscOpen===i)?-1:i;
-  renderItems("rem");
+function toggleItemDsc(t,i){
+  _itemDscOpen[t]=(_itemDscOpen[t]===i)?-1:i;
+  renderItems(t);
 }
 
-function aplicarItemDscRem(i){
-  var tipoBtns=document.querySelectorAll("#rim-tipo-"+i+" button");
+function aplicarItemDsc(t,i){
+  var tipoBtns=document.querySelectorAll("#rim-tipo-"+t+"-"+i+" button");
   var tipo=null;
   tipoBtns.forEach(function(b){if(b.classList.contains("sel"))tipo=b.dataset.t;});
   if(!tipo) tipo="%";
-  var val=parseFloat((document.getElementById("rim-val-"+i)||{}).value)||0;
-  var it=ordenes.rem[i];
+  var val=parseFloat((document.getElementById("rim-val-"+t+"-"+i)||{}).value)||0;
+  var it=ordenes[t][i];
   if(!it) return;
   var subBase=it.p*it.c;
-  if(val<=0){ delete ordenes.rem[i].disc; ordenes.rem[i].sub=subBase; }
+  if(val<=0){ delete ordenes[t][i].disc; ordenes[t][i].sub=subBase; }
   else {
     var subCon=tipo==="%"?subBase*(1-val/100):Math.max(0,subBase-val);
-    ordenes.rem[i].disc={tipo:tipo,valor:val};
-    ordenes.rem[i].sub=subCon;
+    ordenes[t][i].disc={tipo:tipo,valor:val};
+    ordenes[t][i].sub=subCon;
   }
-  _itemDscOpen=-1;
-  renderItems("rem");
+  _itemDscOpen[t]=-1;
+  renderItems(t);
 }
 
-function quitarItemDscRem(i){
-  var it=ordenes.rem[i]; if(!it) return;
-  delete ordenes.rem[i].disc;
-  ordenes.rem[i].sub=it.p*it.c;
-  _itemDscOpen=-1;
-  renderItems("rem");
+function quitarItemDsc(t,i){
+  var it=ordenes[t][i]; if(!it) return;
+  delete ordenes[t][i].disc;
+  ordenes[t][i].sub=it.p*it.c;
+  _itemDscOpen[t]=-1;
+  renderItems(t);
 }
+
+// Legacy aliases for any old onclick references
+function toggleDscPanelRem(){ toggleDscPanel('rem'); }
+function aplicarDscGenRem(){ aplicarDscGen('rem'); }
+function quitarDscGenRem(){ quitarDscGen('rem'); }
+function toggleItemDscRem(i){ toggleItemDsc('rem',i); }
+function aplicarItemDscRem(i){ aplicarItemDsc('rem',i); }
+function quitarItemDscRem(i){ quitarItemDsc('rem',i); }
 
 function generarPDF(m){
   var t=m==="pedido"?"ped":"rem";
@@ -2310,44 +2338,102 @@ function generarPDF(m){
   try{
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
   var nom=document.getElementById("nomCli-"+t).value||"Mostrador";
-  var tot=document.getElementById("total-"+t).textContent;
   var obs=document.getElementById("obs-"+t).value.trim();
-  if(empresaData.logo)doc.addImage(empresaData.logo,"PNG",10,5,40,20);
-  doc.setFontSize(18);doc.setFont("helvetica","bold");
-  doc.text((empresaData.nombre||"EMPRESA")+" - "+m.toUpperCase(),105,16,{align:"center"});
-  doc.setFontSize(11);doc.setFont("helvetica","normal");
-  // Buscar dirección del cliente en dbCli
+
+  // ── Calcular totales con descuentos ──
+  var subtotalLista    = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
+  var subtotalItemsDsc = ordenes[t].reduce(function(s,i){return s+i.sub;},0);
+  var ahorroItems      = subtotalLista - subtotalItemsDsc;
+  var dg               = dscGen[t];
+  var montoDscGen      = 0;
+  if(dg) montoDscGen = dg.tipo==="%" ? subtotalItemsDsc*dg.valor/100 : Math.min(dg.valor, subtotalItemsDsc);
+  var totalFinal       = subtotalItemsDsc - montoDscGen;
+  var ahorroTotal      = ahorroItems + montoDscGen;
+  var hayDescuentos    = ahorroTotal > 0;
+
+  // ── Encabezado ──
+  if(empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,40,20);
+  doc.setFontSize(18); doc.setFont("helvetica","bold");
+  doc.text((empresaData.nombre||"EMPRESA")+" — "+m.toUpperCase(),105,16,{align:"center"});
+  doc.setFontSize(11); doc.setFont("helvetica","normal");
   var cliIdVal=document.getElementById("idCli-"+t).value||"";
   var cliData=dbCli.find(function(c){return c.id===cliIdVal||c.nombre===nom;})||null;
   var cliDireccion=cliData?cliData.direccion||"":"";
   var yBase=25;
   doc.text("Cliente: "+nom,55,yBase);
-  if(cliDireccion){
-    doc.setTextColor(80,100,120);
-    doc.text(cliDireccion,55,yBase+6);
-    doc.setTextColor(30,41,59);
-    yBase+=6;
-  }
+  if(cliDireccion){ doc.setTextColor(80,100,120); doc.text(cliDireccion,55,yBase+6); doc.setTextColor(30,41,59); yBase+=6; }
   doc.text("Lista: "+tipoLista[t],55,yBase+6);
   doc.text("Fecha: "+new Date().toLocaleDateString()+" "+new Date().toLocaleTimeString(),55,yBase+12);
   var startY=yBase+20;
-  // Build foot: add discount row for remito if active
-  var footRows=[];
-  if(m==="remito" && dscGenRem && dscGenRem.valor>0){
-    var subtotalRemPDF=ordenes[t].reduce(function(s,i){return s+i.sub;},0);
-    var montoDscPDF=dscGenRem.tipo==="%"?subtotalRemPDF*dscGenRem.valor/100:Math.min(dscGenRem.valor,subtotalRemPDF);
-    footRows.push(["","","","Subtotal:","$"+fM(subtotalRemPDF)]);
-    footRows.push(["","","","Descuento ("+(dscGenRem.tipo==="%"?dscGenRem.valor+"%":"$"+fM(dscGenRem.valor))+"):","−$"+fM(montoDscPDF)]);
+
+  // ── Tabla de productos ──
+  // Si hay descuentos mostramos columna extra con el descuento por item
+  var head, body;
+  if(hayDescuentos){
+    head=[["Cant","Cód","Producto","P.Lista","Dsc.","P.Final","Sub"]];
+    body=ordenes[t].map(function(i){
+      var subBase=i.p*i.c;
+      var hasDsc=i.disc&&i.disc.valor>0;
+      var dscLabel=hasDsc?(i.disc.tipo==="%"?"-"+i.disc.valor+"%":"-$"+fM(i.disc.valor)):"";
+      var precioFinal=hasDsc?(i.sub/i.c):i.p;
+      return[i.c, i.id, i.n, "$"+fM(i.p), dscLabel, hasDsc?"$"+fM(precioFinal):"", "$"+fM(i.sub)];
+    });
+  } else {
+    head=[["Cant","Cód","Producto","P.U.","Sub"]];
+    body=ordenes[t].map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];});
   }
-  footRows.push(["","","","TOTAL","$"+tot]);
-  doc.autoTable({startY:startY,head:[["Cant","Cod","Producto","P.U","Sub"]],body:ordenes[t].map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),foot:footRows,theme:"striped",headStyles:{fillColor:[13,27,42]}});
+
+  // ── Pie: desglose de descuentos ──
+  var footRows=[];
+  if(hayDescuentos){
+    footRows.push(hayDescuentos ? Array(head[0].length-2).fill("").concat(["Subtotal lista:","$"+fM(subtotalLista)]) : []);
+    if(ahorroItems>0){
+      footRows.push(Array(head[0].length-2).fill("").concat(["Dsc. en productos:","−$"+fM(ahorroItems)]));
+    }
+    if(ahorroItems>0){
+      footRows.push(Array(head[0].length-2).fill("").concat(["Subtotal con dsc.:","$"+fM(subtotalItemsDsc)]));
+    }
+    if(montoDscGen>0){
+      var dscGenLabel="Dsc. general ("+(dg.tipo==="%"?dg.valor+"%":"$"+fM(dg.valor))+"):";
+      footRows.push(Array(head[0].length-2).fill("").concat([dscGenLabel,"−$"+fM(montoDscGen)]));
+    }
+    footRows.push(Array(head[0].length-2).fill("").concat(["TOTAL FINAL:","$"+fM(totalFinal)]));
+    if(ahorroTotal>0){
+      footRows.push(Array(head[0].length-2).fill("").concat(["Ahorro total:","−$"+fM(ahorroTotal)]));
+    }
+  } else {
+    footRows.push(["","","","TOTAL","$"+fM(totalFinal)]);
+  }
+
+  doc.autoTable({
+    startY: startY,
+    head: head,
+    body: body,
+    foot: footRows,
+    theme: "striped",
+    headStyles: { fillColor:[13,27,42] },
+    footStyles: { fontStyle:"bold" },
+    // Colorear filas de "ahorro" en verde y descuentos en ámbar
+    didParseCell: function(data){
+      if(data.section==="foot"){
+        var txt = data.cell.raw||"";
+        if(typeof txt==="string" && txt.indexOf("Ahorro")!==-1){ data.cell.styles.textColor=[10,112,72]; }
+        else if(typeof txt==="string" && (txt.indexOf("Dsc.")!==-1||txt.indexOf("−$")!==-1)){ data.cell.styles.textColor=[160,90,0]; }
+        else if(typeof txt==="string" && txt.indexOf("TOTAL FINAL")!==-1){ data.cell.styles.fontSize=11; }
+      }
+      // Resaltar celda de descuento en body
+      if(data.section==="body" && data.column.index===4 && hayDescuentos && data.cell.raw&&data.cell.raw.toString().startsWith("-")){
+        data.cell.styles.textColor=[160,90,0]; data.cell.styles.fontStyle="bold";
+      }
+    }
+  });
   if(obs){var y=doc.lastAutoTable.finalY+10;doc.setFont("helvetica","bold");doc.text("OBSERVACIONES:",14,y);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(obs,180),14,y+7);}
 
   if(m==="remito"){
-    var totalNum=parseLocalFloat(tot), ahora=new Date();
+    var totalNum=totalFinal, ahora=new Date();
     var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),total:totalNum,usuario:currentUser.id};
     var itemsCopy=ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};});
-    var cliIdVal=document.getElementById("idCli-rem").value;
+    var cliIdRem=document.getElementById("idCli-rem").value;
     fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Venta remito "+nom).then(function(){
       var hoy=new Date().toLocaleDateString("es-AR");
       var keys=Object.keys(rutasData);
@@ -2357,23 +2443,20 @@ function generarPDF(m){
       else if(rutaHoy)rkPromise=Promise.resolve(rutaHoy);
       else{var nn="Ruta "+new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});var nv={nombre:nn,fecha:ahora.toISOString(),clientes:{}};rkPromise=fbPushQ("empresas/"+empresaKey+"/rutas",nv,"Nueva ruta offline").then(function(k){if(k&&k.length>5){rutasData[k]=nv;rutaAbierta=k;}return k;});}
       return rkPromise.then(function(rk){
-        if(!rk||rk.startsWith("op_"))return; // offline — ruta se creará al sincronizar
-        var cd={nom:nom,id:cliIdVal,importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:itemsCopy,fecha:ahora.toISOString()};
+        if(!rk||rk.startsWith("op_"))return;
+        var cd={nom:nom,id:cliIdRem,importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:itemsCopy,fecha:ahora.toISOString()};
         return fbPushQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes",cd,"Cliente ruta: "+nom).then(function(ck){if(ck&&!ck.startsWith("op_")){if(!rutasData[rk])rutasData[rk]={clientes:{}};if(!rutasData[rk].clientes)rutasData[rk].clientes={};rutasData[rk].clientes[ck]=cd;}});
       });
     }).catch(function(e){console.warn("Firebase:",e);});
   }
-  // BACKUP: guardar siempre antes de compartir
+
+  // BACKUP
   var bkItem={
-    id:"bk_"+Date.now(),
-    fecha:new Date().toISOString(),
-    clienteNom:nom,
-    clienteId:document.getElementById("idCli-"+t).value||"",
-    lista:tipoLista[t],
-    obs:obs,
+    id:"bk_"+Date.now(), fecha:new Date().toISOString(), clienteNom:nom,
+    clienteId:document.getElementById("idCli-"+t).value||"", lista:tipoLista[t], obs:obs,
     items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),
-    total:parseLocalFloat(document.getElementById("total-"+t).textContent),
-    tipo:m
+    total:totalFinal, tipo:m,
+    descuentos: hayDescuentos ? {ahorroItems:ahorroItems,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal} : null
   };
   guardarBackup(bkItem);
   descontarStock(ordenes[t]);
@@ -2382,7 +2465,7 @@ function generarPDF(m){
   if(navigator.share)navigator.share({files:[file]}).catch(function(){doc.save(m+"_"+nom+".pdf");});
   else doc.save(m+"_"+nom+".pdf");
   limpiarFormulario(t);
-  } catch(err) { console.error("generarPDF error:",err); alert("Error al generar PDF: "+err.message+"\n\nAvisá al admin con este mensaje."); }
+  } catch(err){ console.error("generarPDF error:",err); alert("Error al generar PDF: "+err.message+"\n\nAvisá al admin con este mensaje."); }
 }
 
 /* ══ STOCK ══ */
