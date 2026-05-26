@@ -2155,7 +2155,7 @@ select option { background:#fff }
 <script>
 
 
-var FB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
+// Firebase migrado a Supabase — ver capa de datos abajo
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","pedidos-acum":"Pedidos al Proveedor","backup":"Backup de Pedidos",resumen:"Resumen Mensual","mapa-entregas":"Mapa de Entregas",stock:"Mi Stock",clientes:"Gestión de Clientes",productos:"Mis Productos",catalogo:"Catálogo PDF","mis-ventas":"Mis Ventas",vendedores:"Mis Vendedores"};
 var MED = ["g","s","b"];
@@ -2170,10 +2170,213 @@ var ordenes = {ped:[],rem:[]};
 var tipoLista = {ped:"Clientes",rem:"Clientes"};
 var itemSel = {ped:null,rem:null};
 
-function fbGet(p){ return fetch(FB+"/"+p+".json").then(function(r){return r.json();}); }
-function fbPush(p,d){ return fetch(FB+"/"+p+".json",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(r){return r.json();}).then(function(j){return j.name;}); }
-function fbPatch(p,d){ return fetch(FB+"/"+p+".json",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}); }
-function fbDel(p){ return fetch(FB+"/"+p+".json",{method:"DELETE"}); }
+// ══════════════════════════════════════════════════════
+// SUPABASE — Capa de datos (reemplaza Firebase)
+// ══════════════════════════════════════════════════════
+var SB_URL  = "https://vhoswhyixqtomgqudigj.supabase.co";
+var SB_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZob3N3aHlpeHF0b21ncXVkaWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MTI4ODIsImV4cCI6MjA5NTM4ODg4Mn0.gjUaVJ1RvF3KrjfXVyh8wYIso4QW6RtIfFRbkd0PyA8";
+var SB_HDR  = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY, "Content-Type": "application/json", "Prefer": "return=representation" };
+var _sbEmpId = null;
+
+function sbFetch(method, path, body){
+  return fetch(SB_URL+path, { method:method, headers:SB_HDR, body: body ? JSON.stringify(body) : undefined })
+    .then(function(r){
+      if(!r.ok) return r.text().then(function(t){ throw new Error(t||r.status); });
+      var ct = r.headers.get("content-type")||"";
+      if(r.status===204 || !ct.includes("json")) return null;
+      return r.json();
+    });
+}
+function sbGet(table, params)        { return sbFetch("GET",    "/rest/v1/"+table+"?"+(params||""), null); }
+function sbPost(table, data)         { return sbFetch("POST",   "/rest/v1/"+table, data); }
+function sbPatch(table, match, data) { return sbFetch("PATCH",  "/rest/v1/"+table+"?"+match, data); }
+function sbDel(table, match)         { return sbFetch("DELETE", "/rest/v1/"+table+"?"+match, null); }
+function sbUpsert(table, data){
+  return fetch(SB_URL+"/rest/v1/"+table, {
+    method:"POST",
+    headers:Object.assign({},SB_HDR,{"Prefer":"resolution=merge-duplicates,return=representation"}),
+    body:JSON.stringify(data)
+  }).then(function(r){ return r.ok||r.status===204 ? (r.status===204?null:r.json()) : r.text().then(function(t){throw new Error(t);}); });
+}
+
+function _fbPathParse(path){ return path.split("/").filter(Boolean); }
+
+function fbGet(path){
+  var p = _fbPathParse(path);
+  if(p[0]==="empresas" && p.length===1) return _sbGetAllEmpresas();
+  if(p[0]==="empresas" && p.length===2) return _sbGetEmpresa(p[1]);
+  if(!_sbEmpId) return Promise.resolve(null);
+  var r = p[2];
+  if(r==="ventas")              return _sbGetVentas();
+  if(r==="stock")               return _sbGetStock();
+  if(r==="stockConfig")         return _sbGetStockConfig();
+  if(r==="rutas")               return _sbGetRutas();
+  if(r==="backupPedidos")       return _sbGetBackup();
+  if(r==="listasPrecios")       return _sbGetListas();
+  if(r==="productos")           return _sbGetProductos();
+  if(r==="usuarios")            return _sbGetUsuarios();
+  if(r==="cuentas_corrientes" && p[3]) return _sbGetCC(decodeURIComponent(p[3]));
+  return Promise.resolve(null);
+}
+
+function fbPatch(path, data){
+  var p = _fbPathParse(path);
+  if(!_sbEmpId) return Promise.resolve();
+  var r = p[2], id = p[3];
+  if(r==="stock")          return _sbPatchStock(data);
+  if(r==="stockConfig")    return _sbPatchStockConfig(data);
+  if(r==="listasPrecios")  return _sbPatchListas(data);
+  if(r==="productos" && id) return _sbPatchProducto(id, data);
+  if(r==="usuarios" && id)  return _sbPatchUsuario(id, data);
+  if(r==="ventas" && id)    return sbPatch("ventas","id=eq."+id, _ventaToRow(data));
+  if(r==="rutas"){
+    if(p.length===4) return sbPatch("rutas","id=eq."+id+"&empresa_id=eq."+_sbEmpId, {nombre:data.nombre});
+    if(p.length>=6 && p[4]==="clientes") return _sbPatchRutaCli(p[3],p[5],data);
+  }
+  if(r==="cuentas_corrientes" && id) return _sbPatchCC(decodeURIComponent(id), data);
+  return Promise.resolve();
+}
+
+function fbPush(path, data){
+  var p = _fbPathParse(path);
+  var r = p[2];
+  if(r==="ventas")        return _sbInsertVenta(data);
+  if(r==="rutas" && p.length===3) return _sbInsertRuta(data);
+  if(r==="rutas" && p.length>=5 && p[4]==="clientes") return _sbInsertRutaCli(p[3], data);
+  if(r==="backupPedidos") return _sbInsertBackup(data);
+  if(r==="productos")     return _sbInsertProducto(data);
+  if(r==="usuarios")      return _sbInsertUsuario(data);
+  if(r==="cuentas_corrientes" && p[5]==="movimientos") return _sbInsertCCMov(decodeURIComponent(p[4]||""), data);
+  return Promise.resolve("sb_"+Date.now());
+}
+
+function fbDel(path){
+  var p = _fbPathParse(path);
+  if(!_sbEmpId) return Promise.resolve();
+  var r = p[2];
+  if(r==="ventas" && p[3])       return sbDel("ventas","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
+  if(r==="backupPedidos" && p[3]) return sbDel("backup_pedidos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
+  if(r==="productos" && p[3])     return sbDel("productos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
+  if(r==="usuarios" && p[3])      return sbDel("usuarios","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
+  if(r==="rutas"){
+    if(p.length===4) return sbDel("rutas","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
+    if(p.length>=6 && p[4]==="clientes") return sbDel("ruta_clientes","id=eq."+p[5]+"&ruta_id=eq."+p[3]);
+    if(p.length>=8 && p[6]==="comprobantes") return _sbDelComprobante(p[3],p[5],p[7]);
+  }
+  return Promise.resolve();
+}
+
+// ── Implementaciones ──
+async function _sbGetAllEmpresas(){
+  var [emps, users] = await Promise.all([
+    sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence"),
+    sbGet("usuarios","select=id,empresa_id,uid,pass,name,role,lista,direccion,telefono,zona,recepciona,nota,catalogo")
+  ]);
+  if(!emps) return null;
+  var result={};
+  emps.forEach(function(e){
+    var uMap={};
+    (users||[]).filter(function(u){return u.empresa_id===e.id;}).forEach(function(u){
+      uMap[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,direccion:u.direccion,telefono:u.telefono,zona:u.zona,rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id};
+    });
+    result[e.id]=Object.assign({},e,{usuarios:uMap});
+  });
+  return result;
+}
+
+async function _sbGetEmpresa(empId){
+  if(!empId) return null;
+  _sbEmpId = empId;
+  var rows = await sbGet("empresas","select=*&id=eq."+empId);
+  if(!rows||!rows.length) return null;
+  var e=rows[0];
+  var res = await Promise.all([
+    sbGet("usuarios",       "select=*&empresa_id=eq."+empId),
+    sbGet("productos",      "select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto&empresa_id=eq."+empId),
+    sbGet("stock",          "select=codigo,cantidad,umbral&empresa_id=eq."+empId),
+    sbGet("listas_precios", "select=lista_key,nombre,pct,orden&empresa_id=eq."+empId+"&order=orden.asc")
+  ]);
+  var users=res[0]||[], prods=res[1]||[], stockRows=res[2]||[], listas=res[3]||[];
+  var uMap={},pMap={},sMap={},scMap={},lMap={};
+  users.forEach(function(u){uMap[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,direccion:u.direccion,telefono:u.telefono,zona:u.zona,rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id};});
+  prods.forEach(function(p){pMap[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto};});
+  stockRows.forEach(function(s){sMap[s.codigo]=s.cantidad;scMap[s.codigo]={umbral:s.umbral};});
+  listas.forEach(function(l){lMap[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});
+  return Object.assign({},e,{usuarios:uMap,productos:pMap,stock:sMap,stockConfig:scMap,listasPrecios:Object.keys(lMap).length?lMap:null});
+}
+
+function _ventaToRow(v){
+  var row={};
+  if(_sbEmpId) row.empresa_id=_sbEmpId;
+  if(v.fecha) row.fecha=v.fecha;
+  if(v.clienteId!==undefined) row.cliente_id=v.clienteId||"";
+  if(v.clienteNom!==undefined) row.cliente_nom=v.clienteNom||"";
+  if(v.lista!==undefined) row.lista=v.lista||"Clientes";
+  if(v.items!==undefined) row.items=v.items||[];
+  if(v.total!==undefined) row.total=v.total||0;
+  if(v.usuario!==undefined) row.usuario=v.usuario||"";
+  if(v.usuarioNom!==undefined) row.usuario_nom=v.usuarioNom||"";
+  if(v.descuentos!==undefined) row.descuentos=v.descuentos||null;
+  return row;
+}
+
+async function _sbGetVentas(){
+  var rows=await sbGet("ventas","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
+  if(!rows) return null;
+  var r={};rows.forEach(function(v){r[v.id]={fecha:v.fecha,clienteId:v.cliente_id,clienteNom:v.cliente_nom,lista:v.lista,items:v.items,total:v.total,usuario:v.usuario,usuarioNom:v.usuario_nom,descuentos:v.descuentos};});return r;
+}
+async function _sbInsertVenta(v){ var rows=await sbPost("ventas",_ventaToRow(v)); return rows&&rows[0]?rows[0].id:null; }
+
+async function _sbGetStock(){ var rows=await sbGet("stock","select=codigo,cantidad&empresa_id=eq."+_sbEmpId); var r={};(rows||[]).forEach(function(s){r[s.codigo]=s.cantidad;});return r; }
+async function _sbGetStockConfig(){ var rows=await sbGet("stock","select=codigo,umbral&empresa_id=eq."+_sbEmpId); var r={};(rows||[]).forEach(function(s){r[s.codigo]={umbral:s.umbral};});return r; }
+async function _sbPatchStock(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],cantidad:e[1],updated_at:new Date().toISOString()}); })); }
+async function _sbPatchStockConfig(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],umbral:e[1].umbral}); })); }
+
+async function _sbGetListas(){ var rows=await sbGet("listas_precios","select=lista_key,nombre,pct,orden&empresa_id=eq."+_sbEmpId+"&order=orden.asc"); if(!rows||!rows.length)return null; var r={};rows.forEach(function(l){r[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});return r; }
+async function _sbPatchListas(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("listas_precios",{empresa_id:_sbEmpId,lista_key:e[0],nombre:e[1].nombre,pct:e[1].pct||0,orden:e[1].orden||0}); })); }
+
+async function _sbGetProductos(){ var rows=await sbGet("productos","select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); if(!rows)return null; var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto};});return r; }
+async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||""}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
+
+async function _sbGetUsuarios(){ var rows=await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,zona,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc"); if(!rows)return null; var r={};rows.forEach(function(u){r[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,direccion:u.direccion,telefono:u.telefono,zona:u.zona,rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id};});return r; }
+async function _sbInsertUsuario(u){ var rows=await sbPost("usuarios",{empresa_id:_sbEmpId,uid:u.id,pass:u.pass||u.id,name:u.name||u.id,role:u.role||"vendedor",lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.tel||"",zona:u.zona||"",recepciona:u.rec||"",nota:u.nota||"",catalogo:u.catalogo!==false}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
+
+async function _sbGetRutas(){
+  var rutas=await sbGet("rutas","select=id,nombre,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
+  if(!rutas||!rutas.length) return null;
+  var ids=rutas.map(function(r){return r.id;}).join(",");
+  var clis=await sbGet("ruta_clientes","select=*&ruta_id=in.("+ids+")&order=created_at.asc");
+  var result={};
+  rutas.forEach(function(r){
+    var cm={};
+    (clis||[]).filter(function(c){return c.ruta_id===r.id;}).forEach(function(c){cm[c.id]={id:c.id,nom:c.nom,id:c.cliente_id,importe:c.importe,efectivo:c.efectivo,transferencia:c.transferencia,modo:c.modo,items:c.items||[],fecha:c.fecha,firma:c.firma||"",firmadoEn:c.firmado_en||"",pagosAdicionales:c.pagos_adicionales||[],comprobantes:c.comprobantes||[]};});
+    result[r.id]={nombre:r.nombre,fecha:r.fecha,clientes:cm};
+  });
+  return result;
+}
+async function _sbInsertRuta(data){ var rows=await sbPost("rutas",{empresa_id:_sbEmpId,nombre:data.nombre,fecha:data.fecha||new Date().toISOString()}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbInsertRutaCli(rutaId,data){ var rows=await sbPost("ruta_clientes",{ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),firma:"",pagos_adicionales:[],comprobantes:[]}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbPatchRutaCli(rutaId,cliId,data){ var b={};if(data.efectivo!==undefined)b.efectivo=data.efectivo;if(data.transferencia!==undefined)b.transferencia=data.transferencia;if(data.modo!==undefined)b.modo=data.modo;if(data.importe!==undefined)b.importe=data.importe;if(data.firma!==undefined)b.firma=data.firma;if(data.firmadoEn!==undefined)b.firmado_en=data.firmadoEn;if(data.pagosAdicionales!==undefined)b.pagos_adicionales=data.pagosAdicionales;if(data.comprobantes!==undefined)b.comprobantes=data.comprobantes;return sbPatch("ruta_clientes","id=eq."+cliId+"&ruta_id=eq."+rutaId,b); }
+async function _sbDelComprobante(rutaId,cliId,tid){ var rows=await sbGet("ruta_clientes","select=comprobantes&id=eq."+cliId); if(!rows||!rows[0])return; var comps=(rows[0].comprobantes||[]).filter(function(c){return c.id!==tid;}); return sbPatch("ruta_clientes","id=eq."+cliId,{comprobantes:comps}); }
+
+async function _sbGetBackup(){ var rows=await sbGet("backup_pedidos","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc"); if(!rows)return null; var r={};rows.forEach(function(b){r[b.id]={id:b.id,fecha:b.fecha,clienteNom:b.cliente_nom,clienteId:b.cliente_id,lista:b.lista,obs:b.obs,items:b.items,total:b.total,tipo:b.tipo,usuario:b.usuario,descuentos:b.descuentos};});return r; }
+async function _sbInsertBackup(data){ var rows=await sbPost("backup_pedidos",{empresa_id:_sbEmpId,fecha:data.fecha||new Date().toISOString(),cliente_nom:data.clienteNom||"",cliente_id:data.clienteId||"",lista:data.lista||"",obs:data.obs||"",items:data.items||[],total:data.total||0,tipo:data.tipo||"pedido",usuario:data.usuario||"",descuentos:data.descuentos||null}); return rows&&rows[0]?rows[0].id:null; }
+
+async function _sbGetCC(cliNom){ var rows=await sbGet("cuentas_corrientes","select=saldo&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)); if(!rows||!rows.length)return null; var movs=await sbGet("cc_movimientos","select=*&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)+"&order=fecha.desc"); return {saldo:rows[0].saldo,movimientos:movs||[]}; }
+async function _sbPatchCC(cliNom,data){ if(data.saldo!==undefined)return sbUpsert("cuentas_corrientes",{empresa_id:_sbEmpId,cliente_nom:cliNom,saldo:data.saldo,updated_at:new Date().toISOString()}); }
+async function _sbInsertCCMov(cliNom,data){ var rows=await sbPost("cc_movimientos",{empresa_id:_sbEmpId,cliente_nom:cliNom,monto:data.monto||0,forma:data.forma||"",nota:data.nota||"",usuario:(currentUser?currentUser.id:""),fecha:data.fecha||new Date().toISOString()}); return rows&&rows[0]?rows[0].id:null; }
+
+function fbGetCached(p){
+  return fbGet(p)
+    .then(function(data){ _saveReadCache(p, data); return data; })
+    .catch(function(){
+      var cached=_getCached(p);
+      if(cached){ return cached.data; }
+      return null;
+    });
+}
 function fM(n){ return Number(n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function parseLocalFloat(v){ if(!v)return 0; var s=v.toString().trim().replace(/"/g,""); if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",","."); else if(s.includes(","))s=s.replace(",","."); return parseFloat(s)||0; }
 function splitCSV(row,sep){ var res=[],w="",q=false; for(var i=0;i<row.length;i++){var c=row[i];if(c==='"')q=!q;else if(c===sep&&!q){res.push(w);w="";}else w+=c;} res.push(w); return res.map(function(v){return v.trim().replace(/"/g,"");}); }
@@ -4369,15 +4572,7 @@ function _getCached(path){
 }
 
 /* ─ fbGet con cache automático ─ */
-function fbGetCached(p){
-  return fbGet(p)
-    .then(function(data){ _saveReadCache(p, data); return data; })
-    .catch(function(){
-      var cached = _getCached(p);
-      if(cached){ console.log("[Offline] cache hit:", p); return cached.data; }
-      return null;
-    });
-}
+// fbGetCached: ver arriba en la capa Supabase
 
 /* ─ Encolar operación offline ─ */
 function _enqueue(method, path, data, desc){
@@ -4419,12 +4614,12 @@ function _syncQueue(){
       _updateBanner();
       if(synced > 0){
         showNotif("☁️ "+synced+" operación"+(synced>1?"es":"")+" sincronizada"+(synced>1?"s":"")+" con éxito","ok");
-        // Recargar stock si había cambios pendientes
         if(ops.some(function(o){return o.path&&o.path.includes("/stock");})) cargarStock();
       }
     })();
   }
   ops.forEach(function(op){
+    // Replay through the Supabase layer
     var prom;
     if(op.method==="POST")        prom = fbPush(op.path, op.data);
     else if(op.method==="PATCH")  prom = fbPatch(op.path, op.data);
@@ -6964,7 +7159,7 @@ async function generarCatalogoPDF(){
     "self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});",
     "self.addEventListener('fetch',e=>{",
     "  const url=e.request.url;",
-    "  if(url.includes('firebaseio.com')||url.includes('firebase.google'))return;",
+    "  if(url.includes('firebaseio.com')||url.includes('firebase.google')||url.includes('supabase.co'))return;",
     "  if(url.includes('unpkg.com')||url.includes('cdnjs.cloudflare')||url.includes('fonts.g')){",
     "    e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{const cl=r.clone();caches.open(CACHE).then(ca=>ca.put(e.request,cl));return r;})));return;",
     "  }",
