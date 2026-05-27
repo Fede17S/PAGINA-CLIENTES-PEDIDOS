@@ -3039,21 +3039,25 @@ function _initCliPicker(t){
 
   function render(q){
     box.innerHTML = "";
-    if(!q){ box.style.display="none"; return; }
     var fuente = _getFuente();
     if(!fuente.length){
-      // Datos no cargados todavía — cargar y reintentar
-      box.innerHTML = '<div class="cli-empty">⏳ Cargando clientes…</div>';
-      box.style.display = "block";
-      fbGet("empresas/"+empresaKey+"/usuarios").then(function(data){
-        if(data){ _clientesDB = Object.assign(_clientesDB||{}, data); }
-        render(q);
-      }).catch(function(){});
+      if(q !== null){
+        box.innerHTML = '<div class="cli-empty">⏳ Cargando clientes…</div>';
+        box.style.display = "block";
+        fbGet("empresas/"+empresaKey+"/usuarios").then(function(data){
+          if(data){ _clientesDB = Object.assign(_clientesDB||{}, data); }
+          render(q);
+        }).catch(function(){});
+      } else { box.style.display="none"; }
       return;
     }
-    var hits = fuente.filter(function(c){
-      return (c.nombre||"").toLowerCase().indexOf(q)!==-1 || (c.id||"").toLowerCase().indexOf(q)!==-1;
-    }).slice(0,25);
+    // Sin texto: mostrar todos (hasta 40). Con texto: filtrar.
+    var hits = q
+      ? fuente.filter(function(c){
+          return (c.nombre||"").toLowerCase().indexOf(q)!==-1 || (c.id||"").toLowerCase().indexOf(q)!==-1;
+        }).slice(0,25)
+      : fuente.slice(0,40);
+
     if(!hits.length){
       box.innerHTML = '<div class="cli-empty">Sin resultados para "'+q+'"</div>';
       box.style.display = "block"; return;
@@ -3077,11 +3081,14 @@ function _initCliPicker(t){
   var _debounce = null;
   function onInput(){
     clearTimeout(_debounce);
-    _debounce = setTimeout(function(){ render(inp.value.toLowerCase().trim()); }, 80);
+    _debounce = setTimeout(function(){
+      var q = inp.value.toLowerCase().trim();
+      render(q || null); // null = sin filtro = mostrar todos
+    }, 80);
   }
 
-  inp.addEventListener("input",   onInput);
-  inp.addEventListener("keyup",   onInput);  // fallback iOS
+  inp.addEventListener("input",          onInput);
+  inp.addEventListener("keyup",          onInput);  // fallback iOS
   inp.addEventListener("compositionend", onInput);  // IME
 
   inp.addEventListener("keydown", function(e){
@@ -3093,13 +3100,13 @@ function _initCliPicker(t){
   });
 
   inp.addEventListener("blur", function(){
-    // Delay para que pointerdown/touchend se procesen antes del cierre
     setTimeout(function(){ box.style.display="none"; }, 250);
   });
 
+  // Al tocar el campo: mostrar TODOS los clientes de inmediato
   inp.addEventListener("focus", function(){
     var q = inp.value.toLowerCase().trim();
-    if(q) render(q);
+    render(q || null);
   });
 }
 
