@@ -4979,9 +4979,11 @@ function elegirTipoComprobante(tipo){
         doc2.autoTable({
           head:[["Cant","Cód","Producto","P.U. c/IVA","Sub c/IVA"]],
           body: items21.map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),
-          startY:44, styles:{fontSize:9}, headStyles:{fillColor:[30,42,74]},
+          startY:44, styles:{fontSize:9}, headStyles:{fillColor:[30,42,74], textColor:[255,255,255], fontStyle:"bold"},
+          bodyStyles:{textColor:[20,20,20]},
+          alternateRowStyles:{fillColor:[242,245,255]},
           foot:[["","","","TOTAL c/IVA:","$"+fM(total21)]],
-          footStyles:{fontStyle:"bold",fillColor:[245,248,255]}
+          footStyles:{fontStyle:"bold", fillColor:[30,42,74], textColor:[255,255,255], fontSize:10}
         });
         bk.totalConIVA = total21;
         var blob2=doc2.output("blob"), file2=new File([blob2],"facturaA_"+bk._nom+".pdf",{type:"application/pdf"});
