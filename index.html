@@ -2801,10 +2801,14 @@ function cargarCatalogo(){
         console.warn("cargarCatalogo: dbStock vacío para empresa key="+empresaKey);
       }
     }
-    // Cargar clientes
+    // Cargar clientes — incluir TODOS los usuarios excepto admin, vendedor y repartidor del sistema
     var usuarios=emp.usuarios||{};
     var cliDeUsu=Object.values(usuarios).filter(function(u){
-      return u.id && u.id !== currentUser.id && (u.role==="cliente"||!u.role);
+      if(!u.id) return false;
+      if(u.id === currentUser.id) return false;          // no incluirse a uno mismo
+      var rol = (u.role||"").toLowerCase();
+      if(rol==="admin" || rol==="vendedor" || rol==="repartidor") return false;
+      return true; // role="cliente" o vacío o cualquier otro = es cliente
     }).map(function(u){
       return{id:u.id,nombre:u.name||u.id,lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.telefono||""};
     });
@@ -2818,7 +2822,9 @@ function cargarCatalogo(){
     var idsUsu=new Set(cliDeUsu.map(function(c){return c.id;}));
     dbCli=cliDeUsu.concat(cliDeCSV.filter(function(c){return !idsUsu.has(c.id);}));
     dbCli.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es");});
-    actualizarDL();
+    // Reinicializar pickers con los datos nuevos (resetear flag para que reinicie)
+    _pickersInitialized = false;
+    iniciarCliPickers();
   }).catch(function(e){
     console.error("cargarCatalogo error:", e);
     if(msg){msg.className="err"; msg.textContent="❌ Error red";}
@@ -5655,14 +5661,14 @@ async function guardarNuevoCliente() {
 }
 
 function _agregarCliAlDatalist(u) {
-  ["dl-cli-ped","dl-cli-rem"].forEach(function(dlId){
-    var dl = document.getElementById(dlId);
-    if (!dl) return;
-    var opt = document.createElement("option");
-    opt.value = u.name||u.id;
-    opt.dataset.id = u.id;
-    dl.appendChild(opt);
-  });
+  // Agregar el nuevo cliente a dbCli en tiempo real
+  var yaExiste = dbCli.some(function(c){ return c.id === (u.id||u.uid||""); });
+  if(!yaExiste){
+    dbCli.push({ id:u.id||u.uid||"", nombre:u.name||u.id||"", lista:u.lista||"Clientes", direccion:u.direccion||"", telefono:u.tel||u.telefono||"" });
+    dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
+    _pickersInitialized = false;
+    iniciarCliPickers();
+  }
 }
 
 async function _eliminarCliente(pushKey) {
