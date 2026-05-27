@@ -2834,7 +2834,7 @@ function aplicarRol(){
     if (isAdmin) {
       show = (id !== "nav-mis-ventas");
     } else if (isVendedor) {
-      show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes");
+      show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup");
     } else if (isRepartidor) {
       // Repartidor: solo Hoja de Ruta y Mapa de Entregas
       show = (id === "nav-hoja" || id === "nav-mapa-entregas");
@@ -2870,7 +2870,7 @@ function verTab(id,btn){
   var isAdmin      = role === "admin";
   var isVendedor   = role === "vendedor" || !currentUser.role;
   var isRepartidor = role === "repartidor";
-  if (isVendedor    && id !== "pedido" && id !== "mis-ventas" && id !== "clientes") return;
+  if (isVendedor    && id !== "pedido" && id !== "mis-ventas" && id !== "clientes" && id !== "backup") return;
   if (isRepartidor  && id !== "hoja"   && id !== "mapa-entregas") return;
   if (!isAdmin      && id === "vendedores") return;
 
