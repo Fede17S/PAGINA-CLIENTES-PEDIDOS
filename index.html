@@ -2749,7 +2749,7 @@ function verTab(id,btn){
   }
   if(id==="productos")cargarProductos();
 }
-function cargarCatalogo(){
+async function cargarCatalogo(){
   var msg=document.getElementById("sync-msg");
   if(msg){msg.className=""; msg.textContent="🔄 Cargando...";}
   if(!empresaKey){
@@ -2801,30 +2801,38 @@ function cargarCatalogo(){
         console.warn("cargarCatalogo: dbStock vacío para empresa key="+empresaKey);
       }
     }
-    // Cargar clientes — incluir TODOS los usuarios excepto admin, vendedor y repartidor del sistema
-    var usuarios=emp.usuarios||{};
-    var cliDeUsu=Object.values(usuarios).filter(function(u){
-      if(!u.id) return false;
-      if(u.id === currentUser.id) return false;          // no incluirse a uno mismo
-      var rol = (u.role||"").toLowerCase();
-      if(rol==="admin" || rol==="vendedor" || rol==="repartidor") return false;
-      return true; // role="cliente" o vacío o cualquier otro = es cliente
-    }).map(function(u){
-      return{id:u.id,nombre:u.name||u.id,lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.telefono||""};
-    });
-    var rawC=emp.clientesCSV||"";
-    var lC=rawC.split("\n").filter(function(l){return l.trim();});
-    var cliDeCSV=[];
-    if(lC.length>1){
-      var sep2=lC[0].indexOf(";")>=0?";":","
-      cliDeCSV=lC.slice(1).map(function(l){var r=splitCSV(l,sep2);return{id:r[0],nombre:r[1],lista:r[2]||"Clientes",direccion:"",telefono:""};}).filter(function(c){return c.id;});
-    }
-    var idsUsu=new Set(cliDeUsu.map(function(c){return c.id;}));
-    dbCli=cliDeUsu.concat(cliDeCSV.filter(function(c){return !idsUsu.has(c.id);}));
-    dbCli.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es");});
-    // Reinicializar pickers con los datos nuevos (resetear flag para que reinicie)
-    _pickersInitialized = false;
-    iniciarCliPickers();
+    // Cargar clientes directamente desde Supabase (misma fuente que Gestión de Clientes)
+    fbGet("empresas/"+empresaKey+"/usuarios").then(function(todosUsuarios){
+      if(todosUsuarios && typeof todosUsuarios === 'object'){
+        dbCli = Object.values(todosUsuarios).filter(function(u){
+          if(!u.id && !u.name) return false;
+          if(u.id === currentUser.id) return false;
+          var rol = (u.role||"").toLowerCase();
+          return rol !== "admin" && rol !== "vendedor" && rol !== "repartidor";
+        }).map(function(u){
+          return {
+            id:       u.id||"",
+            nombre:   u.name||u.id||"",
+            lista:    u.lista||"Clientes",
+            direccion:u.direccion||"",
+            telefono: u.tel||u.telefono||""
+          };
+        });
+        dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
+      }
+      // También incluir clientes del CSV si los hay
+      var rawC=emp.clientesCSV||"";
+      var lC=rawC.split("\n").filter(function(l){return l.trim();});
+      if(lC.length>1){
+        var sep2=lC[0].indexOf(";")>=0?";":","
+        var cliDeCSV=lC.slice(1).map(function(l){var r=splitCSV(l,sep2);return{id:r[0],nombre:r[1],lista:r[2]||"Clientes",direccion:"",telefono:""};}).filter(function(c){return c.id;});
+        var idsYa=new Set(dbCli.map(function(c){return c.id;}));
+        dbCli=dbCli.concat(cliDeCSV.filter(function(c){return !idsYa.has(c.id);}));
+        dbCli.sort(function(a,b){return a.nombre.localeCompare(b.nombre,"es");});
+      }
+      _pickersInitialized = false;
+      iniciarCliPickers();
+    }).catch(function(eC){ console.warn("Error cargando clientes:", eC); });
   }).catch(function(e){
     console.error("cargarCatalogo error:", e);
     if(msg){msg.className="err"; msg.textContent="❌ Error red";}
