@@ -2211,6 +2211,49 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 </div>
 
+<!-- MODAL TIPO COMPROBANTE -->
+<div class="modal-bg" id="modal-tipo-comprobante">
+  <div class="modal-box" style="max-width:360px;text-align:center">
+    <div style="font-size:36px;margin-bottom:8px">🧾</div>
+    <div class="modal-title" style="font-size:17px;margin-bottom:6px">¿Con qué comprobante?</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">El pedido ya fue enviado. Indicá si el cliente necesita Factura A o solo Remito.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="elegirTipoComprobante('factura_a')" style="width:100%;padding:14px;border-radius:10px;background:#1e2a4a;color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation">🟦 Factura A</button>
+      <button onclick="elegirTipoComprobante('remito')" style="width:100%;padding:14px;border-radius:10px;background:var(--s2);color:var(--text);border:1.5px solid var(--border);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation">📄 Solo Remito</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR BACKUP PEDIDO -->
+<div class="modal-bg" id="modal-editar-backup">
+  <div class="modal-box" style="max-width:520px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <div class="modal-title">✏️ Editar pedido</div>
+      <button class="modal-cls" onclick="cerrarModal('modal-editar-backup')">✕</button>
+    </div>
+    <div id="edit-bk-cli-info" style="font-size:12.5px;color:var(--muted);margin-bottom:12px"></div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Agregar producto</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="search-wrap" style="flex:1;position:relative">
+          <input type="text" id="edit-bk-bus" placeholder="🔍 Buscar producto…" oninput="filtrarEditBk()" onkeyup="filtrarEditBk()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%">
+          <div id="edit-bk-res" class="dropdown"></div>
+        </div>
+        <input type="number" id="edit-bk-cant" value="1" min="1" style="width:60px;text-align:center">
+        <button onclick="agregarItemEditBk()" class="mbtn mbtn-primary" style="white-space:nowrap;flex-shrink:0">+ Agregar</button>
+      </div>
+    </div>
+    <div id="edit-bk-items" style="flex:1;overflow-y:auto;margin-bottom:12px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s2);border-radius:9px;margin-bottom:14px;font-size:15px;font-weight:700">
+      <span>Total</span><span id="edit-bk-total">$0,00</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="confirmarBackupComoRemito()" class="mbtn mbtn-primary" style="flex:1;background:var(--green,#0f8a4a);border-color:var(--green,#0f8a4a)">🚚 Confirmar → Remito + Ruta</button>
+      <button onclick="guardarEdicionBackup()" class="mbtn mbtn-ghost">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL RENOMBRAR -->
 <div class="modal-bg" id="modal-renombrar">
   <div class="modal-box">
@@ -3466,16 +3509,24 @@ function generarPDF(m){
     id:"bk_"+Date.now(), fecha:new Date().toISOString(), clienteNom:nom,
     clienteId:document.getElementById("idCli-"+t).value||"", lista:tipoLista[t], obs:obs,
     items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),
-    total:totalFinal, tipo:m,
+    total:totalFinal, tipo:m, usuario:currentUser?currentUser.id:"",
+    tipoComprobante: m==="pedido" ? null : "remito",  // se completa con el popup en pedidos
     descuentos: hayDescuentos ? {ahorroItems:ahorroItems,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal} : null
   };
-  guardarBackup(bkItem);
   descontarStock(ordenes[t]);
 
   var blob=doc.output("blob"), file=new File([blob],m+"_"+nom+".pdf",{type:"application/pdf"});
   if(navigator.share)navigator.share({files:[file]}).catch(function(){doc.save(m+"_"+nom+".pdf");});
   else doc.save(m+"_"+nom+".pdf");
   limpiarFormulario(t);
+
+  // Para pedidos: mostrar popup de tipo comprobante ANTES de guardar el backup
+  if(m === "pedido"){
+    _mostrarPopupTipoComprobante(bkItem);
+  } else {
+    guardarBackup(bkItem);
+  }
+
   } catch(err){ console.error("generarPDF error:",err); alert("Error al generar PDF: "+err.message+"\n\nAvisá al admin con este mensaje."); }
 }
 
@@ -4603,6 +4654,12 @@ function renderBackup(){
       ? '<span class="bk-lista bk-lista-pat">Patagonia</span>'
       : '<span class="bk-lista bk-lista-cli">Clientes</span>';
     var tipoIcon = bk.tipo==="remito" ? "🚚" : "📝";
+    var compBadge = "";
+    if(bk.tipoComprobante === "factura_a"){
+      compBadge = '<span style="font-size:10px;font-weight:800;background:#1e2a4a;color:#fff;padding:2px 8px;border-radius:20px;margin-left:4px">🟦 FACTURA A</span>';
+    } else if(bk.tipoComprobante === "remito"){
+      compBadge = '<span style="font-size:10px;font-weight:700;background:var(--s3);color:var(--muted);padding:2px 8px;border-radius:20px;margin-left:4px">📄 remito</span>';
+    }
 
     var card = document.createElement("div");
     card.className = "bk-card" + (isOpen?" open":"");
@@ -4612,7 +4669,7 @@ function renderBackup(){
     header.className = "bk-card-head";
     header.innerHTML =
       '<div class="bk-card-left">'+
-        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+'</div>'+
+        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+'</div>'+
         '<div class="bk-card-meta">'+
           tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
           listaBadge+
@@ -4687,6 +4744,17 @@ function renderBackup(){
     };
     acts.appendChild(btnShare);
     acts.appendChild(btnDl);
+
+    // Botón Editar — solo para admin
+    if(currentUser && currentUser.role === "admin"){
+      var btnEdit = document.createElement("button");
+      btnEdit.className = "bk-act-btn";
+      btnEdit.style.cssText = "background:var(--accent);color:#fff;border-color:var(--accent)";
+      btnEdit.innerHTML = "✏️ Editar";
+      btnEdit.onclick = function(e){ e.stopPropagation(); abrirEditarBackup(bk); };
+      acts.appendChild(btnEdit);
+    }
+
     acts.appendChild(btnDel);
     detail.appendChild(acts);
 
@@ -4695,6 +4763,205 @@ function renderBackup(){
   });
 }
 
+
+// ══ TIPO COMPROBANTE (Factura A / Remito) ══
+var _bkItemPendiente = null;
+
+function _mostrarPopupTipoComprobante(bkItem){
+  _bkItemPendiente = bkItem;
+  abrirModal("modal-tipo-comprobante");
+}
+
+function elegirTipoComprobante(tipo){
+  cerrarModal("modal-tipo-comprobante");
+  if(_bkItemPendiente){
+    _bkItemPendiente.tipoComprobante = tipo;
+    guardarBackup(_bkItemPendiente);
+    _bkItemPendiente = null;
+  }
+}
+
+// ══ EDITAR BACKUP PEDIDO ══
+var _editBkItem = null;
+var _editBkSelProd = null;
+
+function abrirEditarBackup(bk){
+  _editBkItem = JSON.parse(JSON.stringify(bk)); // copia profunda
+  var info = document.getElementById("edit-bk-cli-info");
+  if(info) info.textContent = "👤 "+( bk.clienteNom||"Sin cliente")+" · Lista: "+(bk.lista||"Clientes")+" · "+new Date(bk.fecha).toLocaleDateString("es-AR");
+  // Limpiar buscador
+  var bus = document.getElementById("edit-bk-bus");
+  var res = document.getElementById("edit-bk-res");
+  if(bus) bus.value="";
+  if(res){ res.classList.remove("open"); res.innerHTML=""; }
+  var cantEl = document.getElementById("edit-bk-cant");
+  if(cantEl) cantEl.value = "1";
+  _editBkSelProd = null;
+  _renderEditBkItems();
+  abrirModal("modal-editar-backup");
+}
+
+function _renderEditBkItems(){
+  var wrap = document.getElementById("edit-bk-items");
+  var totalEl = document.getElementById("edit-bk-total");
+  if(!wrap || !_editBkItem) return;
+  var items = _editBkItem.items || [];
+  var total = items.reduce(function(s,i){ return s+(i.c||0)*(i.p||0); }, 0);
+  if(totalEl) totalEl.textContent = "$"+fM(total);
+  _editBkItem.total = total;
+
+  if(!items.length){
+    wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Sin productos. Agregá uno arriba.</div>';
+    return;
+  }
+  wrap.innerHTML = items.map(function(it,i){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border2)">'+
+      '<input type="number" min="0.01" step="any" value="'+it.c+'" style="width:56px;text-align:center;border:1px solid var(--border);border-radius:7px;padding:6px;font-family:inherit;font-size:13px;font-weight:700" oninput="editBkCant('+i+',this.value)">'+
+      '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.n+'</span>'+
+      '<span style="font-size:13px;font-weight:600;flex-shrink:0">$'+fM(it.p)+'</span>'+
+      '<span style="font-size:13px;font-weight:700;flex-shrink:0;min-width:72px;text-align:right">$'+fM((it.c||0)*(it.p||0))+'</span>'+
+      '<button onclick="editBkRemove('+i+')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:0 4px;touch-action:manipulation">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+function editBkCant(idx, val){
+  if(!_editBkItem) return;
+  var v = parseFloat(val)||0;
+  _editBkItem.items[idx].c = v;
+  _editBkItem.items[idx].sub = v * _editBkItem.items[idx].p;
+  _renderEditBkItems();
+}
+
+function editBkRemove(idx){
+  if(!_editBkItem) return;
+  _editBkItem.items.splice(idx,1);
+  _renderEditBkItems();
+}
+
+function filtrarEditBk(){
+  var bus = document.getElementById("edit-bk-bus");
+  var res = document.getElementById("edit-bk-res");
+  if(!bus||!res) return;
+  var q = bus.value.toLowerCase().trim();
+  res.innerHTML="";
+  if(!q){ res.classList.remove("open"); return; }
+  var hits = dbStock.filter(function(p){
+    return p.n.toLowerCase().indexOf(q)!==-1||(p.id||"").toLowerCase().indexOf(q)!==-1;
+  }).slice(0,15);
+  if(!hits.length){ res.classList.remove("open"); return; }
+  res.classList.add("open");
+  hits.forEach(function(p){
+    var lista = _editBkItem ? (_editBkItem.lista||"Clientes") : "Clientes";
+    var precio = lista.toLowerCase().indexOf("patagonia")!==-1 ? p.pPat : p.pCli;
+    var div = document.createElement("div");
+    div.className = "dd-item";
+    div.innerHTML = '<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span><span class="dd-price">$'+fM(precio)+'</span>';
+    div.addEventListener("mousedown", function(e){
+      e.preventDefault();
+      _editBkSelProd = {id:p.id,n:p.n,p:precio};
+      bus.value = p.n;
+      res.classList.remove("open");
+      var cantEl = document.getElementById("edit-bk-cant");
+      if(cantEl){ cantEl.focus(); cantEl.select(); }
+    });
+    res.appendChild(div);
+  });
+}
+
+function agregarItemEditBk(){
+  if(!_editBkSelProd||!_editBkItem) return;
+  var cant = parseFloat((document.getElementById("edit-bk-cant")||{}).value)||1;
+  var exist = _editBkItem.items.find(function(i){ return i.id===_editBkSelProd.id; });
+  if(exist){ exist.c += cant; exist.sub = exist.c * exist.p; }
+  else { _editBkItem.items.push({id:_editBkSelProd.id,n:_editBkSelProd.n,c:cant,p:_editBkSelProd.p,sub:cant*_editBkSelProd.p}); }
+  _editBkSelProd = null;
+  var busEl = document.getElementById("edit-bk-bus"); if(busEl) busEl.value="";
+  var cantEl = document.getElementById("edit-bk-cant"); if(cantEl) cantEl.value="1";
+  _renderEditBkItems();
+}
+
+function guardarEdicionBackup(){
+  if(!_editBkItem) return;
+  // Actualizar en localStorage
+  var arr = getBackups();
+  var idx = arr.findIndex(function(x){ return x.id===_editBkItem.id; });
+  if(idx>=0) arr[idx] = _editBkItem;
+  saveBackups(arr);
+  // Actualizar en Supabase/Firebase
+  if(_editBkItem._fbKey && empresaKey){
+    fbPatch("empresas/"+empresaKey+"/backupPedidos/"+_editBkItem._fbKey, {
+      items: _editBkItem.items, total: _editBkItem.total
+    }).catch(function(){});
+  }
+  cerrarModal("modal-editar-backup");
+  renderBackup();
+  showNotif("✓ Pedido actualizado","ok");
+}
+
+async function confirmarBackupComoRemito(){
+  if(!_editBkItem) return;
+  var bk = _editBkItem;
+  var ahora = new Date();
+  var nom = bk.clienteNom||"Mostrador";
+  var totalNum = bk.total||0;
+  var items = bk.items||[];
+
+  // 1) Guardar venta en Supabase
+  var venta = {
+    fecha: ahora.toISOString(), mes: ahora.getMonth(), anio: ahora.getFullYear(),
+    clienteId: bk.clienteId||"", clienteNom: nom, lista: bk.lista||"Clientes",
+    items: items.map(function(i){ return {id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub}; }),
+    total: totalNum, usuario: currentUser?currentUser.id:"", usuarioNom: currentUser?currentUser.name:""
+  };
+  try { await fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Remito desde backup: "+nom); }
+  catch(e){ console.warn("Error guardando venta:", e); }
+
+  // 2) Agregar a la ruta de hoy
+  var hoy = ahora.toLocaleDateString("es-AR");
+  var rutaKey2 = null;
+  var keys = Object.keys(rutasData||{});
+  var rutaHoy = keys.find(function(k){ return rutasData[k].fecha && new Date(rutasData[k].fecha).toLocaleDateString("es-AR")===hoy; });
+  if(rutaAbierta) rutaKey2 = rutaAbierta;
+  else if(rutaHoy) rutaKey2 = rutaHoy;
+  else {
+    var nn = "Ruta "+ahora.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+    try {
+      var nk = await fbPushQ("empresas/"+empresaKey+"/rutas",{nombre:nn,fecha:ahora.toISOString()}, "Nueva ruta");
+      if(nk&&!nk.startsWith("op_")){ rutasData[nk]={nombre:nn,fecha:ahora.toISOString(),clientes:{}}; rutaKey2=nk; }
+    } catch(e){}
+  }
+  if(rutaKey2){
+    var cd = {nom:nom,id:bk.clienteId||"",importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:items,fecha:ahora.toISOString()};
+    try {
+      var ck = await fbPushQ("empresas/"+empresaKey+"/rutas/"+rutaKey2+"/clientes", cd, "Cliente ruta: "+nom);
+      if(ck&&!ck.startsWith("op_")){
+        if(!rutasData[rutaKey2]) rutasData[rutaKey2]={clientes:{}};
+        if(!rutasData[rutaKey2].clientes) rutasData[rutaKey2].clientes={};
+        rutasData[rutaKey2].clientes[ck]=cd;
+      }
+    } catch(e){ console.warn("Error agregando a ruta:", e); }
+  }
+
+  // 3) Marcar el backup como convertido a remito
+  guardarEdicionBackup();
+  var arr2 = getBackups();
+  var idx2 = arr2.findIndex(function(x){ return x.id===bk.id; });
+  if(idx2>=0){ arr2[idx2].tipo="remito"; arr2[idx2].tipoComprobante="remito"; saveBackups(arr2); }
+  if(bk._fbKey && empresaKey){
+    fbPatch("empresas/"+empresaKey+"/backupPedidos/"+bk._fbKey, {tipo:"remito"}).catch(function(){});
+  }
+
+  cerrarModal("modal-editar-backup");
+  renderBackup();
+  showNotif("🚚 Remito generado y agregado a la hoja de ruta","ok");
+
+  // 4) Navegar a Hoja de Ruta
+  setTimeout(function(){
+    verTab("hoja", document.getElementById("nav-hoja"));
+    if(rutaKey2) renderRutas();
+  }, 600);
+}
 
 function generarPDFDesdeBackup(bk, compartir){
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
