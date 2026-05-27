@@ -2927,9 +2927,11 @@ async function cargarCatalogo(){
       if(todosUsuarios && typeof todosUsuarios === 'object'){
         dbCli = Object.values(todosUsuarios).filter(function(u){
           if(!u.id && !u.name) return false;
-          if(u.id === currentUser.id) return false;
+          if(currentUser && u.id === currentUser.id) return false;
           var rol = (u.role||"").toLowerCase();
-          return rol !== "admin" && rol !== "vendedor" && rol !== "repartidor";
+          if((rol === "admin" || rol === "repartidor") && !u.catalogo) return false;
+          if(rol === "vendedor" && u.catalogo !== true) return false;
+          return true;
         }).map(function(u){
           return {
             id:       u.id||"",
@@ -5995,7 +5997,9 @@ async function cargarClientesSection() {
         if(!u.id && !u.name) return false;
         if(currentUser && u.id === currentUser.id) return false;
         var rol = (u.role||"").toLowerCase();
-        return rol !== "admin" && rol !== "vendedor" && rol !== "repartidor";
+        if((rol === "admin" || rol === "repartidor") && !u.catalogo) return false;
+        if(rol === "vendedor" && u.catalogo !== true) return false;
+        return true;
       }).map(function(u){
         return { id:u.id||"", nombre:u.name||u.nombre||u.id||"", lista:u.lista||"Clientes" };
       });
@@ -6011,11 +6015,17 @@ async function cargarClientesSection() {
 function _renderClientesList() {
   var body = document.getElementById("cli-list-body");
   var countEl = document.getElementById("cli-count");
-  // Solo mostrar usuarios que son clientes (excluir roles del sistema)
   var allEntries = Object.entries(_clientesDB);
+  // Mostrar clientes: los que tienen catalogo:true, role:"cliente", o sin rol de sistema
   var entries = allEntries.filter(function(entry){
-    var rol = (entry[1].role||"").toLowerCase();
-    return rol !== "admin" && rol !== "vendedor" && rol !== "repartidor";
+    var u = entry[1];
+    var rol = (u.role||"").toLowerCase();
+    // Excluir explícitamente roles del sistema SIN catalogo
+    if((rol === "admin" || rol === "repartidor") && !u.catalogo) return false;
+    // Excluir vendedores que NO tengan catalogo:true
+    if(rol === "vendedor" && u.catalogo !== true) return false;
+    // Incluir todo lo demás (role:"cliente", role:"", role:null, o cualquier rol con catalogo:true)
+    return true;
   });
   if (countEl) countEl.textContent = entries.length;
   if (!entries.length) {
