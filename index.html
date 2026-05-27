@@ -3254,14 +3254,19 @@ function filtrar(t){
       div.innerHTML='<span class="dd-code">'+p.id+'</span>'+
         '<span class="dd-name">'+p.n+(p.padre?'<span class="dd-grupo"> · '+p.padre+'</span>':'')+'</span>'+
         stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
+      var _touchStartY = 0;
       div.addEventListener("touchstart", function(e){
+        _touchStartY = e.touches[0].clientY;
+      }, {passive:true});  // passive:true permite scroll normal
+      div.addEventListener("touchend", function(e){
+        var dy = Math.abs(e.changedTouches[0].clientY - _touchStartY);
+        if(dy > 8) return; // fue scroll, no tap — ignorar
         e.preventDefault();
         e.stopPropagation();
         itemSel[t]=Object.assign({},p,{pre:pre});
         document.getElementById("bus-"+t).value=p.n;
         box.classList.remove("open");
         box.innerHTML="";
-        // Mover foco al input de cantidad — teclado se queda abierto
         var cantInp=document.getElementById("cant-"+t);
         if(cantInp){ cantInp.focus(); cantInp.select(); }
       }, {passive:false});
@@ -3630,7 +3635,7 @@ function generarPDF(m){
     }).catch(function(e){console.warn("Firebase:",e);});
   }
 
-  // BACKUP — guardado UNA VEZ después de elegir tipo comprobante
+  // ── Guardar estado del pedido para generar el PDF después de elegir comprobante ──
   var bkItem={
     id:"bk_"+Date.now(), fecha:new Date().toISOString(), clienteNom:nom,
     clienteId:document.getElementById("idCli-"+t).value||"", lista:tipoLista[t], obs:obs,
@@ -3638,18 +3643,24 @@ function generarPDF(m){
     total:totalFinal, totalConIVA:Math.round(totalFinal*1.21*100)/100, tipo:m,
     usuario:    currentUser ? currentUser.id   : "",
     usuarioNom: currentUser ? (currentUser.name||currentUser.id) : "",
-    aprobado:   null,
-    tipoComprobante: null,
+    aprobado:   null, tipoComprobante: null,
     descuentos: hayDescuentos ? {ahorroItems:ahorroItems,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal} : null
   };
-  descontarStock(ordenes[t]);
+  // Guardar el doc de jsPDF para entregarlo después de la elección
+  bkItem._doc   = doc;
+  bkItem._mPDF  = m;
+  bkItem._tPDF  = t;
+  bkItem._nom   = nom;
+  bkItem._ordenes = ordenes[t].map(function(i){return Object.assign({},i);});
+  bkItem._hayDescuentos = hayDescuentos;
+  bkItem._subtotalLista = subtotalLista;
+  bkItem._ahorroItems   = ahorroItems;
+  bkItem._montoDscGen   = montoDscGen;
 
-  var blob=doc.output("blob"), file=new File([blob],m+"_"+nom+".pdf",{type:"application/pdf"});
-  if(navigator.share)navigator.share({files:[file]}).catch(function(){doc.save(m+"_"+nom+".pdf");});
-  else doc.save(m+"_"+nom+".pdf");
+  descontarStock(ordenes[t]);
   limpiarFormulario(t);
 
-  // Mostrar popup de tipo comprobante (para pedido Y remito — siempre una sola vez)
+  // Mostrar popup ANTES de generar el PDF
   _mostrarPopupTipoComprobante(bkItem);
 
   } catch(err){ console.error("generarPDF error:",err); alert("Error al generar PDF: "+err.message+"\n\nAvisá al admin con este mensaje."); }
@@ -4941,14 +4952,58 @@ function _mostrarPopupTipoComprobante(bkItem, total){
 
 function elegirTipoComprobante(tipo){
   cerrarModal("modal-tipo-comprobante");
-  if(_bkItemPendiente){
-    _bkItemPendiente.tipoComprobante = tipo;
-    if(tipo === "factura_a"){
-      _bkItemPendiente.totalConIVA = Math.round(_bkItemPendiente.total * 1.21 * 100) / 100;
+  if(!_bkItemPendiente) return;
+  var bk = _bkItemPendiente;
+  _bkItemPendiente = null;
+  bk.tipoComprobante = tipo;
+  var esFactura = (tipo === "factura_a");
+
+  // Generar el PDF con los valores correctos según el tipo elegido
+  if(bk._doc && bk._nom){
+    if(esFactura){
+      // Regenerar PDF con precios + IVA 21%
+      try {
+        var jsPDF=window.jspdf.jsPDF, doc2=new jsPDF();
+        var iva = 1.21;
+        var items21 = (bk._ordenes||bk.items).map(function(i){
+          return Object.assign({},i,{p:Math.round(i.p*iva*100)/100, sub:Math.round(i.sub*iva*100)/100});
+        });
+        var total21 = Math.round(bk.total*iva*100)/100;
+        if(empresaData&&empresaData.logo) doc2.addImage(empresaData.logo,"PNG",10,5,40,20);
+        doc2.setFontSize(18); doc2.setFont("helvetica","bold");
+        doc2.text((empresaData&&empresaData.nombre||"EMPRESA")+" — FACTURA A",105,16,{align:"center"});
+        doc2.setFontSize(10); doc2.setFont("helvetica","normal");
+        doc2.text("Cliente: "+bk._nom,55,27);
+        doc2.text("Lista: "+bk.lista+"  ·  Fecha: "+new Date().toLocaleDateString(),55,33);
+        doc2.text("Precios incluyen IVA 21%",55,39);
+        doc2.autoTable({
+          head:[["Cant","Cód","Producto","P.U. c/IVA","Sub c/IVA"]],
+          body: items21.map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),
+          startY:44, styles:{fontSize:9}, headStyles:{fillColor:[30,42,74]},
+          foot:[["","","","TOTAL c/IVA:","$"+fM(total21)]],
+          footStyles:{fontStyle:"bold",fillColor:[245,248,255]}
+        });
+        bk.totalConIVA = total21;
+        var blob2=doc2.output("blob"), file2=new File([blob2],"facturaA_"+bk._nom+".pdf",{type:"application/pdf"});
+        if(navigator.share)navigator.share({files:[file2]}).catch(function(){doc2.save("facturaA_"+bk._nom+".pdf");});
+        else doc2.save("facturaA_"+bk._nom+".pdf");
+      } catch(e){ console.error("Error PDF Factura A:", e); }
+    } else {
+      // Remito: usar el PDF ya generado
+      var blob=bk._doc.output("blob");
+      var fname=(bk._mPDF||"pedido")+"_"+bk._nom+".pdf";
+      var file=new File([blob],fname,{type:"application/pdf"});
+      if(navigator.share)navigator.share({files:[file]}).catch(function(){bk._doc.save(fname);});
+      else bk._doc.save(fname);
     }
-    guardarBackup(_bkItemPendiente);
-    _bkItemPendiente = null;
   }
+
+  // Limpiar temporales
+  delete bk._doc; delete bk._mPDF; delete bk._tPDF; delete bk._nom;
+  delete bk._ordenes; delete bk._hayDescuentos;
+  delete bk._subtotalLista; delete bk._ahorroItems; delete bk._montoDscGen;
+
+  guardarBackup(bk);
 }
 
 // ══ EDITAR BACKUP PEDIDO ══
