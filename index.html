@@ -6078,7 +6078,22 @@ document.addEventListener("click",function(e){
   if(e.target.classList&&e.target.classList.contains("modal-bg")) e.target.classList.remove("open");
 });
 
-// ── Polyfills para compatibilidad mobile ──
+// ── Prevenir salida accidental por gesto de retroceso en mobile ──
+(function(){
+  // Agregar una entrada al historial para interceptar el "back"
+  history.pushState({ dm: true }, "", location.href);
+
+  window.addEventListener("popstate", function(e){
+    // Si el usuario navegó hacia atrás (swipe o botón)
+    if(confirm("¿Querés salir de la aplicación?")){
+      // Permitir salida — navegar atrás de verdad
+      history.go(-1);
+    } else {
+      // Volver a pushear el estado para que el botón back siga funcionando
+      history.pushState({ dm: true }, "", location.href);
+    }
+  });
+})();
 if(!Element.prototype.closest){
   Element.prototype.closest=function(s){
     var el=this;
