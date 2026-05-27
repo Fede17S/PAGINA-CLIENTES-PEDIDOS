@@ -3071,9 +3071,14 @@ function _initCliPicker(t){
         '<span class="cli-result-nom">'+(c.nombre||"")+'</span>'+
         '<span class="cli-result-lista">'+(c.lista||"Clientes")+'</span>';
       function elegir(){ _elegirCliente(t, { id:c.id||"", nombre:c.nombre||"", lista:c.lista||"Clientes" }); }
-      row.addEventListener("pointerdown", function(e){ e.preventDefault(); elegir(); });
-      row.addEventListener("touchend",    function(e){ e.preventDefault(); elegir(); });
-      row.addEventListener("mousedown",   function(e){ e.preventDefault(); elegir(); });
+      var _rowTouchY = 0;
+      row.addEventListener("touchstart", function(e){ _rowTouchY = e.touches[0].clientY; }, {passive:true});
+      row.addEventListener("touchend", function(e){
+        if(Math.abs(e.changedTouches[0].clientY - _rowTouchY) > 8) return; // scroll, no tap
+        e.preventDefault();
+        elegir();
+      }, {passive:false});
+      row.addEventListener("mousedown", function(e){ e.preventDefault(); elegir(); });
       box.appendChild(row);
     });
   }
