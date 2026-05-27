@@ -2858,11 +2858,32 @@ function _initCliPicker(t){
   if(!inp || !box) return;
   _cliPickerReady[t] = true;
 
+  function _getFuente(){
+    // Usar la fuente con más datos disponibles
+    if(typeof _clientesDB === "object" && Object.keys(_clientesDB).length > 0){
+      return Object.values(_clientesDB).map(function(u){
+        return { id:u.id||"", nombre:u.name||u.nombre||u.id||"", lista:u.lista||"Clientes" };
+      }).filter(function(u){ return u.nombre; });
+    }
+    return dbCli;
+  }
+
   function render(q){
     box.innerHTML = "";
     if(!q){ box.style.display="none"; return; }
-    var hits = dbCli.filter(function(c){
-      return c.nombre.toLowerCase().indexOf(q)!==-1 || (c.id||"").toLowerCase().indexOf(q)!==-1;
+    var fuente = _getFuente();
+    if(!fuente.length){
+      // Datos no cargados todavía — cargar y reintentar
+      box.innerHTML = '<div class="cli-empty">⏳ Cargando clientes…</div>';
+      box.style.display = "block";
+      fbGet("empresas/"+empresaKey+"/usuarios").then(function(data){
+        if(data){ _clientesDB = Object.assign(_clientesDB||{}, data); }
+        render(q);
+      }).catch(function(){});
+      return;
+    }
+    var hits = fuente.filter(function(c){
+      return (c.nombre||"").toLowerCase().indexOf(q)!==-1 || (c.id||"").toLowerCase().indexOf(q)!==-1;
     }).slice(0,25);
     if(!hits.length){
       box.innerHTML = '<div class="cli-empty">Sin resultados para "'+q+'"</div>';
@@ -2874,24 +2895,12 @@ function _initCliPicker(t){
       row.className = "cli-result-item";
       row.innerHTML =
         '<span class="cli-result-id">'+(c.id||"—")+'</span>'+
-        '<span class="cli-result-nom">'+c.nombre+'</span>'+
+        '<span class="cli-result-nom">'+(c.nombre||"")+'</span>'+
         '<span class="cli-result-lista">'+(c.lista||"Clientes")+'</span>';
-
-      // Pointer events (PC y Android moderno)
-      row.addEventListener("pointerdown", function(e){
-        e.preventDefault(); // evita que el input pierda el foco antes de la selección
-        _elegirCliente(t, c);
-      });
-      // Fallback táctil explícito para iOS Safari
-      row.addEventListener("touchend", function(e){
-        e.preventDefault();
-        _elegirCliente(t, c);
-      });
-      // Fallback mousedown
-      row.addEventListener("mousedown", function(e){
-        e.preventDefault();
-        _elegirCliente(t, c);
-      });
+      function elegir(){ _elegirCliente(t, { id:c.id||"", nombre:c.nombre||"", lista:c.lista||"Clientes" }); }
+      row.addEventListener("pointerdown", function(e){ e.preventDefault(); elegir(); });
+      row.addEventListener("touchend",    function(e){ e.preventDefault(); elegir(); });
+      row.addEventListener("mousedown",   function(e){ e.preventDefault(); elegir(); });
       box.appendChild(row);
     });
   }
@@ -5591,6 +5600,18 @@ async function cargarClientesSection() {
   try {
     var usuarios = await fbGet("empresas/"+empresaKey+"/usuarios");
     _clientesDB = usuarios || {};
+    // También actualizar dbCli para que el picker lo vea inmediatamente
+    if(_clientesDB && Object.keys(_clientesDB).length > 0){
+      dbCli = Object.values(_clientesDB).filter(function(u){
+        if(!u.id && !u.name) return false;
+        if(currentUser && u.id === currentUser.id) return false;
+        var rol = (u.role||"").toLowerCase();
+        return rol !== "admin" && rol !== "vendedor" && rol !== "repartidor";
+      }).map(function(u){
+        return { id:u.id||"", nombre:u.name||u.nombre||u.id||"", lista:u.lista||"Clientes" };
+      });
+      dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
+    }
   } catch(e) { _clientesDB = {}; }
   _renderClientesList();
 }
