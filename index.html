@@ -2982,13 +2982,28 @@ function _initCliPicker(t){
   _cliPickerReady[t] = true;
 
   function _getFuente(){
-    // Usar la fuente con más datos disponibles
+    // 1. Prioridad: _clientesDB (Gestión de Clientes — usuarios reales)
     if(typeof _clientesDB === "object" && Object.keys(_clientesDB).length > 0){
-      return Object.values(_clientesDB).map(function(u){
+      var lista = Object.values(_clientesDB).map(function(u){
         return { id:u.id||"", nombre:u.name||u.nombre||u.id||"", lista:u.lista||"Clientes" };
       }).filter(function(u){ return u.nombre; });
+      if(lista.length > 0) return lista;
     }
-    return dbCli;
+    // 2. dbCli ya procesado
+    if(dbCli && dbCli.length > 0) return dbCli;
+    // 3. Fallback: CSV catalog (clientesCSV del empData)
+    if(empresaData && empresaData.clientesCSV){
+      var csv = empresaData.clientesCSV;
+      var lines = csv.split("\n").filter(function(l){return l.trim();});
+      if(lines.length > 1){
+        var sep = lines[0].indexOf(";") >= 0 ? ";" : ",";
+        return lines.slice(1).map(function(line){
+          var p = line.split(sep).map(function(x){return x.trim();});
+          return { id:p[0]||"", nombre:p[1]||p[0]||"", lista:p[2]||"Clientes" };
+        }).filter(function(c){return c.nombre;});
+      }
+    }
+    return [];
   }
 
   function render(q){
