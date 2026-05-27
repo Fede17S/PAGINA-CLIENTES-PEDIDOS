@@ -2674,56 +2674,77 @@ window.onload = function(){
 };
 
 function doLogin(){
-  var empCod=document.getElementById("l-empresa").value.trim().toLowerCase();
-  var uid=document.getElementById("l-user").value.trim();
-  var pass=document.getElementById("l-pass").value;
-  var err=document.getElementById("l-err");
-  var dbg=document.getElementById("l-debug");
+  var empCod = document.getElementById("l-empresa").value.trim().toLowerCase();
+  var uid    = document.getElementById("l-user").value.trim();
+  var pass   = document.getElementById("l-pass").value;
+  var err    = document.getElementById("l-err");
+  var dbg    = document.getElementById("l-debug");
   err.textContent=""; dbg.style.display="none"; dbg.textContent="";
-  if(!empCod||!uid||!pass){err.textContent="Completá todos los campos";return;}
+  if(!empCod||!uid||!pass){ err.textContent="Completá todos los campos"; return; }
   err.textContent="🔄 Conectando…";
-  var log="";
-  function addLog(txt){log+=txt+"\n"; var dbg=document.getElementById("l-debug"); if(dbg){dbg.textContent=log; dbg.style.display="block"; dbg.style.cssText="display:block!important;margin-top:10px;padding:10px;background:rgba(0,0,0,.4);border-radius:7px;font-size:11px;font-family:monospace;color:#94a3b8;white-space:pre-wrap;max-height:200px;overflow-y:auto";}  }
-  // Usar Supabase (no más Firebase directo)
-  fbGet("empresas").then(function(empresas){
-    if(!empresas){err.textContent="⚠️ Base vacía — creá una empresa en Supabase";addLog("Base vacía");return;}
-    addLog("Empresas en Supabase: "+Object.keys(empresas).length);
-    Object.entries(empresas).forEach(function(e){addLog("  codigo='"+( e[1].codigo||"?")+"' usuarios="+Object.keys(e[1].usuarios||{}).length);});
-    var key=null;
-    Object.keys(empresas).forEach(function(k){var e=empresas[k];if(e&&e.codigo&&e.codigo.toString().toLowerCase().trim()===empCod)key=k;});
-    if(!key){err.textContent="❌ Empresa '"+empCod+"' no encontrada";addLog("Códigos: "+Object.values(empresas).map(function(e){return e.codigo||"?";}).join(", "));return;}
-    var emp=empresas[key];
+
+  // 1. Buscar empresa por código en Supabase
+  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence&codigo=eq."+encodeURIComponent(empCod))
+  .then(function(emps){
+    if(!emps||!emps.length){ err.textContent="❌ Empresa '"+empCod+"' no encontrada"; return; }
+    var emp = emps[0];
+    empresaKey = emp.id;
+    _sbEmpId   = emp.id;
+
+    // Control de acceso
     if(emp.estado==="inactiva"){
       showSuspendedCli("Esta cuenta está suspendida. Contactá al administrador.");
-      err.textContent=""; dbg.style.display="none";
-      return;
+      err.textContent=""; return;
     }
     if(emp.vence){
-      var venceDate=new Date(emp.vence); venceDate.setHours(23,59,59);
-      if(new Date()>venceDate){
-        showSuspendedCli("La suscripción venció el "+venceDate.toLocaleDateString("es-AR")+". Contactá al administrador.");
-        err.textContent=""; dbg.style.display="none";
-        return;
-      }
+      var vd=new Date(emp.vence); vd.setHours(23,59,59);
+      if(new Date()>vd){ showSuspendedCli("La suscripción venció el "+vd.toLocaleDateString("es-AR")+"."); err.textContent=""; return; }
     }
-    var users=emp.usuarios||{};
-    addLog("Usuarios: "+Object.keys(users).join(", "));
-    var foundUser=null;
-    if(users[uid]&&users[uid].pass===pass){foundUser=users[uid];}
-    else{Object.keys(users).forEach(function(k){if(users[k].id===uid&&users[k].pass===pass)foundUser=users[k];});}
-    if(!foundUser){err.textContent="❌ Usuario o contraseña incorrectos";addLog("Usuario '"+uid+"' no encontrado o contraseña incorrecta");return;}
-    empresaKey=key; empresaData=emp; currentUser=foundUser;
-    // Crítico: setear _sbEmpId inmediatamente al login
-    _sbEmpId = key;
-    if (!checkEmpresaAccess(emp)) return;
-    sessionStorage.setItem("dm_session",JSON.stringify({empresaKey:key,user:currentUser,empresaData:emp}));
-    document.getElementById("l-pass").value="";
-    err.textContent=""; dbg.style.display="none";
-    _loadReadCache(); _loadQueue(); _updateBanner();
-    aplicarBranding(); aplicarRestricciones();
-    cargarListasPrecios();
-    iniciarApp();
-  }).catch(function(e){err.textContent="❌ Error: "+e.message;addLog("Error: "+e.message);});
+
+    // 2. Buscar usuario en Supabase directamente (por uid o por id de fila)
+    return sbGet("usuarios","select=id,uid,pass,name,role,lista,catalogo,direccion,telefono,zona,recepciona,nota&empresa_id=eq."+emp.id)
+    .then(function(usuarios){
+      if(!usuarios||!usuarios.length){ err.textContent="❌ No hay usuarios en esta empresa"; return; }
+
+      var found = null;
+      usuarios.forEach(function(u){
+        if(!found && (u.uid===uid || u.uid===uid.toLowerCase()) && u.pass===pass) found=u;
+      });
+      if(!found){ err.textContent="❌ Usuario o contraseña incorrectos"; return; }
+
+      // 3. Setear currentUser con datos directos de Supabase
+      currentUser = {
+        id:      found.uid,
+        _sbId:   found.id,
+        name:    found.name  || found.uid,
+        nom:     found.name  || found.uid,
+        pass:    found.pass,
+        role:    found.role  || "vendedor",
+        lista:   found.lista || "Clientes",
+        catalogo:found.catalogo !== false
+      };
+
+      // 4. Cargar el resto de la empresa
+      empresaData = Object.assign({}, emp, { usuarios: {} });
+      usuarios.forEach(function(u){
+        empresaData.usuarios[u.id] = {id:u.uid,_sbId:u.id,name:u.name,pass:u.pass,role:u.role,lista:u.lista,catalogo:u.catalogo,direccion:u.direccion||"",tel:u.telefono||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
+      });
+
+      sessionStorage.setItem("dm_session", JSON.stringify({
+        empresaKey: emp.id,
+        user:       currentUser,
+        empresaData:empresaData
+      }));
+
+      document.getElementById("l-pass").value="";
+      err.textContent=""; dbg.style.display="none";
+      _loadReadCache(); _loadQueue(); _updateBanner();
+      aplicarBranding(); aplicarRestricciones();
+      cargarListasPrecios();
+      iniciarApp();
+    });
+  })
+  .catch(function(e){ err.textContent="❌ Error: "+(e.message||e); });
 }
 
 function aplicarBranding(){
