@@ -1817,7 +1817,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="cli-form-grid">
       <div class="cli-field">
         <label>ID / Usuario</label>
-        <input type="text" id="nc-id" placeholder="ej: CLI001" autocapitalize="none" autocomplete="off">
+        <input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off" onfocus="if(!this.value)this.value=_generarSiguienteId()">
       </div>
       <div class="cli-field">
         <label>Contraseña</label>
@@ -2386,6 +2386,16 @@ function fbPatch(path, data){
     if(p.length>=6 && p[4]==="clientes") return _sbPatchRutaCli(p[3],p[5],data);
   }
   if(r==="cuentas_corrientes" && id) return _sbPatchCC(decodeURIComponent(id), data);
+  if(r==="backupPedidos" && id){
+    var bkBody={};
+    if(data.tipo!==undefined)            bkBody.tipo=data.tipo;
+    if(data.tipoComprobante!==undefined) bkBody.tipo_comprobante=data.tipoComprobante;
+    if(data.aprobado!==undefined)        bkBody.aprobado=data.aprobado;
+    if(data.items!==undefined)           bkBody.items=data.items;
+    if(data.total!==undefined)           bkBody.total=data.total;
+    if(data.totalConIVA!==undefined)     bkBody.total_con_iva=data.totalConIVA;
+    if(Object.keys(bkBody).length) return sbPatch("backup_pedidos","id=eq."+id+"&empresa_id=eq."+_sbEmpId, bkBody);
+  }
   return Promise.resolve();
 }
 
@@ -2407,7 +2417,7 @@ function fbDel(path){
   if(!_sbEmpId) return Promise.resolve();
   var r = p[2];
   if(r==="ventas" && p[3])       return sbDel("ventas","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
-  if(r==="backupPedidos" && p[3]) return sbDel("backup_pedidos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
+  if(r==="backupPedidos" && p[3])  return sbDel("backup_pedidos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
   if(r==="productos" && p[3])     return sbDel("productos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
   if(r==="usuarios" && p[3])      return sbDel("usuarios","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
   if(r==="rutas"){
@@ -2528,11 +2538,61 @@ async function _sbGetRutas(){
 }
 async function _sbInsertRuta(data){ var rows=await sbPost("rutas",{empresa_id:_sbEmpId,nombre:data.nombre,fecha:data.fecha||new Date().toISOString()}); return rows&&rows[0]?rows[0].id:null; }
 async function _sbInsertRutaCli(rutaId,data){ var rows=await sbPost("ruta_clientes",{ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),firma:"",pagos_adicionales:[],comprobantes:[]}); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchRutaCli(rutaId,cliId,data){ var b={};if(data.efectivo!==undefined)b.efectivo=data.efectivo;if(data.transferencia!==undefined)b.transferencia=data.transferencia;if(data.modo!==undefined)b.modo=data.modo;if(data.importe!==undefined)b.importe=data.importe;if(data.firma!==undefined)b.firma=data.firma;if(data.firmadoEn!==undefined)b.firmado_en=data.firmadoEn;if(data.pagosAdicionales!==undefined)b.pagos_adicionales=data.pagosAdicionales;if(data.comprobantes!==undefined)b.comprobantes=data.comprobantes;return sbPatch("ruta_clientes","id=eq."+cliId+"&ruta_id=eq."+rutaId,b); }
+async function _sbPatchRutaCli(rutaId,cliId,data){
+  var b={};
+  if(data.efectivo!==undefined)         b.efectivo=data.efectivo;
+  if(data.transferencia!==undefined)    b.transferencia=data.transferencia;
+  if(data.modo!==undefined)             b.modo=data.modo;
+  if(data.importe!==undefined)          b.importe=data.importe;
+  if(data.firma!==undefined)            b.firma=data.firma;
+  if(data.firmadoEn!==undefined)        b.firmado_en=data.firmadoEn;
+  if(data.pagosAdicionales!==undefined) b.pagos_adicionales=data.pagosAdicionales;
+  if(data.comprobantes!==undefined)     b.comprobantes=data.comprobantes;
+  if(data.items!==undefined)            b.items=data.items;          // ← fix: guardar items editados
+  if(data.dscGeneral!==undefined)       b.items=b.items||data.items; // incluye con dscGeneral
+  if(Object.keys(b).length===0) return null;
+  return sbPatch("ruta_clientes","id=eq."+cliId+"&ruta_id=eq."+rutaId,b);
+}
 async function _sbDelComprobante(rutaId,cliId,tid){ var rows=await sbGet("ruta_clientes","select=comprobantes&id=eq."+cliId); if(!rows||!rows[0])return; var comps=(rows[0].comprobantes||[]).filter(function(c){return c.id!==tid;}); return sbPatch("ruta_clientes","id=eq."+cliId,{comprobantes:comps}); }
 
-async function _sbGetBackup(){ var rows=await sbGet("backup_pedidos","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc"); if(!rows)return null; var r={};rows.forEach(function(b){r[b.id]={id:b.id,fecha:b.fecha,clienteNom:b.cliente_nom,clienteId:b.cliente_id,lista:b.lista,obs:b.obs,items:b.items,total:b.total,tipo:b.tipo,usuario:b.usuario,descuentos:b.descuentos};});return r; }
-async function _sbInsertBackup(data){ var rows=await sbPost("backup_pedidos",{empresa_id:_sbEmpId,fecha:data.fecha||new Date().toISOString(),cliente_nom:data.clienteNom||"",cliente_id:data.clienteId||"",lista:data.lista||"",obs:data.obs||"",items:data.items||[],total:data.total||0,tipo:data.tipo||"pedido",usuario:data.usuario||"",descuentos:data.descuentos||null}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbGetBackup(){
+  var rows=await sbGet("backup_pedidos","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
+  if(!rows||!rows.length) return null;
+  var r={};
+  rows.forEach(function(b){
+    r[b.id]={
+      id:b.id, _fbKey:b.id, _synced:true,
+      fecha:b.fecha, clienteNom:b.cliente_nom, clienteId:b.cliente_id,
+      lista:b.lista, obs:b.obs||"", items:b.items||[], total:b.total||0,
+      totalConIVA:b.total_con_iva||(Math.round((b.total||0)*1.21*100)/100),
+      tipo:b.tipo||"pedido",
+      tipoComprobante:b.tipo_comprobante||null,
+      usuario:b.usuario||"", usuarioNom:b.usuario_nom||"",
+      descuentos:b.descuentos||null
+    };
+  });
+  return r;
+}
+
+async function _sbInsertBackup(data){
+  var rows=await sbPost("backup_pedidos",{
+    empresa_id:    _sbEmpId,
+    fecha:         data.fecha||new Date().toISOString(),
+    cliente_nom:   data.clienteNom||"",
+    cliente_id:    data.clienteId||"",
+    lista:         data.lista||"",
+    obs:           data.obs||"",
+    items:         data.items||[],
+    total:         data.total||0,
+    total_con_iva: data.totalConIVA||Math.round((data.total||0)*1.21*100)/100,
+    tipo:          data.tipo||"pedido",
+    tipo_comprobante: data.tipoComprobante||null,
+    usuario:       data.usuario||"",
+    usuario_nom:   data.usuarioNom||"",
+    descuentos:    data.descuentos||null
+  });
+  return rows&&rows[0]?rows[0].id:null;
+}
 
 async function _sbGetCC(cliNom){ var rows=await sbGet("cuentas_corrientes","select=saldo&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)); if(!rows||!rows.length)return null; var movs=await sbGet("cc_movimientos","select=*&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)+"&order=fecha.desc"); return {saldo:rows[0].saldo,movimientos:movs||[]}; }
 async function _sbPatchCC(cliNom,data){ if(data.saldo!==undefined)return sbUpsert("cuentas_corrientes",{empresa_id:_sbEmpId,cliente_nom:cliNom,saldo:data.saldo,updated_at:new Date().toISOString()}); }
@@ -5931,6 +5991,9 @@ async function cargarClientesSection() {
     }
   } catch(e) { _clientesDB = {}; }
   _renderClientesList();
+  // Pre-llenar el campo ID con el siguiente correlativo
+  var ncId = document.getElementById("nc-id");
+  if(ncId && !ncId.value) ncId.value = _generarSiguienteId();
 }
 
 function _renderClientesList() {
@@ -5971,6 +6034,52 @@ function _renderClientesList() {
   }).join("");
 }
 
+function _generarSiguienteId(){
+  // Extraer todos los IDs existentes de _clientesDB
+  var todos = Object.values(_clientesDB||{}).map(function(u){ return u.id||""; }).filter(Boolean);
+  if(!todos.length) return "CL001";
+
+  // Detectar el prefijo más común (letras al inicio) y el mayor número
+  var maxNum = 0;
+  var prefijo = "CL";
+
+  todos.forEach(function(id){
+    // Separar prefijo (letras) del número
+    var match = id.match(/^([A-Za-z]*)(\d+)$/);
+    if(!match) return;
+    var num = parseInt(match[2], 10);
+    if(num > maxNum){
+      maxNum = num;
+      prefijo = match[1] || "CL";
+    }
+  });
+
+  // Determinar el prefijo más frecuente
+  var prefCount = {};
+  todos.forEach(function(id){
+    var match = id.match(/^([A-Za-z]+)\d+$/);
+    if(match){ var p=match[1]; prefCount[p]=(prefCount[p]||0)+1; }
+  });
+  var prefMasFrecuente = prefijo;
+  var maxC = 0;
+  Object.entries(prefCount).forEach(function(e){
+    if(e[1]>maxC){ maxC=e[1]; prefMasFrecuente=e[0]; }
+  });
+
+  // Usar el prefijo más frecuente, con el número más alto de TODOS los ids (con o sin ese prefijo)
+  var maxGlobal = 0;
+  todos.forEach(function(id){
+    var match = id.match(/^[A-Za-z]*(\d+)$/);
+    if(match){ var n=parseInt(match[1],10); if(n>maxGlobal) maxGlobal=n; }
+  });
+
+  // Formatear con ceros a la izquierda del mismo ancho que el número más largo
+  var siguiente = maxGlobal + 1;
+  var anchoRef = String(maxGlobal).length;
+  var anchoFinal = Math.max(anchoRef, 3);
+  return prefMasFrecuente + String(siguiente).padStart(anchoFinal, "0");
+}
+
 async function guardarNuevoCliente() {
   var id   = document.getElementById("nc-id").value.trim();
   var pass = document.getElementById("nc-pass").value.trim();
@@ -5994,9 +6103,12 @@ async function guardarNuevoCliente() {
   try {
     var pushKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
     _clientesDB[pushKey] = nuevo;
-    ["nc-id","nc-pass","nc-name","nc-dir","nc-tel","nc-zona","nc-rec","nc-nota"].forEach(function(fid){
+    ["nc-pass","nc-name","nc-dir","nc-tel","nc-zona","nc-rec","nc-nota"].forEach(function(fid){
       var el=document.getElementById(fid); if(el)el.value="";
     });
+    // Pre-llenar el siguiente ID automáticamente
+    var ncId = document.getElementById("nc-id");
+    if(ncId) ncId.value = _generarSiguienteId();
     document.getElementById("nc-lista").value="Clientes";
     var res=document.getElementById("nc-dir-result"); if(res)res.style.display="none";
     _renderClientesList();
