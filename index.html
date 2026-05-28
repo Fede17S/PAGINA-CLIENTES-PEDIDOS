@@ -1368,7 +1368,18 @@ select option { background:#fff }
 .cat-prod-name-prev { font-size:10px; font-weight:600; color:var(--text); text-align:center; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical }
 .cat-prod-price-prev { font-size:11px; font-weight:700; color:var(--accent) }
 
-/* ── Mobile browser compatibility ── */
+/* ── BACKUP TABS ── */
+.bk-tab { flex:1;padding:8px 4px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;text-align:center;white-space:nowrap; }
+.bk-tab.active { border-color:var(--accent);background:oklch(96% 0.03 250);color:var(--accent); }
+.bk-tab.green.active { border-color:#0f8a4a;background:#e8f5ee;color:#0f8a4a; }
+.bk-tab.red.active { border-color:#b91c1c;background:#fff0f0;color:#b91c1c; }
+.bk-tab-cnt { font-size:10px;background:currentColor;color:#fff;border-radius:20px;padding:1px 6px;margin-left:3px;opacity:.85; }
+/* Estado en card */
+.bk-card-estado { display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;font-weight:700;border-top:1px solid var(--border2); }
+.bk-card.estado-aprobado { border-left:4px solid #0f8a4a; }
+.bk-card.estado-rechazado { border-left:4px solid #b91c1c; }
+.bk-card.estado-espera { border-left:4px solid var(--muted); }
+
 * { -webkit-tap-highlight-color: transparent; }
 button, .btn, .sb-item, .ruta-list-btn, .dd-item, .mprod-cls, .item-del, .cat-item-btn
   { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
@@ -1682,11 +1693,24 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <div id="backup" class="section">
-  <div class="bk-counter" id="bk-counter"></div>
-  <div class="card" style="padding:0">
-    <div id="backup-list">
-      <div class="bk-empty"><div style="font-size:40px;margin-bottom:8px">💾</div>Sin pedidos guardados aún.<br><small>Cada pedido enviado se guarda acá automáticamente.</small></div>
-    </div>
+  <!-- Buscador y contador -->
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <input type="text" id="bk-search" placeholder="🔍 Buscar por cliente, vendedor…"
+      oninput="renderBackup()" style="flex:1;font-size:14px"
+      autocomplete="off" autocorrect="off" autocapitalize="off">
+    <button class="btn btn-ghost btn-sm" onclick="sincronizarPendientesBackup();cargarBackupFirebase()">🔄</button>
+  </div>
+
+  <!-- Tabs de estado -->
+  <div style="display:flex;gap:6px;margin-bottom:10px" id="bk-tabs">
+    <button class="bk-tab active" id="bk-tab-todos"     onclick="setBkTab('todos',this)">📋 Todos <span id="bk-cnt-todos"    class="bk-tab-cnt"></span></button>
+    <button class="bk-tab"        id="bk-tab-espera"    onclick="setBkTab('espera',this)">⏳ En espera <span id="bk-cnt-espera"   class="bk-tab-cnt"></span></button>
+    <button class="bk-tab green"  id="bk-tab-aprobados" onclick="setBkTab('aprobados',this)">✓ Aprobados <span id="bk-cnt-aprobados" class="bk-tab-cnt"></span></button>
+    <button class="bk-tab red"    id="bk-tab-rechazados" onclick="setBkTab('rechazados',this)">✕ Rechazados <span id="bk-cnt-rechazados" class="bk-tab-cnt"></span></button>
+  </div>
+
+  <div class="card" style="padding:0;overflow:visible">
+    <div id="backup-list"></div>
   </div>
 </div>
 
@@ -4957,26 +4981,60 @@ function cargarBackupFirebase(){
     .catch(function(e){ console.warn("No se pudo cargar backup:", e); renderBackup(); });
 }
 
+var _bkTab = "todos"; // "todos" | "espera" | "aprobados" | "rechazados"
+
+function setBkTab(tab, el){
+  _bkTab = tab;
+  document.querySelectorAll(".bk-tab").forEach(function(b){ b.classList.remove("active"); });
+  if(el) el.classList.add("active");
+  renderBackup();
+}
+
 function renderBackup(){
   var wrap = document.getElementById("backup-list");
   if(!wrap) return;
-  var arr = getBackups();
+  var all = getBackups();
   var isAdminBk = currentUser && currentUser.role === "admin";
   var isVendedorBk = currentUser && (currentUser.role === "vendedor" || !currentUser.role);
 
   // Vendedor solo ve sus propios pedidos
   if(!isAdminBk && currentUser){
-    arr = arr.filter(function(bk){
-      return (bk.usuario === currentUser.id) || (bk.usuarioNom === currentUser.id);
+    all = all.filter(function(bk){ return (bk.usuario===currentUser.id)||(bk.usuarioNom===currentUser.id); });
+  }
+
+  // Buscador
+  var q = (document.getElementById("bk-search")||{value:""}).value.toLowerCase().trim();
+  if(q){
+    all = all.filter(function(bk){
+      return (bk.clienteNom||"").toLowerCase().indexOf(q)!==-1 ||
+             (bk.usuarioNom||bk.usuario||"").toLowerCase().indexOf(q)!==-1 ||
+             (bk.clienteId||"").toLowerCase().indexOf(q)!==-1;
     });
   }
 
-  var counter = document.getElementById("bk-counter");
-  if(counter) counter.textContent = arr.length ? arr.length+" pedido(s)" : "";
+  // Contadores por estado
+  var cnt = {todos:all.length, espera:0, aprobados:0, rechazados:0};
+  all.forEach(function(bk){
+    if(bk.aprobado===true) cnt.aprobados++;
+    else if(bk.aprobado===false) cnt.rechazados++;
+    else cnt.espera++;
+  });
+  ["todos","espera","aprobados","rechazados"].forEach(function(k){
+    var el=document.getElementById("bk-cnt-"+k);
+    if(el) el.textContent = cnt[k]||"";
+  });
+
+  // Filtro por tab
+  var arr = all.filter(function(bk){
+    if(_bkTab==="aprobados")  return bk.aprobado===true;
+    if(_bkTab==="rechazados") return bk.aprobado===false;
+    if(_bkTab==="espera")     return bk.aprobado!==true && bk.aprobado!==false;
+    return true;
+  });
+
   if(!arr.length){
-    wrap.innerHTML='<div class="bk-zero"><div class="bk-zero-icon">💾</div>'+
-      '<div class="bk-zero-txt">'+(isVendedorBk ? "Todavía no hiciste ningún pedido" : "Sin pedidos guardados aún")+'</div>'+
-      '<div class="bk-zero-sub">Cada pedido enviado se guarda acá automáticamente.</div></div>';
+    var msgs={todos:"Sin pedidos",espera:"Sin pedidos en espera",aprobados:"Sin pedidos aprobados",rechazados:"Sin pedidos rechazados"};
+    wrap.innerHTML='<div class="bk-zero"><div class="bk-zero-icon">💾</div><div class="bk-zero-txt">'+( msgs[_bkTab]||"Sin pedidos")+'</div></div>';
     return;
   }
   wrap.innerHTML="";
@@ -5002,7 +5060,8 @@ function renderBackup(){
       : '';
 
     var card = document.createElement("div");
-    card.className = "bk-card" + (isOpen?" open":"");
+    var estadoClass = bk.aprobado===true ? " estado-aprobado" : bk.aprobado===false ? " estado-rechazado" : " estado-espera";
+    card.className = "bk-card" + estadoClass + (isOpen?" open":"");
 
     /* Header */
     var header = document.createElement("div");
@@ -5109,10 +5168,17 @@ function renderBackup(){
       }
       // Estado aprobación (admin puede cambiar)
       var estadoBadge=document.createElement("div");
-      estadoBadge.style.cssText="margin:8px 16px 0;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;text-align:center;";
-      if(bk.aprobado===true){ estadoBadge.style.background="#e8f5ee"; estadoBadge.style.color="#0f8a4a"; estadoBadge.textContent="✓ Aprobado — cuenta para comisión"; }
-      else if(bk.aprobado===false){ estadoBadge.style.background="#fff0f0"; estadoBadge.style.color="#b91c1c"; estadoBadge.textContent="✗ Rechazado"; }
-      else { estadoBadge.style.background="var(--s3)"; estadoBadge.style.color="var(--muted)"; estadoBadge.textContent="⏳ Pendiente de aprobación"; }
+      estadoBadge.className = "bk-card-estado";
+      if(bk.aprobado===true){
+        estadoBadge.style.cssText="padding:8px 14px;font-size:12.5px;font-weight:700;color:#0f8a4a;background:#e8f5ee;border-top:1px solid #a7f3d0;";
+        estadoBadge.innerHTML="<span style='font-size:16px'>✅</span> Pedido aprobado — suma a la comisión";
+      } else if(bk.aprobado===false){
+        estadoBadge.style.cssText="padding:8px 14px;font-size:12.5px;font-weight:700;color:#b91c1c;background:#fff0f0;border-top:1px solid #fca5a5;";
+        estadoBadge.innerHTML="<span style='font-size:16px'>❌</span> Pedido rechazado";
+      } else {
+        estadoBadge.style.cssText="padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--s2);border-top:1px solid var(--border2);";
+        estadoBadge.innerHTML="<span style='font-size:16px'>⏳</span> En espera de aprobación";
+      }
       detail.appendChild(estadoBadge);
       var aprobar=document.createElement("div");
       aprobar.style.cssText="display:flex;gap:6px;padding:6px 16px 10px;";
@@ -5122,10 +5188,16 @@ function renderBackup(){
     } else if(canEdit){
       // Vendedor: estado de aprobación solo lectura
       var estadoVnd=document.createElement("div");
-      estadoVnd.style.cssText="margin:8px 16px 10px;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;text-align:center;";
-      if(bk.aprobado===true){ estadoVnd.style.background="#e8f5ee"; estadoVnd.style.color="#0f8a4a"; estadoVnd.textContent="✓ Aprobado por el admin"; }
-      else if(bk.aprobado===false){ estadoVnd.style.background="#fff0f0"; estadoVnd.style.color="#b91c1c"; estadoVnd.textContent="✗ Rechazado — contactá al admin"; }
-      else { estadoVnd.style.background="var(--s3)"; estadoVnd.style.color="var(--muted)"; estadoVnd.textContent="⏳ Esperando aprobación del admin"; }
+      if(bk.aprobado===true){
+        estadoVnd.style.cssText="padding:8px 14px;font-size:12.5px;font-weight:700;color:#0f8a4a;background:#e8f5ee;border-top:1px solid #a7f3d0;";
+        estadoVnd.innerHTML="<span style='font-size:16px'>✅</span> Aprobado por el admin";
+      } else if(bk.aprobado===false){
+        estadoVnd.style.cssText="padding:8px 14px;font-size:12.5px;font-weight:700;color:#b91c1c;background:#fff0f0;border-top:1px solid #fca5a5;";
+        estadoVnd.innerHTML="<span style='font-size:16px'>❌</span> Rechazado — contactá al admin";
+      } else {
+        estadoVnd.style.cssText="padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--s2);border-top:1px solid var(--border2);";
+        estadoVnd.innerHTML="<span style='font-size:16px'>⏳</span> Esperando aprobación del admin";
+      }
       detail.appendChild(estadoVnd);
     }
 
