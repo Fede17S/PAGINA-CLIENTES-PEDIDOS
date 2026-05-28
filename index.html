@@ -1681,7 +1681,6 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <span id="fb-hoja-status" class="fb-pill sync">☁️</span>
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost btn-sm" onclick="cargarRutasFirebase()">🔄</button>
-      <button class="btn btn-ghost btn-sm" onclick="imprimirTodasRutas()" title="Imprimir todos los pedidos">🖨️ Imprimir todos</button>
       <button class="nueva-ruta-btn" onclick="crearNuevaRuta()">+ Nueva Ruta</button>
     </div>
   </div>
@@ -4369,15 +4368,36 @@ function cargarRutasFirebase(){
     renderRutas();
   }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
 }
-function imprimirTodasRutas(){
-  var keys = Object.keys(rutasData||{});
-  if(!keys.length){ showNotif("No hay rutas para imprimir","err"); return; }
-  if(!confirm("¿Imprimir los PDFs de todas las "+keys.length+" ruta(s) activas?")) return;
-  // Descargar un PDF por ruta con delay para no saturar el browser
-  keys.forEach(function(rk, i){
-    setTimeout(function(){ descargarPDFRuta(rk); }, i * 800);
+function imprimirPedidosDeRuta(rk){
+  var ruta = rutasData[rk];
+  if(!ruta){ showNotif("Ruta no encontrada","err"); return; }
+  var clientes = Object.entries(ruta.clientes||{});
+  if(!clientes.length){ showNotif("No hay pedidos en esta ruta","err"); return; }
+  if(!confirm("¿Imprimir los "+clientes.length+" remito(s) de esta ruta?")) return;
+
+  clientes.forEach(function(entry, i){
+    setTimeout(function(){
+      var ck = entry[0];
+      var cli = entry[1];
+      // Armar un bk compatible con generarPDFDesdeBackup
+      var bk = {
+        id:         ck,
+        _fbKey:     ck,
+        fecha:      cli.fecha || ruta.fecha || new Date().toISOString(),
+        clienteNom: cli.nom  || cli.nombre || "",
+        clienteId:  cli.id   || "",
+        lista:      cli.lista|| "Clientes",
+        obs:        cli.obs  || "",
+        items:      cli.items|| [],
+        total:      cli.importe || cli.total || 0,
+        usuarioNom: ruta.repartidorNom || "",
+        tipoComprobante: "remito"
+      };
+      generarPDFDesdeBackup(bk, false);
+    }, i * 900);
   });
-  showNotif("🖨️ Generando "+keys.length+" PDF(s)…","ok");
+
+  showNotif("🖨️ Generando "+clientes.length+" remito(s)…","ok");
 }
 
 async function crearNuevaRuta(){
@@ -4499,6 +4519,14 @@ function renderRutas(){
     } else {
       actBtns.appendChild(btnPDF);
     }
+
+    // Botón imprimir todos los pedidos de ESTA ruta (siempre visible)
+    var btnPrintAll=document.createElement("button");
+    btnPrintAll.className="btn-pdf";
+    btnPrintAll.style.cssText="background:var(--accent);border-color:var(--accent)";
+    btnPrintAll.innerHTML="🖨️ Imprimir pedidos";
+    btnPrintAll.onclick=function(e){e.stopPropagation();imprimirPedidosDeRuta(rutaKey);};
+    actBtns.appendChild(btnPrintAll);
 
     var btnDel=document.createElement("button");
     if(role==="admin"){
