@@ -3749,11 +3749,12 @@ function generarPDF(m){
 
   doc.autoTable({
     startY: SEP2+1, head: head, body: body, theme:"plain",
-    headStyles:  {fontStyle:"bold",fontSize:8.5,textColor:INK,fillColor:false,cellPadding:3.5,
-                  lineWidth:{bottom:0.5},lineColor:LINE},
-    bodyStyles:  {fontSize:9,textColor:INK,fillColor:false,cellPadding:3,
-                  lineWidth:{bottom:0.2},lineColor:LINE},
-    alternateRowStyles:{fillColor:false},
+    headStyles:  {fontStyle:"bold",fontSize:8.5,textColor:INK,fillColor:[255,255,255],cellPadding:3.5,
+                  lineWidth:0.3,lineColor:LINE},
+    bodyStyles:  {fontSize:9,textColor:INK,fillColor:[255,255,255],cellPadding:3,
+                  lineWidth:0.2,lineColor:LINE},
+    alternateRowStyles:{fillColor:[255,255,255]},
+    styles:{fillColor:[255,255,255]},
     columnStyles: hayDescuentos
       ?{0:{cellWidth:20},1:{cellWidth:70},2:{halign:"center",cellWidth:16},3:{halign:"right",cellWidth:22},4:{halign:"center",cellWidth:16},5:{halign:"right",cellWidth:22},6:{halign:"right",cellWidth:22}}
       :{0:{cellWidth:24},1:{cellWidth:100},2:{halign:"center",cellWidth:18},3:{halign:"right",cellWidth:28},4:{halign:"right",cellWidth:24}}
