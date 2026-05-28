@@ -2662,12 +2662,13 @@ async function _sbGetBackup(){
   var r={};
   rows.forEach(function(b){
     r[b.id]={
-      id:b.id, _fbKey:b.id, _synced:true,
+      id:b.id, _sbId:b.id, _fbKey:b.id, _synced:true,
       fecha:b.fecha, clienteNom:b.cliente_nom, clienteId:b.cliente_id,
       lista:b.lista, obs:b.obs||"", items:b.items||[], total:b.total||0,
       totalConIVA:b.total_con_iva||(Math.round((b.total||0)*1.21*100)/100),
       tipo:b.tipo||"pedido",
       tipoComprobante:b.tipo_comprobante||null,
+      aprobado: b.aprobado===null ? null : (b.aprobado===true || b.aprobado==="true"),
       usuario:b.usuario||"", usuarioNom:b.usuario_nom||"",
       descuentos:b.descuentos||null
     };
@@ -2851,6 +2852,18 @@ async function guardarDatosEmpresa(){
     showNotif("✅ Datos guardados","ok");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
+async function _nextHojaRutaNum(){
+  if(!_sbEmpId) return "0001";
+  try {
+    var rows=await sbGet("empresas_config","select=hr_contador&empresa_id=eq."+_sbEmpId);
+    var actual=(rows&&rows[0]&&rows[0].hr_contador)||0;
+    var sig=actual+1;
+    await sbUpsert("empresas_config",{empresa_id:_sbEmpId, hr_contador:sig});
+    if(empresaData&&empresaData._config) empresaData._config.hr_contador=sig;
+    return "HR-"+String(sig).padStart(4,"0");
+  } catch(e){ return "HR-"+String(Date.now()).slice(-4); }
+}
+
 async function _nextRemitoNum(){
   if(!_sbEmpId) return "00001";
   try {
@@ -4129,7 +4142,16 @@ function cargarRutasFirebase(){
     renderRutas();
   }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
 }
-function crearNuevaRuta(){ var nombre=prompt("Nombre para esta ruta:"); if(!nombre||!nombre.trim())return; var nv={nombre:nombre.trim(),fecha:new Date().toISOString(),clientes:{}}; fbPush("empresas/"+empresaKey+"/rutas",nv).then(function(key){rutasData[key]=nv;rutaAbierta=key;renderRutas();}).catch(function(){alert("Error al crear ruta.");}); }
+async function crearNuevaRuta(){
+  var nombre=prompt("Nombre para esta ruta (opcional, se auto-numerará):");
+  if(nombre===null) return; // canceló
+  var hrNum = await _nextHojaRutaNum();
+  var nombreFinal = nombre.trim() ? hrNum+" — "+nombre.trim() : hrNum+" — "+new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+  var nv={nombre:nombreFinal, hrNum:hrNum, fecha:new Date().toISOString(), clientes:{}};
+  fbPush("empresas/"+empresaKey+"/rutas",nv)
+    .then(function(key){ rutasData[key]=nv; rutaAbierta=key; renderRutas(); })
+    .catch(function(){ alert("Error al crear ruta."); });
+}
 function borrarRuta(rk){ if(!confirm("¿Borrar esta hoja de ruta completa?"))return; fbDel("empresas/"+empresaKey+"/rutas/"+rk).then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();}).catch(function(){alert("Error al borrar.");}); }
 function calcRuta(ruta){
   var cl=Object.values(ruta.clientes||{});
@@ -4897,7 +4919,37 @@ function abrirMover(rk,ck){ var keys=Object.keys(rutasData).filter(function(k){r
 function confirmarMover(){ if(!modalRutaKey||!modalCliKey)return; var dst=document.getElementById("modal-mover-destino").value; var cli=rutasData[modalRutaKey]&&rutasData[modalRutaKey].clientes?rutasData[modalRutaKey].clientes[modalCliKey]:null; if(!cli){cerrarModal("modal-mover");return;} var rk=modalRutaKey,ck=modalCliKey; fbPush("empresas/"+empresaKey+"/rutas/"+dst+"/clientes",cli).then(function(nk){if(!rutasData[dst])rutasData[dst]={clientes:{}};if(!rutasData[dst].clientes)rutasData[dst].clientes={};rutasData[dst].clientes[nk]=cli;return fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck);}).then(function(){if(rutasData[rk]&&rutasData[rk].clientes)delete rutasData[rk].clientes[ck];if(clienteAbierto[rk]===ck)delete clienteAbierto[rk];cerrarModal("modal-mover");rutaAbierta=dst;renderRutas();}).catch(function(){alert("Error al mover.");}); }
 
 // PDF RUTA
-function descargarPDFRuta(rk){ var ruta=rutasData[rk];if(!ruta)return; var jsPDF=window.jspdf.jsPDF,doc=new jsPDF(); if(empresaData.logo)doc.addImage(empresaData.logo,"PNG",10,5,40,20); doc.setFont("helvetica","bold");doc.text("HOJA DE RUTA — "+(ruta.nombre||"Ruta").toUpperCase(),105,16,{align:"center"}); doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Fecha: "+new Date(ruta.fecha).toLocaleDateString(),14,26); var calc=calcRuta(ruta); doc.autoTable({startY:32,head:[["Cliente","Total","Efectivo","Transfer.","Saldo"]],body:Object.values(ruta.clientes||{}).map(function(c){return[c.nom,"$"+fM(c.importe||0),"$"+fM(c.efectivo||0),"$"+fM(c.transferencia||0),"$"+fM((c.importe||0)-(c.efectivo||0)-(c.transferencia||0))];}),foot:[["","$"+fM(calc.total),"","","$"+fM(calc.saldo)]],theme:"striped",headStyles:{fillColor:[13,27,42]}}); doc.save("Ruta_"+(ruta.nombre||"ruta")+".pdf"); }
+function descargarPDFRuta(rk){
+  var ruta=rutasData[rk]; if(!ruta)return;
+  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+  var ed=_getEmpDatos();
+  var hrNum=ruta.hrNum||ruta.nombre||"Ruta";
+  if(empresaData&&empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,36,16);
+  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(13,27,42);
+  doc.text("HOJA DE RUTA",105,14,{align:"center"});
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(14,100,168);
+  doc.text(hrNum,105,22,{align:"center"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text("Empresa: "+(ed.nombre||(empresaData&&empresaData.nombre)||""),14,30);
+  doc.text("Fecha: "+new Date(ruta.fecha).toLocaleDateString("es-AR"),14,36);
+  if(ruta.repartidorNom) doc.text("Repartidor: "+ruta.repartidorNom,14,42);
+  var calc=calcRuta(ruta);
+  doc.autoTable({
+    startY:ruta.repartidorNom?46:42,
+    head:[["Cliente","Importe","Efectivo","Transfer.","Saldo"]],
+    body:Object.values(ruta.clientes||{}).map(function(c){
+      return[c.nom,"$"+fM(c.importe||0),"$"+fM(c.efectivo||0),"$"+fM(c.transferencia||0),"$"+fM((c.importe||0)-(c.efectivo||0)-(c.transferencia||0))];
+    }),
+    foot:[["TOTAL","$"+fM(calc.total),"","","Saldo: $"+fM(calc.saldo)]],
+    theme:"plain",
+    headStyles:{fontStyle:"bold",fontSize:8.5,fillColor:[255,255,255],textColor:[13,27,42],lineWidth:{bottom:0.5},lineColor:[180,180,180],cellPadding:3},
+    bodyStyles:{fontSize:9,fillColor:[255,255,255],textColor:[20,20,20],lineWidth:0.15,lineColor:[200,200,200],cellPadding:3},
+    footStyles:{fontStyle:"bold",fontSize:9,fillColor:[255,255,255],textColor:[13,27,42],lineWidth:{top:0.5},lineColor:[180,180,180]}
+  });
+  doc.setFontSize(7); doc.setTextColor(180,180,180);
+  doc.text((ed.nombre||"")+"  ·  "+hrNum+"  ·  "+new Date(ruta.fecha).toLocaleDateString("es-AR"),105,289,{align:"center"});
+  doc.save(hrNum.replace(/\s/g,"_")+".pdf");
+}
 
 // VENTAS
 /* ══ BACKUP PEDIDOS ══ */
