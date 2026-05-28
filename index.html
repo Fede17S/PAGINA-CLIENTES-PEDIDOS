@@ -3639,21 +3639,6 @@ function generarPDF(m){
   }
   if(!empresaKey){alert("Error: empresaKey vacío. Cerrá sesión y volvé a entrar.");return;}
   try{
-  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
-  var nom=document.getElementById("nomCli-"+t).value||"Mostrador";
-  var obs=document.getElementById("obs-"+t).value.trim();
-
-  // ── Calcular totales con descuentos ──
-  var subtotalLista    = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
-  var subtotalItemsDsc = ordenes[t].reduce(function(s,i){return s+i.sub;},0);
-  var ahorroItems      = subtotalLista - subtotalItemsDsc;
-  var dg               = dscGen[t];
-  var montoDscGen      = 0;
-  if(dg) montoDscGen = dg.tipo==="%" ? subtotalItemsDsc*dg.valor/100 : Math.min(dg.valor, subtotalItemsDsc);
-  var totalFinal       = subtotalItemsDsc - montoDscGen;
-  var ahorroTotal      = ahorroItems + montoDscGen;
-  var hayDescuentos    = ahorroTotal > 0;
-
   // ── Diseño de remito profesional (formato ELANDERS) ──
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
   var nom=document.getElementById("nomCli-"+t).value||"Mostrador";
