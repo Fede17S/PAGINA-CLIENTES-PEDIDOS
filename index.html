@@ -4931,16 +4931,23 @@ function descargarPDFRuta(rk){
 
   // ── Encabezado ──
   if(empresaData&&empresaData.logo){ try{doc.addImage(empresaData.logo,"PNG",10,6,28,13);}catch(e){} }
-  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(13,27,42);
-  doc.text(hrNum+" Fecha",105,12,{align:"center"});
-  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(13,27,42);
-  doc.text(rutaNom,105,21,{align:"center"});
-  doc.setDrawColor(13,27,42); doc.setLineWidth(0.5); doc.line(10,24,200,24);
 
-  // Empresa y repartidor
+  // Empresa arriba izquierda
+  doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(80,80,80);
+  doc.text(ed.nombre||(empresaData&&empresaData.nombre)||"",10,22);
+
+  // HR número + Fecha arriba derecha
+  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(13,27,42);
+  if(hrNum) doc.text(hrNum,200,11,{align:"right"});
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(80,80,80);
-  if(ed.nombre||(empresaData&&empresaData.nombre)) doc.text(ed.nombre||(empresaData&&empresaData.nombre),10,29);
-  doc.text("Fecha: "+fechaStr, 160,29);
+  doc.text("Fecha: "+fechaStr,200,18,{align:"right"});
+  if(ruta.repartidorNom) doc.text("Repartidor: "+ruta.repartidorNom,200,24,{align:"right"});
+
+  // Nombre de ruta centrado grande
+  doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(13,27,42);
+  doc.text(rutaNom,105,30,{align:"center"});
+
+  doc.setDrawColor(13,27,42); doc.setLineWidth(0.5); doc.line(10,33,200,33);
 
   // ── Tabla principal ──
   var body=[];
@@ -4966,7 +4973,7 @@ function descargarPDFRuta(rk){
   });
 
   doc.autoTable({
-    startY:33,
+    startY:35,
     head:[[
       {content:"NB",   styles:{halign:"center"}},
       {content:"ID CL",styles:{halign:"center"}},
