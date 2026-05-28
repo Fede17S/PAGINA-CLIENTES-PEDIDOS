@@ -3666,23 +3666,20 @@ function generarPDF(m){
   var ahorroTotal      = ahorroItems + montoDscGen;
   var hayDescuentos    = ahorroTotal > 0;
 
-  // Paleta
+  // Paleta (minimalista — ahorra tinta)
   var INK   = [13, 27, 42];
   var BLUE  = [14, 100, 168];
-  var LGRAY = [245, 246, 248];
-  var MGRAY = [220, 224, 230];
+  var MGRAY = [200, 205, 215];
   var WHITE = [255, 255, 255];
+  var LGRAY = [245, 246, 248];
 
-  // Marco exterior con sombra visual
-  doc.setFillColor(250,250,252); doc.rect(0,0,210,297,"F");
-  doc.setFillColor.apply(doc,WHITE); doc.rect(6,6,198,285,"F");
+  // Marco simple
   doc.setDrawColor.apply(doc,MGRAY); doc.setLineWidth(0.4); doc.rect(6,6,198,285);
 
-  // Banda superior "ORIGINAL"
-  doc.setFillColor.apply(doc,LGRAY); doc.rect(6,6,198,11,"F");
-  doc.setDrawColor.apply(doc,MGRAY); doc.setLineWidth(0.3); doc.line(6,17,204,17);
-  doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(100,110,125);
+  // "ORIGINAL" — solo texto, sin relleno
+  doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(130,140,155);
   doc.text("ORIGINAL",105,13,{align:"center"});
+  doc.setDrawColor.apply(doc,MGRAY); doc.setLineWidth(0.3); doc.line(6,17,204,17);
 
   // Logo empresa
   var logoY=21, logoH=0;
@@ -3720,7 +3717,7 @@ function generarPDF(m){
   doc.setLineWidth(0.5); doc.setDrawColor.apply(doc,MGRAY); doc.line(6,70,204,70);
 
   // Sección cliente
-  doc.setFillColor(249,250,252); doc.rect(6,70,198,24,"F");
+  doc.setDrawColor.apply(doc,MGRAY); doc.setLineWidth(0.2); doc.rect(6,70,198,24);
   doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(80,90,110);
   doc.text("Apellido y Nombre / Razón social:",10,78);
   doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor.apply(doc,INK);
@@ -3770,8 +3767,7 @@ function generarPDF(m){
   // Pie totales (3 columnas)
   var yP=doc.lastAutoTable.finalY;
   var piH=22;
-  doc.setFillColor.apply(doc,LGRAY); doc.rect(6,yP,132,piH,"F");
-  doc.setFillColor.apply(doc,INK);   doc.rect(138,yP,66,piH,"F");
+  doc.setFillColor.apply(doc,INK); doc.rect(138,yP,66,piH,"F");
   doc.setDrawColor.apply(doc,MGRAY); doc.setLineWidth(0.3);
   doc.line(6,yP+piH,204,yP+piH);
 
@@ -3813,148 +3809,6 @@ function generarPDF(m){
   // Pie de página
   doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
   doc.text((ed.nombre||empresaData&&empresaData.nombre||"")+"  ·  "+fechaHoy,105,291,{align:"center"});
-
-  // ── Calcular totales ──
-  var subtotalLista    = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
-  var subtotalItemsDsc = ordenes[t].reduce(function(s,i){return s+i.sub;},0);
-  var ahorroItems      = subtotalLista - subtotalItemsDsc;
-  var dg               = dscGen[t];
-  var montoDscGen      = 0;
-  if(dg) montoDscGen = dg.tipo==="%" ? subtotalItemsDsc*dg.valor/100 : Math.min(dg.valor, subtotalItemsDsc);
-  var totalFinal       = subtotalItemsDsc - montoDscGen;
-  var ahorroTotal      = ahorroItems + montoDscGen;
-  var hayDescuentos    = ahorroTotal > 0;
-
-  // Paleta
-
-  // ── ORIGINAL header ──
-  doc.setFillColor.apply(doc,GRAY); doc.rect(6,6,199,10,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-  doc.text('ORIGINAL',105,13,{align:'center'});
-
-  // ── Bloque empresa (izquierda) ──
-  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor.apply(doc,DARK);
-  doc.text(ed.nombre||empresaData.nombre||"EMPRESA",12,26);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
-  if(ed.razon) doc.text("Razón social: "+ed.razon,12,34);
-  if(ed.cuit)  doc.text("CUIT: "+ed.cuit,12,40);
-  if(ed.dir)   doc.text(ed.dir,12,46);
-  if(ed.tel)   doc.text("Tel: "+ed.tel,12,52);
-
-  // Logo
-  if(empresaData.logo){try{doc.addImage(empresaData.logo,'PNG',12,8,36,16);}catch(e){}}
-
-  // ── Bloque remito (derecha) ──
-  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor.apply(doc,DARK);
-  var tipoLabel = m==='remito'?'Remito':'Pedido';
-  doc.text(tipoLabel,198,24,{align:'right'});
-  doc.setFillColor.apply(doc,DARK); doc.rect(140,27,60,0.5,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor.apply(doc,DARK);
-  var prefNum=(ed.prefijo||'REM')+" "+remitoNum;
-  doc.text(prefNum,198,35,{align:'right'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
-  var vndNom = (currentUser&&(currentUser.name||currentUser.id))||'—';
-  doc.text("Vendedor: "+vndNom,198,43,{align:'right'});
-  doc.text("Comprobante Nro: "+remitoNum,198,50,{align:'right'});
-  doc.text("Fecha de emisión: "+fechaHoy+" "+hora,198,57,{align:'right'});
-
-  // ── Línea separadora ──
-  doc.setDrawColor.apply(doc,MED); doc.setLineWidth(0.5);
-  doc.line(6,62,205,62);
-
-  // ── Bloque cliente ──
-  doc.setFillColor.apply(doc,LGRAY); doc.rect(6,62,199,20,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
-  doc.text("Apellido y Nombre / Razón social:",12,70);
-  doc.setFont('helvetica','normal');
-  doc.text(nom,12,76);
-  if(cliDir){
-    doc.setFont('helvetica','bold'); doc.text("Domicilio:",115,70);
-    doc.setFont('helvetica','normal'); doc.text(cliDir,115,76);
-  }
-  doc.setFont('helvetica','bold'); doc.text("CUIT:",12,82);
-  doc.setFont('helvetica','normal'); doc.text(cliCuit||'—',30,82);
-  doc.setLineWidth(0.3); doc.setDrawColor.apply(doc,MED);
-  doc.line(6,84,205,84);
-
-  // ── Tabla de productos ──
-  var head, body;
-  if(hayDescuentos){
-    head=[["Código","Producto / Servicio","Cantidad","Precio","Descuento","Precio final","Subtotal"]];
-    body=ordenes[t].map(function(i){
-      var hasDsc=i.disc&&i.disc.valor>0;
-      var dscLabel=hasDsc?(i.disc.tipo==='%'?i.disc.valor+'%':"$"+fM(i.disc.valor)):"";
-      var precioFinal=hasDsc?i.sub/i.c:i.p;
-      return[i.id,i.n,i.c,"$"+fM(i.p),dscLabel,hasDsc?"$"+fM(precioFinal):"","$"+fM(i.sub)];
-    });
-  } else {
-    head=[["Código","Producto / Servicio","Cantidad","Precio","Subtotal"]];
-    body=ordenes[t].map(function(i){return[i.id,i.n,i.c,"$"+fM(i.p),"$"+fM(i.sub)];});
-  }
-
-  doc.autoTable({
-    startY:86, head:head, body:body,
-    theme:'striped',
-    headStyles:{fillColor:DARK,textColor:[255,255,255],fontStyle:'bold',fontSize:8.5},
-    bodyStyles:{textColor:[30,30,30],fontSize:9},
-    alternateRowStyles:{fillColor:[250,250,252]},
-    columnStyles: hayDescuentos
-      ? {0:{cellWidth:18},1:{cellWidth:70},2:{halign:'center',cellWidth:18},3:{halign:'right',cellWidth:22},4:{halign:'center',cellWidth:20},5:{halign:'right',cellWidth:24},6:{halign:'right',cellWidth:24}}
-      : {0:{cellWidth:22},1:{cellWidth:90},2:{halign:'center',cellWidth:20},3:{halign:'right',cellWidth:30},4:{halign:'right',cellWidth:34}},
-    didParseCell:function(d){
-      if(d.section==='body'&&hayDescuentos&&d.column.index===4&&d.cell.raw){
-        d.cell.styles.textColor=[160,90,0]; d.cell.styles.fontStyle='bold';
-      }
-    }
-  });
-
-  // ── Pie: totales ──
-  var yFin=doc.lastAutoTable.finalY+2;
-  doc.setFillColor.apply(doc,GRAY); doc.rect(6,yFin,199,18,'F');
-  doc.setDrawColor.apply(doc,MED); doc.line(6,yFin,205,yFin);
-
-  var cols=3, colW=63;
-  // Col 1: Total neto
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
-  doc.text("TOTAL NETO",12+colW*0,yFin+7,{align:'left'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor.apply(doc,DARK);
-  doc.text("$"+fM(subtotalLista),12+colW*0,yFin+14);
-  // Col 2: Total descuentos
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
-  doc.text("TOTAL DESCUENTOS",12+colW*1,yFin+7);
-  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(180,80,0);
-  doc.text(hayDescuentos?"- $"+fM(ahorroTotal):'—',12+colW*1,yFin+14);
-  // Col 3: Importe total
-  doc.setFillColor.apply(doc,DARK); doc.rect(6+colW*2-2,yFin,colW+10,18,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(200,200,200);
-  doc.text("IMPORTE TOTAL",12+colW*2,yFin+7);
-  doc.setFontSize(12); doc.setTextColor(255,255,255);
-  doc.text("$ "+fM(totalFinal),12+colW*2,yFin+14);
-
-  // ── Observaciones ──
-  if(obs){
-    var yO=yFin+24;
-    doc.setDrawColor.apply(doc,MED); doc.line(6,yO-4,205,yO-4);
-    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(80,80,80);
-    doc.text("Observaciones:",12,yO);
-    doc.setFont('helvetica','normal'); doc.setTextColor.apply(doc,DARK);
-    doc.text(doc.splitTextToSize(obs,180),12,yO+6);
-  }
-
-  // ── Firma (solo remito) ──
-  if(m==='remito'){
-    var yS=Math.max(yFin+40, obs?yFin+30:yFin+25);
-    doc.setDrawColor.apply(doc,MED); doc.line(12,yS+25,90,yS+25);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,120,120);
-    doc.text('Firma del cliente',12,yS+30);
-    doc.line(115,yS+25,198,yS+25);
-    doc.text('Aclaración',115,yS+30);
-  }
-
-  // ── Pie de página ──
-  doc.setFontSize(7.5); doc.setTextColor(180,180,180); doc.setFont('helvetica','normal');
-  doc.text((ed.nombre||empresaData.nombre||"")+" — Documento generado automáticamente",105,291,{align:'center'});
-
 
   if(m==="remito"){
     var totalNum=totalFinal, ahora=new Date();
@@ -5625,8 +5479,7 @@ function generarPDFDesdeBackup(bk, compartir){
 
   // Pie
   var yP=doc.lastAutoTable.finalY, piH=22;
-  doc.setFillColor.apply(doc,LGRAY); doc.rect(6,yP,132,piH,"F");
-  doc.setFillColor.apply(doc,INK);   doc.rect(138,yP,66,piH,"F");
+  doc.setFillColor.apply(doc,INK); doc.rect(138,yP,66,piH,"F");
   doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(90,100,115);
   doc.text("TOTAL NETO",10,yP+8);
   doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor.apply(doc,INK);
