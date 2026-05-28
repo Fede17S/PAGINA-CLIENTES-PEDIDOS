@@ -1681,6 +1681,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <span id="fb-hoja-status" class="fb-pill sync">☁️</span>
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost btn-sm" onclick="cargarRutasFirebase()">🔄</button>
+      <button class="btn btn-ghost btn-sm" onclick="imprimirTodasRutas()" title="Imprimir todos los pedidos">🖨️ Imprimir todos</button>
       <button class="nueva-ruta-btn" onclick="crearNuevaRuta()">+ Nueva Ruta</button>
     </div>
   </div>
@@ -4368,6 +4369,17 @@ function cargarRutasFirebase(){
     renderRutas();
   }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
 }
+function imprimirTodasRutas(){
+  var keys = Object.keys(rutasData||{});
+  if(!keys.length){ showNotif("No hay rutas para imprimir","err"); return; }
+  if(!confirm("¿Imprimir los PDFs de todas las "+keys.length+" ruta(s) activas?")) return;
+  // Descargar un PDF por ruta con delay para no saturar el browser
+  keys.forEach(function(rk, i){
+    setTimeout(function(){ descargarPDFRuta(rk); }, i * 800);
+  });
+  showNotif("🖨️ Generando "+keys.length+" PDF(s)…","ok");
+}
+
 async function crearNuevaRuta(){
   var nombre=prompt("Nombre para esta ruta (opcional, se auto-numerará):");
   if(nombre===null) return; // canceló
@@ -5875,13 +5887,7 @@ async function confirmarBackupComoRemito(bkParam){
 
   if(_editBkItem) cerrarModal("modal-editar-backup");
   renderBackup();
-  showNotif("🚚 Remito generado y agregado a la hoja de ruta","ok");
-
-  // 4) Navegar a Hoja de Ruta
-  setTimeout(function(){
-    verTab("hoja", document.getElementById("nav-hoja"));
-    if(rutaKey2) renderRutas();
-  }, 600);
+  showNotif("🚚 Pedido enviado a Hoja de Ruta","ok");
 }
 
 function generarPDFDesdeBackup(bk, compartir){
@@ -6296,14 +6302,19 @@ function confirmarFirma() {
 /* ── GPS SORT ── */
 function borrarFirma(rk, ck) {
   if(!confirm("¿Borrar la firma de este cliente?")) return;
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {firma:"", firmadoEn:""})
+  // Usar Supabase directamente (ck = Supabase UUID de ruta_clientes)
+  var patchData = {firma:"", firmadoEn:""};
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patchData)
     .then(function(){
       if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
-        delete rutasData[rk].clientes[ck].firma;
-        delete rutasData[rk].clientes[ck].firmadoEn;
+        rutasData[rk].clientes[ck].firma="";
+        rutasData[rk].clientes[ck].firmadoEn="";
       }
       renderRutas();
-    }).catch(function(){ alert("Error al borrar firma."); });
+      showNotif("✓ Firma eliminada","ok");
+    }).catch(function(e){
+      showNotif("Error al borrar firma: "+(e.message||""),"err");
+    });
 }
 
 
@@ -8626,7 +8637,8 @@ async function _cambiarAprobacion(bk, aprobado){
   }
 
   renderBackup();
-  showNotif(aprobado===true ? "✅ Pedido aprobado — enviado a Hoja de Ruta" : "❌ Pedido rechazado", aprobado?"ok":"err");
+  showNotif(aprobado===true ? "✅ Pedido aprobado — agregado a Hoja de Ruta" : "❌ Pedido rechazado", aprobado?"ok":"err");
+  // Queda en Backup Pedidos — sin redirección
 }
 
 var META_VENTAS = 20000000;
