@@ -1804,44 +1804,94 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
      SECCIÓN: GESTIÓN DE CLIENTES
 ══════════════════════════════════ -->
 <div id="datos-empresa" class="section">
+
+  <!-- ── DATOS DE EMPRESA ── -->
   <div class="card">
     <div class="card-head">
       <span class="card-title">🏢 Datos de la Empresa</span>
-      <span style="font-size:11px;color:var(--muted)">Estos datos aparecerán en los remitos y facturas</span>
+      <span style="font-size:11px;color:var(--muted)">Aparecen en remitos y facturas</span>
     </div>
-    <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
-      <div class="cli-field">
-        <label>Nombre comercial</label>
-        <input type="text" id="de-nombre" placeholder="ej: Distribuidora La Regional" autocomplete="off">
-      </div>
-      <div class="cli-field">
-        <label>Razón social</label>
-        <input type="text" id="de-razon" placeholder="ej: La Regional S.A.S." autocomplete="off">
-      </div>
-      <div class="cli-field">
-        <label>CUIT / CUIL</label>
-        <input type="text" id="de-cuit" placeholder="ej: 30-12345678-9" autocomplete="off" inputmode="numeric">
-      </div>
-      <div class="cli-field">
-        <label>Dirección</label>
-        <input type="text" id="de-dir" placeholder="ej: San Martín 450, Puerto Madryn, Chubut" autocomplete="off">
-      </div>
-      <div class="cli-field">
-        <label>Teléfono / WhatsApp</label>
-        <input type="tel" id="de-tel" placeholder="ej: 2804-123456" autocomplete="off">
-      </div>
-      <div class="cli-field">
-        <label>Email</label>
-        <input type="email" id="de-email" placeholder="ej: ventas@empresa.com" autocomplete="off">
-      </div>
-      <div class="cli-field">
-        <label>Código / Prefijo de remito</label>
-        <input type="text" id="de-prefijo" placeholder="ej: PMA-A" autocomplete="off" style="text-transform:uppercase">
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Se usará como prefijo del número de remito (ej: PMA-A 0001)</div>
-      </div>
-      <button class="mbtn mbtn-primary" onclick="guardarDatosEmpresa()" style="align-self:flex-start;padding:12px 24px">💾 Guardar datos</button>
+    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="cli-field"><label>Nombre comercial</label><input type="text" id="de-nombre" placeholder="ej: Distribuidora La Regional" autocomplete="off" oninput="previsualizarRemito()"></div>
+      <div class="cli-field"><label>Razón social</label><input type="text" id="de-razon" placeholder="ej: La Regional S.A.S." autocomplete="off"></div>
+      <div class="cli-field"><label>CUIT / CUIL</label><input type="text" id="de-cuit" placeholder="ej: 30-12345678-9" autocomplete="off" inputmode="numeric" oninput="previsualizarRemito()"></div>
+      <div class="cli-field"><label>Dirección</label><input type="text" id="de-dir" placeholder="ej: San Martín 450, Puerto Madryn" autocomplete="off" oninput="previsualizarRemito()"></div>
+      <div class="cli-field"><label>Teléfono</label><input type="tel" id="de-tel" placeholder="ej: 2804-123456" autocomplete="off" oninput="previsualizarRemito()"></div>
+      <div class="cli-field"><label>Email</label><input type="email" id="de-email" placeholder="ej: ventas@empresa.com" autocomplete="off"></div>
+      <div class="cli-field"><label>Prefijo de remito</label><input type="text" id="de-prefijo" placeholder="ej: PMA-A" autocomplete="off" style="text-transform:uppercase" oninput="previsualizarRemito()"><div style="font-size:11px;color:var(--muted);margin-top:3px">Ej: PMA-A → PMA-A 00001</div></div>
+    </div>
+    <div class="card-body" style="padding-top:0">
+      <button class="mbtn mbtn-primary" onclick="guardarDatosEmpresa()" style="padding:11px 24px">💾 Guardar datos de empresa</button>
     </div>
   </div>
+
+  <!-- ── DISEÑO DEL REMITO ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">🎨 Diseño del Remito / Pedido</span>
+      <span style="font-size:11px;color:var(--muted)">Personalizá qué se muestra y cómo</span>
+    </div>
+    <div class="card-body">
+
+      <!-- Columnas: Opciones | Preview -->
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+
+        <!-- Panel de opciones -->
+        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:10px">
+
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Campos del cliente a mostrar</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-telefono" checked onchange="previsualizarRemito()"> Teléfono del cliente</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-zona" checked onchange="previsualizarRemito()"> Zona del cliente</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-encargado" checked onchange="previsualizarRemito()"> Encargado</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-cuit-cliente" checked onchange="previsualizarRemito()"> CUIT del cliente</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-dir-cliente" checked onchange="previsualizarRemito()"> Dirección del cliente</label>
+
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:8px;margin-bottom:2px">Tabla de productos</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-codigo" checked onchange="previsualizarRemito()"> Mostrar columna Código</label>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <label style="flex-shrink:0">Filas vacías mínimas:</label>
+            <input type="number" id="pdf-min-rows" value="15" min="0" max="40" style="width:56px;text-align:center;padding:5px;border:1px solid var(--border);border-radius:7px" onchange="previsualizarRemito()">
+          </div>
+
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:8px;margin-bottom:2px">Pie de página</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-obs" checked onchange="previsualizarRemito()"> Caja de Observaciones</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-show-firma" checked onchange="previsualizarRemito()"> Líneas de firma</label>
+          <div class="cli-field" style="margin-top:4px">
+            <label>Texto del pie de página</label>
+            <input type="text" id="pdf-pie-texto" placeholder="ej: Gracias por su compra" autocomplete="off" oninput="previsualizarRemito()">
+          </div>
+
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:8px;margin-bottom:2px">Tamaños de fuente</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px">
+              <label style="font-size:11px;color:var(--muted)">Empresa (título)</label>
+              <input type="range" id="pdf-font-empresa" min="9" max="18" value="11" oninput="this.nextElementSibling.textContent=this.value+'pt';previsualizarRemito()"><span style="font-size:11px;color:var(--muted)">11pt</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px">
+              <label style="font-size:11px;color:var(--muted)">Tabla (productos)</label>
+              <input type="range" id="pdf-font-tabla" min="7" max="12" value="9" oninput="this.nextElementSibling.textContent=this.value+'pt';previsualizarRemito()"><span style="font-size:11px;color:var(--muted)">9pt</span>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="mbtn mbtn-primary" onclick="guardarDisenoRemito()" style="flex:1;padding:11px">💾 Guardar diseño</button>
+            <button class="mbtn mbtn-ghost" onclick="previsualizarRemito()" style="padding:11px">👁 Actualizar preview</button>
+            <button class="mbtn mbtn-ghost" onclick="descargarPlantillaRemito()" style="padding:11px">📥 Descargar plantilla HTML</button>
+          </div>
+        </div>
+
+        <!-- Preview del remito -->
+        <div style="flex:1;min-width:280px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Vista previa</div>
+          <div id="pdf-preview-wrap" style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+            <iframe id="pdf-preview-frame" style="width:100%;height:500px;border:none;display:block"></iframe>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div id="clientes" class="section">
@@ -2830,6 +2880,156 @@ function _getEmpDatos(){
     contador:cfg.emp_contador|| 0
   };
 }
+// ══ DISEÑO DEL REMITO ══
+var _pdfConfig = {};
+
+function _getPdfConfig(){
+  var cfg = _pdfConfig;
+  return {
+    showTelefono:    (document.getElementById("pdf-show-telefono")||{checked:true}).checked,
+    showZona:        (document.getElementById("pdf-show-zona")||{checked:true}).checked,
+    showEncargado:   (document.getElementById("pdf-show-encargado")||{checked:true}).checked,
+    showCuitCliente: (document.getElementById("pdf-show-cuit-cliente")||{checked:true}).checked,
+    showDirCliente:  (document.getElementById("pdf-show-dir-cliente")||{checked:true}).checked,
+    showCodigo:      (document.getElementById("pdf-show-codigo")||{checked:true}).checked,
+    showObs:         (document.getElementById("pdf-show-obs")||{checked:true}).checked,
+    showFirma:       (document.getElementById("pdf-show-firma")||{checked:true}).checked,
+    minRows:         parseInt((document.getElementById("pdf-min-rows")||{value:"15"}).value)||15,
+    fontEmpresa:     parseInt((document.getElementById("pdf-font-empresa")||{value:"11"}).value)||11,
+    fontTabla:       parseInt((document.getElementById("pdf-font-tabla")||{value:"9"}).value)||9,
+    pieTexto:        (document.getElementById("pdf-pie-texto")||{value:""}).value.trim()
+  };
+}
+
+async function guardarDisenoRemito(){
+  if(!_sbEmpId){ showNotif("Sin empresa activa","err"); return; }
+  var cfg = _getPdfConfig();
+  try {
+    await sbUpsert("empresas_config",{ empresa_id:_sbEmpId, pdf_config: cfg });
+    _pdfConfig = cfg;
+    showNotif("✅ Diseño guardado","ok");
+  } catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
+async function cargarDisenoRemito(){
+  if(!_sbEmpId) return;
+  try {
+    var rows = await sbGet("empresas_config","select=pdf_config&empresa_id=eq."+_sbEmpId);
+    if(rows&&rows[0]&&rows[0].pdf_config){
+      _pdfConfig = rows[0].pdf_config;
+      var c=_pdfConfig;
+      var s=function(id,v){ var el=document.getElementById(id); if(el) el.checked=(v!==false&&v!==0); };
+      var sv=function(id,v){ var el=document.getElementById(id); if(el){ el.value=v||el.value; if(el.nextElementSibling&&el.type==="range") el.nextElementSibling.textContent=(v||el.value)+"pt"; } };
+      s("pdf-show-telefono",    c.showTelefono);
+      s("pdf-show-zona",        c.showZona);
+      s("pdf-show-encargado",   c.showEncargado);
+      s("pdf-show-cuit-cliente",c.showCuitCliente);
+      s("pdf-show-dir-cliente", c.showDirCliente);
+      s("pdf-show-codigo",      c.showCodigo);
+      s("pdf-show-obs",         c.showObs);
+      s("pdf-show-firma",       c.showFirma);
+      sv("pdf-min-rows",   c.minRows);
+      sv("pdf-font-empresa",c.fontEmpresa);
+      sv("pdf-font-tabla",  c.fontTabla);
+      var pieEl=document.getElementById("pdf-pie-texto"); if(pieEl&&c.pieTexto) pieEl.value=c.pieTexto;
+    }
+  } catch(e){}
+}
+
+function previsualizarRemito(){
+  var frame = document.getElementById("pdf-preview-frame");
+  if(!frame) return;
+  var ed = _getEmpDatos();
+  var cfg = _getPdfConfig();
+  var empNom = (document.getElementById("de-nombre")||{value:""}).value || ed.nombre || "Nombre de la Empresa";
+  var cuit   = (document.getElementById("de-cuit")||{value:""}).value || ed.cuit || "";
+  var dir    = (document.getElementById("de-dir")||{value:""}).value || ed.dir || "";
+  var tel    = (document.getElementById("de-tel")||{value:""}).value || ed.tel || "";
+  var prefijo= (document.getElementById("de-prefijo")||{value:""}).value || ed.prefijo || "REM";
+
+  var fEmp=cfg.fontEmpresa, fTbl=cfg.fontTabla;
+  var rows="";
+  var sampleItems=[
+    {desc:"PRODUCTO EJEMPLO X 12",cant:2,precio:"$15.000,00",sub:"$30.000,00"},
+    {desc:"OTRO PRODUCTO X 6",cant:1,precio:"$8.500,00",sub:"$8.500,00"}
+  ];
+  sampleItems.forEach(function(it){
+    rows+="<tr><td>"+(cfg.showCodigo?"0001  ":"")+it.desc+"</td><td>"+it.cant+"</td><td>"+it.precio+"</td><td>"+it.sub+"</td></tr>";
+  });
+  var emptyRows=Math.max(0,cfg.minRows-sampleItems.length);
+  for(var i=0;i<emptyRows;i++) rows+="<tr><td style='height:18px'></td><td></td><td></td><td></td></tr>";
+
+  var cliBlock="<b>Nombre:</b> CLIENTE DE EJEMPLO &nbsp;&nbsp;&nbsp; ";
+  if(cfg.showEncargado)   cliBlock+="<b>Encargado:</b> Juan &nbsp;&nbsp;&nbsp; ";
+  cliBlock+="<br>";
+  if(cfg.showTelefono)    cliBlock+="<b>Teléfono:</b> 280-4123456 &nbsp;&nbsp;&nbsp; ";
+  if(cfg.showDirCliente)  cliBlock+="<b>Dirección:</b> Av. San Martín 450 &nbsp;&nbsp;&nbsp; ";
+  cliBlock+="<br>";
+  if(cfg.showCuitCliente) cliBlock+="<b>CUIT:</b> 20-12345678-9 &nbsp;&nbsp;&nbsp; ";
+  if(cfg.showZona)        cliBlock+="<b>Zona:</b> Centro &nbsp;&nbsp;&nbsp; ";
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
+    +'body{font-family:Arial,sans-serif;font-size:'+fTbl+'pt;margin:12px;color:#141414}'
+    +'h2{text-align:center;margin:0;font-size:'+(fEmp+4)+'pt}'
+    +'.emp-nom{text-align:center;font-size:'+fEmp+'pt;font-weight:bold;margin-bottom:2px}'
+    +'.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}'
+    +'.emp-data{font-size:'+(fTbl-1)+'pt;color:#555;line-height:1.5}'
+    +'.tipo{text-align:right}'
+    +'.tipo-label{font-size:'+(fTbl+6)+'pt;font-weight:bold}'
+    +'.tipo-num{font-size:'+(fTbl+1)+'pt}'
+    +'hr{border:none;border-top:1.5px solid #bbb;margin:6px 0}'
+    +'.section-title{font-weight:bold;font-size:'+(fTbl+1)+'pt;border-bottom:1px solid #ccc;margin-bottom:4px;padding-bottom:2px}'
+    +'.cli-block{font-size:'+fTbl+'pt;line-height:1.8;margin-bottom:6px}'
+    +'table{width:100%;border-collapse:collapse;margin-top:4px}'
+    +'th{border:1px solid #aaa;padding:4px 6px;background:#fff;font-size:'+fTbl+'pt;font-weight:bold;text-align:left}'
+    +'td{border:1px solid #ccc;padding:3px 6px;font-size:'+fTbl+'pt}'
+    +'td:nth-child(2),th:nth-child(2){text-align:center;width:40px}'
+    +'td:nth-child(3),th:nth-child(3),td:nth-child(4),th:nth-child(4){text-align:right;width:80px}'
+    +'.pie{display:flex;justify-content:space-between;margin-top:8px;gap:12px}'
+    +'.obs-box{flex:1;border:1px solid #ccc;padding:6px;min-height:50px;font-size:'+fTbl+'pt}'
+    +'.total-box{border:2px solid #141414;padding:8px 12px;font-weight:bold;font-size:'+(fTbl+2)+'pt;text-align:right;min-width:140px}'
+    +'.foot{text-align:center;font-size:7pt;color:#bbb;margin-top:10px}'
+    +'</style></head><body>'
+    +'<div class="header">'
+    +'<div class="emp-data">'+(cuit?"CUIT: "+cuit+"<br>":"")+(dir?dir+"<br>":"")+(tel?"Tel: "+tel+"<br>":"")+'</div>'
+    +'<div class="tipo"><div class="tipo-label">Remito</div><div class="tipo-num">N°: '+prefijo+' 00001</div><div class="tipo-num">Fecha: '+new Date().toLocaleDateString("es-AR")+'</div></div>'
+    +'</div>'
+    +'<div class="emp-nom">'+empNom+'</div>'
+    +'<hr>'
+    +'<div class="section-title">Datos del cliente</div>'
+    +'<div class="cli-block">'+cliBlock+'</div>'
+    +'<hr>'
+    +'<div class="section-title">Productos</div>'
+    +'<table><thead><tr>'
+    +'<th>'+(cfg.showCodigo?'Cód. / ':'')+'Descripción</th><th>Cant.</th><th>Precio</th><th>Subtotal</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +(cfg.showObs||cfg.showFirma?'<div class="pie">'
+      +(cfg.showObs?'<div><div class="section-title">Observaciones:</div><div class="obs-box"></div></div>':'')
+      +'<div style="display:flex;flex-direction:column;gap:6px;justify-content:flex-end"><div class="total-box">Total: $38.500,00</div>'
+      +(cfg.showFirma?'<div style="margin-top:16px;display:flex;gap:20px"><div style="flex:1;border-top:1px solid #aaa;padding-top:4px;font-size:7pt;color:#aaa;text-align:center">Firma</div><div style="flex:1;border-top:1px solid #aaa;padding-top:4px;font-size:7pt;color:#aaa;text-align:center">Aclaración</div></div>':'')
+      +'</div></div>':'')
+    +'<div class="foot">'+(cfg.pieTexto||empNom)+'  ·  N° '+prefijo+' 00001  ·  '+new Date().toLocaleDateString("es-AR")+'</div>'
+    +'</body></html>';
+
+  var blob=new Blob([html],{type:"text/html"});
+  var url=URL.createObjectURL(blob);
+  frame.src=url;
+}
+
+function descargarPlantillaRemito(){
+  // Fuerza un preview actualizado y luego descarga el HTML de plantilla
+  previsualizarRemito();
+  setTimeout(function(){
+    var frame=document.getElementById("pdf-preview-frame");
+    if(!frame||!frame.src) return;
+    var a=document.createElement("a");
+    a.href=frame.src;
+    a.download="plantilla_remito.html";
+    a.click();
+    showNotif("✓ Plantilla descargada — abrila en el browser para verla","ok");
+  },300);
+}
+
 async function cargarDatosEmpresa(){
   if(!_sbEmpId) return;
   try {
@@ -3044,7 +3244,7 @@ function verTab(id,btn){
   if(id==="vendedores") cargarVendedores();
   if(id==="stock") cargarStock();
   if(id==="catalogo"){ iniciarCatalogo(); }
-  if(id==="datos-empresa"){ cargarDatosEmpresa(); }
+  if(id==="datos-empresa"){ cargarDatosEmpresa(); cargarDisenoRemito(); setTimeout(previsualizarRemito,300); }
   if(id==="pedido"||id==="remito"||id==="hoja"){
     // Asegurar stockConfig cargado para badges en pedidos
     if(empresaKey && !Object.keys(stockConfig).length){
@@ -3719,10 +3919,25 @@ async function generarPDF(m){
   var empNom    = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
   var esFactura = false; // se actualiza según tipo comprobante
 
+  // ── Leer config de diseño guardada ──
+  var pdfCfg     = _getPdfConfig();
+  var pdfMinRows = pdfCfg.minRows   || 15;
+  var pdfFontEmp = pdfCfg.fontEmpresa || 11;
+  var pdfFontTbl = pdfCfg.fontTabla   || 9;
+  var pdfPieTxt  = pdfCfg.pieTexto  || "";
+  var showCodigo = pdfCfg.showCodigo !== false;
+  var showObs    = pdfCfg.showObs    !== false;
+  var showFirma  = pdfCfg.showFirma  !== false;
+  if(pdfCfg.showTelefono   === false) cliTel  = "";
+  if(pdfCfg.showZona        === false) cliZona = "";
+  if(pdfCfg.showEncargado   === false) cliRec  = "";
+  if(pdfCfg.showCuitCliente === false) cliCuit = "";
+  if(pdfCfg.showDirCliente  === false) cliDir  = "";
+
   // ── ENCABEZADO: Empresa centrado arriba ──
   var logoW=0;
   if(empresaData&&empresaData.logo){ try{doc.addImage(empresaData.logo,"PNG",80,6,50,16); logoW=1;}catch(e){} }
-  doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
+  doc.setFont("helvetica","normal"); doc.setFontSize(pdfFontEmp); doc.setTextColor.apply(doc,INK);
   doc.text(empNom.toUpperCase(),105,logoW?25:12,{align:"center"});
 
   // ── Bloque empresa (izquierda) ──
@@ -3793,9 +4008,7 @@ async function generarPDF(m){
   var body=ordenes[t].map(function(i){
     return[i.n, i.c, "$"+fM(i.p), "$"+fM(i.sub)];
   });
-  // Rellenar con filas vacías hasta mínimo 15 filas
-  var minRows=15;
-  while(body.length < minRows) body.push(["","","",""]);
+  var minRows=pdfMinRows; while(body.length < minRows) body.push(["","","",""]);
 
   doc.autoTable({
     startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
@@ -3812,13 +4025,15 @@ async function generarPDF(m){
   var yP=doc.lastAutoTable.finalY+4;
 
   // Observaciones (izquierda)
-  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
-  doc.text("Observaciones:",10,yP+5);
-  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
-  doc.rect(10,yP+7,88,20); // caja vacía
-  if(obs){
-    doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-    doc.text(doc.splitTextToSize(obs,84),12,yP+13);
+  if(showObs){
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
+    doc.text("Observaciones:",10,yP+5);
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
+    doc.rect(10,yP+7,88,20); // caja vacía
+    if(obs){
+      doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+      doc.text(doc.splitTextToSize(obs,84),12,yP+13);
+    }
   }
 
   // Totales (derecha)
@@ -6582,6 +6797,17 @@ function focusParada(i, lat, lng) {
 document.addEventListener("click",function(e){
   if(e.target.classList&&e.target.classList.contains("modal-bg")) e.target.classList.remove("open");
 });
+
+// ── Compatibilidad: async/await no soportado en browsers muy viejos ──
+(function(){
+  try {
+    // Testear si async/await funciona
+    new Function("return async function(){}")();
+  } catch(e) {
+    document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;padding:20px;text-align:center;background:#f8f8f8"><div style="font-size:40px;margin-bottom:16px">📱</div><h2 style="margin:0 0 10px;color:#1a1b1f">Actualizá tu navegador</h2><p style="color:#666;max-width:300px;line-height:1.5">Esta aplicación requiere una versión actualizada de Chrome, Safari o Firefox.<br><br>Actualizá el navegador e intentá de nuevo.</p></div>';
+    return;
+  }
+})();
 
 // ── Prevenir salida accidental por gesto de retroceso en mobile ──
 (function(){
