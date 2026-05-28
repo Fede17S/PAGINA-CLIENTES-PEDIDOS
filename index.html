@@ -2334,9 +2334,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s2);border-radius:9px;margin-bottom:14px;font-size:15px;font-weight:700">
       <span>Total</span><span id="edit-bk-total">$0,00</span>
     </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="confirmarBackupComoRemito()" class="mbtn mbtn-primary" style="flex:1;background:var(--green,#0f8a4a);border-color:var(--green,#0f8a4a)">🚚 Confirmar → Remito + Ruta</button>
-      <button onclick="guardarEdicionBackup()" class="mbtn mbtn-ghost">💾 Guardar</button>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="guardarEdicionBackup()" class="mbtn mbtn-primary" style="flex:1">💾 Guardar cambios</button>
+      <button onclick="cerrarModal('modal-editar-backup')" class="mbtn mbtn-ghost">Cancelar</button>
     </div>
   </div>
 </div>
@@ -5339,9 +5339,9 @@ function guardarEdicionBackup(){
   showNotif("✓ Pedido actualizado","ok");
 }
 
-async function confirmarBackupComoRemito(){
-  if(!_editBkItem) return;
-  var bk = _editBkItem;
+async function confirmarBackupComoRemito(bkParam){
+  var bk = bkParam || _editBkItem;
+  if(!bk) return;
   var ahora = new Date();
   var nom = bk.clienteNom||"Mostrador";
   var totalNum = bk.total||0;
@@ -8108,16 +8108,24 @@ async function importarProdCSV(){
 }
 
 // ══ MIS VENTAS (Vista del vendedor) ══
-function _cambiarAprobacion(bk, aprobado){
+async function _cambiarAprobacion(bk, aprobado){
   var arr = getBackups();
   var idx = arr.findIndex(function(x){return x.id===bk.id;});
   if(idx>=0){ arr[idx].aprobado=aprobado; saveBackups(arr); }
   if(bk._fbKey && empresaKey){
     fbPatch("empresas/"+empresaKey+"/backupPedidos/"+bk._fbKey, {aprobado:aprobado}).catch(function(){});
   }
-  backupAbierto = bk.id; // mantener abierto
+  bk.aprobado = aprobado;
+  backupAbierto = bk.id;
+
+  // Aprobar → enviar a Hoja de Ruta automáticamente
+  if(aprobado === true){
+    try{ await confirmarBackupComoRemito(bk); }
+    catch(e){ console.warn("Error al enviar a ruta:", e); }
+  }
+
   renderBackup();
-  showNotif(aprobado ? "✓ Pedido aprobado — suma a la comisión del vendedor" : "✗ Pedido rechazado","ok");
+  showNotif(aprobado ? "✓ Aprobado — enviado a Hoja de Ruta" : "✗ Pedido rechazado", aprobado?"ok":"err");
 }
 
 var META_VENTAS = 20000000;
