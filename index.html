@@ -4913,72 +4913,69 @@ function saveBackups(arr){
   localStorage.setItem(getBkKey(), JSON.stringify(arr));
 }
 
-function guardarBackup(item){
-  // 1. Save locally immediately (never lost)
-  var arr = getBackups();
-  arr.unshift(item);
-  if(arr.length > 200) arr = arr.slice(0,200);
-  saveBackups(arr);
-  renderBackup();
+function getBackups(){
+  try{ return JSON.parse(localStorage.getItem(getBkKey()))||[]; }
+  catch{ return []; }
+}
+function saveBackups(arr){
+  localStorage.setItem(getBkKey(), JSON.stringify(arr));
+}
 
-  // 2. Try to push to Firebase now
-  subirBackupFirebase(item);
+function guardarBackup(item){
+  // Guardar en Supabase (fuente única)
+  if(_sbEmpId){
+    _sbInsertBackup(item).then(function(newId){
+      if(newId){ item._sbId=newId; item._fbKey=newId; item._synced=true; }
+      var arr=getBackups();
+      // Evitar duplicados por id
+      if(!arr.find(function(x){return x.id===item.id;})){
+        arr.unshift(item);
+        if(arr.length>300) arr=arr.slice(0,300);
+        saveBackups(arr);
+      }
+      renderBackup();
+    }).catch(function(e){
+      console.warn("Error subiendo backup a Supabase:",e);
+      // Fallback local
+      var arr=getBackups();
+      if(!arr.find(function(x){return x.id===item.id;})){
+        arr.unshift(item); saveBackups(arr);
+      }
+      renderBackup();
+    });
+  } else {
+    var arr=getBackups();
+    if(!arr.find(function(x){return x.id===item.id;})){
+      arr.unshift(item); saveBackups(arr);
+    }
+    renderBackup();
+  }
 }
 
 function subirBackupFirebase(item){
-  fbPush("empresas/"+empresaKey+"/backupPedidos", item)
-    .then(function(fbKey){
-      // Mark as synced in localStorage
-      var arr = getBackups();
-      var idx = arr.findIndex(function(x){return x.id===item.id;});
-      if(idx>=0){ arr[idx]._fbKey=fbKey; arr[idx]._synced=true; saveBackups(arr); renderBackup(); }
-    })
-    .catch(function(){
-      // No connection — add to pending queue
-      var pending = JSON.parse(localStorage.getItem("dm_bk_pending_"+(empresaKey||"global"))||"[]");
-      if(!pending.find(function(x){return x.id===item.id;})) pending.push(item);
-      localStorage.setItem("dm_bk_pending_"+(empresaKey||"global"), JSON.stringify(pending));
-      console.log("Backup guardado localmente, se subirá cuando haya conexión.");
-    });
+  // No-op — usamos Supabase ahora
 }
 
 function sincronizarPendientesBackup(){
-  var pending = JSON.parse(localStorage.getItem("dm_bk_pending_"+(empresaKey||"global"))||"[]");
-  if(!pending.length || !empresaKey) return;
-  var restantes = [];
-  var count = 0;
-  pending.forEach(function(item){
-    fbPush("empresas/"+empresaKey+"/backupPedidos", item)
-      .then(function(fbKey){
-        count++;
-        // Update local with fbKey
-        var arr = getBackups();
-        var idx = arr.findIndex(function(x){return x.id===item.id;});
-        if(idx>=0){ arr[idx]._fbKey=fbKey; arr[idx]._synced=true; saveBackups(arr); }
-        localStorage.setItem("dm_bk_pending_"+(empresaKey||"global"), JSON.stringify(restantes));
-        if(count===1) renderBackup(); // refresh once
-      })
-      .catch(function(){ restantes.push(item); });
-  });
+  // No-op — Supabase no necesita sincronización pendiente
 }
 
 function cargarBackupFirebase(){
-  if(!empresaKey) return;
-  var wrap = document.getElementById("backup-list");
+  if(!_sbEmpId && !empresaKey) return;
+  var wrap=document.getElementById("backup-list");
   if(wrap) wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando pedidos…</div>';
-  fbGet("empresas/"+empresaKey+"/backupPedidos")
-    .then(function(data){
-      if(!data){ renderBackup(); return; }
-      // Usar Supabase como fuente única — no mezclar con localStorage para evitar duplicados
-      var remoteItems = Object.entries(data).map(function(e){
-        return Object.assign({}, e[1], {_fbKey:e[0], _synced:true});
-      });
-      remoteItems.sort(function(a,b){ return (b.fecha||"").localeCompare(a.fecha||""); });
-      if(remoteItems.length > 300) remoteItems = remoteItems.slice(0,300);
-      saveBackups(remoteItems);
-      renderBackup();
-    })
-    .catch(function(e){ console.warn("No se pudo cargar backup:", e); renderBackup(); });
+
+  _sbGetBackup().then(function(data){
+    if(!data){ renderBackup(); return; }
+    // data es {id: {...}} desde _sbGetBackup
+    var remoteItems = Object.values(data);
+    remoteItems.sort(function(a,b){ return (b.fecha||"").localeCompare(a.fecha||""); });
+    saveBackups(remoteItems);
+    renderBackup();
+  }).catch(function(e){
+    console.warn("No se pudo cargar backup:", e);
+    renderBackup();
+  });
 }
 
 var _bkTab = "todos"; // "todos" | "espera" | "aprobados" | "rechazados"
@@ -5455,16 +5452,16 @@ async function confirmarBackupComoRemito(bkParam){
     } catch(e){ console.warn("Error agregando a ruta:", e); }
   }
 
-  // 3) Marcar el backup como convertido a remito
-  guardarEdicionBackup();
-  var arr2 = getBackups();
-  var idx2 = arr2.findIndex(function(x){ return x.id===bk.id; });
-  if(idx2>=0){ arr2[idx2].tipo="remito"; arr2[idx2].tipoComprobante="remito"; saveBackups(arr2); }
-  if(bk._fbKey && empresaKey){
-    fbPatch("empresas/"+empresaKey+"/backupPedidos/"+bk._fbKey, {tipo:"remito"}).catch(function(){});
+  // 3) Marcar el backup como convertido — NO crear un nuevo registro
+  var sbId = bk._sbId || bk._fbKey || bk.id;
+  if(sbId && _sbEmpId){
+    sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {tipo:"remito", tipoComprobante:"remito"}).catch(function(){});
   }
+  var arr2 = getBackups();
+  var idx2 = arr2.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId; });
+  if(idx2>=0){ arr2[idx2].tipo="remito"; arr2[idx2].tipoComprobante="remito"; saveBackups(arr2); }
 
-  cerrarModal("modal-editar-backup");
+  if(_editBkItem) cerrarModal("modal-editar-backup");
   renderBackup();
   showNotif("🚚 Remito generado y agregado a la hoja de ruta","ok");
 
@@ -8181,23 +8178,29 @@ async function importarProdCSV(){
 
 // ══ MIS VENTAS (Vista del vendedor) ══
 async function _cambiarAprobacion(bk, aprobado){
-  var arr = getBackups();
-  var idx = arr.findIndex(function(x){return x.id===bk.id;});
-  if(idx>=0){ arr[idx].aprobado=aprobado; saveBackups(arr); }
-  if(bk._fbKey && empresaKey){
-    fbPatch("empresas/"+empresaKey+"/backupPedidos/"+bk._fbKey, {aprobado:aprobado}).catch(function(){});
+  // 1. Actualizar en Supabase inmediatamente
+  var sbId = bk._sbId || bk._fbKey || bk.id;
+  if(sbId && _sbEmpId){
+    try {
+      await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {aprobado:aprobado});
+    } catch(e){ console.warn("Error actualizando estado en Supabase:", e); }
   }
+
+  // 2. Actualizar en localStorage
+  var arr = getBackups();
+  var idx = arr.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId || x._fbKey===sbId; });
+  if(idx>=0){ arr[idx].aprobado = aprobado; saveBackups(arr); }
   bk.aprobado = aprobado;
   backupAbierto = bk.id;
 
-  // Aprobar → enviar a Hoja de Ruta automáticamente
+  // 3. Si APROBADO → enviar a Hoja de Ruta
   if(aprobado === true){
     try{ await confirmarBackupComoRemito(bk); }
     catch(e){ console.warn("Error al enviar a ruta:", e); }
   }
 
   renderBackup();
-  showNotif(aprobado ? "✓ Aprobado — enviado a Hoja de Ruta" : "✗ Pedido rechazado", aprobado?"ok":"err");
+  showNotif(aprobado===true ? "✅ Pedido aprobado — enviado a Hoja de Ruta" : "❌ Pedido rechazado", aprobado?"ok":"err");
 }
 
 var META_VENTAS = 20000000;
