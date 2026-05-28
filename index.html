@@ -3627,7 +3627,7 @@ function toggleItemDscRem(i){ toggleItemDsc('rem',i); }
 function aplicarItemDscRem(i){ aplicarItemDsc('rem',i); }
 function quitarItemDscRem(i){ quitarItemDsc('rem',i); }
 
-function generarPDF(m){
+async function generarPDF(m){
   var t=m==="pedido"?"ped":"rem";
   if(!ordenes[t].length){
     if(dbStock.length===0){
@@ -3653,7 +3653,7 @@ function generarPDF(m){
   var cliDir=cliData?cliData.direccion||"":"";
   var cliCuit=cliData?cliData.cuit||"":"";
   var ed=_getEmpDatos();
-  var remitoNum=String(Date.now()).slice(-5);
+  var remitoNum = await _nextRemitoNum();
 
   // Cálculos
   var subtotalLista    = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
@@ -5410,7 +5410,7 @@ function generarPDFDesdeBackup(bk, compartir){
   var INK=[13,27,42], BLUE=[14,100,168], LGRAY=[245,246,248], MGRAY=[220,224,230], WHITE=[255,255,255];
   var fechaStr=new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
   var horaStr =new Date(bk.fecha||Date.now()).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
-  var remitoNum=bk._fbKey?bk._fbKey.slice(-5):String(Date.now()).slice(-5);
+  var remitoNum = bk.id ? String(bk.id).replace(/[^0-9]/g,"").slice(-5)||String(bk.id).slice(-5) : String(Date.now()).slice(-5);
   var tipoLabel = bk.tipo==="remito"?"Remito":"Pedido";
 
   // Marco
