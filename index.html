@@ -5671,97 +5671,101 @@ async function confirmarBackupComoRemito(bkParam){
 
 function generarPDFDesdeBackup(bk, compartir){
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+  var INK=[20,20,20], LINE=[180,180,180], MID=[100,100,100];
   var nom = bk.clienteNom||bk.cliente_nom||bk.cliente||"Mostrador";
   var ed  = _getEmpDatos();
-  var INK=[13,27,42], BLUE=[14,100,168], LGRAY=[245,246,248], MGRAY=[220,224,230], WHITE=[255,255,255];
-  var fechaStr=new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
-  var horaStr =new Date(bk.fecha||Date.now()).toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
-  var remitoNum = bk.id ? String(bk.id).replace(/[^0-9]/g,"").slice(-5)||String(bk.id).slice(-5) : String(Date.now()).slice(-5);
-  var tipoLabel = bk.tipo==="remito"?"Remito":"Pedido";
+  var empNom = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
+  var remitoNum = bk._fbKey ? String(bk._fbKey).slice(-5) : (bk.id?String(bk.id).slice(-5):"00000");
+  var fechaStr = new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
+  var tipoLabel = (bk.tipoComprobante==="factura_a") ? "FACTURA A" : "Remito";
+  var esFactura = (bk.tipoComprobante==="factura_a");
+  var iva = esFactura ? 1.21 : 1;
 
-  // Marco
-  doc.setFillColor(250,250,252); doc.rect(0,0,210,297,"F");
-  doc.setFillColor.apply(doc,WHITE); doc.rect(6,6,198,285,"F");
-  doc.setDrawColor.apply(doc,MGRAY); doc.setLineWidth(0.4); doc.rect(6,6,198,285);
+  // Encabezado centrado
+  if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",80,6,50,16);}catch(e){}}
+  doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
+  doc.text(empNom.toUpperCase(),105,25,{align:"center"});
 
-  // Banda ORIGINAL
-  doc.setDrawColor.apply(doc,MGRAY); doc.setLineWidth(0.3); doc.line(6,17,204,17);
-  doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(100,110,125);
-  doc.text("ORIGINAL",105,13,{align:"center"});
+  // Empresa izquierda
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,MID);
+  var ey=18;
+  if(ed.cuit) { doc.text("CUIT: "+ed.cuit,10,ey); ey+=5; }
+  if(ed.dir)  { doc.text("Dirección: "+ed.dir,10,ey); ey+=5; }
+  if(ed.tel)  { doc.text("Tel: "+ed.tel,10,ey); ey+=5; }
 
-  // Logo + empresa
-  var logoY=21,logoH=0;
-  if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",10,logoY,32,14);logoH=16;}catch(e){}}
-  doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor.apply(doc,INK);
-  doc.text(ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA",10,logoY+logoH+6);
-  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(90,100,115);
-  var ey=logoY+logoH+13;
-  if(ed.razon){doc.text("Razón social: "+ed.razon,10,ey);ey+=6;}
-  if(ed.cuit) {doc.text("CUIT: "+ed.cuit,10,ey);ey+=6;}
-  if(ed.dir)  {doc.text(ed.dir,10,ey);ey+=5;}
+  // Tipo doc + número (derecha)
+  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor.apply(doc,INK);
+  doc.text(tipoLabel,200,20,{align:"right"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(9);
+  doc.text("N°: "+remitoNum,200,27,{align:"right"});
+  doc.text("Fecha: "+fechaStr,200,33,{align:"right"});
+  if(bk.usuarioNom||bk.usuario) doc.text("Vendedor: "+(bk.usuarioNom||bk.usuario),200,39,{align:"right"});
 
-  // Tipo doc derecha
-  doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.setTextColor.apply(doc,INK);
-  doc.text(tipoLabel,201,32,{align:"right"});
-  doc.setDrawColor.apply(doc,BLUE); doc.setLineWidth(0.8); doc.line(138,35,201,35);
-  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor.apply(doc,BLUE);
-  doc.text((ed.prefijo||"REM")+" "+remitoNum,201,43,{align:"right"});
-  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(90,100,115);
-  if(bk.usuarioNom||bk.usuario) doc.text("Vendedor: "+(bk.usuarioNom||bk.usuario),201,51,{align:"right"});
-  doc.text("Comprobante Nro: "+remitoNum,201,58,{align:"right"});
-  doc.text("Fecha de emisión: "+fechaStr+"  "+horaStr,201,65,{align:"right"});
+  // Separador
+  var SEP1=Math.max(ey+4,44);
+  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,SEP1,200,SEP1);
 
-  // Línea + cliente
-  doc.setLineWidth(0.5); doc.setDrawColor.apply(doc,MGRAY); doc.line(6,70,204,70);
-  doc.setFillColor(249,250,252); doc.rect(6,70,198,20,"F");
-  doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(80,90,110);
-  doc.text("Apellido y Nombre / Razón social:",10,78);
-  doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor.apply(doc,INK);
-  doc.text(nom,10,85);
-  doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(80,90,110);
-  doc.text("CUIT:",10,91); doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
-  doc.text("—",28,91);
-  doc.setLineWidth(0.3); doc.setDrawColor.apply(doc,MGRAY); doc.line(6,92,204,92);
+  // Datos del cliente
+  var CY=SEP1+5;
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
+  doc.text("Datos del cliente",10,CY);
+  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.line(10,CY+1,80,CY+1);
+  CY+=7;
+  doc.setFont("helvetica","bold"); doc.text("Nombre:",10,CY);
+  doc.setFont("helvetica","normal"); doc.text(nom,35,CY);
+  CY+=5;
+  doc.setLineWidth(0.5); doc.line(10,CY,200,CY); CY+=4;
 
-  // Tabla
-  var total=bk.total||0;
+  // Productos
+  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Productos",10,CY); CY+=2;
+  var items = bk.items||[];
+  var body=items.map(function(i){
+    var p=esFactura?Math.round((i.p||0)*iva*100)/100:(i.p||0);
+    var s=esFactura?Math.round((i.sub||(i.p||0)*(i.c||1))*iva*100)/100:(i.sub||(i.p||0)*(i.c||1));
+    return[i.n||i.nombre||"",i.c||i.cantidad||1,"$"+fM(p),"$"+fM(s)];
+  });
+  var minRows=15; while(body.length<minRows) body.push(["","","",""]);
   doc.autoTable({
-    startY:94,
-    head:[["Código","Producto / Servicio","Cantidad","Precio","Subtotal"]],
-    body:(bk.items||[]).map(function(i){return[i.id||"",i.n||i.nombre||"",i.c||i.cantidad||1,"$"+fM(i.p||i.precio||0),"$"+fM((i.sub)||((i.p||0)*(i.c||1)))];}),
-    theme:"grid",
-    headStyles:{fillColor:INK,textColor:WHITE,fontStyle:"bold",fontSize:8.5,cellPadding:4},
-    bodyStyles:{textColor:[30,35,45],fontSize:9,cellPadding:3.5},
-    alternateRowStyles:{fillColor:[249,250,252]},
-    columnStyles:{0:{cellWidth:24},1:{cellWidth:98},2:{halign:"center",cellWidth:20},3:{halign:"right",cellWidth:28},4:{halign:"right",cellWidth:28}}
+    startY:CY+2, margin:{left:10,right:10},
+    head:[["Descripción","Cant.",esFactura?"P.U. c/IVA":"Precio","Subtotal"]],
+    body:body, theme:"grid",
+    headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
+    bodyStyles:{fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3},minCellHeight:7},
+    columnStyles:{0:{cellWidth:105},1:{halign:"center",cellWidth:20},2:{halign:"right",cellWidth:30},3:{halign:"right",cellWidth:35}}
   });
 
   // Pie
-  var yP=doc.lastAutoTable.finalY, piH=22;
-  doc.setFillColor.apply(doc,INK); doc.rect(138,yP,66,piH,"F");
-  doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(90,100,115);
-  doc.text("TOTAL NETO",10,yP+8);
-  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor.apply(doc,INK);
-  doc.text("$"+fM(total),10,yP+17);
-  doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(90,100,115);
-  doc.text("TOTAL DESCUENTOS",74,yP+8);
-  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(180,80,0);
-  doc.text("—",74,yP+17);
-  doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(180,200,220);
-  doc.text("IMPORTE TOTAL",141,yP+8);
-  doc.setFontSize(12); doc.setTextColor.apply(doc,WHITE);
-  doc.text("$ "+fM(total),141,yP+17);
+  var yP=doc.lastAutoTable.finalY+4;
+  var total=bk.total||items.reduce(function(s,i){return s+(i.sub||(i.p||0)*(i.c||1));},0);
+  var totalMostrar=esFactura?Math.round(total*iva*100)/100:total;
+  doc.setDrawColor.apply(doc,LINE);
+  doc.rect(10,yP+7,88,20); // caja observaciones
   if(bk.obs&&bk.obs.trim()){
-    var yO=yP+piH+8;
-    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(90,100,115);
-    doc.text("Observaciones:",10,yO);
-    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
-    doc.text(doc.splitTextToSize(bk.obs,182),10,yO+6);
+    doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
+    doc.text("Observaciones:",10,yP+5);
+    doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+    doc.text(doc.splitTextToSize(bk.obs,84),12,yP+13);
+  } else {
+    doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
+    doc.text("Observaciones:",10,yP+5);
   }
-  doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
-  doc.text((ed.nombre||(empresaData&&empresaData.nombre)||"")+"  ·  "+fechaStr,105,291,{align:"center"});
+  // Total box
+  var tX=102, tW=98, ty=yP+7;
+  if(esFactura){
+    var ivaAmt=Math.round(total*0.21*100)/100;
+    doc.rect(tX,ty,tW,8);
+    doc.setFont("helvetica","bold"); doc.text("IVA 21%:",tX+3,ty+5.5);
+    doc.setFont("helvetica","normal"); doc.text("+$"+fM(ivaAmt),tX+tW-3,ty+5.5,{align:"right"});
+    ty+=8;
+  }
+  doc.setLineWidth(0.5); doc.rect(tX,ty,tW,11);
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
+  doc.text("Total: $"+fM(totalMostrar),tX+tW-4,ty+7.5,{align:"right"});
 
-  var fname=(tipoLabel.toLowerCase())+"_"+nom.replace(/\s+/g,"_").slice(0,30)+".pdf";
+  doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
+  doc.text(empNom+"  ·  "+tipoLabel+"  ·  N°: "+remitoNum+"  ·  "+fechaStr,105,289,{align:"center"});
+
+  var fname=(esFactura?"facturaA":"remito")+"_"+nom.replace(/\s+/g,"_").slice(0,25)+".pdf";
   var blob=doc.output("blob");
   var file=new File([blob],fname,{type:"application/pdf"});
   if(compartir && navigator.share){
@@ -5770,7 +5774,6 @@ function generarPDFDesdeBackup(bk, compartir){
     doc.save(fname);
   }
 }
-
 function reenviarPedido(bk){
   generarPDFDesdeBackup(bk, true);
 }
