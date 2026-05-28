@@ -1502,6 +1502,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="sb-item" id="nav-catalogo" onclick="verTab('catalogo',this)">
       <span class="sb-icon">📒</span>Catálogo PDF
     </button>
+    <button class="sb-item" id="nav-datos-empresa" onclick="verTab('datos-empresa',this)">
+      <span class="sb-icon">🏢</span>Datos Empresa
+    </button>
   </nav>
   <div class="sb-foot">
     <div class="sb-user">Vendedor<span id="sb-username"></span></div>
@@ -1776,6 +1779,47 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <!-- ══════════════════════════════════
      SECCIÓN: GESTIÓN DE CLIENTES
 ══════════════════════════════════ -->
+<div id="datos-empresa" class="section">
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">🏢 Datos de la Empresa</span>
+      <span style="font-size:11px;color:var(--muted)">Estos datos aparecerán en los remitos y facturas</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+      <div class="cli-field">
+        <label>Nombre comercial</label>
+        <input type="text" id="de-nombre" placeholder="ej: Distribuidora La Regional" autocomplete="off">
+      </div>
+      <div class="cli-field">
+        <label>Razón social</label>
+        <input type="text" id="de-razon" placeholder="ej: La Regional S.A.S." autocomplete="off">
+      </div>
+      <div class="cli-field">
+        <label>CUIT / CUIL</label>
+        <input type="text" id="de-cuit" placeholder="ej: 30-12345678-9" autocomplete="off" inputmode="numeric">
+      </div>
+      <div class="cli-field">
+        <label>Dirección</label>
+        <input type="text" id="de-dir" placeholder="ej: San Martín 450, Puerto Madryn, Chubut" autocomplete="off">
+      </div>
+      <div class="cli-field">
+        <label>Teléfono / WhatsApp</label>
+        <input type="tel" id="de-tel" placeholder="ej: 2804-123456" autocomplete="off">
+      </div>
+      <div class="cli-field">
+        <label>Email</label>
+        <input type="email" id="de-email" placeholder="ej: ventas@empresa.com" autocomplete="off">
+      </div>
+      <div class="cli-field">
+        <label>Código / Prefijo de remito</label>
+        <input type="text" id="de-prefijo" placeholder="ej: PMA-A" autocomplete="off" style="text-transform:uppercase">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Se usará como prefijo del número de remito (ej: PMA-A 0001)</div>
+      </div>
+      <button class="mbtn mbtn-primary" onclick="guardarDatosEmpresa()" style="align-self:flex-start;padding:12px 24px">💾 Guardar datos</button>
+    </div>
+  </div>
+</div>
+
 <div id="clientes" class="section">
 
   <!-- ── IMPORTADOR CSV ── -->
@@ -2747,6 +2791,54 @@ function doLogin(){
   .catch(function(e){ err.textContent="❌ Error: "+(e.message||e); });
 }
 
+// ══ DATOS DE EMPRESA ══
+function _getEmpDatos(){
+  var cfg = (empresaData && empresaData._config) || {};
+  return {
+    nombre:  cfg.emp_nombre  || (empresaData&&empresaData.nombre)||"",
+    razon:   cfg.emp_razon   || "",
+    cuit:    cfg.emp_cuit    || "",
+    dir:     cfg.emp_dir     || "",
+    tel:     cfg.emp_tel     || "",
+    email:   cfg.emp_email   || "",
+    prefijo: cfg.emp_prefijo || "REM",
+    contador:cfg.emp_contador|| 0
+  };
+}
+async function cargarDatosEmpresa(){
+  if(!_sbEmpId) return;
+  try {
+    var rows = await sbGet("empresas_config","select=emp_nombre,emp_razon,emp_cuit,emp_dir,emp_tel,emp_email,emp_prefijo,emp_contador&empresa_id=eq."+_sbEmpId);
+    if(rows&&rows[0]){ if(!empresaData._config)empresaData._config={}; Object.assign(empresaData._config,rows[0]); }
+  } catch(e){}
+  var d=_getEmpDatos();
+  var s=function(id,v){var el=document.getElementById(id);if(el)el.value=v||"";};
+  s("de-nombre",d.nombre); s("de-razon",d.razon); s("de-cuit",d.cuit);
+  s("de-dir",d.dir); s("de-tel",d.tel); s("de-email",d.email); s("de-prefijo",d.prefijo);
+}
+async function guardarDatosEmpresa(){
+  if(!_sbEmpId){showNotif("Sin empresa activa","err");return;}
+  var g=function(id){var el=document.getElementById(id);return el?(el.value||"").trim():"";};
+  var body={empresa_id:_sbEmpId,emp_nombre:g("de-nombre"),emp_razon:g("de-razon"),emp_cuit:g("de-cuit"),emp_dir:g("de-dir"),emp_tel:g("de-tel"),emp_email:g("de-email"),emp_prefijo:g("de-prefijo").toUpperCase()};
+  try {
+    await sbUpsert("empresas_config",body);
+    if(!empresaData._config)empresaData._config={};
+    Object.assign(empresaData._config,body);
+    showNotif("✅ Datos guardados","ok");
+  } catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+async function _nextRemitoNum(){
+  if(!_sbEmpId) return "00001";
+  try {
+    var rows=await sbGet("empresas_config","select=emp_contador&empresa_id=eq."+_sbEmpId);
+    var actual=(rows&&rows[0]&&rows[0].emp_contador)||0;
+    var sig=actual+1;
+    await sbUpsert("empresas_config",{empresa_id:_sbEmpId,emp_contador:sig});
+    if(empresaData._config)empresaData._config.emp_contador=sig;
+    return String(sig).padStart(5,"0");
+  } catch(e){ return String(Date.now()).slice(-5); }
+}
+
 function aplicarBranding(){
   var d = empresaData;
   if(!d) return;
@@ -2846,14 +2938,14 @@ function aplicarRol(){
 
   var allNav = ["nav-pedido","nav-remito","nav-hoja","nav-mapa-entregas",
                 "nav-backup","nav-pedidos-acum","nav-resumen","nav-clientes","nav-productos",
-                "nav-stock","nav-catalogo","nav-mis-ventas","nav-vendedores"];
+                "nav-stock","nav-catalogo","nav-mis-ventas","nav-vendedores","nav-datos-empresa"];
 
   allNav.forEach(function(id){
     var el = document.getElementById(id);
     if (!el) return;
     var show = false;
     if (isAdmin) {
-      show = (id !== "nav-mis-ventas");
+      show = (id !== "nav-mis-ventas");  // admin ve todo excepto mis-ventas
     } else if (isVendedor) {
       show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup");
     } else if (isRepartidor) {
@@ -2894,6 +2986,7 @@ function verTab(id,btn){
   if (isVendedor    && id !== "pedido" && id !== "mis-ventas" && id !== "clientes" && id !== "backup") return;
   if (isRepartidor  && id !== "hoja"   && id !== "mapa-entregas") return;
   if (!isAdmin      && id === "vendedores") return;
+  if (!isAdmin      && id === "datos-empresa") return;
 
   document.querySelectorAll(".section").forEach(function(s){s.classList.remove("active");});
   document.querySelectorAll(".sb-item").forEach(function(b){b.classList.remove("active");});
@@ -2914,6 +3007,7 @@ function verTab(id,btn){
   if(id==="vendedores") cargarVendedores();
   if(id==="stock") cargarStock();
   if(id==="catalogo"){ iniciarCatalogo(); }
+  if(id==="datos-empresa"){ cargarDatosEmpresa(); }
   if(id==="pedido"||id==="remito"||id==="hoja"){
     // Asegurar stockConfig cargado para badges en pedidos
     if(empresaKey && !Object.keys(stockConfig).length){
@@ -3560,83 +3654,166 @@ function generarPDF(m){
   var ahorroTotal      = ahorroItems + montoDscGen;
   var hayDescuentos    = ahorroTotal > 0;
 
-  // ── Encabezado ──
-  if(empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,40,20);
-  doc.setFontSize(18); doc.setFont("helvetica","bold");
-  doc.text((empresaData.nombre||"EMPRESA")+" — "+m.toUpperCase(),105,16,{align:"center"});
-  doc.setFontSize(11); doc.setFont("helvetica","normal");
+  // ── Diseño de remito profesional (formato ELANDERS) ──
+  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+  var nom=document.getElementById("nomCli-"+t).value||"Mostrador";
+  var obs=document.getElementById("obs-"+t).value.trim();
+  var fechaHoy=new Date().toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
+  var hora=new Date().toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
   var cliIdVal=document.getElementById("idCli-"+t).value||"";
-  var cliData=dbCli.find(function(c){return c.id===cliIdVal||c.nombre===nom;})||null;
-  var cliDireccion=cliData?cliData.direccion||"":"";
-  var yBase=25;
-  doc.text("Cliente: "+nom,55,yBase);
-  if(cliDireccion){ doc.setTextColor(80,100,120); doc.text(cliDireccion,55,yBase+6); doc.setTextColor(30,41,59); yBase+=6; }
-  doc.text("Lista: "+tipoLista[t],55,yBase+6);
-  doc.text("Fecha: "+new Date().toLocaleDateString()+" "+new Date().toLocaleTimeString(),55,yBase+12);
-  var startY=yBase+20;
+  var cliData=dbCli.filter(function(c){return c.id===cliIdVal||c.nombre===nom;})[0]||null;
+  var cliDir=cliData?cliData.direccion||"":"";
+  var cliCuit=cliData?cliData.cuit||"":"";
+  var ed=_getEmpDatos();
+  var remitoNum = String(Date.now()).slice(-5); // se reemplaza con correlativo luego
+  var compNro = "00000"; // placeholder — se actualiza async
+
+  // ── Calcular totales ──
+  var subtotalLista    = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
+  var subtotalItemsDsc = ordenes[t].reduce(function(s,i){return s+i.sub;},0);
+  var ahorroItems      = subtotalLista - subtotalItemsDsc;
+  var dg               = dscGen[t];
+  var montoDscGen      = 0;
+  if(dg) montoDscGen = dg.tipo==="%" ? subtotalItemsDsc*dg.valor/100 : Math.min(dg.valor, subtotalItemsDsc);
+  var totalFinal       = subtotalItemsDsc - montoDscGen;
+  var ahorroTotal      = ahorroItems + montoDscGen;
+  var hayDescuentos    = ahorroTotal > 0;
+
+  // ── Colores ──
+  var DARK=[13,27,42], GRAY=[240,240,240], LGRAY=[248,248,248], MED=[180,180,180];
+
+  // ── Marco externo ──
+  doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
+  doc.rect(6,6,199,285);
+
+  // ── ORIGINAL header ──
+  doc.setFillColor.apply(doc,GRAY); doc.rect(6,6,199,10,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  doc.text('ORIGINAL',105,13,{align:'center'});
+
+  // ── Bloque empresa (izquierda) ──
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor.apply(doc,DARK);
+  doc.text(ed.nombre||empresaData.nombre||"EMPRESA",12,26);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+  if(ed.razon) doc.text("Razón social: "+ed.razon,12,34);
+  if(ed.cuit)  doc.text("CUIT: "+ed.cuit,12,40);
+  if(ed.dir)   doc.text(ed.dir,12,46);
+  if(ed.tel)   doc.text("Tel: "+ed.tel,12,52);
+
+  // Logo
+  if(empresaData.logo){try{doc.addImage(empresaData.logo,'PNG',12,8,36,16);}catch(e){}}
+
+  // ── Bloque remito (derecha) ──
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor.apply(doc,DARK);
+  var tipoLabel = m==='remito'?'Remito':'Pedido';
+  doc.text(tipoLabel,198,24,{align:'right'});
+  doc.setFillColor.apply(doc,DARK); doc.rect(140,27,60,0.5,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor.apply(doc,DARK);
+  var prefNum=(ed.prefijo||'REM')+" "+remitoNum;
+  doc.text(prefNum,198,35,{align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+  var vndNom = (currentUser&&(currentUser.name||currentUser.id))||'—';
+  doc.text("Vendedor: "+vndNom,198,43,{align:'right'});
+  doc.text("Comprobante Nro: "+remitoNum,198,50,{align:'right'});
+  doc.text("Fecha de emisión: "+fechaHoy+" "+hora,198,57,{align:'right'});
+
+  // ── Línea separadora ──
+  doc.setDrawColor.apply(doc,MED); doc.setLineWidth(0.5);
+  doc.line(6,62,205,62);
+
+  // ── Bloque cliente ──
+  doc.setFillColor.apply(doc,LGRAY); doc.rect(6,62,199,20,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
+  doc.text("Apellido y Nombre / Razón social:",12,70);
+  doc.setFont('helvetica','normal');
+  doc.text(nom,12,76);
+  if(cliDir){
+    doc.setFont('helvetica','bold'); doc.text("Domicilio:",115,70);
+    doc.setFont('helvetica','normal'); doc.text(cliDir,115,76);
+  }
+  doc.setFont('helvetica','bold'); doc.text("CUIT:",12,82);
+  doc.setFont('helvetica','normal'); doc.text(cliCuit||'—',30,82);
+  doc.setLineWidth(0.3); doc.setDrawColor.apply(doc,MED);
+  doc.line(6,84,205,84);
 
   // ── Tabla de productos ──
-  // Si hay descuentos mostramos columna extra con el descuento por item
   var head, body;
   if(hayDescuentos){
-    head=[["Cant","Cód","Producto","P.Lista","Dsc.","P.Final","Sub"]];
+    head=[["Código","Producto / Servicio","Cantidad","Precio","Descuento","Precio final","Subtotal"]];
     body=ordenes[t].map(function(i){
-      var subBase=i.p*i.c;
       var hasDsc=i.disc&&i.disc.valor>0;
-      var dscLabel=hasDsc?(i.disc.tipo==="%"?"-"+i.disc.valor+"%":"-$"+fM(i.disc.valor)):"";
-      var precioFinal=hasDsc?(i.sub/i.c):i.p;
-      return[i.c, i.id, i.n, "$"+fM(i.p), dscLabel, hasDsc?"$"+fM(precioFinal):"", "$"+fM(i.sub)];
+      var dscLabel=hasDsc?(i.disc.tipo==='%'?i.disc.valor+'%':"$"+fM(i.disc.valor)):"";
+      var precioFinal=hasDsc?i.sub/i.c:i.p;
+      return[i.id,i.n,i.c,"$"+fM(i.p),dscLabel,hasDsc?"$"+fM(precioFinal):"","$"+fM(i.sub)];
     });
   } else {
-    head=[["Cant","Cód","Producto","P.U.","Sub"]];
-    body=ordenes[t].map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];});
-  }
-
-  // ── Pie: desglose de descuentos ──
-  var footRows=[];
-  if(hayDescuentos){
-    footRows.push(hayDescuentos ? Array(head[0].length-2).fill("").concat(["Subtotal lista:","$"+fM(subtotalLista)]) : []);
-    if(ahorroItems>0){
-      footRows.push(Array(head[0].length-2).fill("").concat(["Dsc. en productos:","−$"+fM(ahorroItems)]));
-    }
-    if(ahorroItems>0){
-      footRows.push(Array(head[0].length-2).fill("").concat(["Subtotal con dsc.:","$"+fM(subtotalItemsDsc)]));
-    }
-    if(montoDscGen>0){
-      var dscGenLabel="Dsc. general ("+(dg.tipo==="%"?dg.valor+"%":"$"+fM(dg.valor))+"):";
-      footRows.push(Array(head[0].length-2).fill("").concat([dscGenLabel,"−$"+fM(montoDscGen)]));
-    }
-    footRows.push(Array(head[0].length-2).fill("").concat(["TOTAL FINAL:","$"+fM(totalFinal)]));
-    if(ahorroTotal>0){
-      footRows.push(Array(head[0].length-2).fill("").concat(["Ahorro total:","−$"+fM(ahorroTotal)]));
-    }
-  } else {
-    footRows.push(["","","","TOTAL","$"+fM(totalFinal)]);
+    head=[["Código","Producto / Servicio","Cantidad","Precio","Subtotal"]];
+    body=ordenes[t].map(function(i){return[i.id,i.n,i.c,"$"+fM(i.p),"$"+fM(i.sub)];});
   }
 
   doc.autoTable({
-    startY: startY,
-    head: head,
-    body: body,
-    foot: footRows,
-    theme: "striped",
-    headStyles: { fillColor:[13,27,42] },
-    footStyles: { fontStyle:"bold" },
-    // Colorear filas de "ahorro" en verde y descuentos en ámbar
-    didParseCell: function(data){
-      if(data.section==="foot"){
-        var txt = data.cell.raw||"";
-        if(typeof txt==="string" && txt.indexOf("Ahorro")!==-1){ data.cell.styles.textColor=[10,112,72]; }
-        else if(typeof txt==="string" && (txt.indexOf("Dsc.")!==-1||txt.indexOf("−$")!==-1)){ data.cell.styles.textColor=[160,90,0]; }
-        else if(typeof txt==="string" && txt.indexOf("TOTAL FINAL")!==-1){ data.cell.styles.fontSize=11; }
-      }
-      // Resaltar celda de descuento en body
-      if(data.section==="body" && data.column.index===4 && hayDescuentos && data.cell.raw&&data.cell.raw.toString().startsWith("-")){
-        data.cell.styles.textColor=[160,90,0]; data.cell.styles.fontStyle="bold";
+    startY:86, head:head, body:body,
+    theme:'striped',
+    headStyles:{fillColor:DARK,textColor:[255,255,255],fontStyle:'bold',fontSize:8.5},
+    bodyStyles:{textColor:[30,30,30],fontSize:9},
+    alternateRowStyles:{fillColor:[250,250,252]},
+    columnStyles: hayDescuentos
+      ? {0:{cellWidth:18},1:{cellWidth:70},2:{halign:'center',cellWidth:18},3:{halign:'right',cellWidth:22},4:{halign:'center',cellWidth:20},5:{halign:'right',cellWidth:24},6:{halign:'right',cellWidth:24}}
+      : {0:{cellWidth:22},1:{cellWidth:90},2:{halign:'center',cellWidth:20},3:{halign:'right',cellWidth:30},4:{halign:'right',cellWidth:34}},
+    didParseCell:function(d){
+      if(d.section==='body'&&hayDescuentos&&d.column.index===4&&d.cell.raw){
+        d.cell.styles.textColor=[160,90,0]; d.cell.styles.fontStyle='bold';
       }
     }
   });
-  if(obs){var y=doc.lastAutoTable.finalY+10;doc.setFont("helvetica","bold");doc.text("OBSERVACIONES:",14,y);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(obs,180),14,y+7);}
+
+  // ── Pie: totales ──
+  var yFin=doc.lastAutoTable.finalY+2;
+  doc.setFillColor.apply(doc,GRAY); doc.rect(6,yFin,199,18,'F');
+  doc.setDrawColor.apply(doc,MED); doc.line(6,yFin,205,yFin);
+
+  var cols=3, colW=63;
+  // Col 1: Total neto
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+  doc.text("TOTAL NETO",12+colW*0,yFin+7,{align:'left'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor.apply(doc,DARK);
+  doc.text("$"+fM(subtotalLista),12+colW*0,yFin+14);
+  // Col 2: Total descuentos
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+  doc.text("TOTAL DESCUENTOS",12+colW*1,yFin+7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(180,80,0);
+  doc.text(hayDescuentos?"- $"+fM(ahorroTotal):'—',12+colW*1,yFin+14);
+  // Col 3: Importe total
+  doc.setFillColor.apply(doc,DARK); doc.rect(6+colW*2-2,yFin,colW+10,18,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(200,200,200);
+  doc.text("IMPORTE TOTAL",12+colW*2,yFin+7);
+  doc.setFontSize(12); doc.setTextColor(255,255,255);
+  doc.text("$ "+fM(totalFinal),12+colW*2,yFin+14);
+
+  // ── Observaciones ──
+  if(obs){
+    var yO=yFin+24;
+    doc.setDrawColor.apply(doc,MED); doc.line(6,yO-4,205,yO-4);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(80,80,80);
+    doc.text("Observaciones:",12,yO);
+    doc.setFont('helvetica','normal'); doc.setTextColor.apply(doc,DARK);
+    doc.text(doc.splitTextToSize(obs,180),12,yO+6);
+  }
+
+  // ── Firma (solo remito) ──
+  if(m==='remito'){
+    var yS=Math.max(yFin+40, obs?yFin+30:yFin+25);
+    doc.setDrawColor.apply(doc,MED); doc.line(12,yS+25,90,yS+25);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,120,120);
+    doc.text('Firma del cliente',12,yS+30);
+    doc.line(115,yS+25,198,yS+25);
+    doc.text('Aclaración',115,yS+30);
+  }
+
+  // ── Pie de página ──
+  doc.setFontSize(7.5); doc.setTextColor(180,180,180); doc.setFont('helvetica','normal');
+  doc.text((ed.nombre||empresaData.nombre||"")+" — Documento generado automáticamente",105,291,{align:'center'});
+
 
   if(m==="remito"){
     var totalNum=totalFinal, ahora=new Date();
