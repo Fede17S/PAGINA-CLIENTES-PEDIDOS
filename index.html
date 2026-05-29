@@ -2518,6 +2518,10 @@ function sbUpsert(table, data){
   }).then(function(r){ return r.ok||r.status===204 ? (r.status===204?null:r.json()) : r.text().then(function(t){throw new Error(t);}); });
 }
 
+// ══ SUPABASE ADAPTER ══
+// Las funciones fb* son alias que redirigen 100% a Supabase.
+// No hay llamadas a Firebase. Mantenemos los nombres para
+// compatibilidad con el código existente que los llama.
 function _fbPathParse(path){ return path.split("/").filter(Boolean); }
 
 function fbGet(path){
@@ -8011,33 +8015,15 @@ var _prodFiltered = []; // cache del filtrado actual
 function cargarProductos() {
   var grid = document.getElementById("prod-grid");
   if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">⏳</div><div class="prod-empty-msg">Cargando…</div></div>';
-  if (!_sbEmpId && !empresaKey) return;
-
-  // Cargar desde Supabase (tiene todos los campos: precioPromo, cantPromo, etc.)
-  if(_sbEmpId){
-    _sbGetProductos().then(function(sbData){
-      if(sbData && Object.keys(sbData).length){
-        _prodData = sbData;
-        _sincronizarDbStock();
-        renderProductos();
-      } else {
-        // Fallback Firebase
-        fbGet("empresas/"+empresaKey+"/productos").then(function(data){
-          _prodData = data||{};
-          _sincronizarDbStock();
-          renderProductos();
-        }).catch(function(){ if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>'; });
-      }
-    }).catch(function(){
-      fbGet("empresas/"+empresaKey+"/productos").then(function(data){
-        _prodData=data||{}; _sincronizarDbStock(); renderProductos();
-      }).catch(function(){ if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>'; });
-    });
-  } else {
-    fbGet("empresas/"+empresaKey+"/productos").then(function(data){
-      _prodData=data||{}; _sincronizarDbStock(); renderProductos();
-    }).catch(function(){ if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>'; });
-  }
+  if (!_sbEmpId) return;
+  _sbGetProductos().then(function(sbData){
+    _prodData = sbData || {};
+    _sincronizarDbStock();
+    renderProductos();
+  }).catch(function(e){
+    console.error("Error cargando productos:", e);
+    if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar productos</div></div>';
+  });
 }
 
 function _sincronizarDbStock() {
@@ -8375,12 +8361,14 @@ function guardarProducto() {
   if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
   var promise;
   if (key) {
-    promise = fbPatch("empresas/" + empresaKey + "/productos/" + key, prodObj).then(function() {
+    // Editar producto existente — Supabase directo
+    promise = _sbPatchProducto(key, prodObj).then(function() {
       _prodData[key] = Object.assign(_prodData[key] || {}, prodObj);
     });
   } else {
-    promise = fbPush("empresas/" + empresaKey + "/productos", prodObj).then(function(newKey) {
-      _prodData[newKey] = prodObj;
+    // Nuevo producto — Supabase directo
+    promise = _sbInsertProducto(prodObj).then(function(newKey) {
+      if(newKey) _prodData[newKey] = Object.assign({}, prodObj, {id:newKey});
     });
   }
   promise.then(function() {
@@ -8399,7 +8387,7 @@ function eliminarProducto(key) {
   var p = _prodData[key];
   if (!p) return;
   if (!confirm("¿Eliminar el producto \"" + (p.nombre || key) + "\"?\nEsta acción no se puede deshacer.")) return;
-  fbDel("empresas/" + empresaKey + "/productos/" + key).then(function() {
+  sbDel("productos", "id=eq."+key+"&empresa_id=eq."+_sbEmpId).then(function() {
     delete _prodData[key];
     _sincronizarDbStock();
     renderProductos();
