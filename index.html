@@ -271,6 +271,10 @@ body {
 /* Contenido centrado dentro del main fijo */
 .main > .section { max-width:560px; margin:0 auto; width:100% }
 .main:has(.me-root.active) { padding:0; overflow:hidden; display:flex; flex-direction:column }
+@supports not selector(:has(*)) {
+  /* Fallback for browsers without :has support */
+  .main.has-map { padding:0; overflow:hidden; display:flex; flex-direction:column }
+}
 
 .section { display:none }
 .section.active { display:block; animation: fadeIn .18s ease-out }
@@ -634,7 +638,7 @@ select option { background:#fff }
 @media(max-width:760px){
   .me-split { flex-direction:column }
   .me-map { height:250px; flex:none }
-  .me-list-col { width:100%; border-left:none; border-top:1px solid var(--border); overflow-y:visible }
+  .me-list-col { width:100%; border-left:none; border-top:1px solid var(--border); overflow-y:auto; max-height:50vh; }
   .mapa-stats { grid-template-columns:1fr 1fr }
 }
 .parada-card { background:var(--s2); border-bottom:1px solid var(--border); overflow:hidden; transition:background .15s }
@@ -2932,15 +2936,43 @@ async function _sbInsertUsuario(u){ var rows=await sbPost("usuarios",{empresa_id
 async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
 async function _sbGetRutas(){
-  var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
+  var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
   if(!rutas||!rutas.length) return null;
   var ids=rutas.map(function(r){return r.id;}).join(",");
   var clis=await sbGet("ruta_clientes","select=*&ruta_id=in.("+ids+")&order=created_at.asc");
   var result={};
   rutas.forEach(function(r){
     var cm={};
-    (clis||[]).filter(function(c){return c.ruta_id===r.id;}).forEach(function(c){cm[c.id]={id:c.id,nom:c.nom,id:c.cliente_id,importe:c.importe,efectivo:c.efectivo,transferencia:c.transferencia,modo:c.modo,items:c.items||[],fecha:c.fecha,firma:c.firma||"",firmadoEn:c.firmado_en||"",pagosAdicionales:c.pagos_adicionales||[],comprobantes:c.comprobantes||[]};});
-    result[r.id]={nombre:r.nombre,fecha:r.fecha,repartidorId:r.repartidor_id||null,repartidorNom:r.repartidor_nom||null,clientes:cm};
+    (clis||[]).filter(function(c){return c.ruta_id===r.id;}).forEach(function(c){
+      cm[c.id]={
+        id:            c.id,
+        nom:           c.nom,
+        id:            c.cliente_id,
+        importe:       c.importe,
+        efectivo:      c.efectivo,
+        transferencia: c.transferencia,
+        modo:          c.modo,
+        items:         c.items||[],
+        fecha:         c.fecha,
+        firma:         c.firma||"",
+        firmadoEn:     c.firmado_en||"",
+        pagosAdicionales: c.pagos_adicionales||[],
+        comprobantes:  c.comprobantes||[],
+        entregado:     c.entregado===true,
+        entregadoEn:   c.entregado_en||"",
+        auditLog:      c.audit_log||[],
+        _remitoNum:    c.remito_num||""
+      };
+    });
+    result[r.id]={
+      nombre:        r.nombre,
+      fecha:         r.fecha,
+      repartidorId:  r.repartidor_id||null,
+      repartidorNom: r.repartidor_nom||null,
+      hrNum:         r.hr_num||"",
+      zona_id:       r.zona_id||null,
+      clientes:      cm
+    };
   });
   return result;
 }
@@ -2956,8 +2988,11 @@ async function _sbPatchRutaCli(rutaId,cliId,data){
   if(data.firmadoEn!==undefined)        b.firmado_en=data.firmadoEn;
   if(data.pagosAdicionales!==undefined) b.pagos_adicionales=data.pagosAdicionales;
   if(data.comprobantes!==undefined)     b.comprobantes=data.comprobantes;
-  if(data.items!==undefined)            b.items=data.items;          // ← fix: guardar items editados
-  if(data.dscGeneral!==undefined)       b.items=b.items||data.items; // incluye con dscGeneral
+  if(data.items!==undefined)            b.items=data.items;
+  if(data.auditLog!==undefined)         b.audit_log=data.auditLog;
+  if(data.entregado!==undefined)        b.entregado=data.entregado;
+  if(data.entregadoEn!==undefined)      b.entregado_en=data.entregadoEn;
+  if(data._remitoNum!==undefined)       b.remito_num=data._remitoNum;
   if(Object.keys(b).length===0) return null;
   return sbPatch("ruta_clientes","id=eq."+cliId+"&ruta_id=eq."+rutaId,b);
 }
