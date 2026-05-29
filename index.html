@@ -8322,67 +8322,6 @@ function quitarFotoProducto() {
   _actualizarPrevFoto();
 }
 
-function guardarProducto() {
-  var nombre = (document.getElementById("mprod-nombre").value || "").trim();
-  if (!nombre) { showNotif("El nombre del producto es obligatorio", "err"); document.getElementById("mprod-nombre").focus(); return; }
-  var codigo = (document.getElementById("mprod-codigo").value || "").trim().toUpperCase();
-  var categoria = (document.getElementById("mprod-categoria").value || "").trim();
-  var precioCli = 0, precioPat = 0;
-  var extra = { _precioModo: _prodModo };
-  if (_prodModo === "listas") {
-    precioCli = parseFloat(document.getElementById("mprod-precio-cli").value) || 0;
-    precioPat = parseFloat(document.getElementById("mprod-precio-pat").value) || 0;
-  } else if (_prodModo === "pct") {
-    var base = parseFloat(document.getElementById("mprod-precio-base").value) || 0;
-    var pctCli = parseFloat(document.getElementById("mprod-pct-cli").value) || 0;
-    var pctPat = parseFloat(document.getElementById("mprod-pct-pat").value) || 0;
-    precioCli = base * (1 + pctCli / 100);
-    precioPat = base * (1 + pctPat / 100);
-    extra._precioBase = base; extra._pctCli = pctCli; extra._pctPat = pctPat;
-  } else if (_prodModo === "custom") {
-    var esp = parseFloat(document.getElementById("mprod-precio-esp").value) || 0;
-    var aplica = document.getElementById("mprod-esp-aplica").value;
-    if (aplica === "ambas" || aplica === "Clientes") precioCli = esp;
-    if (aplica === "ambas" || aplica === "Patagonia") precioPat = esp;
-    extra._precioEsp = esp; extra._espAplica = aplica;
-  }
-  var prodObj = Object.assign({
-    nombre: nombre,
-    codigo: codigo || nombre.substring(0, 4).toUpperCase(),
-    categoria: categoria || "Sin categoría",
-    precioClientes: precioCli,
-    precioPatagonia: precioPat,
-    foto: _prodFotoB64 || "",
-    precioPromo: parseFloat((document.getElementById("mprod-precio-promo")||{value:""}).value)||null,
-    cantPromo:   parseInt((document.getElementById("mprod-cant-promo")||{value:""}).value)||null
-  }, extra);
-  var key = document.getElementById("mprod-key").value;
-  var btn = document.querySelector(".mprod-save");
-  if (btn) { btn.disabled = true; btn.textContent = "Guardando…"; }
-  var promise;
-  if (key) {
-    // Editar producto existente — Supabase directo
-    promise = _sbPatchProducto(key, prodObj).then(function() {
-      _prodData[key] = Object.assign(_prodData[key] || {}, prodObj);
-    });
-  } else {
-    // Nuevo producto — Supabase directo
-    promise = _sbInsertProducto(prodObj).then(function(newKey) {
-      if(newKey) _prodData[newKey] = Object.assign({}, prodObj, {id:newKey});
-    });
-  }
-  promise.then(function() {
-    _sincronizarDbStock();
-    renderProductos();
-    cerrarModalProducto();
-    showNotif(key ? "✅ Producto actualizado" : "✅ Producto agregado", "ok");
-  }).catch(function(e) {
-    showNotif("Error al guardar: " + (e.message || "Error desconocido"), "err");
-  }).finally(function() {
-    if (btn) { btn.disabled = false; btn.textContent = "💾 Guardar producto"; }
-  });
-}
-
 function eliminarProducto(key) {
   var p = _prodData[key];
   if (!p) return;
@@ -8602,19 +8541,19 @@ function abrirModalProducto(key) {
   document.getElementById("mprod-codigo").value = p.codigo || "";
   document.getElementById("mprod-nombre").value = p.nombre || "";
   document.getElementById("mprod-categoria").value = p.categoria || "";
-  // Foto
   _prodFotoB64 = p.foto || "";
   _actualizarPrevFoto();
-  // Precio base
   var base = p.precioBase || p._precioBase || 0;
   document.getElementById("mprod-precio-base").value = base || "";
   document.getElementById("mprod-auto-calc").checked = true;
-  // Precios guardados por lista
   var preciosGuardados = p.precios || {};
-  // Backward compat: mapear precioClientes/precioPatagonia
   if(!preciosGuardados.cli && p.precioClientes) preciosGuardados = Object.assign({cli:p.precioClientes, pat:p.precioPatagonia||0}, preciosGuardados);
   _renderListasRows(preciosGuardados, base);
-  // Poblar datalist categorías
+  // Cargar precio promo
+  var promoEl    = document.getElementById("mprod-precio-promo");
+  var cantPromoEl = document.getElementById("mprod-cant-promo");
+  if(promoEl)     promoEl.value     = (p.precioPromo != null && p.precioPromo > 0) ? p.precioPromo : "";
+  if(cantPromoEl) cantPromoEl.value = (p.cantPromo   != null && p.cantPromo   > 0) ? p.cantPromo   : "";
   var cats = new Set(Object.values(_prodData).filter(function(p){return p&&p.nombre;}).map(function(p){return p.categoria||"";}));
   var dl = document.getElementById("mprod-cats-dl");
   if(dl) dl.innerHTML = Array.from(cats).filter(Boolean).map(function(c){return '<option value="'+c+'">';}).join("");
@@ -8622,7 +8561,11 @@ function abrirModalProducto(key) {
   document.getElementById("mprod-nombre").focus();
 }
 
-// Reescribir guardarProducto
+// Stub para compatibilidad con código viejo que llame setPrecioModo/calcPrecioPct
+function setPrecioModo(m){ /* no-op en nuevo sistema */ }
+function calcPrecioPct(){ recalcularPrecios(); }
+
+// ── GUARDAR PRODUCTO ──
 function guardarProducto() {
   var nombre = (document.getElementById("mprod-nombre").value || "").trim();
   if (!nombre) { showNotif("El nombre del producto es obligatorio","err"); document.getElementById("mprod-nombre").focus(); return; }
@@ -8630,9 +8573,10 @@ function guardarProducto() {
   var categoria = (document.getElementById("mprod-categoria").value||"").trim();
   var base      = parseFloat(document.getElementById("mprod-precio-base").value)||0;
   var precios   = _leerPreciosModal();
-  // Backward compat
   var precioCli = precios.cli || 0;
   var precioPat = precios.pat || 0;
+  var precioPromo = parseFloat((document.getElementById("mprod-precio-promo")||{value:""}).value)||null;
+  var cantPromo   = parseInt((document.getElementById("mprod-cant-promo")||{value:""}).value)||null;
 
   var prodObj = {
     nombre: nombre,
@@ -8642,7 +8586,9 @@ function guardarProducto() {
     precios: precios,
     precioClientes:  precioCli,
     precioPatagonia: precioPat,
-    foto: _prodFotoB64 || ""
+    foto: _prodFotoB64 || "",
+    precioPromo: precioPromo,
+    cantPromo:   cantPromo
   };
 
   var key = document.getElementById("mprod-key").value;
@@ -8650,12 +8596,12 @@ function guardarProducto() {
   if(btn){ btn.disabled=true; btn.textContent="Guardando…"; }
   var promise;
   if(key){
-    promise = fbPatch("empresas/"+empresaKey+"/productos/"+key, prodObj).then(function(){
+    promise = _sbPatchProducto(key, prodObj).then(function(){
       _prodData[key] = Object.assign(_prodData[key]||{}, prodObj);
     });
   } else {
-    promise = fbPush("empresas/"+empresaKey+"/productos", prodObj).then(function(newKey){
-      _prodData[newKey] = prodObj;
+    promise = _sbInsertProducto(prodObj).then(function(newKey){
+      if(newKey) _prodData[newKey] = Object.assign({}, prodObj, {id:newKey});
     });
   }
   promise.then(function(){
@@ -8669,10 +8615,6 @@ function guardarProducto() {
     if(btn){ btn.disabled=false; btn.textContent="💾 Guardar producto"; }
   });
 }
-
-// Stub para compatibilidad con código viejo que llame setPrecioModo/calcPrecioPct
-function setPrecioModo(m){ /* no-op en nuevo sistema */ }
-function calcPrecioPct(){ recalcularPrecios(); }
 
 // ══ IMPORTADOR CSV DE PRODUCTOS ══
 var _prodCsvRows = [];
