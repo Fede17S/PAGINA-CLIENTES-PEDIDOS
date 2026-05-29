@@ -1925,6 +1925,30 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <div id="clientes" class="section">
 
+  <!-- ── BARRA SUPERIOR ── -->
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">
+    <span style="font-size:16px;font-weight:700">Gestión de Clientes</span>
+    <button onclick="abrirPanelZonas()" style="display:flex;align-items:center;gap:6px;padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">
+      🗺️ Zonas
+    </button>
+  </div>
+
+  <!-- ── PANEL ZONAS (colapsable) ── -->
+  <div id="cli-zonas-panel" style="display:none;margin-bottom:14px">
+    <div class="card">
+      <div class="card-body" style="padding-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-weight:700;font-size:14px">🗺️ Zonas de venta</span>
+          <div style="display:flex;gap:8px">
+            <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:8px 16px;font-size:12px">+ Nueva zona</button>
+            <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;color:var(--muted)">✕ Cerrar</button>
+          </div>
+        </div>
+        <div id="cli-zonas-list"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── IMPORTADOR CSV ── -->
   <div class="cli-form-card" id="csv-importer-card">
     <div class="cli-form-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -7420,6 +7444,53 @@ document.getElementById("overlay").addEventListener("click", closeSidebar);
 
 var _clientesDB = {}; // { pushKey: { id, name, pass, lista, direccion, tel, nota } }
 
+function abrirPanelZonas(){
+  var panel = document.getElementById("cli-zonas-panel");
+  if(!panel) return;
+  var isOpen = panel.style.display !== "none";
+  if(isOpen){ cerrarPanelZonas(); return; }
+  panel.style.display = "block";
+  if(!Object.keys(_zonasData).length){
+    cargarZonas().then(function(){ _renderZonasEnClientes(); });
+  } else {
+    _renderZonasEnClientes();
+  }
+}
+
+function cerrarPanelZonas(){
+  var p = document.getElementById("cli-zonas-panel");
+  if(p) p.style.display = "none";
+}
+
+function _renderZonasEnClientes(){
+  var wrap = document.getElementById("cli-zonas-list");
+  if(!wrap) return;
+  var zonas = Object.values(_zonasData);
+  if(!zonas.length){
+    wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Sin zonas creadas. Tocá "+ Nueva zona" para empezar.</div>';
+    return;
+  }
+  wrap.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+
+    zonas.map(function(z){
+      var miembros = Object.values(_clientesDB||{}).filter(function(u){ return u.zona_id===z.id; });
+      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1.5px solid '+z.color+'33;border-left:4px solid '+z.color+';border-radius:9px;background:#fff">'+
+        '<div style="width:10px;height:10px;border-radius:50%;background:'+z.color+';flex-shrink:0"></div>'+
+        '<div style="flex:1">'+
+          '<div style="font-weight:700;font-size:13.5px">'+escHtml(z.nombre)+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+
+            (z.pct?'<span style="color:#b45309;font-weight:600">±'+z.pct+'% precio</span> · ':'')+
+            miembros.length+' miembro'+(miembros.length!==1?'s':'')+
+            (z.desc?' · '+escHtml(z.desc):'')+
+          '</div>'+
+        '</div>'+
+        '<button class="btn btn-ghost btn-sm" onclick="abrirModalZona(\''+z.id+'\')">✏️ Editar</button>'+
+        '<button class="btn btn-ghost btn-sm" onclick="abrirAsignarZona(\''+z.id+'\')">👥 Asignar</button>'+
+        '<button class="btn btn-ghost btn-sm" onclick="borrarZona(\''+z.id+'\')" style="color:var(--red)">🗑</button>'+
+      '</div>';
+    }).join('')+
+  '</div>';
+}
+
 async function cargarClientesSection() {
   if (!empresaKey) return;
   try {
@@ -9437,7 +9508,9 @@ async function guardarZona(){
     }
     cerrarModal("modal-zona");
     renderZonas();
+    _renderZonasEnClientes();
     _poblarSelectoresZona();
+    _renderClientesList();
     showNotif("✅ Zona guardada","ok");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
