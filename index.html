@@ -2014,7 +2014,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
       <div class="cli-field">
         <label>Zona</label>
-        <input type="text" id="nc-zona" placeholder="ej: Norte, Centro, Sur">
+        <select id="nc-zona" style="font-size:13px">
+          <option value="">— Sin zona —</option>
+        </select>
       </div>
       <div class="cli-field">
         <label>Recepciona</label>
@@ -2031,6 +2033,25 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div class="cli-list-header">
     <div class="cli-list-title">Clientes registrados (<span id="cli-count">0</span>)</div>
     <button class="btn btn-ghost btn-sm" onclick="cargarClientesSection()">🔄</button>
+  </div>
+  <!-- Buscador -->
+  <div style="position:relative;margin-bottom:12px">
+    <input type="text" id="cli-search-input"
+      placeholder="🔍 Buscar por nombre, ID, teléfono, zona, dirección…"
+      autocomplete="off" autocorrect="off"
+      oninput="_filtrarClientes(this.value)"
+      style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;background:#fff">
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+    <button id="cli-search-clear" onclick="document.getElementById('cli-search-input').value='';_filtrarClientes('')"
+      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:4px">✕</button>
+  </div>
+  <!-- Filtros de rol -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="cli-filter-roles">
+    <button class="bk-tab active" data-role="" onclick="_setRolFilter('',this)">Todos</button>
+    <button class="bk-tab" data-role="cliente" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
+    <button class="bk-tab" data-role="vendedor" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
+    <button class="bk-tab" data-role="repartidor" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
+    <button class="bk-tab" data-role="admin" onclick="_setRolFilter('admin',this)">👑 Admin</button>
   </div>
   <div id="cli-list-body"></div>
 </div>
@@ -2091,7 +2112,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
       <div class="cli-field">
         <label>Zona</label>
-        <input type="text" id="ec-zona" placeholder="ej: Norte, Centro, Sur">
+        <select id="ec-zona" style="font-size:13px">
+          <option value="">— Sin zona —</option>
+        </select>
       </div>
       <div class="cli-field">
         <label>Recepciona</label>
@@ -3344,7 +3367,7 @@ function verTab(id,btn){
   if(mainEl) { mainEl.scrollTop = 0; mainEl.scrollLeft = 0; }
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
-  if(id==="clientes")cargarClientesSection();
+  if(id==="clientes"){ cargarClientesSection(); if(!Object.keys(_zonasData).length) cargarZonas(); }
   if(id==="pedidos-acum")cargarPedidosAcum();
   if(id==="mapa-entregas")iniciarMapaEntregas();
   if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
@@ -4564,39 +4587,115 @@ function cargarRutasFirebase(){
     renderRutas();
   }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
 }
-function imprimirPedidosDeRuta(rk){
+async function imprimirPedidosDeRuta(rk){
   var ruta = rutasData[rk];
   if(!ruta){ showNotif("Ruta no encontrada","err"); return; }
   var clientes = Object.entries(ruta.clientes||{});
   if(!clientes.length){ showNotif("No hay pedidos en esta ruta","err"); return; }
-  if(!confirm("¿Imprimir los "+clientes.length+" remito(s) de esta ruta?")) return;
+  if(!confirm("¿Generar un PDF con los "+clientes.length+" pedidos de esta ruta?")) return;
+
   var hrNum = ruta.hrNum || ruta.nombre || rk.slice(-6);
+  var INK=[20,20,20], LINE=[180,180,180];
+  var jsPDF=window.jspdf.jsPDF;
+  var doc = new jsPDF();
+  var ed = _getEmpDatos();
+  var empNom = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
+  var cfg = _getPdfConfig();
+  var pdfMinRows = cfg.minRows||10; // menos filas en modo "varios" para entrar bien
+  var isFirst = true;
 
-  clientes.forEach(function(entry, i){
-    setTimeout(function(){
-      var ck = entry[0];
-      var cli = entry[1];
-      var bk = {
-        id:         ck,
-        _fbKey:     ck,
-        _remitoNum: cli._remitoNum || "",
-        _hrNum:     hrNum,
-        fecha:      cli.fecha || ruta.fecha || new Date().toISOString(),
-        clienteNom: cli.nom  || cli.nombre || "",
-        clienteId:  cli.id   || "",
-        lista:      cli.lista|| "Clientes",
-        obs:        cli.obs  || "",
-        items:      cli.items|| [],
-        total:      cli.importe || cli.total || 0,
-        usuarioNom: ruta.repartidorNom || "",
-        tipoComprobante: "remito",
-        descuentos: cli.descuentos || null
-      };
-      generarPDFDesdeBackup(bk, false);
-    }, i * 900);
-  });
+  for(var ci=0; ci<clientes.length; ci++){
+    var ck  = clientes[ci][0];
+    var cli = clientes[ci][1];
+    if(!isFirst) doc.addPage();
+    isFirst = false;
 
-  showNotif("🖨️ Generando "+clientes.length+" remito(s)…","ok");
+    var remitoNum = cli._remitoNum;
+    if(!remitoNum){
+      remitoNum = await _nextRemitoNum();
+      cli._remitoNum = remitoNum;
+      fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{_remitoNum:remitoNum}).catch(function(){});
+    }
+    var nom = cli.nom||"";
+    var fechaStr = new Date(cli.fecha||ruta.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
+    var cliRaw = Object.values(_clientesDB||{}).find(function(u){ return u.id===cli.id||(u.name||"")===nom; })||null;
+    var cliDir  = cliRaw&&cfg.showDirCliente !==false?(cliRaw.direccion||""):"";
+    var cliCuit = cliRaw&&cfg.showCuitCliente!==false?(cliRaw.cuit||""):"";
+    var cliTel  = cliRaw&&cfg.showTelefono   !==false?(cliRaw.tel||cliRaw.telefono||""):"";
+    var cliZona = cliRaw&&cfg.showZona       !==false?(cliRaw.zona||""):"";
+    var cliRec  = cliRaw&&cfg.showEncargado  !==false?(cliRaw.rec||cliRaw.recepciona||""):"";
+
+    // Encabezado empresa
+    if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",80,6,50,16);}catch(e){}}
+    doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
+    doc.text(empNom.toUpperCase(),105,25,{align:"center"});
+    doc.setFontSize(8.5);
+    var ey=18;
+    if(ed.cuit){doc.text("CUIT: "+ed.cuit,10,ey);ey+=5;}
+    if(ed.dir) {doc.text("Dirección: "+ed.dir,10,ey);ey+=5;}
+    if(ed.tel) {doc.text("Tel: "+ed.tel,10,ey);ey+=5;}
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text("Remito",200,20,{align:"right"});
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    doc.text("N°: "+remitoNum,200,27,{align:"right"});
+    doc.text("Fecha: "+fechaStr,200,33,{align:"right"});
+    doc.setFont("helvetica","bold"); doc.setTextColor(37,99,235);
+    doc.text("Ruta: "+hrNum,200,39,{align:"right"});
+    doc.setFont("helvetica","normal"); doc.setTextColor.apply(doc,INK);
+    var SEP1=Math.max(ey+4,46);
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,SEP1,200,SEP1);
+
+    // Datos cliente
+    var CY=SEP1+5;
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text("Datos del cliente",10,CY);
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.line(10,CY+1,80,CY+1); CY+=7;
+    doc.setFont("helvetica","bold"); doc.text("Nombre:",10,CY); doc.setFont("helvetica","normal"); doc.text(nom,35,CY);
+    if(cliDir){doc.setFont("helvetica","bold");doc.text("Dirección:",118,CY);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(cliDir,72),145,CY);}
+    CY+=6;
+    if(cliRec){doc.setFont("helvetica","bold");doc.text("Encargado:",10,CY);doc.setFont("helvetica","normal");doc.text(cliRec,38,CY);}
+    if(cliCuit){doc.setFont("helvetica","bold");doc.text("CUIT:",118,CY);doc.setFont("helvetica","normal");doc.text(cliCuit,133,CY);}
+    CY+=6;
+    if(cliTel){doc.setFont("helvetica","bold");doc.text("Teléfono:",10,CY);doc.setFont("helvetica","normal");doc.text(cliTel,35,CY);}
+    if(cliZona){doc.setFont("helvetica","bold");doc.text("Zona:",118,CY);doc.setFont("helvetica","normal");doc.text(cliZona,133,CY);}
+    CY+=5;
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,CY,200,CY);
+
+    // Productos
+    CY+=4; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Productos",10,CY); CY+=2;
+    var items=cli.items||[];
+    var body=items.map(function(i){
+      return[i.n||"",i.c||1,"$"+fM(i.p||0),"$"+fM(i.sub||(i.p||0)*(i.c||1))];
+    });
+    while(body.length<pdfMinRows) body.push(["","","",""]);
+    doc.autoTable({startY:CY+2,margin:{left:10,right:10},
+      head:[["Descripción","Cant.","Precio","Subtotal"]],body:body,theme:"grid",
+      headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
+      bodyStyles:{fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3},minCellHeight:7},
+      alternateRowStyles:{fillColor:[255,255,255]},
+      columnStyles:{0:{cellWidth:105},1:{halign:"center",cellWidth:20},2:{halign:"right",cellWidth:30},3:{halign:"right",cellWidth:35}}
+    });
+
+    // Total
+    var yP=doc.lastAutoTable.finalY+4;
+    var total=cli.importe||0;
+    if(cfg.showObs!==false){
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
+      doc.text("Observaciones:",10,yP+5);
+      doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.rect(10,yP+7,88,18);
+    }
+    doc.setDrawColor.apply(doc,INK); doc.setLineWidth(0.5); doc.rect(102,yP+7,98,11);
+    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
+    doc.text("Total: $"+fM(total),198,yP+14.5,{align:"right"});
+
+    // Pie
+    doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
+    doc.text([empNom,"Remito N°"+remitoNum,"Ruta "+hrNum,fechaStr].join("  ·  "),105,289,{align:"center"});
+  }
+
+  // Descargar UN SOLO PDF
+  var hrTag = hrNum.replace(/[^a-zA-Z0-9]/g,"");
+  var fname = "Ruta_"+hrTag+"_"+clientes.length+"pedidos_"+new Date().toLocaleDateString("es-AR").replace(/\//g,"-")+".pdf";
+  doc.save(fname);
+  showNotif("✅ PDF generado con "+clientes.length+" pedidos","ok");
 }
 
 async function crearNuevaRuta(){
@@ -7353,24 +7452,69 @@ async function cargarClientesSection() {
   if(ncId && !ncId.value) ncId.value = _generarSiguienteId();
 }
 
+var _cliSearchQ = "";
+var _cliRolFilter = "";
+
+function _filtrarClientes(q){
+  _cliSearchQ = (q||"").toLowerCase().trim();
+  var clearBtn = document.getElementById("cli-search-clear");
+  if(clearBtn) clearBtn.style.display = _cliSearchQ ? "block" : "none";
+  var inp = document.getElementById("cli-search-input");
+  if(inp) inp.style.borderColor = _cliSearchQ ? "var(--accent)" : "var(--border)";
+  _renderClientesList();
+}
+
+function _setRolFilter(rol, btn){
+  _cliRolFilter = rol;
+  document.querySelectorAll("#cli-filter-roles .bk-tab").forEach(function(b){ b.classList.remove("active"); });
+  if(btn) btn.classList.add("active");
+  _renderClientesList();
+}
+
 function _renderClientesList() {
   var body = document.getElementById("cli-list-body");
   var countEl = document.getElementById("cli-count");
   var allEntries = Object.entries(_clientesDB);
   var isAdminView = currentUser && currentUser.role === "admin";
 
-  // Admin ve TODOS los usuarios. No-admin solo ve clientes (catalogo:true)
+  // Admin ve TODOS. No-admin solo ve clientes
   var entries = isAdminView ? allEntries : allEntries.filter(function(entry){
     var u = entry[1];
     var rol = (u.role||"").toLowerCase();
-    if((rol === "admin" || rol === "repartidor") && !u.catalogo) return false;
-    if(rol === "vendedor" && u.catalogo !== true) return false;
+    if((rol==="admin"||rol==="repartidor")&&!u.catalogo) return false;
+    if(rol==="vendedor"&&u.catalogo!==true) return false;
     return true;
   });
 
-  if (countEl) countEl.textContent = entries.length;
-  if (!entries.length) {
-    body.innerHTML = '<div class="cli-empty-box">📋 Todavía no hay usuarios registrados.<br>Usá el formulario de arriba para agregar el primero.</div>';
+  // Filtro por rol
+  if(_cliRolFilter){
+    entries = entries.filter(function(e){ return (e[1].role||"cliente").toLowerCase() === _cliRolFilter; });
+  }
+
+  // Filtro de búsqueda
+  if(_cliSearchQ){
+    var q = _cliSearchQ;
+    entries = entries.filter(function(e){
+      var u = e[1];
+      return (u.name||"").toLowerCase().includes(q)
+          || (u.id||"").toLowerCase().includes(q)
+          || (u.uid||"").toLowerCase().includes(q)
+          || (u.tel||u.telefono||"").toLowerCase().includes(q)
+          || (u.zona||"").toLowerCase().includes(q)
+          || (u.direccion||"").toLowerCase().includes(q)
+          || (u.cuit||"").toLowerCase().includes(q)
+          || (u.rec||"").toLowerCase().includes(q)
+          || (u.nota||"").toLowerCase().includes(q)
+          || (u.lista||"").toLowerCase().includes(q);
+    });
+  }
+
+  if(countEl) countEl.textContent = entries.length +
+    (_cliSearchQ||_cliRolFilter ? " de "+allEntries.length : "");
+  if(!entries.length){
+    body.innerHTML = '<div class="cli-empty-box">'
+      +(_cliSearchQ ? '🔍 Sin resultados para "'+_cliSearchQ+'"<br><small>Probá con otro término</small>' : '📋 Todavía no hay usuarios registrados.<br>Usá el formulario de arriba para agregar el primero.')
+      +'</div>';
     return;
   }
 
@@ -7378,29 +7522,38 @@ function _renderClientesList() {
   var rolClass = { cliente:"cli-rol-cliente", vendedor:"cli-rol-vendedor", repartidor:"cli-rol-repartidor", admin:"cli-rol-admin" };
   var rolBg    = { vendedor:"oklch(90% 0.05 240)", repartidor:"oklch(92% 0.05 50)", admin:"oklch(90% 0.05 300)" };
 
+  var q = _cliSearchQ;
+  function hl(str){ // highlight matching text
+    if(!str||!q) return escHtml(str||"");
+    var re = new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");
+    return escHtml(str).replace(re,'<mark style="background:#fef3c7;border-radius:2px;padding:0 1px">$1</mark>');
+  }
+
   body.innerHTML = entries.map(function(entry) {
     var key = entry[0], u = entry[1];
     var inicial = (u.name||u.id||"?").charAt(0).toUpperCase();
     var rol = (u.role||"cliente").toLowerCase();
     var rolBadge = '<span class="cli-rol-badge '+(rolClass[rol]||"cli-rol-cliente")+'">'+(rolLabel[rol]||rol)+'</span>';
     var avatarBg = rolBg[rol] || "var(--s3)";
+    // Zona badge con color si existe en _zonasData
+    var zonaText = u.zona_id && _zonasData[u.zona_id]
+      ? '<span style="font-size:10px;background:'+_zonasData[u.zona_id].color+'22;color:'+_zonasData[u.zona_id].color+';border-radius:5px;padding:1px 6px;font-weight:700">🗺️ '+escHtml(_zonasData[u.zona_id].nombre)+'</span>'
+      : (u.zona ? '<span style="font-size:10.5px;color:var(--muted)">🗺 '+hl(u.zona)+'</span>' : '');
     var metaParts = [
-      u.id   ? "ID: "+u.id : null,
-      u.cuit ? "CUIT: "+u.cuit : null,
-      u.tel  ? "📞 "+u.tel : null,
-      u.zona ? "🗺 "+u.zona : null,
-      u.rec  ? "👤 "+u.rec : null,
-      u.nota ? u.nota : null
+      u.id   ? "ID: <b>"+hl(u.id)+"</b>" : null,
+      u.cuit ? "CUIT: "+hl(u.cuit) : null,
+      u.tel  ? "📞 "+hl(u.tel) : null,
+      u.rec  ? "👤 "+hl(u.rec) : null,
+      u.nota ? hl(u.nota) : null
     ].filter(Boolean);
-    var meta = metaParts.join(" · ");
     return '<div class="cli-card">' +
       '<div class="cli-avatar" style="background:'+avatarBg+'">'+ inicial+'</div>' +
       '<div class="cli-info">' +
-        '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+(u.name||u.id)+rolBadge+'</div>' +
-        (meta ? '<div class="cli-meta">'+meta+'</div>' : '') +
+        '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+hl(u.name||u.id)+rolBadge+zonaText+'</div>' +
+        (metaParts.length ? '<div class="cli-meta">'+metaParts.join(" · ")+'</div>' : '') +
         (u.direccion
-          ? '<div class="cli-meta" style="color:var(--text2);margin-top:2px">📍 '+u.direccion+'</div>'
-          : (rol==="cliente"?'<div class="cli-meta" style="color:var(--amber);margin-top:2px">⚠️ Sin dirección GPS</div>':'')) +
+          ? '<div class="cli-meta" style="color:var(--text2);margin-top:2px">📍 '+hl(u.direccion)+'</div>'
+          : (rol==="cliente"?'<div class="cli-meta" style="color:var(--amber);margin-top:2px">⚠️ Sin dirección</div>':'')) +
       '</div>' +
       '<div class="cli-badge">'+(u.lista||"Clientes")+'</div>' +
       '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
@@ -7465,10 +7618,12 @@ async function guardarNuevoCliente() {
   var dir  = document.getElementById("nc-dir").value.trim();
   var tel  = document.getElementById("nc-tel").value.trim();
   var cuit = (document.getElementById("nc-cuit")||{value:""}).value.trim();
-  var zona = document.getElementById("nc-zona").value.trim();
+  var zonaVal = document.getElementById("nc-zona").value||"";
+  var zonaId = "", zona = "";
+  if(zonaVal.includes("|")){ var zp=zonaVal.split("|"); zonaId=zp[0]; zona=zp[1]; }
+  else if(zonaVal && _zonasData[zonaVal]){ zonaId=zonaVal; zona=_zonasData[zonaVal].nombre; }
   var rec  = document.getElementById("nc-rec").value.trim();
   var nota = document.getElementById("nc-nota").value.trim();
-  // Rol: admin puede elegir cualquiera; otros siempre = cliente
   var rolEl = document.getElementById("nc-rol");
   var rol  = (currentUser && currentUser.role === "admin" && rolEl) ? rolEl.value : "cliente";
   if (!id)   { showNotif("El ID es obligatorio","err"); return; }
@@ -7476,10 +7631,11 @@ async function guardarNuevoCliente() {
   var dup = Object.values(_clientesDB).find(function(u){ return u.id===id; });
   if (dup)   { showNotif("Ya existe un cliente con ese ID","err"); return; }
   var nuevo = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true, role:rol };
-  if (dir)  nuevo.direccion = dir;
-  if (tel)  nuevo.tel = tel;
-  if (cuit) nuevo.cuit = cuit;
-  if (zona) nuevo.zona = zona;
+  if (dir)    nuevo.direccion = dir;
+  if (tel)    nuevo.tel = tel;
+  if (cuit)   nuevo.cuit = cuit;
+  if (zonaId) nuevo.zona_id = zonaId;
+  if (zona)   nuevo.zona = zona;
   if (rec)  nuevo.rec  = rec;
   if (nota) nuevo.nota = nota;
   try {
@@ -7536,7 +7692,14 @@ function abrirEditCliente(pushKey) {
   document.getElementById("ec-tel").value   = u.tel   || "";
   document.getElementById("ec-dir").value   = u.direccion || "";
   document.getElementById("ec-nota").value  = u.nota  || "";
-  document.getElementById("ec-zona").value  = u.zona  || "";
+  // Zona — cargar el selector con zona_id o buscar por nombre
+  var zonaEl = document.getElementById("ec-zona");
+  if(zonaEl){
+    _poblarSelectoresZona();
+    if(u.zona_id){
+      zonaEl.value = u.zona_id+"|"+((_zonasData[u.zona_id]||{}).nombre||"");
+    } else { zonaEl.value = ""; }
+  }
   document.getElementById("ec-rec").value   = u.rec   || "";
   var ecCuit = document.getElementById("ec-cuit"); if(ecCuit) ecCuit.value = u.cuit||"";
   var ecRol  = document.getElementById("ec-rol");  if(ecRol)  ecRol.value  = u.role||"cliente";
@@ -7558,7 +7721,10 @@ async function guardarEditCliente() {
   var tel  = document.getElementById("ec-tel").value.trim();
   var cuit = (document.getElementById("ec-cuit")||{value:""}).value.trim();
   var nota = document.getElementById("ec-nota").value.trim();
-  var zona = document.getElementById("ec-zona").value.trim();
+  var zonaVal2 = document.getElementById("ec-zona").value||"";
+  var zonaId2 = "", zona2 = "";
+  if(zonaVal2.includes("|")){ var zp2=zonaVal2.split("|"); zonaId2=zp2[0]; zona2=zp2[1]; }
+  else if(zonaVal2 && _zonasData[zonaVal2]){ zonaId2=zonaVal2; zona2=_zonasData[zonaVal2].nombre; }
   var rec  = document.getElementById("ec-rec").value.trim();
   var rolEl2 = document.getElementById("ec-rol");
   var rol = (currentUser && currentUser.role === "admin" && rolEl2) ? rolEl2.value : ((_clientesDB[pushKey]&&_clientesDB[pushKey].role)||"cliente");
@@ -7567,10 +7733,12 @@ async function guardarEditCliente() {
   var dup = Object.entries(_clientesDB).find(function(e){ return e[0]!==pushKey && e[1].id===id; });
   if (dup) { showNotif("Ese ID ya lo usa otro usuario","err"); return; }
   var updated = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true, role:rol };
-  if (dir)  updated.direccion = dir;
-  if (tel)  updated.tel = tel;
-  if (cuit) updated.cuit = cuit;
-  if (nota) updated.nota = nota;
+  if (dir)    updated.direccion = dir;
+  if (tel)    updated.tel = tel;
+  if (cuit)   updated.cuit = cuit;
+  if (nota)   updated.nota = nota;
+  if (zonaId2){ updated.zona_id=zonaId2; updated.zona=zona2; }
+  else { updated.zona_id=null; updated.zona=""; }
   if (zona) updated.zona = zona;
   if (rec)  updated.rec  = rec;
   try {
@@ -9207,8 +9375,13 @@ function renderZonas(){
 function _poblarSelectoresZona(){
   var zonas = Object.values(_zonasData);
   var opts = '<option value="">— Sin zona —</option>' +
-    zonas.map(function(z){ return '<option value="'+z.id+'">'+escHtml(z.nombre)+'</option>'; }).join('');
-  ["mevnd-zona","ruta-fil-zona","mzona-asig-zona"].forEach(function(id){
+    zonas.map(function(z){
+      return '<option value="'+z.id+'|'+escHtml(z.nombre)+'">'+
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+z.color+'">●</span> '+
+        escHtml(z.nombre)+(z.pct?' ('+z.pct+'%)':'')+'</option>';
+    }).join('');
+  // Formulario nuevo cliente, editar cliente, editar vendedor
+  ["nc-zona","ec-zona","mevnd-zona"].forEach(function(id){
     var el = document.getElementById(id);
     if(el){ var cur=el.value; el.innerHTML=opts; if(cur)el.value=cur; }
   });
