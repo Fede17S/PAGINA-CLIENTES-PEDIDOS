@@ -2457,6 +2457,33 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <!-- MODAL TIPO COMPROBANTE -->
+<!-- MODAL TIPO COMPROBANTE -->
+<div class="modal-bg" id="modal-tipo-comprobante">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-head">
+      <span class="modal-title">🧾 ¿Qué tipo de comprobante?</span>
+      <button class="modal-x" onclick="cerrarModal('modal-tipo-comprobante')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;padding-top:4px">
+      <div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:4px">
+        Elegí el tipo antes de descargar el PDF
+      </div>
+      <button onclick="elegirTipoComprobante('remito')"
+        style="width:100%;padding:14px;background:#fff;border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .15s">
+        <span style="font-size:22px">📄</span>
+        <span>Remito</span>
+        <span id="tc-precio-remito" style="font-size:12px;color:var(--muted);font-weight:400">$0</span>
+      </button>
+      <button onclick="elegirTipoComprobante('factura_a')"
+        style="width:100%;padding:14px;background:#fff;border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .15s">
+        <span style="font-size:22px">🧾</span>
+        <span>Factura A <span style="font-size:12px;color:var(--muted);font-weight:400">(+IVA 21%)</span></span>
+        <span id="tc-precio-iva" style="font-size:12px;color:var(--muted);font-weight:400">$0</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL ZONA -->
 <div class="modal-bg" id="modal-zona">
   <div class="modal-box" style="max-width:480px">
