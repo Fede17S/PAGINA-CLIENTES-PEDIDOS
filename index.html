@@ -1184,7 +1184,7 @@ select option { background:#fff }
   cursor:pointer; -webkit-tap-highlight-color:transparent;
 }
 .prod-card:active { background:var(--s3) }
-.prod-card-img-wrap { width:100%; aspect-ratio:1; background:var(--s3); overflow:hidden; flex-shrink:0 }
+.prod-card-img-wrap { width:100%; aspect-ratio:1; background:var(--s3); overflow:hidden; flex-shrink:0; position:relative; }
 .prod-card-img { width:100%; height:100%; object-fit:cover; display:block }
 .prod-card-img-ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:32px }
 .prod-card-body { padding:8px 9px; flex:1; display:flex; flex-direction:column; gap:2px }
@@ -2686,7 +2686,7 @@ async function _sbPatchStockConfig(data){ return Promise.all(Object.entries(data
 async function _sbGetListas(){ var rows=await sbGet("listas_precios","select=lista_key,nombre,pct,orden&empresa_id=eq."+_sbEmpId+"&order=orden.asc"); if(!rows||!rows.length)return null; var r={};rows.forEach(function(l){r[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});return r; }
 async function _sbPatchListas(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("listas_precios",{empresa_id:_sbEmpId,lista_key:e[0],nombre:e[1].nombre,pct:e[1].pct||0,orden:e[1].orden||0}); })); }
 
-async function _sbGetProductos(){ var rows=await sbGet("productos","select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); if(!rows)return null; var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto};});return r; }
+async function _sbGetProductos(){ var rows=await sbGet("productos","select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); if(!rows)return null; var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null};});return r; }
 async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||""}); return rows&&rows[0]?rows[0].id:null; }
 async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
@@ -4052,29 +4052,51 @@ async function generarPDF(m){
   CY+=5;
   doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,CY,200,CY);
 
-  // ── PRODUCTOS ──
+  // ── PRODUCTOS — tabla con descuentos por ítem ──
   CY+=4;
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor.apply(doc,INK);
-  doc.text("Productos",10,CY);
-  CY+=2;
+  doc.text("Productos",10,CY); CY+=2;
 
-  // Tabla de productos con filas vacías hasta 20
-  var head=[["Descripción","Cant.","Precio","Subtotal"]];
-  var body=ordenes[t].map(function(i){
-    return[i.n, i.c, "$"+fM(i.p), "$"+fM(i.sub)];
-  });
-  var minRows=pdfMinRows; while(body.length < minRows) body.push(["","","",""]);
+  // Determinar si hay descuentos por ítem
+  var tieneDescItemos = ordenes[t].some(function(i){ return i.disc && i.disc.valor>0; });
+  var head, body;
 
-  doc.autoTable({
-    startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
-    headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],
-                lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
-    bodyStyles:{fontSize:9,textColor:INK,fillColor:[255,255,255],
-                lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3},
-                minCellHeight:7},
-    alternateRowStyles:{fillColor:[255,255,255]},
-    columnStyles:{0:{cellWidth:105},1:{halign:"center",cellWidth:20},2:{halign:"right",cellWidth:30},3:{halign:"right",cellWidth:35}}
-  });
+  if(tieneDescItemos || hayDescuentos){
+    // Tabla completa con columna de descuento
+    head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
+    body=ordenes[t].map(function(i){
+      var precioLista=i.p; // precio original sin descuento
+      var hasDsc=i.disc&&i.disc.valor>0;
+      var dscLabel=hasDsc?(i.disc.tipo==="%"?"-"+i.disc.valor+"%":"-$"+fM(i.disc.valor)):"";
+      var precioFinal=hasDsc?Math.round(i.sub/i.c*100)/100:i.p;
+      return[i.n, i.c, "$"+fM(precioLista), dscLabel, hasDsc?"$"+fM(precioFinal):"—", "$"+fM(i.sub)];
+    });
+    var minRows2=pdfMinRows; while(body.length < minRows2) body.push(["","","","","",""]);
+    doc.autoTable({
+      startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
+      headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
+      bodyStyles:{fontSize:8.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:2,left:2,right:2},minCellHeight:7},
+      alternateRowStyles:{fillColor:[255,255,255]},
+      columnStyles:{0:{cellWidth:76},1:{halign:"center",cellWidth:14},2:{halign:"right",cellWidth:24},3:{halign:"center",cellWidth:18},4:{halign:"right",cellWidth:22},5:{halign:"right",cellWidth:26}},
+      didParseCell:function(d){
+        if(d.section==="body"&&d.column.index===3&&d.cell.raw&&d.cell.raw.toString().indexOf("-")===0){
+          d.cell.styles.textColor=[180,60,0]; d.cell.styles.fontStyle="bold";
+        }
+      }
+    });
+  } else {
+    // Tabla simple sin descuentos
+    head=[["Descripción","Cant.","Precio","Subtotal"]];
+    body=ordenes[t].map(function(i){ return[i.n, i.c, "$"+fM(i.p), "$"+fM(i.sub)]; });
+    var minRows3=pdfMinRows; while(body.length < minRows3) body.push(["","","",""]);
+    doc.autoTable({
+      startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
+      headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
+      bodyStyles:{fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3},minCellHeight:7},
+      alternateRowStyles:{fillColor:[255,255,255]},
+      columnStyles:{0:{cellWidth:105},1:{halign:"center",cellWidth:20},2:{halign:"right",cellWidth:30},3:{halign:"right",cellWidth:35}}
+    });
+  }
 
   // ── PIE: Observaciones + Totales ──
   var yP=doc.lastAutoTable.finalY+4;
@@ -4084,33 +4106,47 @@ async function generarPDF(m){
     doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
     doc.text("Observaciones:",10,yP+5);
     doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
-    doc.rect(10,yP+7,88,20); // caja vacía
+    doc.rect(10,yP+7,88,20);
     if(obs){
       doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
       doc.text(doc.splitTextToSize(obs,84),12,yP+13);
     }
   }
 
-  // Totales (derecha)
+  // Totales (derecha) — desglose completo
   var tX=102, tW=98;
   doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
   var ty=yP+7;
-  // Descuento si hay
-  if(hayDescuentos && ahorroTotal>0){
-    doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,8);
-    doc.text("Descuento:",tX+3,ty+5.5);
-    doc.setFont("helvetica","normal"); doc.text("-$"+fM(ahorroTotal),tX+tW-3,ty+5.5,{align:"right"});
-    ty+=8;
+
+  // Subtotal lista (si hay descuento)
+  if(hayDescuentos){
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.rect(tX,ty,tW,7);
+    doc.text("Subtotal lista:",tX+3,ty+5); doc.setFont("helvetica","normal");
+    doc.text("$"+fM(subtotalLista),tX+tW-3,ty+5,{align:"right"}); ty+=7;
+    // Descuento por ítems
+    if(ahorroItems>0){
+      doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
+      doc.text("Dsc. productos:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0);
+      doc.text("-$"+fM(ahorroItems),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
+    }
+    // Descuento general
+    if(montoDscGen>0){
+      var dscGenLbl=dg.tipo==="%"?"Dsc. gral. ("+dg.valor+"%)":"Dsc. gral. fijo:";
+      doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
+      doc.text(dscGenLbl,tX+3,ty+5); doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0);
+      doc.text("-$"+fM(montoDscGen),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
+    }
   }
+
   // IVA si es Factura A
   if(esFactura){
-    doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,8);
-    doc.text("IVA 21%:",tX+3,ty+5.5);
+    doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
+    doc.text("IVA 21%:",tX+3,ty+5);
     var ivaAmt=Math.round(totalFinal*0.21*100)/100;
-    doc.setFont("helvetica","normal"); doc.text("+$"+fM(ivaAmt),tX+tW-3,ty+5.5,{align:"right"});
-    ty+=8;
+    doc.setFont("helvetica","normal"); doc.text("+$"+fM(ivaAmt),tX+tW-3,ty+5,{align:"right"}); ty+=7;
   }
-  // Total
+
+  // Total final
   doc.setDrawColor.apply(doc,INK); doc.setLineWidth(0.5);
   doc.rect(tX,ty,tW,11);
   doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
@@ -4155,12 +4191,22 @@ async function generarPDF(m){
   var bkItem={
     id:"bk_"+Date.now(), fecha:new Date().toISOString(), clienteNom:nom,
     clienteId:document.getElementById("idCli-"+t).value||"", lista:tipoLista[t], obs:obs,
-    items:ordenes[t].map(function(i){return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};}),
+    items:ordenes[t].map(function(i){
+      return{id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,
+             dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};
+    }),
     total:totalFinal, totalConIVA:Math.round(totalFinal*1.21*100)/100, tipo:m,
     usuario:    currentUser ? currentUser.id   : "",
     usuarioNom: currentUser ? (currentUser.name||currentUser.id) : "",
     aprobado:   null, tipoComprobante: null,
-    descuentos: hayDescuentos ? {ahorroItems:ahorroItems,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal} : null
+    descuentos: {
+      ahorroItems: ahorroItems,
+      montoDscGen: montoDscGen,
+      ahorroTotal: ahorroTotal,
+      subtotalLista: subtotalLista,
+      dscGenTipo: dg?dg.tipo:null,
+      dscGenValor: dg?dg.valor:null
+    }
   };
   // Guardar el doc de jsPDF para entregarlo después de la elección
   bkItem._doc   = doc;
@@ -5652,19 +5698,51 @@ function renderBackup(){
       (bk.items||[]).forEach(function(it){
         var r = document.createElement("div");
         r.className = "bk-card-item";
+        var dscHtml = (it.dsc && it.dsc.valor)
+          ? '<span style="font-size:10px;color:#b45309;font-weight:600;margin-left:4px">'+
+            (it.dsc.tipo==="%"?"-"+it.dsc.valor+"%":"-$"+fM(it.dsc.valor))+
+            '</span>'
+          : '';
         r.innerHTML =
           '<span class="bk-ci-cant">'+it.c+'×</span>'+
-          '<span class="bk-ci-name">'+it.n+'</span>'+
+          '<span class="bk-ci-name">'+it.n+dscHtml+'</span>'+
           '<span class="bk-ci-sub">$'+fM(it.sub)+'</span>';
         itemsDiv.appendChild(r);
       });
+      /* Descuentos desglosados */
+      var dsc = bk.descuentos;
+      if(dsc && (dsc.ahorroTotal > 0)){
+        if(dsc.subtotalLista && dsc.subtotalLista !== bk.total){
+          var subRow = document.createElement("div");
+          subRow.className = "bk-card-total-row";
+          subRow.style.cssText = "color:var(--muted);font-size:11.5px";
+          subRow.innerHTML = '<span>Subtotal lista</span><span>$'+fM(dsc.subtotalLista)+'</span>';
+          itemsDiv.appendChild(subRow);
+        }
+        if(dsc.ahorroItems > 0){
+          var dscRow = document.createElement("div");
+          dscRow.className = "bk-card-total-row";
+          dscRow.style.cssText = "color:#b45309;font-size:11.5px;font-weight:600";
+          dscRow.innerHTML = '<span>Dsc. productos</span><span>-$'+fM(dsc.ahorroItems)+'</span>';
+          itemsDiv.appendChild(dscRow);
+        }
+        if(dsc.montoDscGen > 0){
+          var dscGenRow = document.createElement("div");
+          dscGenRow.className = "bk-card-total-row";
+          dscGenRow.style.cssText = "color:#b45309;font-size:11.5px;font-weight:600";
+          var lbl = dsc.dscGenTipo==="%"?"Dsc. gral. ("+dsc.dscGenValor+"%)":"Dsc. gral. fijo";
+          dscGenRow.innerHTML = '<span>'+lbl+'</span><span>-$'+fM(dsc.montoDscGen)+'</span>';
+          itemsDiv.appendChild(dscGenRow);
+        }
+      }
       /* Total row */
       var totRow = document.createElement("div");
       totRow.className = "bk-card-total-row";
+      totRow.style.fontWeight = "700";
       totRow.innerHTML = '<span>Total</span><span>$'+fM(bk.total||0)+'</span>';
       itemsDiv.appendChild(totRow);
       detail.appendChild(itemsDiv);
-    }
+    } // end if items
 
     /* Obs */
     if(bk.obs && bk.obs.trim()){
@@ -7987,7 +8065,6 @@ function _buildCard(key, p) {
   var imgHtml = p.foto
     ? '<img class="prod-card-img" src="' + p.foto + '" loading="lazy" alt="" onerror="_prodImgFail(this)">'
     : '<div class="prod-card-img-ph">📦</div>';
-  // Mostrar precios de todas las listas configuradas
   var listas = getListasOrdenadas();
   var preciosHtml = listas.map(function(e){
     var id=e[0], l=e[1];
@@ -7997,15 +8074,31 @@ function _buildCard(key, p) {
     var abrev = l.nombre.substring(0,3).toUpperCase();
     return '<div class="prod-card-price"><span>'+abrev+'</span><b>'+_fmt(precio)+'</b></div>';
   }).join('');
+
+  // Badge de promo/descuento
+  var promoBadge = "";
+  if(p.precioPromo && p.cantPromo){
+    var pBase = p.precioClientes || p.precioBase || 0;
+    var pctOff = pBase > 0 ? Math.round((1 - p.precioPromo/pBase)*100) : 0;
+    promoBadge = '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">'+
+      '<span style="font-size:10px;background:oklch(93% 0.06 35);color:oklch(38% 0.12 35);padding:2px 6px;border-radius:6px;font-weight:700">'+
+        '🏷️ Promo: '+_fmt(p.precioPromo)+' x'+p.cantPromo+
+        (pctOff>0?' (−'+pctOff+'%)':'')+
+      '</span></div>';
+  }
+
   var card = document.createElement("div");
   card.className = "prod-card";
   card.innerHTML =
-    '<div class="prod-card-img-wrap">' + imgHtml + '</div>' +
+    '<div class="prod-card-img-wrap">' + imgHtml +
+      (p.precioPromo?'<div style="position:absolute;top:6px;right:6px;background:#c5562b;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px">🏷️ PROMO</div>':'') +
+    '</div>' +
     '<div class="prod-card-body">' +
       '<div class="prod-card-cod">' + (p.codigo || "—") + '</div>' +
       '<div class="prod-card-name">' + (p.nombre || "") + '</div>' +
       '<div class="prod-card-cat">' + cat + '</div>' +
       '<div class="prod-card-prices">' + preciosHtml + '</div>' +
+      promoBadge +
     '</div>' +
     '<div class="prod-card-actions">' +
       '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
