@@ -3174,15 +3174,15 @@ async function _nextHojaRutaNum(){
 }
 
 async function _nextRemitoNum(){
-  if(!_sbEmpId) return "00001";
+  if(!_sbEmpId) return "02500";
   try {
     var rows=await sbGet("empresas_config","select=emp_contador&empresa_id=eq."+_sbEmpId);
-    var actual=(rows&&rows[0]&&rows[0].emp_contador)||0;
+    var actual=(rows&&rows[0]&&rows[0].emp_contador)||2499; // default 2499 → primera es 2500
     var sig=actual+1;
     await sbUpsert("empresas_config",{empresa_id:_sbEmpId,emp_contador:sig});
     if(empresaData._config)empresaData._config.emp_contador=sig;
-    return String(sig).padStart(5,"0");
-  } catch(e){ return String(Date.now()).slice(-5); }
+    return String(sig);
+  } catch(e){ return String(2500+Math.floor(Math.random()*10)); }
 }
 
 function aplicarBranding(){
@@ -4243,8 +4243,10 @@ async function generarPDF(m){
   doc.text("Total: $"+fM(totalMostrar),tX+tW-4,ty+7.5,{align:"right"});
 
   // ── PIE DE PÁGINA ──
+  var hrLabelPie = (rutaAbierta&&rutasData[rutaAbierta])?(rutasData[rutaAbierta].hrNum||rutasData[rutaAbierta].nombre||""):"";
+  var pieParts2 = [empNom, "N° "+remitoNum, hrLabelPie?"Ruta "+hrLabelPie:"", fechaHoy].filter(Boolean);
   doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
-  doc.text(empNom+"  ·  Nro: "+remitoNum+"  ·  "+fechaHoy,105,289,{align:"center"});
+  doc.text(pieParts2.join("  ·  "),105,289,{align:"center"});
 
   if(m==="remito"){
     var totalNum=totalFinal, ahora=new Date();
@@ -4303,6 +4305,12 @@ async function generarPDF(m){
   bkItem._tPDF  = t;
   bkItem._nom   = nom;
   bkItem._remitoNum = remitoNum;
+  // Asociar HR de la ruta abierta
+  if(rutaAbierta && rutasData[rutaAbierta]){
+    bkItem._hrNum = rutasData[rutaAbierta].hrNum || rutasData[rutaAbierta].nombre || "";
+  } else {
+    bkItem._hrNum = "";
+  }
   bkItem._ordenes = ordenes[t].map(function(i){return Object.assign({},i);});
   bkItem._hayDescuentos = hayDescuentos;
   bkItem._subtotalLista = subtotalLista;
@@ -4562,15 +4570,17 @@ function imprimirPedidosDeRuta(rk){
   var clientes = Object.entries(ruta.clientes||{});
   if(!clientes.length){ showNotif("No hay pedidos en esta ruta","err"); return; }
   if(!confirm("¿Imprimir los "+clientes.length+" remito(s) de esta ruta?")) return;
+  var hrNum = ruta.hrNum || ruta.nombre || rk.slice(-6);
 
   clientes.forEach(function(entry, i){
     setTimeout(function(){
       var ck = entry[0];
       var cli = entry[1];
-      // Armar un bk compatible con generarPDFDesdeBackup
       var bk = {
         id:         ck,
         _fbKey:     ck,
+        _remitoNum: cli._remitoNum || "",
+        _hrNum:     hrNum,
         fecha:      cli.fecha || ruta.fecha || new Date().toISOString(),
         clienteNom: cli.nom  || cli.nombre || "",
         clienteId:  cli.id   || "",
@@ -4579,7 +4589,8 @@ function imprimirPedidosDeRuta(rk){
         items:      cli.items|| [],
         total:      cli.importe || cli.total || 0,
         usuarioNom: ruta.repartidorNom || "",
-        tipoComprobante: "remito"
+        tipoComprobante: "remito",
+        descuentos: cli.descuentos || null
       };
       generarPDFDesdeBackup(bk, false);
     }, i * 900);
@@ -5193,50 +5204,35 @@ function renderEditItems(wrap, rk, ck){
   editBody.appendChild(dscWrap);
 }
 
-function imprimirRemitoCli(rk, ck){
+async function imprimirRemitoCli(rk, ck){
   var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  if(!cli){alert("No se encontraron datos de este cliente.");return;}
-  var ef=cli.efectivo||0, tr=cli.transferencia||0;
-  var pagado=ef+tr, saldo=(cli.importe||0)-pagado;
-  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
-  if(empresaData.logo) doc.addImage(empresaData.logo,"PNG",10,5,40,20);
-  doc.setFontSize(18); doc.setFont("helvetica","bold");
-  doc.text((empresaData.nombre||"EMPRESA")+" - REMITO",105,16,{align:"center"});
-  doc.setFontSize(11); doc.setFont("helvetica","normal");
-  var cliInfo=dbCli.find(function(c){return c.id===(cli.id||"")||c.nombre===cli.nom;})||null;
-  var cliDir=cliInfo?cliInfo.direccion||"":"";
-  var ry=25;
-  doc.text("Cliente: "+cli.nom,55,ry);
-  if(cliDir){
-    doc.setTextColor(80,100,120);
-    doc.text(cliDir,55,ry+6);
-    doc.setTextColor(30,41,59);
-    ry+=6;
+  if(!cli){ alert("No se encontraron datos de este cliente."); return; }
+  var ruta = rutasData[rk]||{};
+  var hrNum = ruta.hrNum || ruta.nombre || rk.slice(-6);
+
+  // Generar número de remito correlativo
+  var remitoNum = cli._remitoNum;
+  if(!remitoNum){
+    remitoNum = await _nextRemitoNum();
+    // Guardarlo en el cliente de la ruta para no re-generar
+    cli._remitoNum = remitoNum;
+    fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {_remitoNum:remitoNum}).catch(function(){});
   }
-  doc.text("Fecha: "+new Date(cli.fecha||Date.now()).toLocaleDateString()+" "+new Date(cli.fecha||Date.now()).toLocaleTimeString(),55,ry+6);
-  doc.autoTable({
-    startY:44,
-    head:[["Cant","Cod","Producto","P.U","Sub"]],
-    body:(cli.items||[]).map(function(i){return[i.c,i.id,i.n,"$"+fM(i.p),"$"+fM(i.sub)];}),
-    foot:[["","","","TOTAL","$"+fM(cli.importe||0)]],
-    theme:"striped",
-    headStyles:{fillColor:[13,27,42]}
-  });
-  var yFin = doc.lastAutoTable.finalY+8;
-  if(pagado>0){
-    doc.setFont("helvetica","bold"); doc.text("COBRO:",14,yFin);
-    doc.setFont("helvetica","normal");
-    if(ef>0) doc.text("Efectivo: $"+fM(ef),40,yFin);
-    if(tr>0) doc.text("Transferencia: $"+fM(tr),(ef>0?95:40),yFin);
-    yFin+=10;
-  }
-  if(cli.firma){
-    doc.setFont("helvetica","bold"); doc.text("FIRMA DEL CLIENTE:",14,yFin+4);
-    try{ doc.addImage(cli.firma,"JPEG",14,yFin+8,80,32); } catch(e){}
-    yFin+=48;
-  }
-  var pdfUrl = doc.output("bloburl");
-  window.open(pdfUrl,"_blank");
+
+  var bk = {
+    id: ck, _remitoNum: remitoNum, _hrNum: hrNum,
+    fecha: cli.fecha || ruta.fecha || new Date().toISOString(),
+    clienteNom: cli.nom||"",
+    clienteId:  cli.id||"",
+    lista:      cli.lista||"Clientes",
+    obs:        cli.obs||"",
+    items:      cli.items||[],
+    total:      cli.importe||0,
+    usuarioNom: ruta.repartidorNom||"",
+    tipoComprobante: "remito",
+    descuentos: cli.descuentos||null
+  };
+  generarPDFDesdeBackup(bk, false);
 }
 
 function guardarItemsEditados(rk, ck, items, wrap){
@@ -6053,12 +6049,13 @@ function elegirTipoComprobante(tipo){
         else doc2.save(fname2);
       } catch(e){ console.error("Error PDF Factura A:", e); }
     } else {
-      // Remito: usar el PDF ya generado
-      var blob=bk._doc.output("blob");
-      var fname="remito_"+bk._nom+".pdf";
-      var file=new File([blob],fname,{type:"application/pdf"});
-      if(navigator.share)navigator.share({files:[file]}).catch(function(){bk._doc.save(fname);});
-      else bk._doc.save(fname);
+    var nomSafe=(bk._nom||"cliente").replace(/[^a-zA-Z0-9áéíóúñ _-]/g,"").replace(/\s+/g,"_").slice(0,25);
+    var hrTag=bk._hrNum?bk._hrNum.replace("-","")+"_":"";
+    var fname="Remito_"+hrTag+"N"+bk._remitoNum+"_"+nomSafe+".pdf";
+    var blob=bk._doc.output("blob");
+    var file=new File([blob],fname,{type:"application/pdf"});
+    if(navigator.share)navigator.share({files:[file]}).catch(function(){bk._doc.save(fname);});
+    else bk._doc.save(fname);
     }
   }
 
@@ -6269,106 +6266,158 @@ async function confirmarBackupComoRemito(bkParam){
   showNotif("🚚 Pedido enviado a Hoja de Ruta","ok");
 }
 
+// ══ PDF UNIFICADO — FORMATO LA REGIONAL ══
 function generarPDFDesdeBackup(bk, compartir){
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
-  var INK=[20,20,20], LINE=[180,180,180], MID=[100,100,100];
-  var nom = bk.clienteNom||bk.cliente_nom||bk.cliente||"Mostrador";
-  var ed  = _getEmpDatos();
-  var empNom = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
-  var remitoNum = bk._fbKey ? String(bk._fbKey).slice(-5) : (bk.id?String(bk.id).slice(-5):"00000");
-  var fechaStr = new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
-  var tipoLabel = (bk.tipoComprobante==="factura_a") ? "FACTURA A" : "Remito";
-  var esFactura = (bk.tipoComprobante==="factura_a");
-  var iva = esFactura ? 1.21 : 1;
+  var INK=[20,20,20], LINE=[180,180,180];
+  var nom      = bk.clienteNom||bk.cliente_nom||bk.cliente||"Mostrador";
+  var ed       = _getEmpDatos();
+  var empNom   = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
+  var esFactura= (bk.tipoComprobante==="factura_a");
+  var iva      = esFactura ? 1.21 : 1;
+  var tipoLabel= esFactura ? "FACTURA A" : "Remito";
+  var remitoNum = bk._remitoNum || (bk.id?String(bk.id).slice(-5):"00000");
+  var hrNum     = bk._hrNum || "";
+  var fechaStr  = new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
 
-  // Encabezado centrado
+  var cliRaw = Object.values(_clientesDB||{}).find(function(u){ return u.id===bk.clienteId||(u.name||"")===nom; })||null;
+  var cliDir  = cliRaw?(cliRaw.direccion||""):"";
+  var cliCuit = cliRaw?(cliRaw.cuit||""):"";
+  var cliTel  = cliRaw?(cliRaw.tel||cliRaw.telefono||""):"";
+  var cliZona = cliRaw?(cliRaw.zona||""):"";
+  var cliRec  = cliRaw?(cliRaw.rec||cliRaw.recepciona||""):"";
+
+  var cfg = _getPdfConfig();
+  if(cfg.showTelefono   ===false) cliTel="";
+  if(cfg.showZona       ===false) cliZona="";
+  if(cfg.showEncargado  ===false) cliRec="";
+  if(cfg.showCuitCliente===false) cliCuit="";
+  if(cfg.showDirCliente ===false) cliDir="";
+  var pdfMinRows=cfg.minRows||15;
+  var showObs   =cfg.showObs!==false;
+
   if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",80,6,50,16);}catch(e){}}
   doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
   doc.text(empNom.toUpperCase(),105,25,{align:"center"});
 
-  // Empresa izquierda
-  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,MID);
+  doc.setFontSize(8.5);
   var ey=18;
-  if(ed.cuit) { doc.text("CUIT: "+ed.cuit,10,ey); ey+=5; }
-  if(ed.dir)  { doc.text("Dirección: "+ed.dir,10,ey); ey+=5; }
-  if(ed.tel)  { doc.text("Tel: "+ed.tel,10,ey); ey+=5; }
+  if(ed.cuit){doc.text("CUIT: "+ed.cuit,10,ey);ey+=5;}
+  if(ed.dir) {doc.text("Dirección: "+ed.dir,10,ey);ey+=5;}
+  if(ed.tel) {doc.text("Tel: "+ed.tel,10,ey);ey+=5;}
 
-  // Tipo doc + número (derecha)
-  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor.apply(doc,INK);
-  doc.text(tipoLabel,200,20,{align:"right"});
+  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text(tipoLabel,200,20,{align:"right"});
   doc.setFont("helvetica","normal"); doc.setFontSize(9);
   doc.text("N°: "+remitoNum,200,27,{align:"right"});
   doc.text("Fecha: "+fechaStr,200,33,{align:"right"});
-  if(bk.usuarioNom||bk.usuario) doc.text("Vendedor: "+(bk.usuarioNom||bk.usuario),200,39,{align:"right"});
+  if(hrNum){doc.setFont("helvetica","bold");doc.setTextColor(37,99,235);doc.text("Ruta: "+hrNum,200,39,{align:"right"});doc.setFont("helvetica","normal");doc.setTextColor.apply(doc,INK);}
+  if(bk.usuarioNom){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text("Vendedor: "+bk.usuarioNom,200,hrNum?44:39,{align:"right"});}
 
-  // Separador
-  var SEP1=Math.max(ey+4,44);
+  var SEP1=Math.max(ey+4,hrNum?48:44);
   doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,SEP1,200,SEP1);
 
-  // Datos del cliente
   var CY=SEP1+5;
-  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
-  doc.text("Datos del cliente",10,CY);
-  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.line(10,CY+1,80,CY+1);
-  CY+=7;
-  doc.setFont("helvetica","bold"); doc.text("Nombre:",10,CY);
-  doc.setFont("helvetica","normal"); doc.text(nom,35,CY);
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text("Datos del cliente",10,CY);
+  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.line(10,CY+1,80,CY+1); CY+=7;
+  doc.setFont("helvetica","bold"); doc.text("Nombre:",10,CY); doc.setFont("helvetica","normal"); doc.text(nom,35,CY);
+  if(cliDir){doc.setFont("helvetica","bold");doc.text("Dirección:",118,CY);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(cliDir,72),145,CY);}
+  CY+=6;
+  if(cliRec){doc.setFont("helvetica","bold");doc.text("Encargado:",10,CY);doc.setFont("helvetica","normal");doc.text(cliRec,38,CY);}
+  if(cliCuit){doc.setFont("helvetica","bold");doc.text("CUIT:",118,CY);doc.setFont("helvetica","normal");doc.text(cliCuit,133,CY);}
+  CY+=6;
+  if(cliTel){doc.setFont("helvetica","bold");doc.text("Teléfono:",10,CY);doc.setFont("helvetica","normal");doc.text(cliTel,35,CY);}
+  if(cliZona){doc.setFont("helvetica","bold");doc.text("Zona:",118,CY);doc.setFont("helvetica","normal");doc.text(cliZona,133,CY);}
   CY+=5;
-  doc.setLineWidth(0.5); doc.line(10,CY,200,CY); CY+=4;
+  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,CY,200,CY);
 
-  // Productos
-  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Productos",10,CY); CY+=2;
-  var items = bk.items||[];
-  var body=items.map(function(i){
-    var p=esFactura?Math.round((i.p||0)*iva*100)/100:(i.p||0);
-    var s=esFactura?Math.round((i.sub||(i.p||0)*(i.c||1))*iva*100)/100:(i.sub||(i.p||0)*(i.c||1));
-    return[i.n||i.nombre||"",i.c||i.cantidad||1,"$"+fM(p),"$"+fM(s)];
-  });
-  var minRows=15; while(body.length<minRows) body.push(["","","",""]);
-  doc.autoTable({
-    startY:CY+2, margin:{left:10,right:10},
-    head:[["Descripción","Cant.",esFactura?"P.U. c/IVA":"Precio","Subtotal"]],
-    body:body, theme:"grid",
-    headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
-    bodyStyles:{fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3},minCellHeight:7},
-    columnStyles:{0:{cellWidth:105},1:{halign:"center",cellWidth:20},2:{halign:"right",cellWidth:30},3:{halign:"right",cellWidth:35}}
-  });
+  CY+=4; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Productos",10,CY); CY+=2;
 
-  // Pie
+  var items=bk.items||[];
+  var tieneDescItems=items.some(function(i){return i.dsc&&i.dsc.valor>0;});
+  var head,body;
+
+  if(tieneDescItems){
+    head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
+    body=items.map(function(i){
+      var pL=esFactura?Math.round((i.p||0)*iva*100)/100:(i.p||0);
+      var hasDsc=i.dsc&&i.dsc.valor>0;
+      var dscLbl=hasDsc?(i.dsc.tipo==="%"?"-"+i.dsc.valor+"%":"-$"+fM(i.dsc.valor)):"";
+      var sub=esFactura?Math.round(((i.sub||(i.p||0)*(i.c||1)))*iva*100)/100:(i.sub||(i.p||0)*(i.c||1));
+      var pF=hasDsc?Math.round(sub/(i.c||1)*100)/100:pL;
+      return[i.n||"",i.c||1,"$"+fM(pL),dscLbl,hasDsc?"$"+fM(pF):"—","$"+fM(sub)];
+    });
+    while(body.length<pdfMinRows) body.push(["","","","","",""]);
+    doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
+      headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
+      bodyStyles:{fontSize:8.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:2,left:2,right:2},minCellHeight:7},
+      alternateRowStyles:{fillColor:[255,255,255]},
+      columnStyles:{0:{cellWidth:76},1:{halign:"center",cellWidth:14},2:{halign:"right",cellWidth:24},3:{halign:"center",cellWidth:18},4:{halign:"right",cellWidth:22},5:{halign:"right",cellWidth:26}},
+      didParseCell:function(d){if(d.section==="body"&&d.column.index===3&&d.cell.raw&&String(d.cell.raw).indexOf("-")===0){d.cell.styles.textColor=[180,60,0];d.cell.styles.fontStyle="bold";}}
+    });
+  } else {
+    head=[["Descripción","Cant.",esFactura?"P.U. c/IVA":"Precio","Subtotal"]];
+    body=items.map(function(i){
+      var p=esFactura?Math.round((i.p||0)*iva*100)/100:(i.p||0);
+      var s=esFactura?Math.round(((i.sub||(i.p||0)*(i.c||1)))*iva*100)/100:(i.sub||(i.p||0)*(i.c||1));
+      return[i.n||"",i.c||1,"$"+fM(p),"$"+fM(s)];
+    });
+    while(body.length<pdfMinRows) body.push(["","","",""]);
+    doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
+      headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
+      bodyStyles:{fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3},minCellHeight:7},
+      alternateRowStyles:{fillColor:[255,255,255]},
+      columnStyles:{0:{cellWidth:105},1:{halign:"center",cellWidth:20},2:{halign:"right",cellWidth:30},3:{halign:"right",cellWidth:35}}
+    });
+  }
+
   var yP=doc.lastAutoTable.finalY+4;
+  var dsc=bk.descuentos;
   var total=bk.total||items.reduce(function(s,i){return s+(i.sub||(i.p||0)*(i.c||1));},0);
   var totalMostrar=esFactura?Math.round(total*iva*100)/100:total;
-  doc.setDrawColor.apply(doc,LINE);
-  doc.rect(10,yP+7,88,20); // caja observaciones
-  if(bk.obs&&bk.obs.trim()){
+
+  if(showObs){
     doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
     doc.text("Observaciones:",10,yP+5);
-    doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-    doc.text(doc.splitTextToSize(bk.obs,84),12,yP+13);
-  } else {
-    doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
-    doc.text("Observaciones:",10,yP+5);
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.rect(10,yP+7,88,20);
+    if(bk.obs&&bk.obs.trim()){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text(doc.splitTextToSize(bk.obs,84),12,yP+13);}
   }
-  // Total box
-  var tX=102, tW=98, ty=yP+7;
+
+  var tX=102,tW=98,ty=yP+7;
+  doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
+
+  if(dsc&&dsc.ahorroTotal>0){
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
+    doc.rect(tX,ty,tW,7); doc.text("Subtotal lista:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.text("$"+fM(dsc.subtotalLista||total),tX+tW-3,ty+5,{align:"right"}); ty+=7;
+    if(dsc.ahorroItems>0){
+      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,7); doc.text("Dsc. productos:",tX+3,ty+5);
+      doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0); doc.text("-$"+fM(dsc.ahorroItems),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
+    }
+    if(dsc.montoDscGen>0){
+      var dgl=dsc.dscGenTipo==="%"?"Dsc. gral. ("+dsc.dscGenValor+"%)":"Dsc. gral. fijo";
+      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,7); doc.text(dgl,tX+3,ty+5);
+      doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0); doc.text("-$"+fM(dsc.montoDscGen),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
+    }
+  }
   if(esFactura){
     var ivaAmt=Math.round(total*0.21*100)/100;
-    doc.rect(tX,ty,tW,8);
-    doc.setFont("helvetica","bold"); doc.text("IVA 21%:",tX+3,ty+5.5);
-    doc.setFont("helvetica","normal"); doc.text("+$"+fM(ivaAmt),tX+tW-3,ty+5.5,{align:"right"});
-    ty+=8;
+    doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
+    doc.text("IVA 21%:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.text("+$"+fM(ivaAmt),tX+tW-3,ty+5,{align:"right"}); ty+=7;
   }
-  doc.setLineWidth(0.5); doc.rect(tX,ty,tW,11);
+  doc.setDrawColor.apply(doc,INK); doc.setLineWidth(0.5); doc.rect(tX,ty,tW,11);
   doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
   doc.text("Total: $"+fM(totalMostrar),tX+tW-4,ty+7.5,{align:"right"});
 
+  var pieParts=[empNom,tipoLabel+" N°"+remitoNum,hrNum?"Ruta "+hrNum:"",fechaStr].filter(Boolean);
   doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
-  doc.text(empNom+"  ·  "+tipoLabel+"  ·  N°: "+remitoNum+"  ·  "+fechaStr,105,289,{align:"center"});
+  doc.text(pieParts.join("  ·  "),105,289,{align:"center"});
 
-  var fname=(esFactura?"facturaA":"remito")+"_"+nom.replace(/\s+/g,"_").slice(0,25)+".pdf";
+  var nomSafe=nom.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g,"").replace(/\s+/g,"_").slice(0,25);
+  var hrTag=hrNum?hrNum.replace("-","")+"_":"";
+  var fname=(esFactura?"FactA":"Remito")+"_"+hrTag+"N"+remitoNum+"_"+nomSafe+".pdf";
+
   var blob=doc.output("blob");
   var file=new File([blob],fname,{type:"application/pdf"});
-  if(compartir && navigator.share){
+  if(compartir&&navigator.share){
     navigator.share({files:[file]}).catch(function(){doc.save(fname);});
   } else {
     doc.save(fname);
