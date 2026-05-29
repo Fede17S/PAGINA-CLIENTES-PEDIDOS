@@ -1717,9 +1717,18 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <div id="hoja" class="section">
-  <div class="ruta-header">
+  <div class="ruta-header" style="flex-wrap:wrap;gap:8px">
     <span id="fb-hoja-status" class="fb-pill sync">☁️</span>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1">
+      <!-- Buscador de cliente en rutas -->
+      <div style="position:relative;flex:1;min-width:160px;max-width:260px">
+        <input type="text" id="ruta-buscar-cli" placeholder="🔍 Buscar cliente…"
+          autocomplete="off" autocorrect="off" oninput="_buscarEnRutas(this.value)"
+          style="width:100%;padding:7px 10px 7px 32px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none">🔍</span>
+        <button id="ruta-buscar-clear" onclick="document.getElementById('ruta-buscar-cli').value='';_buscarEnRutas('')"
+          style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:13px;cursor:pointer;color:var(--muted);padding:2px">✕</button>
+      </div>
       <!-- Filtros -->
       <select id="ruta-fil-estado" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff">
         <option value="">📋 Todas</option>
@@ -1736,6 +1745,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <button class="nueva-ruta-btn" onclick="crearNuevaRuta()">+ Nueva Ruta</button>
     </div>
   </div>
+  <!-- Resultado de búsqueda global -->
+  <div id="ruta-search-result" style="display:none;padding:10px 14px;background:var(--s2);border-radius:9px;margin-bottom:8px;font-size:13px;color:var(--muted)"></div>
   <div id="ruta-summary-bar" style="display:none" class="ruta-summary-bar">
     <div class="rsb-item"><div class="rsb-val" id="rsb-total">$0</div><div class="rsb-lbl">Total</div></div>
     <div class="rsb-item"><div class="rsb-val" id="rsb-cobrado">$0</div><div class="rsb-lbl">Cobrado</div></div>
@@ -2800,7 +2811,10 @@ function fbPatch(path, data){
     if(p.length===4) return sbPatch("rutas","id=eq."+id+"&empresa_id=eq."+_sbEmpId, {
       nombre:          data.nombre          !== undefined ? data.nombre          : undefined,
       repartidor_id:   data.repartidorId    !== undefined ? data.repartidorId    : undefined,
-      repartidor_nom:  data.repartidorNom   !== undefined ? data.repartidorNom   : undefined
+      repartidor_nom:  data.repartidorNom   !== undefined ? data.repartidorNom   : undefined,
+      finalizada:      data.finalizada      !== undefined ? data.finalizada      : undefined,
+      finalizada_en:   data.finalizadaEn    !== undefined ? data.finalizadaEn    : undefined,
+      zona_id:         data.zona_id         !== undefined ? data.zona_id         : undefined
     });
     if(p.length>=6 && p[4]==="clientes") return _sbPatchRutaCli(p[3],p[5],data);
   }
@@ -2943,7 +2957,7 @@ async function _sbInsertUsuario(u){ var rows=await sbPost("usuarios",{empresa_id
 async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
 async function _sbGetRutas(){
-  var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
+  var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
   if(!rutas||!rutas.length) return null;
   var ids=rutas.map(function(r){return r.id;}).join(",");
   var clis=await sbGet("ruta_clientes","select=*&ruta_id=in.("+ids+")&order=created_at.asc");
@@ -2978,6 +2992,8 @@ async function _sbGetRutas(){
       repartidorNom: r.repartidor_nom||null,
       hrNum:         r.hr_num||"",
       zona_id:       r.zona_id||null,
+      finalizada:    r.finalizada===true,
+      finalizadaEn:  r.finalizada_en||null,
       clientes:      cm
     };
   });
@@ -5032,6 +5048,20 @@ function renderRutas(){
 
     var btnDel=document.createElement("button");
     if(role==="admin"){
+      // Botón Finalizar ruta
+      var yaFinalizada = ruta.finalizada === true;
+      var btnFin=document.createElement("button");
+      btnFin.className="btn-rename";
+      if(yaFinalizada){
+        btnFin.style.cssText="background:#e8f5e9;color:#1b5e20;border-color:#a5d6a7;font-weight:700";
+        btnFin.innerHTML="✅ Finalizada · "+(ruta.finalizadaEn?new Date(ruta.finalizadaEn).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"");
+        btnFin.onclick=function(){ if(confirm("¿Reabrir esta hoja de ruta?")) _toggleFinalizarRuta(rutaKey,false); };
+      } else {
+        btnFin.innerHTML="✅ Finalizar ruta";
+        btnFin.onclick=function(){ _finalizarRuta(rutaKey); };
+      }
+      actBtns.appendChild(btnFin);
+
       btnDel.className="btn-del-ruta"; btnDel.textContent="🗑 Borrar ruta";
       btnDel.onclick=function(){borrarRuta(rutaKey);};
       actBtns.appendChild(btnDel);
@@ -5044,6 +5074,105 @@ function renderRutas(){
 }
 
 
+// ══ BUSCADOR EN HOJA DE RUTA ══
+var _rutaSearchQ = "";
+
+function _buscarEnRutas(q){
+  _rutaSearchQ = (q||"").toLowerCase().trim();
+  var clearBtn = document.getElementById("ruta-buscar-clear");
+  var inp = document.getElementById("ruta-buscar-cli");
+  if(clearBtn) clearBtn.style.display = _rutaSearchQ ? "block" : "none";
+  if(inp) inp.style.borderColor = _rutaSearchQ ? "var(--accent)" : "var(--border)";
+
+  var resultDiv = document.getElementById("ruta-search-result");
+  if(!_rutaSearchQ){
+    if(resultDiv) resultDiv.style.display="none";
+    // Mostrar todas las rutas y todos los clientes normalmente
+    document.querySelectorAll(".ruta-cli-card").forEach(function(c){ c.style.display=""; });
+    document.querySelectorAll(".ruta-detail-card").forEach(function(d){ d.style.display=""; });
+    return;
+  }
+
+  var totalEncontrados = 0;
+  var rutasConMatch = 0;
+
+  // Buscar en cada ruta
+  Object.entries(rutasData||{}).forEach(function(entry){
+    var rk = entry[0];
+    var ruta = entry[1];
+    var clientes = ruta.clientes||{};
+    var matchEnEstaRuta = 0;
+
+    Object.entries(clientes).forEach(function(ce){
+      var ck = ce[0], cli = ce[1];
+      var nom = (cli.nom||"").toLowerCase();
+      var matches = nom.includes(_rutaSearchQ);
+      // Buscar el card DOM de este cliente
+      var cliCard = document.querySelector("[data-rk='"+rk+"'][data-ck='"+ck+"']");
+      if(!cliCard){
+        // Buscar por ID alternativo si existe
+        cliCard = document.getElementById("cli-row-"+rk+"-"+ck);
+      }
+      if(cliCard) cliCard.style.display = matches ? "" : "none";
+      if(matches){ matchEnEstaRuta++; totalEncontrados++; }
+    });
+
+    // Abrir automáticamente la ruta si tiene coincidencias
+    var detailCard = document.querySelector(".ruta-detail-card[data-rk='"+rk+"']");
+    var toggleBtn  = document.querySelector(".ruta-list-btn[data-rk='"+rk+"']");
+    if(detailCard && toggleBtn){
+      if(matchEnEstaRuta > 0){
+        detailCard.style.display="block";
+        toggleBtn.classList.add("open");
+        rutasConMatch++;
+      }
+    }
+  });
+
+  if(resultDiv){
+    resultDiv.style.display="block";
+    resultDiv.innerHTML = totalEncontrados > 0
+      ? '🔍 <b>'+totalEncontrados+'</b> cliente'+(totalEncontrados!==1?'s':'')+' encontrado'+(totalEncontrados!==1?'s':'')+' en <b>'+rutasConMatch+'</b> ruta'+(rutasConMatch!==1?'s':'')
+      : '🔍 Sin clientes que coincidan con "<b>'+escHtml(_rutaSearchQ)+'</b>"';
+  }
+}
+
+// ══ FINALIZAR RUTA ══
+async function _finalizarRuta(rk){
+  var ruta = rutasData[rk];
+  if(!ruta) return;
+  var clientes = Object.values(ruta.clientes||{});
+  var pendientes = clientes.filter(function(c){
+    var pagado=(c.efectivo||0)+(c.transferencia||0)+((c.pagosAdicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0));
+    return pagado < (c.importe||0);
+  });
+  var msg = "¿Finalizar esta hoja de ruta?";
+  if(pendientes.length > 0){
+    msg += "\n\n⚠️ Hay "+pendientes.length+" cliente"+(pendientes.length!==1?"s":"")+" con saldo pendiente:\n";
+    msg += pendientes.slice(0,5).map(function(c){
+      var pagado=(c.efectivo||0)+(c.transferencia||0)+((c.pagosAdicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0));
+      return "• "+c.nom+" — debe $"+fM((c.importe||0)-pagado);
+    }).join("\n");
+    if(pendientes.length>5) msg += "\n• … y "+(pendientes.length-5)+" más";
+  }
+  if(!confirm(msg)) return;
+  _toggleFinalizarRuta(rk, true);
+}
+
+async function _toggleFinalizarRuta(rk, finalizar){
+  var ahora = new Date().toISOString();
+  var patch = finalizar
+    ? { finalizada:true, finalizadaEn:ahora }
+    : { finalizada:false, finalizadaEn:null };
+  try {
+    await fbPatch("empresas/"+empresaKey+"/rutas/"+rk, patch);
+    rutasData[rk].finalizada   = finalizar;
+    rutasData[rk].finalizadaEn = finalizar ? ahora : null;
+    renderRutas();
+    showNotif(finalizar?"✅ Hoja de ruta finalizada":"🔄 Hoja de ruta reabierta","ok");
+  } catch(e){ showNotif("Error: "+(e.message||""),"err"); }
+}
+
 function buildClienteRow(rutaKey, cliKey, cli){
   var ef=cli.efectivo||0, tr=cli.transferencia||0, tot=cli.importe||0;
   var pagAd=(cli.pagosAdicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0);
@@ -5054,6 +5183,10 @@ function buildClienteRow(rutaKey, cliKey, cli){
 
   var row=document.createElement("div");
   row.className="rc-row";
+  row.id="cli-row-"+rutaKey+"-"+cliKey;
+  row.dataset.rk=rutaKey;
+  row.dataset.ck=cliKey;
+  row.dataset.nom=(cli.nom||"").toLowerCase();
 
   /* ── HEAD ── */
   var head=document.createElement("div");
