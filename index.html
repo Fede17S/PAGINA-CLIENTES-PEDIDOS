@@ -588,6 +588,32 @@ select option { background:#fff }
 
 /* ── MAPA ── */
 #mapa-leaflet { height:340px; border-radius:var(--radius); margin-bottom:12px; border:1px solid var(--border); box-shadow:var(--shadow-sm) }
+.me-map-wrap { position:relative; flex:1; min-height:300px; }
+.me-map-wrap #mapa-leaflet { height:100%; margin-bottom:0; border-radius:var(--radius); min-height:340px; }
+.dir-suggestion-item { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border2); transition:background .1s; }
+.dir-suggestion-item:hover { background:var(--s2); }
+.dir-suggestion-item .ds-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+.dir-suggestion-item .ds-text { flex:1; line-height:1.3; }
+.dir-suggestion-item .ds-text b { color:var(--text); font-weight:600; }
+.dir-suggestion-item .ds-text span { color:var(--muted); font-size:11.5px; }
+.gps-capture-btn { width:100%; padding:11px; background:var(--text); color:#fff; border:none; border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:background .15s; margin-bottom:7px; touch-action:manipulation; }
+.gps-capture-btn:hover { background:#000; }
+.gps-capture-btn:disabled { background:var(--muted); cursor:not-allowed; }
+.parada-card { background:#fff; border:1.5px solid var(--border); border-radius:11px; margin-bottom:8px; overflow:hidden; transition:border-color .15s, box-shadow .15s; }
+.parada-card.activa { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklch,var(--accent) 18%,transparent); }
+.parada-card.entregada { opacity:.65; border-color:var(--border2); }
+.parada-head { display:flex; align-items:center; gap:10px; padding:11px 13px; cursor:pointer; }
+.parada-num { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:800; font-size:12px; color:#fff; flex-shrink:0; }
+.parada-info { flex:1; min-width:0; }
+.parada-nom { font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.parada-dir { font-size:11.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
+.parada-total { font-weight:800; font-size:14px; text-align:right; }
+.nav-btns { display:flex; gap:6px; padding:8px 12px 10px; border-top:1px solid var(--border2); flex-wrap:wrap; }
+.nav-btn { flex:1; min-width:60px; padding:7px 4px; border-radius:7px; font-size:11.5px; font-weight:600; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:4px; }
+.nav-gmaps { background:#e8f0fe; color:#1a73e8; }
+.nav-waze  { background:#e8f5e9; color:#00c0ff; color:#0a7aff; }
+.nav-apple { background:#f0f0f0; color:#333; }
+.me-list-col { display:flex; flex-direction:column; overflow:hidden; }
 /* ── MAPA DE ENTREGAS — layout mejorado ── */
 .me-root { display:none; flex-direction:column; gap:0; padding:0; height:100%; overflow:hidden }
 .section.me-root { padding:0; max-width:none !important; margin:0 !important }
@@ -1738,32 +1764,68 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <div id="mapa-entregas" class="section me-root">
-  <!-- Toolbar top -->
-  <div class="me-toolbar">
-    <div class="me-toolbar-left">
-      <select id="mapa-ruta-sel" onchange="seleccionarRutaMapa()">
+
+  <!-- Toolbar -->
+  <div class="me-toolbar" style="flex-wrap:wrap;gap:8px">
+    <div class="me-toolbar-left" style="flex:1;min-width:200px">
+      <select id="mapa-ruta-sel" onchange="seleccionarRutaMapa()" style="flex:1;font-size:13px;padding:9px 12px;border-radius:9px;border:1px solid var(--border)">
         <option value="">— Elegí una hoja de ruta —</option>
       </select>
     </div>
-    <div class="me-toolbar-right">
+    <div class="me-toolbar-right" style="flex-shrink:0">
       <button class="btn btn-ghost btn-sm" id="btn-me-gps" onclick="meDetectarGPS()" title="Detectar mi posición">📡 Mi posición</button>
-      <button class="btn btn-primary btn-sm" onclick="optimizarYMostrar()">📍 Optimizar ruta</button>
+      <button class="btn btn-primary btn-sm" onclick="optimizarYMostrar()" style="padding:9px 16px">
+        🗺️ Trazar ruta
+      </button>
     </div>
   </div>
 
-  <!-- Stats bar -->
+  <!-- Stats bar mejorado -->
   <div id="mapa-stats" class="mapa-stats" style="display:none">
-    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-paradas">0</div><div class="mapa-stat-lbl">Paradas</div></div>
-    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-distancia">—</div><div class="mapa-stat-lbl">Distancia est.</div></div>
-    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-cobrar">$0</div><div class="mapa-stat-lbl">Por cobrar</div></div>
-    <div class="mapa-stat"><div class="mapa-stat-val" id="ms-gps-status">—</div><div class="mapa-stat-lbl">GPS</div></div>
+    <div class="mapa-stat">
+      <div class="mapa-stat-val" id="ms-paradas">0</div>
+      <div class="mapa-stat-lbl">📍 Paradas</div>
+    </div>
+    <div class="mapa-stat">
+      <div class="mapa-stat-val" id="ms-entregados" style="color:var(--green)">0</div>
+      <div class="mapa-stat-lbl">✅ Entregados</div>
+    </div>
+    <div class="mapa-stat">
+      <div class="mapa-stat-val" id="ms-distancia">—</div>
+      <div class="mapa-stat-lbl">📏 Distancia</div>
+    </div>
+    <div class="mapa-stat">
+      <div class="mapa-stat-val" id="ms-cobrar" style="color:var(--amber)">$0</div>
+      <div class="mapa-stat-lbl">💰 Por cobrar</div>
+    </div>
+    <div class="mapa-stat">
+      <div class="mapa-stat-val" id="ms-gps-status" style="font-size:14px">—</div>
+      <div class="mapa-stat-lbl">GPS</div>
+    </div>
   </div>
 
-  <!-- Split layout: map left + list right -->
+  <!-- Map + list split -->
   <div class="me-split">
-    <div id="mapa-leaflet" class="me-map"></div>
+    <!-- Map -->
+    <div class="me-map-wrap">
+      <div id="mapa-leaflet" class="me-map"></div>
+      <!-- Legend overlay on map -->
+      <div id="mapa-legend" style="display:none;position:absolute;bottom:12px;left:12px;background:rgba(255,255,255,.93);border-radius:10px;padding:8px 12px;font-size:11px;z-index:500;box-shadow:0 2px 10px rgba(0,0,0,.15)">
+        <div style="font-weight:700;margin-bottom:5px;color:var(--text)">Leyenda</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="width:12px;height:12px;border-radius:50%;background:#059669;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div> Tu posición</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="width:12px;height:12px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div> Pendiente</div>
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:#9ca3af;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div> Entregado</div>
+      </div>
+    </div>
+
+    <!-- Paradas list -->
     <div class="me-list-col">
-      <div id="mapa-paradas"></div>
+      <!-- Buscador dentro del mapa -->
+      <div style="padding:10px 10px 8px;border-bottom:1px solid var(--border2)">
+        <input type="text" id="mapa-buscar-parada" placeholder="🔍 Filtrar paradas…" oninput="_filtrarParadas(this.value)"
+               style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+      </div>
+      <div id="mapa-paradas" style="flex:1;overflow-y:auto"></div>
     </div>
   </div>
 </div>
@@ -2029,12 +2091,18 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <input type="text" id="nc-cuit" placeholder="ej: 20-12345678-9" autocomplete="off" inputmode="numeric">
       </div>
       <div class="cli-field full">
-        <label>Dirección (para GPS)</label>
-        <div style="display:flex;gap:7px">
-          <input type="text" id="nc-dir" placeholder="ej: San Martín 450, Rawson, Chubut" style="flex:1">
-          <button class="btn btn-ghost btn-sm" onclick="verificarDirNuevo()" title="Verificar en mapa" style="white-space:nowrap;flex-shrink:0">🔍 Verificar</button>
+        <label>Dirección</label>
+        <div style="display:flex;gap:7px;margin-bottom:6px">
+          <input type="text" id="nc-dir" placeholder="ej: San Martín 450, Rawson, Chubut" style="flex:1"
+                 oninput="_dirAutoComplete('nc-dir','nc-dir-suggestions')">
+          <button class="btn btn-ghost btn-sm" onclick="_capturarGPSParaCliente('nc')" title="Usar mi ubicación GPS ahora" style="white-space:nowrap;flex-shrink:0;background:var(--text);color:#fff;border-color:var(--text)">
+            📍 GPS
+          </button>
         </div>
-        <div id="nc-dir-result" style="display:none;margin-top:6px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
+        <div id="nc-dir-suggestions" style="display:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.1);margin-bottom:4px;max-height:200px;overflow-y:auto;z-index:50;position:relative"></div>
+        <div id="nc-dir-result" style="display:none;margin-top:4px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
+        <input type="hidden" id="nc-lat">
+        <input type="hidden" id="nc-lng">
       </div>
       <div class="cli-field">
         <label>Zona</label>
@@ -2123,12 +2191,18 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <input type="text" id="ec-cuit" placeholder="ej: 20-12345678-9" autocomplete="off" inputmode="numeric">
       </div>
       <div class="cli-field full">
-        <label>Dirección (para GPS)</label>
-        <div style="display:flex;gap:7px">
-          <input type="text" id="ec-dir" style="flex:1">
-          <button class="btn btn-ghost btn-sm" onclick="verificarDirEdit()" style="white-space:nowrap;flex-shrink:0">🔍 Verificar</button>
+        <label>Dirección</label>
+        <div style="display:flex;gap:7px;margin-bottom:6px">
+          <input type="text" id="ec-dir" style="flex:1" placeholder="ej: San Martín 450, Rawson"
+                 oninput="_dirAutoComplete('ec-dir','ec-dir-suggestions')">
+          <button class="btn btn-ghost btn-sm" onclick="_capturarGPSParaCliente('ec')" title="Usar mi ubicación GPS ahora" style="white-space:nowrap;flex-shrink:0;background:var(--text);color:#fff;border-color:var(--text)">
+            📍 GPS
+          </button>
         </div>
-        <div id="ec-dir-result" style="display:none;margin-top:6px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
+        <div id="ec-dir-suggestions" style="display:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.1);margin-bottom:4px;max-height:200px;overflow-y:auto;z-index:50;position:relative"></div>
+        <div id="ec-dir-result" style="display:none;margin-top:4px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
+        <input type="hidden" id="ec-lat">
+        <input type="hidden" id="ec-lng">
       </div>
       <div class="cli-field full">
         <label>Notas</label>
@@ -5024,10 +5098,16 @@ function buildClienteRow(rutaKey, cliKey, cli){
     var inp=document.createElement("div");
     inp.className="rc-cobro-inputs";
     if(modo==="efectivo"||modo==="mixto"){
-      inp.innerHTML+='<div class="rc-cobro-field"><label>💵 Efectivo</label><input type="number" id="ef-'+rutaKey+'-'+cliKey+'" value="'+(ef||"")+'"></div>';
+      inp.innerHTML+='<div class="rc-cobro-field"><label>💵 Efectivo</label>'+
+        '<input type="text" inputmode="decimal" pattern="[0-9.,]*" id="ef-'+rutaKey+'-'+cliKey+'" value="'+(ef||"")+'" '+
+        'placeholder="0" autocomplete="off" style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:15px" '+
+        'oninput="_normalizarImporte(this)" onblur="_normalizarImporte(this)"></div>';
     }
     if(modo==="transferencia"||modo==="mixto"){
-      inp.innerHTML+='<div class="rc-cobro-field"><label>📲 Transferencia</label><input type="number" id="tr-'+rutaKey+'-'+cliKey+'" value="'+(tr||"")+'"></div>';
+      inp.innerHTML+='<div class="rc-cobro-field"><label>📲 Transferencia</label>'+
+        '<input type="text" inputmode="decimal" pattern="[0-9.,]*" id="tr-'+rutaKey+'-'+cliKey+'" value="'+(tr||"")+'" '+
+        'placeholder="0" autocomplete="off" style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:15px" '+
+        'oninput="_normalizarImporte(this)" onblur="_normalizarImporte(this)"></div>';
     }
     pagoDiv.appendChild(inp);
   }
@@ -5511,7 +5591,7 @@ function renderPagosHist(wrap, rk, ck){
   addPagoForm.className="rc-add-pago-form";
   addPagoForm.innerHTML=
     '<div class="rc-add-pago-row">'+
-      '<input type="number" id="np-monto-'+rk+'-'+ck+'" placeholder="Monto $" class="rc-add-input">'+
+      '<input type="text" inputmode="decimal" pattern="[0-9.,]*" id="np-monto-'+rk+'-'+ck+'" placeholder="Monto $" class="rc-add-input" autocomplete="off" oninput="_normalizarImporte(this)" style="font-variant-numeric:tabular-nums;font-weight:700">'+
       '<select id="np-forma-'+rk+'-'+ck+'" class="rc-add-select">'+
         '<option value="efectivo">💵 Efectivo</option>'+
         '<option value="transferencia">📲 Transfer.</option>'+
@@ -5535,7 +5615,7 @@ function confirmarPagoAdicional(rk, ck){
   var montoEl=document.getElementById("np-monto-"+rk+"-"+ck);
   var formaEl=document.getElementById("np-forma-"+rk+"-"+ck);
   var notaEl=document.getElementById("np-nota-"+rk+"-"+ck);
-  var monto=parseFloat(montoEl?montoEl.value:0)||0;
+  var monto=_parseImporte(montoEl?montoEl.value:"0");
   var forma=formaEl?formaEl.value:"efectivo";
   var nota=notaEl?notaEl.value.trim():"";
   if(monto<=0){alert("Ingresá un monto mayor a 0");return;}
@@ -5582,11 +5662,48 @@ function borrarPagoAdicional(rk,ck,idx){
 function toggleRuta(k){ rutaAbierta=rutaAbierta===k?null:k; renderRutas(); }
 function toggleCliente(rk,ck){ if(clienteAbierto[rk]===ck)delete clienteAbierto[rk]; else clienteAbierto[rk]=ck; renderRutas(); }
 function setModo(rk,ck,modo){ if(!rutasData[rk]||!rutasData[rk].clientes||!rutasData[rk].clientes[ck])return; rutasData[rk].clientes[ck].modo=modo; if(modo==="efectivo")rutasData[rk].clientes[ck].transferencia=0; if(modo==="transferencia")rutasData[rk].clientes[ck].efectivo=0; clienteAbierto[rk]=ck; renderRutas(); }
+// Normalizar importe: acepta coma o punto como decimal, elimina caracteres no numéricos
+function _normalizarImporte(inp){
+  var raw = inp.value;
+  // Permitir solo dígitos, coma, punto y signo negativo
+  raw = raw.replace(/[^0-9.,\-]/g,"");
+  // Si hay más de un separador, conservar solo el último
+  var commas = (raw.match(/,/g)||[]).length;
+  var dots   = (raw.match(/\./g)||[]).length;
+  if(commas + dots > 1){
+    // Dejar solo el último separador
+    var lastSep = Math.max(raw.lastIndexOf(","), raw.lastIndexOf("."));
+    var intPart = raw.slice(0,lastSep).replace(/[.,]/g,"");
+    raw = intPart + raw[lastSep] + raw.slice(lastSep+1).replace(/[.,]/g,"");
+  }
+  inp.value = raw;
+}
+
+function _parseImporte(val){
+  if(!val && val!==0) return 0;
+  var s = String(val).trim();
+  // Determinar si la coma es decimal o separador de miles
+  var commaIdx = s.lastIndexOf(",");
+  var dotIdx   = s.lastIndexOf(".");
+  if(commaIdx > dotIdx){
+    // Coma es decimal: "1.234,56" → "1234.56"
+    s = s.replace(/\./g,"").replace(",",".");
+  } else if(dotIdx > commaIdx){
+    // Punto es decimal: "1,234.56" → "1234.56"
+    s = s.replace(/,/g,"");
+  } else {
+    // Solo uno o ninguno — tratar coma como decimal
+    s = s.replace(",",".");
+  }
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
 function guardarPago(rk,ck){
   if(!rutasData[rk]||!rutasData[rk].clientes||!rutasData[rk].clientes[ck])return;
   var cli=rutasData[rk].clientes[ck],modo=cli.modo||"ninguno";
   var efEl=document.getElementById("ef-"+rk+"-"+ck),trEl=document.getElementById("tr-"+rk+"-"+ck);
-  var ef=efEl?+efEl.value||0:0,tr=trEl?+trEl.value||0:0;
+  var ef=efEl?_parseImporte(efEl.value):0,tr=trEl?_parseImporte(trEl.value):0;
   var efAnterior=cli.efectivo||0,trAnterior=cli.transferencia||0;
   cli.efectivo=ef;cli.transferencia=tr;clienteAbierto[rk]=ck;
 
@@ -7097,6 +7214,136 @@ function _agregarMarcadorPropio() {
     .addTo(_mapaLeaflet).bindPopup("📍 Tu posición actual");
 }
 
+// ══ GPS — Capturar posición actual para cliente ══
+function _capturarGPSParaCliente(prefix){
+  var dirEl    = document.getElementById(prefix+"-dir");
+  var latEl    = document.getElementById(prefix+"-lat");
+  var lngEl    = document.getElementById(prefix+"-lng");
+  var resultEl = document.getElementById(prefix+"-dir-result");
+  if(!navigator.geolocation){ showNotif("Tu dispositivo no tiene GPS","err"); return; }
+  // Find the button and show loading
+  var btns = document.querySelectorAll('[onclick*="_capturarGPSParaCliente(\''+prefix+'\'"]');
+  var btn = btns[0];
+  if(btn){ btn.disabled=true; btn.innerHTML='⏳ Buscando GPS…'; }
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      var lat=pos.coords.latitude, lng=pos.coords.longitude;
+      if(latEl) latEl.value=lat;
+      if(lngEl) lngEl.value=lng;
+      if(btn){ btn.disabled=false; btn.innerHTML='📍 GPS'; }
+      // Reverse geocode to get address
+      fetch("https://nominatim.openstreetmap.org/reverse?lat="+lat+"&lon="+lng+"&format=json&accept-language=es")
+        .then(function(r){return r.json();})
+        .then(function(data){
+          var addr = data.address||{};
+          var parts=[addr.road,addr.house_number,addr.city||addr.town||addr.village,addr.state].filter(Boolean);
+          var dirStr = parts.join(", ");
+          if(dirEl) dirEl.value = dirStr;
+          if(resultEl){
+            resultEl.style.display="block";
+            resultEl.style.cssText="display:block;background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;border-radius:7px;padding:8px 12px;font-size:12px;margin-top:4px";
+            resultEl.innerHTML="✅ <b>GPS capturado</b><br>"+dirStr+"<br><span style='font-size:10.5px;color:#4caf50'>Precisión: ±"+Math.round(pos.coords.accuracy)+"m</span>";
+          }
+          showNotif("📍 Ubicación capturada","ok");
+        })
+        .catch(function(){
+          // Sin reverse geocode — guardar solo coords
+          if(dirEl && !dirEl.value) dirEl.value=lat.toFixed(6)+", "+lng.toFixed(6);
+          if(resultEl){
+            resultEl.style.cssText="display:block;background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;border-radius:7px;padding:8px 12px;font-size:12px;margin-top:4px";
+            resultEl.innerHTML="✅ GPS capturado: "+lat.toFixed(5)+", "+lng.toFixed(5);
+          }
+          showNotif("📍 Coordenadas guardadas","ok");
+        });
+    },
+    function(err){
+      if(btn){ btn.disabled=false; btn.innerHTML='📍 GPS'; }
+      var msgs={1:"Permiso de ubicación denegado. Activalo en la configuración del browser.",2:"GPS no disponible en este momento.",3:"Tiempo de espera agotado. Intentá de nuevo."};
+      showNotif(msgs[err.code]||"Error de GPS","err");
+    },
+    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+  );
+}
+
+// ══ AUTOCOMPLETE DE DIRECCIÓN (OpenStreetMap Nominatim) ══
+var _acTimer = null;
+var _acCache = {};
+
+function _dirAutoComplete(inputId, suggestId){
+  var input = document.getElementById(inputId);
+  var sugWrap = document.getElementById(suggestId);
+  if(!input||!sugWrap) return;
+  var q = input.value.trim();
+  if(q.length < 4){ sugWrap.style.display="none"; return; }
+  clearTimeout(_acTimer);
+  _acTimer = setTimeout(function(){
+    var cacheKey = q.toLowerCase();
+    if(_acCache[cacheKey]){
+      _renderDirSuggestions(sugWrap, _acCache[cacheKey], inputId, suggestId);
+      return;
+    }
+    fetch("https://nominatim.openstreetmap.org/search?q="+encodeURIComponent(q+", Argentina")+"&format=json&limit=5&accept-language=es&addressdetails=1")
+      .then(function(r){return r.json();})
+      .then(function(results){
+        _acCache[cacheKey] = results;
+        _renderDirSuggestions(sugWrap, results, inputId, suggestId);
+      })
+      .catch(function(){ sugWrap.style.display="none"; });
+  }, 420);
+}
+
+function _renderDirSuggestions(wrap, results, inputId, suggestId){
+  if(!results||!results.length){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  wrap.innerHTML = results.map(function(r,i){
+    var addr = r.address||{};
+    var main = [addr.road,addr.house_number].filter(Boolean).join(" ") || r.display_name.split(",")[0];
+    var sub  = [addr.city||addr.town||addr.village||addr.county, addr.state].filter(Boolean).join(", ");
+    return '<div class="dir-suggestion-item" onclick="_selDirSuggestion(\''+inputId+'\',\''+suggestId+'\','+r.lat+','+r.lon+','+JSON.stringify(main+', '+sub).replace(/'/g,"\\'")+')" >'+
+      '<div class="ds-icon">📍</div>'+
+      '<div class="ds-text"><b>'+escHtml(main)+'</b><br><span>'+escHtml(sub)+'</span></div>'+
+    '</div>';
+  }).join('');
+  // Click outside to close
+  setTimeout(function(){
+    document.addEventListener('click', function handler(e){
+      if(!wrap.contains(e.target) && e.target.id!==inputId){
+        wrap.style.display="none";
+        document.removeEventListener('click',handler);
+      }
+    });
+  },0);
+}
+
+function _selDirSuggestion(inputId, suggestId, lat, lng, displayName){
+  var input = document.getElementById(inputId);
+  var wrap  = document.getElementById(suggestId);
+  var prefix = inputId.replace("-dir","");
+  var latEl = document.getElementById(prefix+"-lat");
+  var lngEl = document.getElementById(prefix+"-lng");
+  var resultEl = document.getElementById(prefix+"-dir-result");
+  if(input)  input.value = displayName;
+  if(wrap)   wrap.style.display="none";
+  if(latEl)  latEl.value = lat;
+  if(lngEl)  lngEl.value = lng;
+  if(resultEl){
+    resultEl.style.cssText="display:block;background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;border-radius:7px;padding:7px 10px;font-size:11.5px;margin-top:4px";
+    resultEl.innerHTML="✅ Ubicación confirmada · "+lat.toFixed(5)+", "+lng.toFixed(5);
+  }
+}
+
+function verificarDirNuevo(){ _verificarDir("nc-dir","nc-dir-result"); }
+function verificarDirEdit() { _verificarDir("ec-dir","ec-dir-result"); }
+
+// ══ PARADAS: filtrar por nombre ══
+function _filtrarParadas(q){
+  q=(q||"").toLowerCase();
+  document.querySelectorAll(".parada-card").forEach(function(c){
+    var nom=(c.querySelector(".parada-nom")||{textContent:""}).textContent.toLowerCase();
+    c.style.display=(!q||nom.includes(q))?"block":"none";
+  });
+}
+
 function meDetectarGPS() {
   var btn = document.getElementById("btn-me-gps");
   var el  = document.getElementById("ms-gps-status");
@@ -7329,20 +7576,27 @@ function initMapa(startLat, startLng, ordered) {
 function renderParadas(ordered) {
   var wrap = document.getElementById("mapa-paradas");
   if (!ordered.length) {
-    wrap.innerHTML="<div class='me-empty'>Sin paradas</div>";
+    wrap.innerHTML="<div style='padding:40px 20px;text-align:center;color:var(--muted)'>🗺️ Sin paradas para mostrar</div>";
     return;
   }
+  var entregados=ordered.filter(function(p){return p.cli.entregado;}).length;
+  var msEntr=document.getElementById("ms-entregados");
+  if(msEntr) msEntr.textContent=entregados+"/"+ordered.length;
+
+  // Show legend
+  var leg=document.getElementById("mapa-legend");
+  if(leg) leg.style.display="block";
+
   wrap.innerHTML = "";
   ordered.forEach(function(p,i){
-    var color = COLORS[i%COLORS.length];
+    var color = p.cli.entregado ? "#9ca3af" : COLORS[i%COLORS.length];
     var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
     var saldo=(p.cli.importe||0)-ef-tr;
     var card = document.createElement("div");
-    card.className="parada-card";
+    card.className="parada-card"+(p.cli.entregado?" entregada":"");
     card.id="parada-"+i;
 
     var lat=p.lat, lng=p.lng, dir=p.dir||"";
-    var navDest = (lat&&lng) ? lat+","+lng : encodeURIComponent(dir+", Argentina");
     var gmaps = lat&&lng ? "https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng
                          : "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir+", Argentina");
     var waze  = lat&&lng ? "https://waze.com/ul?ll="+lat+","+lng+"&navigate=yes"
@@ -7350,21 +7604,25 @@ function renderParadas(ordered) {
     var apple = lat&&lng ? "https://maps.apple.com/?daddr="+lat+","+lng
                          : "https://maps.apple.com/?daddr="+encodeURIComponent(dir+", Argentina");
 
+    var estadoBadge = p.cli.entregado
+      ? '<div style="font-size:10.5px;font-weight:700;color:var(--green)">✅ Entregado</div>'
+      : (saldo>0 ? '<div style="font-size:10.5px;color:var(--amber);font-weight:700">$'+fM(saldo)+' pend.</div>'
+                 : '<div style="font-size:10.5px;color:var(--green);font-weight:700">✓ Cobrado</div>');
+
     card.innerHTML =
       '<div class="parada-head" onclick="focusParada('+i+','+lat+','+lng+')">'+
-        '<div class="parada-num" style="background:'+color+'">'+(i+1)+'</div>'+
+        '<div class="parada-num" style="background:'+color+'">'+(p.cli.entregado?"✓":(i+1))+'</div>'+
         '<div class="parada-info">'+
-          '<div class="parada-nom">'+p.cli.nom+'</div>'+
-          '<div class="parada-dir">'+(p.dir || '<span style="color:#f59e0b">⚠️ Sin dirección</span>')+'</div>'+
+          '<div class="parada-nom">'+escHtml(p.cli.nom||"")+'</div>'+
+          '<div class="parada-dir">'+(p.dir?'📍 '+escHtml(p.dir):'<span style="color:#f59e0b">⚠️ Sin dirección GPS</span>')+'</div>'+
         '</div>'+
         '<div style="text-align:right;flex-shrink:0">'+
           '<div class="parada-total">$'+fM(p.cli.importe||0)+'</div>'+
-          (saldo>0 ? '<div style="font-size:10px;color:var(--amber);font-weight:700">$'+fM(saldo)+' pend.</div>'
-                   : '<div style="font-size:10px;color:var(--green);font-weight:700">✓ Cobrado</div>')+
+          estadoBadge+
         '</div>'+
       '</div>'+
       '<div class="nav-btns">'+
-        '<a href="'+gmaps+'" target="_blank" class="nav-btn nav-gmaps">🗺️ Maps</a>'+
+        '<a href="'+gmaps+'" target="_blank" class="nav-btn nav-gmaps">🗺️ Google Maps</a>'+
         '<a href="'+waze+'"  target="_blank" class="nav-btn nav-waze">🚗 Waze</a>'+
         '<a href="'+apple+'" target="_blank" class="nav-btn nav-apple">🍎 Apple</a>'+
       '</div>';
