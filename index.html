@@ -5914,13 +5914,23 @@ function renderBackup(){
     detail.appendChild(acts);
 
     if(isAdminBk){
-      // Vendedor info
+      // Vendedor info — siempre visible y con opción de asignar si está vacío
+      var vndInfo=document.createElement("div");
+      vndInfo.style.cssText="padding:8px 16px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap";
       if(bk.usuarioNom||bk.usuario){
-        var vndInfo=document.createElement("div");
-        vndInfo.style.cssText="font-size:11.5px;color:var(--muted);padding:6px 16px 0;";
-        vndInfo.textContent="👤 Vendedor: "+(bk.usuarioNom||bk.usuario);
-        detail.insertBefore(vndInfo,detail.firstChild);
+        vndInfo.innerHTML='<span style="font-size:11.5px;font-weight:700;color:var(--text)">👤 Vendedor: '+
+          escHtml(bk.usuarioNom||bk.usuario)+'</span>'+
+          '<span style="font-size:10.5px;color:var(--muted)">— esta venta se acreditará a este vendedor al aprobar</span>';
+      } else {
+        // Sin vendedor asignado — mostrar selector
+        var vndOpts = '<option value="">— Sin asignar (admin) —</option>';
+        Object.values(_clientesDB||{}).filter(function(u){ return u.role==="vendedor"; }).forEach(function(u){
+          vndOpts += '<option value="'+u.id+'|'+(u.name||u.id)+'">'+escHtml(u.name||u.id)+'</option>';
+        });
+        vndInfo.innerHTML='<span style="font-size:11.5px;font-weight:700;color:#b45309">⚠️ Sin vendedor asignado</span>'+
+          '<select id="bk-vnd-sel-'+bk.id+'" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;flex:1" onchange="_asignarVndBk(\''+bk.id+'\',this)">'+vndOpts+'</select>';
       }
+      detail.insertBefore(vndInfo,detail.firstChild);
       // Estado aprobación (admin puede cambiar)
       var estadoBadge=document.createElement("div");
       estadoBadge.className = "bk-card-estado";
@@ -6200,12 +6210,21 @@ async function confirmarBackupComoRemito(bkParam){
   var totalNum = bk.total||0;
   var items = bk.items||[];
 
-  // 1) Guardar venta en Supabase
+  // SIEMPRE usar el vendedor del pedido original, nunca al admin logueado
+  var vendedorId  = (bk.usuario    && bk.usuario.trim())    ? bk.usuario.trim()    : (currentUser?currentUser.id:"");
+  var vendedorNom = (bk.usuarioNom && bk.usuarioNom.trim()) ? bk.usuarioNom.trim() : (currentUser?(currentUser.name||currentUser.id):"");
+
+  console.log("[Backup→Remito] vendedor:", vendedorNom, "("+vendedorId+") | cliente:", nom, "| total:", totalNum);
+
+  // 1) Guardar venta acreditada al vendedor que hizo el pedido
   var venta = {
     fecha: ahora.toISOString(), mes: ahora.getMonth(), anio: ahora.getFullYear(),
     clienteId: bk.clienteId||"", clienteNom: nom, lista: bk.lista||"Clientes",
     items: items.map(function(i){ return {id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub}; }),
-    total: totalNum, usuario: currentUser?currentUser.id:"", usuarioNom: currentUser?currentUser.name:""
+    total: totalNum,
+    usuario:    vendedorId,
+    usuarioNom: vendedorNom,
+    descuentos: bk.descuentos||null
   };
   try { await fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Remito desde backup: "+nom); }
   catch(e){ console.warn("Error guardando venta:", e); }
@@ -8940,6 +8959,25 @@ async function importarProdCSV(){
 }
 
 // ══ MIS VENTAS (Vista del vendedor) ══
+// Asignar vendedor a un backup que no tenía uno
+async function _asignarVndBk(bkId, sel){
+  var val = sel.value; // "uid|nombre"
+  if(!val){ return; }
+  var parts = val.split("|");
+  var uid = parts[0], nom = parts.slice(1).join("|");
+  // Actualizar en Supabase
+  await sbPatch("backup_pedidos","id=eq."+bkId+"&empresa_id=eq."+_sbEmpId, {usuario:uid, usuario_nom:nom}).catch(function(){});
+  // Actualizar en localStorage y en memoria
+  var arr = getBackups();
+  var idx = arr.findIndex(function(x){ return x.id===bkId||x._sbId===bkId; });
+  if(idx>=0){ arr[idx].usuario=uid; arr[idx].usuarioNom=nom; saveBackups(arr); }
+  var bkList = _backupCache||[];
+  var bk2 = bkList.find(function(x){ return x.id===bkId||x._sbId===bkId; });
+  if(bk2){ bk2.usuario=uid; bk2.usuarioNom=nom; }
+  showNotif("✓ Vendedor asignado: "+nom,"ok");
+  renderBackup();
+}
+
 async function _cambiarAprobacion(bk, aprobado){
   // 1. Actualizar en Supabase inmediatamente
   var sbId = bk._sbId || bk._fbKey || bk.id;
