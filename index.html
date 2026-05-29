@@ -1184,6 +1184,7 @@ select option { background:#fff }
   cursor:pointer; -webkit-tap-highlight-color:transparent;
 }
 .prod-card:active { background:var(--s3) }
+.zona-color-btn { color:#fff; border:none; border-radius:6px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation; transition:outline .1s; }
 .prod-card-img-wrap { width:100%; aspect-ratio:1; background:var(--s3); overflow:hidden; flex-shrink:0; position:relative; }
 .prod-card-img { width:100%; height:100%; object-fit:cover; display:block }
 .prod-card-img-ph { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:32px }
@@ -1681,7 +1682,19 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <div id="hoja" class="section">
   <div class="ruta-header">
     <span id="fb-hoja-status" class="fb-pill sync">☁️</span>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <!-- Filtros -->
+      <select id="ruta-fil-estado" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff">
+        <option value="">📋 Todas</option>
+        <option value="en-curso">🔄 En curso</option>
+        <option value="terminadas">✅ Terminadas</option>
+      </select>
+      <select id="ruta-fil-mes" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff">
+        <option value="">Todos los meses</option>
+      </select>
+      <select id="ruta-fil-zona" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff">
+        <option value="">Todas las zonas</option>
+      </select>
       <button class="btn btn-ghost btn-sm" onclick="cargarRutasFirebase()">🔄</button>
       <button class="nueva-ruta-btn" onclick="crearNuevaRuta()">+ Nueva Ruta</button>
     </div>
@@ -1790,16 +1803,30 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <!-- ══ MIS VENDEDORES (Admin) ══ -->
 <div id="vendedores" class="section">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-    <select id="vnd-fil-anio" onchange="renderVendedores()" style="flex:1;font-size:12px"></select>
-    <select id="vnd-fil-mes" onchange="renderVendedores()" style="flex:1;font-size:12px"></select>
-    <div style="display:flex;align-items:center;gap:5px;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:7px;background:#fff;flex-shrink:0">
-      <span style="color:var(--muted);font-weight:600">Com.%</span>
-      <input type="number" id="vnd-com-pct" value="5" min="0" max="100" step="0.5" onchange="renderVendedores()" style="width:40px;border:none;background:transparent;font-size:12px;font-weight:700;font-family:inherit;outline:none;-moz-appearance:textfield;text-align:center">
-    </div>
-    <button class="btn btn-ghost btn-sm" onclick="cargarVendedores()">🔄</button>
+  <!-- Tabs: Vendedores / Zonas / Hojas de Ruta -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto" id="vnd-tabs">
+    <button class="bk-tab active" id="vnd-tab-vendedores" onclick="setVndTab('vendedores',this)">👤 Vendedores</button>
+    <button class="bk-tab" id="vnd-tab-zonas" onclick="setVndTab('zonas',this)">🗺️ Zonas</button>
   </div>
-  <div id="vnd-body"></div>
+
+  <!-- Panel Vendedores -->
+  <div id="vnd-panel-vendedores">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <select id="vnd-fil-anio" onchange="renderVendedores()" style="flex:1;font-size:12px"></select>
+      <select id="vnd-fil-mes" onchange="renderVendedores()" style="flex:1;font-size:12px"></select>
+      <button class="btn btn-ghost btn-sm" onclick="cargarVendedores()">🔄</button>
+    </div>
+    <div id="vnd-body"></div>
+  </div>
+
+  <!-- Panel Zonas -->
+  <div id="vnd-panel-zonas" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-size:13px;font-weight:600">Zonas de venta</span>
+      <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:8px 16px;font-size:12px">+ Nueva zona</button>
+    </div>
+    <div id="zonas-list"></div>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════
@@ -2383,7 +2410,65 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <!-- MODAL TIPO COMPROBANTE -->
-<div class="modal-bg" id="modal-tipo-comprobante">
+<!-- MODAL ZONA -->
+<div class="modal-bg" id="modal-zona">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><span class="modal-title" id="mzona-title">Nueva zona</span><button class="modal-x" onclick="cerrarModal('modal-zona')">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+      <div class="cli-field"><label>Nombre de la zona *</label><input type="text" id="mzona-nombre" placeholder="ej: Zona Norte, Cutral Co…" autocomplete="off"></div>
+      <div class="cli-field"><label>Descripción</label><input type="text" id="mzona-desc" placeholder="Opcional" autocomplete="off"></div>
+      <div class="cli-field">
+        <label>Ajuste de precio por zona (%)</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" id="mzona-pct" value="0" step="0.5" style="width:80px;text-align:center;padding:9px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px">
+          <span style="font-size:13px;color:var(--muted)">% sobre el precio de lista (0 = sin ajuste)</span>
+        </div>
+      </div>
+      <div class="cli-field">
+        <label>Color de zona</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="mzona-colores">
+          <button class="zona-color-btn" data-color="#2563eb" style="background:#2563eb" onclick="_selZonaColor(this)">Azul</button>
+          <button class="zona-color-btn" data-color="#16a34a" style="background:#16a34a" onclick="_selZonaColor(this)">Verde</button>
+          <button class="zona-color-btn" data-color="#dc2626" style="background:#dc2626" onclick="_selZonaColor(this)">Rojo</button>
+          <button class="zona-color-btn" data-color="#d97706" style="background:#d97706" onclick="_selZonaColor(this)">Naranja</button>
+          <button class="zona-color-btn" data-color="#7c3aed" style="background:#7c3aed" onclick="_selZonaColor(this)">Violeta</button>
+          <button class="zona-color-btn" data-color="#0891b2" style="background:#0891b2" onclick="_selZonaColor(this)">Celeste</button>
+        </div>
+        <input type="hidden" id="mzona-color" value="#2563eb">
+        <input type="hidden" id="mzona-id" value="">
+      </div>
+      <button class="mbtn mbtn-primary" onclick="guardarZona()" style="padding:12px">💾 Guardar zona</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR VENDEDOR -->
+<div class="modal-bg" id="modal-editar-vendedor">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head"><span class="modal-title">✏️ Editar vendedor</span><button class="modal-x" onclick="cerrarModal('modal-editar-vendedor')">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+      <input type="hidden" id="mevnd-uid">
+      <div class="cli-field"><label>Nombre</label><input type="text" id="mevnd-nombre" readonly style="background:var(--s2);color:var(--muted)"></div>
+      <div style="display:flex;gap:10px">
+        <div class="cli-field" style="flex:1">
+          <label>Comisión (%)</label>
+          <input type="number" id="mevnd-com" min="0" max="100" step="0.1" value="5" style="text-align:center;font-size:15px;font-weight:700">
+        </div>
+        <div class="cli-field" style="flex:1">
+          <label>Meta mensual ($)</label>
+          <input type="number" id="mevnd-meta" min="0" step="1000" value="0">
+        </div>
+      </div>
+      <div class="cli-field">
+        <label>Zona asignada</label>
+        <select id="mevnd-zona" style="font-size:13px">
+          <option value="">— Sin zona —</option>
+        </select>
+      </div>
+      <button class="mbtn mbtn-primary" onclick="guardarEdicionVendedor()" style="padding:12px">💾 Guardar cambios</button>
+    </div>
+  </div>
+</div>
   <div class="modal-box" style="max-width:380px;text-align:center">
     <div style="font-size:36px;margin-bottom:6px">🧾</div>
     <div class="modal-title" style="font-size:17px;margin-bottom:4px">¿Con qué comprobante?</div>
@@ -4458,18 +4543,16 @@ function cargarRutasFirebase(){
   setStatus("fb-hoja-status","sync","☁️ Cargando…");
   fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
     var all = d || {};
-    // Repartidor: filtrar solo sus rutas asignadas
     if(role === "repartidor"){
       var uid = currentUser.id;
       var filtradas = {};
-      Object.entries(all).forEach(function(e){
-        if(e[1].repartidorId === uid) filtradas[e[0]] = e[1];
-      });
+      Object.entries(all).forEach(function(e){ if(e[1].repartidorId === uid) filtradas[e[0]] = e[1]; });
       rutasData = filtradas;
     } else {
       rutasData = all;
     }
     setStatus("fb-hoja-status","ok","✅");
+    _poblarFiltrosMesRuta();
     renderRutas();
   }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
 }
@@ -4534,8 +4617,34 @@ function calcRuta(ruta){
 
 function renderRutas(){
   var wrap=document.getElementById("rutas-list");
+  var filEstado = (document.getElementById("ruta-fil-estado")||{value:""}).value;
+  var filMes    = (document.getElementById("ruta-fil-mes")||{value:""}).value;
+  var filZona   = (document.getElementById("ruta-fil-zona")||{value:""}).value;
+
   var keys=Object.keys(rutasData).sort(function(a,b){return(rutasData[b].fecha||"").localeCompare(rutasData[a].fecha||"");});
-  if(!keys.length){document.getElementById("ruta-summary-bar").style.display="none";wrap.innerHTML='<div class="empty-box"><div class="empty-icon">🗺️</div>Sin hojas de ruta.<br><small>Creá una con el botón de arriba.</small></div>';return;}
+
+  // Aplicar filtros
+  keys = keys.filter(function(k){
+    var ruta = rutasData[k];
+    // Filtro mes
+    if(filMes){
+      var d = new Date(ruta.fecha||Date.now());
+      var mesKey = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      if(mesKey !== filMes) return false;
+    }
+    // Filtro zona
+    if(filZona && ruta.zona_id !== filZona) return false;
+    // Filtro estado
+    if(filEstado){
+      var clientes = Object.values(ruta.clientes||{});
+      var todasEntregadas = clientes.length>0 && clientes.every(function(c){ return c.entregado; });
+      if(filEstado==="terminadas" && !todasEntregadas) return false;
+      if(filEstado==="en-curso"   &&  todasEntregadas) return false;
+    }
+    return true;
+  });
+
+  if(!keys.length){document.getElementById("ruta-summary-bar").style.display="none";wrap.innerHTML='<div class="empty-box"><div class="empty-icon">🗺️</div>Sin hojas de ruta'+(filEstado||filMes||filZona?" con esos filtros.":".")+'<br><small>Creá una con el botón de arriba.</small></div>';return;}
   var gT=0,gC=0;
   keys.forEach(function(k){var c=calcRuta(rutasData[k]);gT+=c.total;gC+=c.cobrado;});
   document.getElementById("ruta-summary-bar").style.display="grid";
@@ -4552,6 +4661,9 @@ function renderRutas(){
     var calc=calcRuta(ruta);
     var isOpen=rutaAbierta===rutaKey;
     var fecha=ruta.fecha?new Date(ruta.fecha).toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"}):"—";
+    var clientes=Object.values(ruta.clientes||{});
+    var todasEntregadas=clientes.length>0&&clientes.every(function(c){return c.entregado;});
+    var zonaRuta = ruta.zona_id && _zonasData[ruta.zona_id];
 
     var outer=document.createElement("div");
 
@@ -4563,8 +4675,10 @@ function renderRutas(){
       '<div style="flex:1;min-width:0"><div class="ruta-fecha">'+(ruta.nombre||fecha)+'</div>'+
       '<div class="ruta-resumen">'+fecha+' · '+calc.clientes+' clientes · '+calc.pagados+'/'+calc.clientes+' pagados'+
         (ruta.repartidorNom ? ' · <span style="color:var(--green);font-weight:600">🚚 '+ruta.repartidorNom+'</span>' : '')+
+        (zonaRuta ? ' · <span style="color:'+zonaRuta.color+';font-weight:600">🗺️ '+escHtml(zonaRuta.nombre)+'</span>' : '')+
       '</div></div>'+
       '<div class="ruta-chips">'+
+        (todasEntregadas?'<span class="chip chip-ok">✅ Terminada</span>':'<span class="chip chip-warn" style="background:#e8f0ff;color:#2563eb">🔄 En curso</span>')+
         (calc.saldo<=0?'<span class="chip chip-ok">✓ Cobrado</span>':'<span class="chip chip-warn">$'+fM(calc.saldo)+' pend.</span>')+
         '<span style="color:var(--muted2);font-size:15px">'+(isOpen?"▲":"▼")+'</span>'+
       '</div>';
@@ -8962,14 +9076,233 @@ function toggleMvItem(fbKey){;
 // ══ MIS VENDEDORES (Admin) ══
 var _vndVentas=[], _vndOpen={};
 
+// ══ SISTEMA DE ZONAS ══
+var _zonasData = {}; // { id: {id, nombre, desc, pct, color} }
+
+async function cargarZonas(){
+  if(!_sbEmpId) return;
+  try {
+    var rows = await sbGet("zonas","select=*&empresa_id=eq."+_sbEmpId+"&order=nombre.asc");
+    _zonasData = {};
+    (rows||[]).forEach(function(z){ _zonasData[z.id] = {id:z.id, nombre:z.nombre, desc:z.descripcion||"", pct:z.precio_pct||0, color:z.color||"#2563eb"}; });
+    renderZonas();
+    _poblarSelectoresZona();
+  } catch(e){ console.warn("Error cargando zonas:", e); }
+}
+
+function renderZonas(){
+  var wrap = document.getElementById("zonas-list");
+  if(!wrap) return;
+  var zonas = Object.values(_zonasData);
+  if(!zonas.length){
+    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Sin zonas creadas. Tocá "+ Nueva zona" para empezar.</div>';
+    return;
+  }
+  wrap.innerHTML = zonas.map(function(z){
+    var usuarios = Object.values(_clientesDB||{}).filter(function(u){ return u.zona_id === z.id; });
+    return '<div class="card" style="margin-bottom:10px;border-left:4px solid '+z.color+'">' +
+      '<div class="card-body" style="display:flex;align-items:center;gap:12px">' +
+        '<div style="flex:1">' +
+          '<div style="font-weight:700;font-size:14px">'+escHtml(z.nombre)+'</div>' +
+          (z.desc?'<div style="font-size:11.5px;color:var(--muted)">'+escHtml(z.desc)+'</div>':'') +
+          '<div style="font-size:11px;color:var(--muted);margin-top:4px">' +
+            (z.pct?'<span style="color:#b45309;font-weight:600">±'+z.pct+'% precio</span> · ':'') +
+            usuarios.length+' miembros' +
+          '</div>' +
+        '</div>' +
+        '<button class="btn btn-ghost btn-sm" onclick="abrirModalZona(\''+z.id+'\')">✏️ Editar</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="abrirAsignarZona(\''+z.id+'\')">👥 Asignar</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="borrarZona(\''+z.id+'\')" style="color:var(--red)">🗑</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function _poblarSelectoresZona(){
+  var zonas = Object.values(_zonasData);
+  var opts = '<option value="">— Sin zona —</option>' +
+    zonas.map(function(z){ return '<option value="'+z.id+'">'+escHtml(z.nombre)+'</option>'; }).join('');
+  ["mevnd-zona","ruta-fil-zona","mzona-asig-zona"].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){ var cur=el.value; el.innerHTML=opts; if(cur)el.value=cur; }
+  });
+  // Filtro de hoja de ruta
+  var rutaFil = document.getElementById("ruta-fil-zona");
+  if(rutaFil){
+    rutaFil.innerHTML = '<option value="">Todas las zonas</option>' +
+      zonas.map(function(z){ return '<option value="'+z.id+'">'+escHtml(z.nombre)+'</option>'; }).join('');
+  }
+}
+
+var _selZonaColorVal = "#2563eb";
+function _selZonaColor(btn){
+  document.querySelectorAll(".zona-color-btn").forEach(function(b){ b.style.outline="none"; });
+  btn.style.outline = "3px solid var(--text)";
+  _selZonaColorVal = btn.dataset.color;
+  document.getElementById("mzona-color").value = _selZonaColorVal;
+}
+
+function abrirModalZona(id){
+  var z = id ? _zonasData[id] : null;
+  document.getElementById("mzona-title").textContent = z ? "Editar zona" : "Nueva zona";
+  document.getElementById("mzona-id").value = id||"";
+  document.getElementById("mzona-nombre").value = z?z.nombre:"";
+  document.getElementById("mzona-desc").value = z?z.desc:"";
+  document.getElementById("mzona-pct").value = z?z.pct:0;
+  _selZonaColorVal = z?z.color:"#2563eb";
+  document.getElementById("mzona-color").value = _selZonaColorVal;
+  document.querySelectorAll(".zona-color-btn").forEach(function(b){
+    b.style.outline = b.dataset.color === _selZonaColorVal ? "3px solid var(--text)" : "none";
+  });
+  abrirModal("modal-zona");
+}
+
+async function guardarZona(){
+  var nombre = (document.getElementById("mzona-nombre").value||"").trim();
+  if(!nombre){ showNotif("Nombre de zona requerido","err"); return; }
+  var id = document.getElementById("mzona-id").value;
+  var body = {
+    empresa_id: _sbEmpId,
+    nombre: nombre,
+    descripcion: (document.getElementById("mzona-desc").value||"").trim(),
+    precio_pct: parseFloat(document.getElementById("mzona-pct").value)||0,
+    color: document.getElementById("mzona-color").value||"#2563eb"
+  };
+  try {
+    if(id){
+      await sbPatch("zonas","id=eq."+id, body);
+      _zonasData[id] = Object.assign(_zonasData[id]||{},{id:id},body);
+    } else {
+      var res = await sbPost("zonas", body);
+      if(res&&res[0]){ _zonasData[res[0].id] = Object.assign({id:res[0].id},body); }
+    }
+    cerrarModal("modal-zona");
+    renderZonas();
+    _poblarSelectoresZona();
+    showNotif("✅ Zona guardada","ok");
+  } catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
+async function borrarZona(id){
+  if(!confirm("¿Borrar esta zona?\nLos usuarios no se borrarán, solo se les quitará la zona.")) return;
+  try { await sbDel("zonas","id=eq."+id+"&empresa_id=eq."+_sbEmpId); delete _zonasData[id]; renderZonas(); showNotif("Zona borrada","ok"); }
+  catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
+// Modal para asignar miembros a una zona
+var _asigZonaId = null;
+function abrirAsignarZona(zid){
+  _asigZonaId = zid;
+  var z = _zonasData[zid];
+  if(!z) return;
+  // Mostrar todos los usuarios (clientes, vendedores, repartidores)
+  var todos = Object.values(_clientesDB||{});
+  if(!todos.length){ showNotif("Cargá clientes/usuarios primero","err"); return; }
+  var html = '<div style="font-weight:700;font-size:14px;margin-bottom:10px">Asignar a zona: '+escHtml(z.nombre)+'</div>'+
+    '<div style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">' +
+    todos.map(function(u){
+      var checked = u.zona_id === zid ? "checked" : "";
+      return '<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--s2);border-radius:8px;cursor:pointer">' +
+        '<input type="checkbox" '+checked+' data-uid="'+u.id+'" onchange="_toggleZonaUsuario(this,\''+zid+'\')" style="width:16px;height:16px">'+
+        '<span><b>'+(u.name||u.id)+'</b><span style="font-size:11px;color:var(--muted);margin-left:6px">'+( u.role||"cliente")+'</span></span>' +
+        '</label>';
+    }).join('') + '</div>';
+  // Usar modal genérico
+  var overlay = document.createElement("div");
+  overlay.className = "modal-bg open";
+  overlay.id = "modal-asig-zona-dynamic";
+  overlay.innerHTML = '<div class="modal-box" style="max-width:420px"><div class="modal-head"><span class="modal-title">👥 Asignar zona</span><button class="modal-x" onclick="document.getElementById(\'modal-asig-zona-dynamic\').remove()">✕</button></div><div class="modal-body">'+html+'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+async function _toggleZonaUsuario(cb, zid){
+  var uid = cb.dataset.uid;
+  var u = Object.values(_clientesDB||{}).find(function(u){ return u.id===uid; });
+  if(!u||!u._sbId) return;
+  var newZona = cb.checked ? zid : null;
+  try {
+    await sbPatch("usuarios","id=eq."+u._sbId+"&empresa_id=eq."+_sbEmpId, {zona_id: newZona});
+    if(_clientesDB[u._sbId]) _clientesDB[u._sbId].zona_id = newZona;
+    else { Object.values(_clientesDB).forEach(function(cu){ if(cu.id===uid) cu.zona_id=newZona; }); }
+  } catch(e){ showNotif("Error: "+e.message,"err"); cb.checked=!cb.checked; }
+}
+
+// ══ TABS VENDEDORES ══
+function setVndTab(tab, btn){
+  document.querySelectorAll("#vnd-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
+  if(btn) btn.classList.add("active");
+  document.getElementById("vnd-panel-vendedores").style.display = tab==="vendedores"?"block":"none";
+  document.getElementById("vnd-panel-zonas").style.display = tab==="zonas"?"block":"none";
+  if(tab==="zonas") cargarZonas();
+}
+
+// ══ EDITAR VENDEDOR ══
+var _editVndData = {};
+
+function abrirEditarVendedor(uid){
+  var u = Object.values(_clientesDB||{}).find(function(u){ return u.id===uid||u.uid===uid; }) || {};
+  _editVndData = u;
+  document.getElementById("mevnd-uid").value = uid;
+  document.getElementById("mevnd-nombre").value = u.name||uid;
+  document.getElementById("mevnd-com").value = u.comision||5;
+  document.getElementById("mevnd-meta").value = u.meta||0;
+  _poblarSelectoresZona();
+  setTimeout(function(){ document.getElementById("mevnd-zona").value = u.zona_id||""; }, 100);
+  abrirModal("modal-editar-vendedor");
+}
+
+async function guardarEdicionVendedor(){
+  var uid = document.getElementById("mevnd-uid").value;
+  var u = Object.values(_clientesDB||{}).find(function(u){ return u.id===uid||u.uid===uid; });
+  if(!u||!u._sbId){ showNotif("Usuario no encontrado","err"); return; }
+  var comision = parseFloat(document.getElementById("mevnd-com").value)||5;
+  var meta     = parseFloat(document.getElementById("mevnd-meta").value)||0;
+  var zona_id  = document.getElementById("mevnd-zona").value||null;
+  try {
+    await sbPatch("usuarios","id=eq."+u._sbId+"&empresa_id=eq."+_sbEmpId, {comision:comision, meta:meta, zona_id:zona_id});
+    // Actualizar cache local
+    Object.keys(_clientesDB).forEach(function(k){
+      if(_clientesDB[k].id===uid||_clientesDB[k]._sbId===u._sbId){
+        _clientesDB[k].comision = comision;
+        _clientesDB[k].meta     = meta;
+        _clientesDB[k].zona_id  = zona_id;
+      }
+    });
+    cerrarModal("modal-editar-vendedor");
+    renderVendedores();
+    showNotif("✅ Vendedor actualizado","ok");
+  } catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
+// ══ VENDEDORES — filtros de mes para hoja de ruta ══
+function _poblarFiltrosMesRuta(){
+  var sel = document.getElementById("ruta-fil-mes");
+  if(!sel) return;
+  var rutas = Object.values(rutasData||{});
+  var meses = new Set();
+  rutas.forEach(function(r){ var d=new Date(r.fecha||Date.now()); meses.add(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); });
+  var now = new Date();
+  var curKey = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  meses.add(curKey);
+  var sorted = Array.from(meses).sort(function(a,b){ return b.localeCompare(a); });
+  sel.innerHTML = '<option value="">Todos los meses</option>' +
+    sorted.map(function(m){
+      var parts=m.split("-");
+      var label=MESES[parseInt(parts[1])-1]+" "+parts[0];
+      return '<option value="'+m+'"'+(m===curKey?" selected":"")+'>'+label+'</option>';
+    }).join('');
+}
+
 async function cargarVendedores(){
   var body=document.getElementById("vnd-body"); if(!body) return;
   body.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando vendedores…</div>';
-  if(!empresaKey) return;
+  if(!_sbEmpId) return;
   try{
-    var data=await fbGetCached("empresas/"+empresaKey+"/ventas");
-    _vndVentas=data?Object.entries(data).map(function(e){return Object.assign({},e[1],{fbKey:e[0]});}):[]; 
+    // Cargar ventas
+    var data = await _sbGetVentas();
+    _vndVentas = data ? Object.entries(data).map(function(e){ return Object.assign({},e[1],{fbKey:e[0]}); }) : [];
     _poblarFiltrosVnd(); renderVendedores();
+    // También cargar zonas
+    await cargarZonas();
   }catch(e){body.innerHTML='<div style="text-align:center;padding:40px;color:var(--red)">❌ Error al cargar</div>';}
 }
 
@@ -9031,28 +9364,34 @@ function renderVendedores(){
     '<div class="vnd-sum-cell" style="background:var(--green-bg)"><div class="vnd-sum-val" style="color:var(--green)">$'+fM(comGlobal)+'</div><div class="vnd-sum-lbl">Comisiones ('+comPct+'%)</div></div>'+
     '</div><div style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">'+periodo+' — Ranking</div>';
   sorted.forEach(function(vnd,idx){
+    var uData = Object.values(_clientesDB||{}).find(function(u){ return u.id===vnd.uid; }) || {};
+    var comPctVnd = uData.comision || comPct;
+    var metaVnd   = uData.meta     || META_VENTAS;
+    var zonaVnd   = uData.zona_id  ? (_zonasData[uData.zona_id]||{nombre:"?"}) : null;
     var rankClass=idx===0?"rank-1":idx===1?"rank-2":idx===2?"rank-3":"";
     var rankEmoji=idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":"";
-    var com=vnd.total*comPct/100, pctMeta=Math.min(100,(vnd.total/META_VENTAS)*100);
+    var com=vnd.total*comPctVnd/100, pctMeta=Math.min(100,(vnd.total/metaVnd)*100);
     var pctGlobal=totalGlobal>0?(vnd.total/totalGlobal*100).toFixed(1):"0";
     var isOpen=_vndOpen[vnd.uid];
     var topProds=Object.values(vnd.prodMap).sort(function(a,b){return b.t-a.t;}).slice(0,4);
     var maxProd=topProds.length?topProds[0].t:1;
     var ticketProm=vnd.remitos?vnd.total/vnd.remitos:0;
     var ventasOrd=vnd.ventas.slice().sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);});
+    var zonaBadge = zonaVnd ? '<span style="font-size:10px;background:'+(_zonasData[uData.zona_id]||{color:"#2563eb"}).color+'22;color:'+(_zonasData[uData.zona_id]||{color:"#2563eb"}).color+';border-radius:5px;padding:1px 6px;font-weight:700;margin-left:6px">'+escHtml(zonaVnd.nombre)+'</span>' : '';
     html+='<div class="vnd-card '+rankClass+'">'+
       '<div class="vnd-card-head" data-uid="'+vnd.uid+'" onclick="toggleVnd(this.dataset.uid)">'+
         '<div style="font-size:18px;width:24px;flex-shrink:0;text-align:center">'+rankEmoji+'</div>'+
         '<div class="vnd-avatar '+rankClass+'">'+vnd.nombre.charAt(0).toUpperCase()+'</div>'+
-        '<div class="vnd-info"><div class="vnd-name">'+escHtml(vnd.nombre)+'</div><div class="vnd-meta">'+vnd.remitos+' remito'+(vnd.remitos!==1?'s':'')+' · Ticket $'+fM(ticketProm)+' · '+pctGlobal+'% del total</div></div>'+
-        '<div class="vnd-totals"><div class="vnd-total-val">$'+fM(vnd.total)+'</div><div class="vnd-com-val">+$'+fM(com)+' com.</div></div>'+
+        '<div class="vnd-info"><div class="vnd-name">'+escHtml(vnd.nombre)+zonaBadge+'</div><div class="vnd-meta">'+vnd.remitos+' remito'+(vnd.remitos!==1?'s':'')+' · Ticket $'+fM(ticketProm)+' · '+pctGlobal+'% del total</div></div>'+
+        '<div class="vnd-totals"><div class="vnd-total-val">$'+fM(vnd.total)+'</div><div class="vnd-com-val">+$'+fM(com)+' com. ('+comPctVnd+'%)</div></div>'+
+        '<button onclick="event.stopPropagation();abrirEditarVendedor(\''+vnd.uid+'\')" style="background:none;border:1px solid var(--border);border-radius:7px;padding:4px 8px;font-size:12px;cursor:pointer;flex-shrink:0" title="Editar vendedor">⚙️</button>'+
       '</div>'+
       '<div class="vnd-bar-wrap'+(isOpen?" open":"")+'" id="vnd-detail-'+vnd.uid+'">'+
         '<div class="vnd-progress-mini"><div class="vnd-progress-mini-fill" style="width:'+pctMeta.toFixed(1)+'%"></div></div>'+
-        '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px"><span>Meta: <b style="color:var(--text)">'+pctMeta.toFixed(1)+'%</b> de $'+fM(META_VENTAS)+'</span><span>Resta: $'+fM(Math.max(0,META_VENTAS-vnd.total))+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px"><span>Meta: <b style="color:var(--text)">'+pctMeta.toFixed(1)+'%</b> de $'+fM(metaVnd)+'</span><span>Resta: $'+fM(Math.max(0,metaVnd-vnd.total))+'</span></div>'+
         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px">'+
           '<div style="background:var(--s3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:13px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums">$'+fM(vnd.total)+'</div><div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px">Total vendido</div></div>'+
-          '<div style="background:var(--green-bg);border-radius:8px;padding:10px;text-align:center;border:1px solid oklch(88% 0.04 155)"><div style="font-size:13px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">$'+fM(com)+'</div><div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px">Comisión '+comPct+'%</div></div>'+
+          '<div style="background:var(--green-bg);border-radius:8px;padding:10px;text-align:center;border:1px solid oklch(88% 0.04 155)"><div style="font-size:13px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">$'+fM(com)+'</div><div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px">Comisión '+comPctVnd+'%</div></div>'+
           '<div style="background:var(--s3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:13px;font-weight:800;color:var(--text)">'+vnd.remitos+'</div><div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px">Remitos</div></div>'+
         '</div>'+
         (topProds.length?'<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Productos más vendidos</div>'+
