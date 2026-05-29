@@ -8011,14 +8011,33 @@ var _prodFiltered = []; // cache del filtrado actual
 function cargarProductos() {
   var grid = document.getElementById("prod-grid");
   if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">⏳</div><div class="prod-empty-msg">Cargando…</div></div>';
-  if (!empresaKey) return;
-  fbGet("empresas/" + empresaKey + "/productos").then(function(data) {
-    _prodData = data || {};
-    _sincronizarDbStock();
-    renderProductos();
-  }).catch(function() {
-    if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>';
-  });
+  if (!_sbEmpId && !empresaKey) return;
+
+  // Cargar desde Supabase (tiene todos los campos: precioPromo, cantPromo, etc.)
+  if(_sbEmpId){
+    _sbGetProductos().then(function(sbData){
+      if(sbData && Object.keys(sbData).length){
+        _prodData = sbData;
+        _sincronizarDbStock();
+        renderProductos();
+      } else {
+        // Fallback Firebase
+        fbGet("empresas/"+empresaKey+"/productos").then(function(data){
+          _prodData = data||{};
+          _sincronizarDbStock();
+          renderProductos();
+        }).catch(function(){ if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>'; });
+      }
+    }).catch(function(){
+      fbGet("empresas/"+empresaKey+"/productos").then(function(data){
+        _prodData=data||{}; _sincronizarDbStock(); renderProductos();
+      }).catch(function(){ if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>'; });
+    });
+  } else {
+    fbGet("empresas/"+empresaKey+"/productos").then(function(data){
+      _prodData=data||{}; _sincronizarDbStock(); renderProductos();
+    }).catch(function(){ if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar</div></div>'; });
+  }
 }
 
 function _sincronizarDbStock() {
