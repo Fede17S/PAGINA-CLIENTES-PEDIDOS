@@ -2880,26 +2880,63 @@ function _urlBase64ToUint8Array(b64){
 async function activarNotificaciones(){
   var btn = document.getElementById("btn-activar-notif");
   if(!('serviceWorker' in navigator) || !('PushManager' in window)){
-    alert("Tu dispositivo/browser no soporta notificaciones push.\n\nEn iPhone: abrí la app desde Safari y agregala a la pantalla de inicio primero.");
+    alert("Tu dispositivo no soporta push.\n\nEn iPhone: abrí desde Safari → Compartir → Añadir a pantalla de inicio → abrila desde el ícono.");
     return;
   }
   if(btn){ btn.disabled=true; btn.textContent="⏳ Solicitando permiso…"; }
   try {
     var perm = await Notification.requestPermission();
-    if(perm === 'granted'){
-      var reg = await navigator.serviceWorker.ready;
-      await _initPushSubscription(reg);
-      if(btn){ btn.style.background="oklch(22% 0.06 150)"; btn.style.color="oklch(85% 0.08 150)"; btn.style.borderColor="oklch(40% 0.08 150)"; btn.textContent="✅ Notificaciones activas"; btn.disabled=true; }
-      showNotif("🔔 Notificaciones activadas correctamente","ok");
-    } else if(perm === 'denied'){
+    console.log('[Push] Permiso:', perm);
+    if(perm !== 'granted'){
       if(btn){ btn.disabled=false; btn.textContent="🔔 Activar notificaciones"; }
-      alert("Permiso denegado.\n\nPara activarlo: Ajustes → Safari → [tu app] → Notificaciones → Permitir");
-    } else {
-      if(btn){ btn.disabled=false; btn.textContent="🔔 Activar notificaciones"; }
+      if(perm==='denied') alert("Permiso denegado.\nAjustes → [tu app] → Notificaciones → Permitir");
+      return;
     }
+    if(btn) btn.textContent="⏳ Suscribiendo…";
+    var reg = await navigator.serviceWorker.ready;
+    console.log('[Push] SW listo:', reg.scope);
+    // Cancelar suscripción vieja si existe
+    var oldSub = await reg.pushManager.getSubscription();
+    if(oldSub){ await oldSub.unsubscribe(); console.log('[Push] Sub vieja cancelada'); }
+    var sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    console.log('[Push] Suscripto:', sub.endpoint.slice(0,60)+'…');
+    if(btn) btn.textContent="⏳ Guardando…";
+    // Guardar en Supabase con upsert
+    var subJSON = sub.toJSON();
+    var res = await fetch(SB_URL+'/rest/v1/push_subscriptions', {
+      method:'POST',
+      headers:{
+        'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify({
+        empresa_id:  _sbEmpId,
+        usuario_id:  currentUser.id,
+        rol:         currentUser.role||'admin',
+        subscription: subJSON
+      })
+    });
+    if(!res.ok){
+      var errTxt = await res.text();
+      throw new Error('Supabase '+res.status+': '+errTxt.slice(0,100));
+    }
+    console.log('[Push] ✅ Guardado en Supabase');
+    if(btn){
+      btn.style.background="oklch(22% 0.06 150)";
+      btn.style.color="oklch(85% 0.08 150)";
+      btn.style.borderColor="oklch(40% 0.08 150)";
+      btn.textContent="✅ Notificaciones activas";
+      btn.disabled=true;
+    }
+    showNotif("🔔 Notificaciones activadas","ok");
   } catch(e){
+    console.error('[Push] ERROR:', e);
     if(btn){ btn.disabled=false; btn.textContent="🔔 Activar notificaciones"; }
-    alert("Error: "+e.message+"\n\nAsegurate de abrir la app desde la pantalla de inicio (PWA).");
+    alert("Error al activar: "+e.message+"\n\nRevisar la consola del iPhone:\nSafari en Mac → Desarrollar → [iPhone] → Consola");
   }
 }
 
