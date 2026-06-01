@@ -1487,6 +1487,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <input class="l-input" type="text" id="l-user" placeholder="ID de usuario" autocomplete="username" autocapitalize="none" spellcheck="false">
     <label class="l-label">Contraseña</label>
     <input class="l-input" type="password" id="l-pass" placeholder="Contraseña" autocomplete="current-password">
+    <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--l-muted,#94a3b8);cursor:pointer;margin-bottom:6px;user-select:none">
+      <input type="checkbox" id="l-remember" checked style="width:15px;height:15px;cursor:pointer;accent-color:#4f8eff">
+      Mantener sesión iniciada
+    </label>
     <button class="l-btn" onclick="doLogin()">INGRESAR →</button>
     <div id="l-err" class="l-err"></div>
     <div id="l-debug" class="l-debug"></div>
@@ -3089,7 +3093,7 @@ window.onload = function(){
     cacheKeys.forEach(function(k){ localStorage.removeItem(k); });
   } catch(e){}
 
-  var saved = sessionStorage.getItem("dm_session");
+  var saved = localStorage.getItem("dm_session");
   if(saved){ try{
     var s=JSON.parse(saved);
     empresaKey=s.empresaKey;
@@ -3098,13 +3102,32 @@ window.onload = function(){
     // Crítico: setear _sbEmpId desde la sesión guardada
     _sbEmpId = empresaKey;
     aplicarBranding();
-    if (!checkEmpresaAccess(s.empresaData||{})) { sessionStorage.removeItem("dm_session"); return; }
+    if (!checkEmpresaAccess(s.empresaData||{})) { localStorage.removeItem("dm_session"); return; }
     _loadReadCache(); _loadQueue(); _updateBanner();
     aplicarRestricciones();
     cargarListasPrecios();
     iniciarApp();
-  }catch(e){ sessionStorage.removeItem("dm_session"); } }
+  }catch(e){ localStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
+  // Pre-rellenar con credenciales guardadas si existen
+  try {
+    var savedCreds = JSON.parse(localStorage.getItem("dm_creds")||"null");
+    if(savedCreds && savedCreds.empresa){
+      var empEl  = document.getElementById("l-empresa");
+      var userEl = document.getElementById("l-user");
+      var passEl = document.getElementById("l-pass");
+      var remEl  = document.getElementById("l-remember");
+      if(empEl)  empEl.value  = savedCreds.empresa||"";
+      if(userEl) userEl.value = savedCreds.user||"";
+      if(passEl) passEl.value = savedCreds.pass||"";
+      if(remEl)  remEl.checked = true;
+      // Mostrar mensaje sutil
+      var errEl = document.getElementById("l-err");
+      if(errEl){ errEl.style.color="var(--accent,#4f8eff)"; errEl.textContent="Credenciales guardadas — tocá INGRESAR para continuar"; }
+    }
+  } catch(e){}
+  document.getElementById("l-empresa").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
+  document.getElementById("l-user").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
 };
 
 function doLogin(){
@@ -3164,11 +3187,23 @@ function doLogin(){
         empresaData.usuarios[u.id] = {id:u.uid,_sbId:u.id,name:u.name,pass:u.pass,role:u.role,lista:u.lista,catalogo:u.catalogo,direccion:u.direccion||"",tel:u.telefono||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
       });
 
-      sessionStorage.setItem("dm_session", JSON.stringify({
+      localStorage.setItem("dm_session", JSON.stringify({
         empresaKey: emp.id,
         user:       currentUser,
         empresaData:empresaData
       }));
+
+      // Guardar credenciales si "recordarme" está marcado
+      var remEl = document.getElementById("l-remember");
+      if(remEl && remEl.checked){
+        localStorage.setItem("dm_creds", JSON.stringify({
+          empresa: document.getElementById("l-empresa").value.trim().toLowerCase(),
+          user:    document.getElementById("l-user").value.trim(),
+          pass:    document.getElementById("l-pass").value
+        }));
+      } else {
+        localStorage.removeItem("dm_creds");
+      }
 
       document.getElementById("l-pass").value="";
       err.textContent=""; dbg.style.display="none";
@@ -3479,7 +3514,12 @@ function showPlanLocked(plan) {
   showNotif('Esta función no está en tu plan actual', 'err');
 }
 
-function doLogout(){ if(!confirm("¿Cerrar sesión?"))return; sessionStorage.removeItem("dm_session"); location.reload(); }
+function doLogout(){
+  if(!confirm("¿Cerrar sesión?")) return;
+  localStorage.removeItem("dm_session");
+  localStorage.removeItem("dm_creds");
+  location.reload();
+}
 function iniciarApp(){ document.getElementById("login-screen").style.display="none"; document.getElementById("app").classList.add("on"); document.getElementById("sb-username").textContent=currentUser.name||currentUser.id; aplicarRol(); cargarCatalogo(); }
 function aplicarRol(){
   var role = currentUser.role || "vendedor";
