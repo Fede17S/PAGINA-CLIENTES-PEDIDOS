@@ -1566,6 +1566,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </nav>
   <div class="sb-foot">
     <div class="sb-user">Vendedor<span id="sb-username"></span></div>
+    <button id="btn-activar-notif" onclick="activarNotificaciones()" style="display:none;width:calc(100% - 24px);margin:0 12px 6px;padding:9px 12px;background:oklch(22% 0.06 240);color:oklch(85% 0.08 240);border:1px solid oklch(35% 0.08 240);border-radius:9px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-align:center;touch-action:manipulation">
+      🔔 Activar notificaciones
+    </button>
     <button class="sb-logout" onclick="doLogout()">Salir</button>
   </div>
 </aside>
@@ -2874,6 +2877,58 @@ function _urlBase64ToUint8Array(b64){
 }
 
 // Llamar a _initPushSubscription después de login exitoso
+async function activarNotificaciones(){
+  var btn = document.getElementById("btn-activar-notif");
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    alert("Tu dispositivo/browser no soporta notificaciones push.\n\nEn iPhone: abrí la app desde Safari y agregala a la pantalla de inicio primero.");
+    return;
+  }
+  if(btn){ btn.disabled=true; btn.textContent="⏳ Solicitando permiso…"; }
+  try {
+    var perm = await Notification.requestPermission();
+    if(perm === 'granted'){
+      var reg = await navigator.serviceWorker.ready;
+      await _initPushSubscription(reg);
+      if(btn){ btn.style.background="oklch(22% 0.06 150)"; btn.style.color="oklch(85% 0.08 150)"; btn.style.borderColor="oklch(40% 0.08 150)"; btn.textContent="✅ Notificaciones activas"; btn.disabled=true; }
+      showNotif("🔔 Notificaciones activadas correctamente","ok");
+    } else if(perm === 'denied'){
+      if(btn){ btn.disabled=false; btn.textContent="🔔 Activar notificaciones"; }
+      alert("Permiso denegado.\n\nPara activarlo: Ajustes → Safari → [tu app] → Notificaciones → Permitir");
+    } else {
+      if(btn){ btn.disabled=false; btn.textContent="🔔 Activar notificaciones"; }
+    }
+  } catch(e){
+    if(btn){ btn.disabled=false; btn.textContent="🔔 Activar notificaciones"; }
+    alert("Error: "+e.message+"\n\nAsegurate de abrir la app desde la pantalla de inicio (PWA).");
+  }
+}
+
+function _checkNotifButton(){
+  var btn = document.getElementById("btn-activar-notif");
+  if(!btn) return;
+  // Solo mostrar para admins
+  if(!currentUser || currentUser.role !== 'admin'){ btn.style.display="none"; return; }
+  // Si el browser no soporta push, no mostrar
+  if(!('Notification' in window) || !('serviceWorker' in navigator)){ btn.style.display="none"; return; }
+  // Si ya tiene permiso, mostrar como activo
+  if(Notification.permission === 'granted'){
+    btn.style.display="block";
+    btn.style.background="oklch(22% 0.06 150)"; btn.style.color="oklch(85% 0.08 150)";
+    btn.style.borderColor="oklch(40% 0.08 150)"; btn.textContent="✅ Notificaciones activas";
+    btn.disabled=true;
+  } else if(Notification.permission === 'denied'){
+    btn.style.display="block";
+    btn.style.background="oklch(22% 0.06 20)"; btn.style.color="oklch(75% 0.08 20)";
+    btn.textContent="🔕 Notificaciones bloqueadas";
+    btn.disabled=true;
+  } else {
+    // 'default' — mostrar botón activo
+    btn.style.display="block";
+    btn.disabled=false;
+    btn.textContent="🔔 Activar notificaciones";
+  }
+}
+
 function _tryInitPush(){
   if(!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.ready.then(function(reg){
@@ -3246,6 +3301,7 @@ window.onload = function(){
     aplicarRestricciones();
     cargarListasPrecios();
     iniciarApp();
+    setTimeout(_checkNotifButton, 1000);
   }catch(e){ localStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
   // Pre-rellenar con credenciales guardadas si existen
@@ -3354,7 +3410,8 @@ function doLogin(){
       aplicarBranding(); aplicarRestricciones();
       cargarListasPrecios();
       iniciarApp();
-      setTimeout(_tryInitPush, 2500); // Iniciar push para admin
+      setTimeout(_tryInitPush, 2500);
+      setTimeout(_checkNotifButton, 1000);
     });
   })
   .catch(function(e){ err.textContent="❌ Error: "+(e.message||e); });
