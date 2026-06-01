@@ -1773,8 +1773,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <input type="text" id="bk-search" placeholder="🔍 Buscar por cliente, vendedor…"
       oninput="renderBackup()" style="flex:1;font-size:14px"
       autocomplete="off" autocorrect="off" autocapitalize="off">
-    <button class="btn btn-ghost btn-sm" onclick="sincronizarPendientesBackup();cargarBackupFirebase()">🔄</button>
+    <button class="btn btn-ghost btn-sm" onclick="_bkRefresh()" id="bk-refresh-btn" title="Actualizar pedidos">🔄</button>
   </div>
+  <div id="bk-sync-status" style="display:none;font-size:11.5px;margin-bottom:8px;padding:6px 10px;border-radius:7px;font-weight:600"></div>
 
   <!-- Tabs de estado -->
   <div style="display:flex;gap:6px;margin-bottom:10px" id="bk-tabs">
@@ -3258,20 +3259,29 @@ async function _sbPatchRutaCli(rutaId,cliId,data){
 async function _sbDelComprobante(rutaId,cliId,tid){ var rows=await sbGet("ruta_clientes","select=comprobantes&id=eq."+cliId); if(!rows||!rows[0])return; var comps=(rows[0].comprobantes||[]).filter(function(c){return c.id!==tid;}); return sbPatch("ruta_clientes","id=eq."+cliId,{comprobantes:comps}); }
 
 async function _sbGetBackup(){
-  var rows=await sbGet("backup_pedidos","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
-  if(!rows||!rows.length) return null;
+  // Traer los últimos 500 pedidos, ordenados por fecha desc
+  var rows = await sbGet("backup_pedidos",
+    "select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=500"
+  );
+  if(!rows || !rows.length) return null;
   var r={};
   rows.forEach(function(b){
     r[b.id]={
       id:b.id, _sbId:b.id, _fbKey:b.id, _synced:true,
-      fecha:b.fecha, clienteNom:b.cliente_nom, clienteId:b.cliente_id,
-      lista:b.lista, obs:b.obs||"", items:b.items||[], total:b.total||0,
-      totalConIVA:b.total_con_iva||(Math.round((b.total||0)*1.21*100)/100),
-      tipo:b.tipo||"pedido",
-      tipoComprobante:b.tipo_comprobante||null,
-      aprobado: b.aprobado===null ? null : (b.aprobado===true || b.aprobado==="true"),
-      usuario:b.usuario||"", usuarioNom:b.usuario_nom||"",
-      descuentos:b.descuentos||null
+      fecha:          b.fecha,
+      clienteNom:     b.cliente_nom  || b.clienteNom  || "",
+      clienteId:      b.cliente_id   || b.clienteId   || "",
+      lista:          b.lista        || "Clientes",
+      obs:            b.obs          || "",
+      items:          b.items        || [],
+      total:          b.total        || 0,
+      totalConIVA:    b.total_con_iva || Math.round((b.total||0)*1.21*100)/100,
+      tipo:           b.tipo         || "pedido",
+      tipoComprobante:b.tipo_comprobante || null,
+      aprobado:       b.aprobado===null ? null : (b.aprobado===true||b.aprobado==="true"),
+      usuario:        b.usuario      || "",
+      usuarioNom:     b.usuario_nom  || b.usuarioNom  || "",
+      descuentos:     b.descuentos   || null
     };
   });
   return r;
@@ -3837,7 +3847,13 @@ function verTab(id,btn){
   } else {
     if(mainEl) mainEl.classList.remove("has-map");
   }
-  if(id==="backup"){ sincronizarPendientesBackup(); cargarBackupFirebase(); }
+  if(id==="backup"){
+    sincronizarPendientesBackup();
+    cargarBackupFirebase();
+    _bkStartAutoRefresh();
+  } else {
+    _bkStopAutoRefresh();
+  }
   if(id==="resumen"){poblarFiltros();cargarVentasFirebase(false);}
   if(id==="mis-ventas") cargarMisVentas();
   if(id==="vendedores") cargarVendedores();
@@ -6394,77 +6410,199 @@ var BK_KEY_BASE = "dm_backup_pedidos";
 function getBkKey(){ return BK_KEY_BASE + "_" + (empresaKey||"global"); }
 var backupAbierto = null;
 
-function getBackups(){
-  try{ return JSON.parse(localStorage.getItem(getBkKey()))||[]; }
-  catch{ return []; }
-}
-function saveBackups(arr){
-  localStorage.setItem(getBkKey(), JSON.stringify(arr));
-}
+// ══ BACKUP PEDIDOS — SISTEMA CONFIABLE ══
+// Supabase es la fuente de verdad. localStorage es solo caché de lectura.
+
+var _backupCache = []; // caché en memoria — siempre vigente
+var _bkSaving    = false;
+var _bkPendingQueue = []; // cola de reintentos
+
+function getBkKey(){ return "dm_bk_"+(empresaKey||"x"); }
 
 function getBackups(){
+  // 1) Usar caché en memoria si está disponible
+  if(_backupCache && _backupCache.length) return _backupCache;
+  // 2) Fallback localStorage
   try{ return JSON.parse(localStorage.getItem(getBkKey()))||[]; }
-  catch{ return []; }
-}
-function saveBackups(arr){
-  localStorage.setItem(getBkKey(), JSON.stringify(arr));
+  catch(e){ return []; }
 }
 
-function guardarBackup(item){
-  // Guardar en Supabase (fuente única)
-  if(_sbEmpId){
-    _sbInsertBackup(item).then(function(newId){
-      if(newId){ item._sbId=newId; item._fbKey=newId; item._synced=true; }
-      var arr=getBackups();
-      // Evitar duplicados por id
-      if(!arr.find(function(x){return x.id===item.id;})){
-        arr.unshift(item);
-        if(arr.length>300) arr=arr.slice(0,300);
-        saveBackups(arr);
-      }
-      renderBackup();
-    }).catch(function(e){
-      console.warn("Error subiendo backup a Supabase:",e);
-      // Fallback local
-      var arr=getBackups();
-      if(!arr.find(function(x){return x.id===item.id;})){
-        arr.unshift(item); saveBackups(arr);
-      }
-      renderBackup();
+function saveBackups(arr){
+  _backupCache = arr || [];
+  // Guardar en localStorage sin fotos/base64 para no saturar quota
+  try{
+    var slim = arr.map(function(b){
+      var c=Object.assign({},b);
+      delete c._doc; delete c._ordenes; delete c._mPDF; delete c._tPDF;
+      return c;
     });
-  } else {
+    localStorage.setItem(getBkKey(), JSON.stringify(slim.slice(0,200)));
+  }catch(e){ console.warn('[Backup] localStorage lleno, usando solo caché'); }
+}
+
+async function guardarBackup(item){
+  if(!_sbEmpId){
+    // Sin Supabase: solo local
     var arr=getBackups();
     if(!arr.find(function(x){return x.id===item.id;})){
       arr.unshift(item); saveBackups(arr);
     }
     renderBackup();
+    return;
+  }
+
+  // Agregar a caché local inmediatamente para que se vea al instante
+  var arr=getBackups();
+  if(!arr.find(function(x){return x.id===item.id;})){
+    arr.unshift(item); saveBackups(arr);
+  }
+  renderBackup();
+
+  // Intentar subir a Supabase con reintentos
+  _sbInsertBackupConReintento(item, 3);
+}
+
+async function _sbInsertBackupConReintento(item, intentosRestantes){
+  try {
+    var newId = await _sbInsertBackup(item);
+    if(newId){
+      item._sbId    = newId;
+      item._fbKey   = newId;
+      item._synced  = true;
+      // Actualizar en caché
+      var arr = getBackups();
+      var idx = arr.findIndex(function(x){ return x.id===item.id; });
+      if(idx>=0) arr[idx]=item; else arr.unshift(item);
+      saveBackups(arr);
+      console.log('[Backup] ✅ Guardado en Supabase:', newId);
+    }
+  } catch(e){
+    console.warn('[Backup] Error subiendo (intentos restantes: '+intentosRestantes+'):', e.message);
+    if(intentosRestantes > 1){
+      // Reintentar en 4 segundos
+      setTimeout(function(){
+        _sbInsertBackupConReintento(item, intentosRestantes-1);
+      }, 4000);
+    } else {
+      // Agregar a cola pendiente para cuando vuelva la conexión
+      _bkPendingQueue.push(item);
+      try{ localStorage.setItem("dm_bk_pending", JSON.stringify(_bkPendingQueue)); }catch(e){}
+      showNotif("⚠️ Pedido guardado localmente — se subirá cuando haya conexión","warn");
+    }
   }
 }
 
-function subirBackupFirebase(item){
-  // No-op — usamos Supabase ahora
+// Sincronizar pendientes cuando vuelve la conexión
+async function _syncPendingBackups(){
+  var pending = _bkPendingQueue.slice();
+  if(!pending.length){
+    try{
+      var saved = JSON.parse(localStorage.getItem("dm_bk_pending")||"[]");
+      pending = saved;
+    }catch(e){}
+  }
+  if(!pending.length || !_sbEmpId || !navigator.onLine) return;
+  console.log('[Backup] Sincronizando '+pending.length+' pendientes…');
+  var synced = 0;
+  for(var i=0;i<pending.length;i++){
+    try{
+      var item=pending[i];
+      // Verificar si ya existe en Supabase
+      var exists=await sbGet("backup_pedidos","select=id&id=eq."+item.id+"&empresa_id=eq."+_sbEmpId);
+      if(exists && exists.length) { synced++; continue; }
+      var newId=await _sbInsertBackup(item);
+      if(newId){ item._sbId=newId; item._synced=true; synced++; }
+    }catch(ex){ console.warn('[Backup] Pendiente '+i+' falló:', ex.message); }
+  }
+  if(synced > 0){
+    _bkPendingQueue = pending.slice(synced);
+    try{ localStorage.setItem("dm_bk_pending", JSON.stringify(_bkPendingQueue)); }catch(e){}
+    if(synced > 0) showNotif("✅ "+synced+" pedido(s) sincronizados","ok");
+    cargarBackupFirebase();
+  }
 }
 
-function sincronizarPendientesBackup(){
-  // No-op — Supabase no necesita sincronización pendiente
-}
+// Hook: sincronizar cuando vuelve la conexión
+window.addEventListener("online", function(){ setTimeout(_syncPendingBackups, 2000); });
 
-function cargarBackupFirebase(){
+function subirBackupFirebase(item){ /* no-op */ }
+function sincronizarPendientesBackup(){ _syncPendingBackups(); }
+
+async function cargarBackupFirebase(){
   if(!_sbEmpId && !empresaKey) return;
   var wrap=document.getElementById("backup-list");
   if(wrap) wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando pedidos…</div>';
 
-  _sbGetBackup().then(function(data){
-    if(!data){ renderBackup(); return; }
-    // data es {id: {...}} desde _sbGetBackup
-    var remoteItems = Object.values(data);
+  // Mostrar caché local inmediatamente mientras carga Supabase
+  var cached = getBackups();
+  if(cached.length){ renderBackup(); }
+
+  if(!_sbEmpId){ renderBackup(); return; }
+
+  try {
+    var data = await _sbGetBackup();
+    var remoteItems = data ? Object.values(data) : [];
     remoteItems.sort(function(a,b){ return (b.fecha||"").localeCompare(a.fecha||""); });
+
+    // Merge: mantener items locales no synced que no estén en Supabase aún
+    var localPending = getBackups().filter(function(b){ return !b._synced; });
+    localPending.forEach(function(lp){
+      if(!remoteItems.find(function(r){ return r.id===lp.id||r._sbId===lp.id; })){
+        remoteItems.unshift(lp);
+      }
+    });
+
     saveBackups(remoteItems);
     renderBackup();
-  }).catch(function(e){
-    console.warn("No se pudo cargar backup:", e);
+
+    // Sincronizar pendientes si hay
+    setTimeout(_syncPendingBackups, 1000);
+  } catch(e){
+    console.warn('[Backup] Error cargando de Supabase:', e.message);
+    // Mostrar lo que hay en caché
     renderBackup();
+    showNotif("⚠️ Mostrando pedidos guardados localmente","warn");
+  }
+}
+
+
+
+var _bkAutoRefreshTimer = null;
+
+function _bkRefresh(){
+  var btn = document.getElementById("bk-refresh-btn");
+  var status = document.getElementById("bk-sync-status");
+  if(btn){ btn.textContent="⏳"; btn.disabled=true; }
+  if(status){ status.style.display="block"; status.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:6px 10px;border-radius:7px;font-weight:600;background:var(--s2);color:var(--muted)"; status.textContent="🔄 Sincronizando con el servidor…"; }
+  _syncPendingBackups().catch(function(){});
+  cargarBackupFirebase().catch(function(){}).finally(function(){
+    if(btn){ btn.textContent="🔄"; btn.disabled=false; }
+    var pending = (_bkPendingQueue||[]).length;
+    if(status){
+      if(pending > 0){
+        status.style.background="oklch(97% 0.03 50)"; status.style.color="#b45309";
+        status.textContent="⚠️ "+pending+" pedido(s) pendientes de subir — conectate a internet y tocá 🔄";
+      } else {
+        status.style.background="oklch(97% 0.03 150)"; status.style.color="#1b5e20";
+        status.textContent="✅ Sincronizado con el servidor";
+        setTimeout(function(){ if(status) status.style.display="none"; }, 3000);
+      }
+    }
   });
+}
+
+function _bkStartAutoRefresh(){
+  _bkStopAutoRefresh();
+  // Actualizar automáticamente cada 45 segundos mientras el tab esté abierto
+  _bkAutoRefreshTimer = setInterval(function(){
+    if(document.getElementById("backup").classList.contains("active")){
+      cargarBackupFirebase().catch(function(){});
+    }
+  }, 45000);
+}
+
+function _bkStopAutoRefresh(){
+  if(_bkAutoRefreshTimer){ clearInterval(_bkAutoRefreshTimer); _bkAutoRefreshTimer=null; }
 }
 
 var _bkTab = "todos"; // "todos" | "espera" | "aprobados" | "rechazados"
