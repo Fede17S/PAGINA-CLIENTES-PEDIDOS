@@ -2831,6 +2831,56 @@ function sbGet(table, params){
   window.addEventListener("online",  update);
   window.addEventListener("offline", function(){ update(); });
   if(!navigator.onLine) update();
+// ── PUSH NOTIFICATIONS ──
+var VAPID_PUBLIC_KEY = 'BBPMEYmiwpVa5uYjOLoDFdv-yAcXmJbuNX7pGC1ng-oswP0LAYpOe0p-XYPJiZYdmRXUxNeIQHZ5ongUPwmrrEU';
+
+async function _initPushSubscription(swReg){
+  if(!('PushManager' in window)){ console.log('[Push] No soportado'); return; }
+  if(!_sbEmpId || !currentUser) return;
+  // Solo para admins
+  if(currentUser.role !== 'admin') return;
+  try {
+    var perm = await Notification.requestPermission();
+    if(perm !== 'granted'){ console.log('[Push] Permiso denegado'); return; }
+
+    // Obtener o crear suscripción
+    var sub = await swReg.pushManager.getSubscription();
+    if(!sub){
+      sub = await swReg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    // Guardar en Supabase
+    await sbPost('push_subscriptions', {
+      empresa_id:  _sbEmpId,
+      usuario_id:  currentUser.id,
+      rol:         'admin',
+      subscription: sub.toJSON()
+    });
+    console.log('[Push] ✅ Suscripto para notificaciones');
+  } catch(e){
+    console.warn('[Push] Error al suscribir:', e.message);
+  }
+}
+
+function _urlBase64ToUint8Array(b64){
+  var padding = '='.repeat((4 - b64.length % 4) % 4);
+  var base64  = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw     = atob(base64);
+  var arr     = new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+
+// Llamar a _initPushSubscription después de login exitoso
+function _tryInitPush(){
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready.then(function(reg){
+    _initPushSubscription(reg);
+  }).catch(function(){});
+}
+
 // Banner de estado de conexión online/offline
 function _initConnectionBanner(){
   if(document.getElementById("conn-banner")) return;
@@ -3304,6 +3354,7 @@ function doLogin(){
       aplicarBranding(); aplicarRestricciones();
       cargarListasPrecios();
       iniciarApp();
+      setTimeout(_tryInitPush, 2500); // Iniciar push para admin
     });
   })
   .catch(function(e){ err.textContent="❌ Error: "+(e.message||e); });
@@ -10685,15 +10736,13 @@ async function generarCatalogoPDF(){
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distrimax-v4';
+  var CACHE_NAME = 'distrimax-v5';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
     "'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',",
     "'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',",
-    "'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js',",
-    "'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'];",
-    // Install: cache static assets
+    "'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js'];",
     "self.addEventListener('install',e=>{",
     "  e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(STATIC.map(u=>c.add(u).catch(()=>{})))));",
     "  self.skipWaiting();",
@@ -10701,23 +10750,33 @@ async function generarCatalogoPDF(){
     "self.addEventListener('activate',e=>{",
     "  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>clients.claim()));",
     "});",
+    "self.addEventListener('push',e=>{",
+    "  let d={title:'DistriMax',body:'Nuevo pedido',data:{}};",
+    "  try{d=e.data?e.data.json():d;}catch(x){}",
+    "  const opts={body:d.body||d.mensaje||'',icon:'/icon-192.png',badge:'/icon-192.png',",
+    "    vibrate:[200,100,200,100,200],tag:'dm-pedido',renotify:true,data:d.data||{},",
+    "    actions:[{action:'ver',title:'📋 Ver pedido'},{action:'cerrar',title:'✕'}]};",
+    "  e.waitUntil(self.registration.showNotification(d.title||d.titulo||'DistriMax',opts));",
+    "});",
+    "self.addEventListener('notificationclick',e=>{",
+    "  e.notification.close();",
+    "  if(e.action==='cerrar')return;",
+    "  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(cls=>{",
+    "    const c=cls.find(x=>x.url&&x.url.length>5);",
+    "    if(c){c.focus();c.postMessage({type:'OPEN_BACKUP'});}",
+    "    else clients.openWindow('/');",
+    "  }));",
+    "});",
     "self.addEventListener('fetch',e=>{",
-    "  const url=e.request.url;",
-    "  const method=e.request.method;",
-    // Skip Supabase API calls (handle in app)
-    "  if(url.includes('supabase.co'))return;",
-    // Skip non-GET
-    "  if(method!=='GET')return;",
-    // Static assets: cache-first
+    "  const url=e.request.url,method=e.request.method;",
+    "  if(url.includes('supabase.co')||method!=='GET')return;",
     "  if(url.includes('unpkg.com')||url.includes('cdnjs.cloudflare')||url.includes('fonts.g')){",
     "    e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{",
     "      if(r.ok){const cl=r.clone();caches.open(CACHE).then(ca=>ca.put(e.request,cl));}return r;",
     "    })));return;",
     "  }",
-    // HTML and everything else: network-first, fallback to cache
     "  e.respondWith(fetch(e.request).then(r=>{",
-    "    if(r.ok){const cl=r.clone();caches.open(CACHE).then(c=>c.put(e.request,cl));}",
-    "    return r;",
+    "    if(r.ok){const cl=r.clone();caches.open(CACHE).then(c=>c.put(e.request,cl));}return r;",
     "  }).catch(()=>caches.match(e.request)));",
     "});"
   ].join('\n');
@@ -10726,13 +10785,26 @@ async function generarCatalogoPDF(){
   try {
     var blob = new Blob([SW_CODE], {type:'application/javascript'});
     var swURL = URL.createObjectURL(blob);
-    navigator.serviceWorker.register('./sw.js')
-      .then(function(r){ console.log('[SW] Registrado:', r.scope); })
-      .catch(function(){
-        navigator.serviceWorker.register(swURL, {scope:'./'})
-          .then(function(r){ console.log('[SW] Blob SW activo'); })
-          .catch(function(e){ console.warn('[SW] No disponible:', e.message); });
-      });
+    var regPromise = navigator.serviceWorker.register('./sw.js')
+      .catch(function(){ return navigator.serviceWorker.register(swURL, {scope:'./'}); });
+    
+    regPromise.then(function(reg){
+      console.log('[SW] Activo');
+      // Inicializar push si es admin
+      if(currentUser && (currentUser.role==='admin') && _sbEmpId){
+        _initPushSubscription(reg);
+      }
+    }).catch(function(e){ console.warn('[SW]', e.message); });
+
+    // Escuchar mensajes del SW → abrir Backup Pedidos al tocar notificación
+    navigator.serviceWorker.addEventListener('message', function(e){
+      if(e.data && e.data.type==='OPEN_BACKUP'){
+        if(typeof verTab==='function'){
+          var btn=document.getElementById('nav-backup');
+          verTab('backup', btn);
+        }
+      }
+    });
   } catch(e){ console.warn('[SW] Error:', e.message); }
 })();
 
