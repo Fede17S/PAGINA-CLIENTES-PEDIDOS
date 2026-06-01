@@ -3048,7 +3048,7 @@ async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre
 
 async function _sbGetUsuarios(){ var rows=await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,zona,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc"); if(!rows)return null; var r={};rows.forEach(function(u){r[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,direccion:u.direccion,telefono:u.telefono,zona:u.zona,rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id};});return r; }
 async function _sbInsertUsuario(u){ var rows=await sbPost("usuarios",{empresa_id:_sbEmpId,uid:u.id,pass:u.pass||u.id,name:u.name||u.id,role:u.role||"vendedor",lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.tel||"",zona:u.zona||"",recepciona:u.rec||"",nota:u.nota||"",catalogo:u.catalogo!==false}); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
+async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.zona_id!==undefined)b.zona_id=u.zona_id;if(u.cuit!==undefined)b.cuit=u.cuit;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;if(u.uid!==undefined)b.uid=u.uid;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
 async function _sbGetRutas(){
   var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
@@ -8413,15 +8413,17 @@ async function guardarEditCliente() {
   if (nota)   updated.nota = nota;
   if (zonaId2){ updated.zona_id=zonaId2; updated.zona=zona2; }
   else { updated.zona_id=null; updated.zona=""; }
-  if (zona) updated.zona = zona;
   if (rec)  updated.rec  = rec;
   try {
     await fbPatch("empresas/"+empresaKey+"/usuarios/"+pushKey, updated);
-    _clientesDB[pushKey] = updated;
+    _clientesDB[pushKey] = Object.assign(_clientesDB[pushKey]||{}, updated);
     cerrarModal("modal-edit-cli");
     _renderClientesList();
-    showNotif('✓ Cliente "'+name+'" actualizado',"ok");
-  } catch(e) { showNotif("Error al guardar: "+e.message,"err"); }
+    showNotif('✓ "'+name+'" actualizado',"ok");
+  } catch(e) {
+    console.error("Error guardarEditCliente:", e);
+    showNotif("Error al guardar: "+(e.message||e),"err");
+  }
 }
 
 /* ══ IMPORTADOR CSV DE CLIENTES ══ */
