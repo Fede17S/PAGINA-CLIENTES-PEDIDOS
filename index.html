@@ -2125,7 +2125,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <label>Dirección</label>
         <div style="display:flex;gap:7px;margin-bottom:6px">
           <input type="text" id="nc-dir" placeholder="ej: San Martín 450, Rawson, Chubut" style="flex:1"
-                 oninput="_dirAutoComplete('nc-dir','nc-dir-suggestions')">
+                 oninput="_dirAutoComplete('nc-dir','nc-dir-suggestions')"
+                 onblur="setTimeout(function(){var w=document.getElementById('nc-dir-suggestions');if(w)w.style.display='none';},200)">
           <button class="btn btn-ghost btn-sm" onclick="_capturarGPSParaCliente('nc')" title="Usar mi ubicación GPS ahora" style="white-space:nowrap;flex-shrink:0;background:var(--text);color:#fff;border-color:var(--text)">
             📍 GPS
           </button>
@@ -2225,7 +2226,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <label>Dirección</label>
         <div style="display:flex;gap:7px;margin-bottom:6px">
           <input type="text" id="ec-dir" style="flex:1" placeholder="ej: San Martín 450, Rawson"
-                 oninput="_dirAutoComplete('ec-dir','ec-dir-suggestions')">
+                 oninput="_dirAutoComplete('ec-dir','ec-dir-suggestions')"
+                 onblur="setTimeout(function(){var w=document.getElementById('ec-dir-suggestions');if(w)w.style.display='none';},200)">
           <button class="btn btn-ghost btn-sm" onclick="_capturarGPSParaCliente('ec')" title="Usar mi ubicación GPS ahora" style="white-space:nowrap;flex-shrink:0;background:var(--text);color:#fff;border-color:var(--text)">
             📍 GPS
           </button>
@@ -2770,7 +2772,90 @@ function sbFetch(method, path, body){
       return r.json();
     });
 }
-function sbGet(table, params)        { return sbFetch("GET",    "/rest/v1/"+table+"?"+(params||""), null); }
+function _sbGetRaw(table, params){ return sbFetch("GET", "/rest/v1/"+table+"?"+(params||""), null); }
+
+// ══ OFFLINE-AWARE sbGet ══
+var _sbOfflineCache = {};
+
+function _sbCacheKey(table, params){ return "dm_sb_"+_sbEmpId+"_"+table+"_"+(params||""); }
+
+function _sbCacheSave(table, params, data){
+  var key = _sbCacheKey(table, params);
+  try{ localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data})); }catch(e){}
+  _sbOfflineCache[key] = data;
+}
+
+function _sbCacheLoad(table, params){
+  var key = _sbCacheKey(table, params);
+  if(_sbOfflineCache[key]) return _sbOfflineCache[key];
+  try{
+    var raw = localStorage.getItem(key);
+    if(raw){ var obj=JSON.parse(raw); _sbOfflineCache[key]=obj.data; return obj.data; }
+  }catch(e){}
+  return null;
+}
+
+function sbGet(table, params){
+  if(!navigator.onLine){
+    var cached = _sbCacheLoad(table, params||"");
+    if(cached != null){
+      console.log("[Offline] Caché:", table);
+      return Promise.resolve(cached);
+    }
+    return Promise.resolve(null);
+  }
+  return _sbGetRaw(table, params||"").then(function(data){
+    if(data != null) _sbCacheSave(table, params||"", data);
+    return data;
+  });
+}
+  var banner = document.createElement("div");
+  banner.id = "conn-banner";
+  banner.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:9999;padding:8px 16px;text-align:center;font-size:12px;font-weight:700;transform:translateY(100%);transition:transform .3s;pointer-events:none";
+  document.body.appendChild(banner);
+
+  function update(){
+    if(navigator.onLine){
+      banner.style.cssText += ";background:#1b5e20;color:#fff";
+      banner.textContent = "✅ Conexión restaurada — sincronizando…";
+      banner.style.transform = "translateY(0)";
+      setTimeout(function(){ banner.style.transform="translateY(100%)"; }, 3000);
+      // Sincronizar cola offline
+      if(typeof _syncQueue==="function") _syncQueue();
+    } else {
+      banner.style.cssText += ";background:#7f1d1d;color:#fca5a5";
+      banner.textContent = "📵 Sin conexión — trabajando con datos guardados";
+      banner.style.transform = "translateY(0)";
+    }
+  }
+  window.addEventListener("online",  update);
+  window.addEventListener("offline", function(){ update(); });
+  if(!navigator.onLine) update();
+// Banner de estado de conexión online/offline
+function _initConnectionBanner(){
+  if(document.getElementById("conn-banner")) return;
+  var banner = document.createElement("div");
+  banner.id = "conn-banner";
+  banner.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:9999;padding:9px 16px;text-align:center;font-size:12.5px;font-weight:700;transform:translateY(100%);transition:transform .3s ease;pointer-events:none;letter-spacing:.02em";
+  document.body.appendChild(banner);
+  function update(){
+    if(navigator.onLine){
+      banner.style.background="#1b5e20"; banner.style.color="#a7f3d0";
+      banner.textContent="✅ Conexión restaurada — sincronizando datos…";
+      banner.style.transform="translateY(0)";
+      setTimeout(function(){ banner.style.transform="translateY(100%)"; },3500);
+      if(typeof _syncQueue==="function") _syncQueue();
+    } else {
+      banner.style.background="#7f1d1d"; banner.style.color="#fca5a5";
+      banner.textContent="📵 Sin conexión — usando datos guardados";
+      banner.style.transform="translateY(0)";
+    }
+  }
+  window.addEventListener("online", update);
+  window.addEventListener("offline", update);
+  if(!navigator.onLine) update();
+}
+
 function sbPost(table, data)         { return sbFetch("POST",   "/rest/v1/"+table, data); }
 function sbPatch(table, match, data) { return sbFetch("PATCH",  "/rest/v1/"+table+"?"+match, data); }
 function sbDel(table, match)         { return sbFetch("DELETE", "/rest/v1/"+table+"?"+match, null); }
@@ -3104,11 +3189,10 @@ window.onload = function(){
     empresaKey=s.empresaKey;
     currentUser=s.user;
     empresaData=s.empresaData;
-    // Crítico: setear _sbEmpId desde la sesión guardada
     _sbEmpId = empresaKey;
     aplicarBranding();
     if (!checkEmpresaAccess(s.empresaData||{})) { localStorage.removeItem("dm_session"); return; }
-    _loadReadCache(); _loadQueue(); _updateBanner();
+    _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
     aplicarRestricciones();
     cargarListasPrecios();
     iniciarApp();
@@ -3216,7 +3300,7 @@ function doLogin(){
 
       document.getElementById("l-pass").value="";
       err.textContent=""; dbg.style.display="none";
-      _loadReadCache(); _loadQueue(); _updateBanner();
+      _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
       aplicarBranding(); aplicarRestricciones();
       cargarListasPrecios();
       iniciarApp();
@@ -7525,24 +7609,28 @@ function _dirAutoComplete(inputId, suggestId){
 function _renderDirSuggestions(wrap, results, inputId, suggestId){
   if(!results||!results.length){ wrap.style.display="none"; return; }
   wrap.style.display="block";
-  wrap.innerHTML = results.map(function(r,i){
+  wrap.innerHTML="";
+  results.forEach(function(r){
     var addr = r.address||{};
-    var main = [addr.road,addr.house_number].filter(Boolean).join(" ") || r.display_name.split(",")[0];
+    var main = [addr.road,addr.house_number].filter(Boolean).join(" ") || (r.display_name||"").split(",")[0];
     var sub  = [addr.city||addr.town||addr.village||addr.county, addr.state].filter(Boolean).join(", ");
-    return '<div class="dir-suggestion-item" onclick="_selDirSuggestion(\''+inputId+'\',\''+suggestId+'\','+r.lat+','+r.lon+','+JSON.stringify(main+', '+sub).replace(/'/g,"\\'")+')" >'+
-      '<div class="ds-icon">📍</div>'+
-      '<div class="ds-text"><b>'+escHtml(main)+'</b><br><span>'+escHtml(sub)+'</span></div>'+
-    '</div>';
-  }).join('');
-  // Click outside to close
-  setTimeout(function(){
-    document.addEventListener('click', function handler(e){
-      if(!wrap.contains(e.target) && e.target.id!==inputId){
-        wrap.style.display="none";
-        document.removeEventListener('click',handler);
-      }
+    var item = document.createElement("div");
+    item.className = "dir-suggestion-item";
+    item.innerHTML = '<div class="ds-icon">📍</div>'+
+      '<div class="ds-text"><b>'+escHtml(main)+'</b><br><span>'+escHtml(sub)+'</span></div>';
+    // Usar mousedown en desktop, touchend en mobile — ambos antes del blur que cierra el dropdown
+    function seleccionar(e){
+      e.preventDefault();
+      e.stopPropagation();
+      _selDirSuggestion(inputId, suggestId, parseFloat(r.lat), parseFloat(r.lon), main+(sub?", "+sub:""));
+    }
+    item.addEventListener("mousedown", seleccionar);
+    item.addEventListener("touchend", function(e){
+      e.preventDefault();
+      seleccionar(e);
     });
-  },0);
+    wrap.appendChild(item);
+  });
 }
 
 function _selDirSuggestion(inputId, suggestId, lat, lng, displayName){
@@ -10541,23 +10629,43 @@ async function generarCatalogoPDF(){
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
+  var CACHE_NAME = 'distrimax-v4';
   var SW_CODE = [
-    "const CACHE='distrimax-v2';",
-    "const ASSETS=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
+    "const CACHE='"+CACHE_NAME+"';",
+    "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
     "'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',",
     "'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',",
-    "'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js'];",
-    "self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(ASSETS.map(u=>c.add(u).catch(()=>{})))));self.skipWaiting();});",
-    "self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});",
+    "'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js',",
+    "'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'];",
+    // Install: cache static assets
+    "self.addEventListener('install',e=>{",
+    "  e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(STATIC.map(u=>c.add(u).catch(()=>{})))));",
+    "  self.skipWaiting();",
+    "});",
+    "self.addEventListener('activate',e=>{",
+    "  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>clients.claim()));",
+    "});",
     "self.addEventListener('fetch',e=>{",
     "  const url=e.request.url;",
-    "  if(url.includes('firebaseio.com')||url.includes('firebase.google')||url.includes('supabase.co'))return;",
+    "  const method=e.request.method;",
+    // Skip Supabase API calls (handle in app)
+    "  if(url.includes('supabase.co'))return;",
+    // Skip non-GET
+    "  if(method!=='GET')return;",
+    // Static assets: cache-first
     "  if(url.includes('unpkg.com')||url.includes('cdnjs.cloudflare')||url.includes('fonts.g')){",
-    "    e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{const cl=r.clone();caches.open(CACHE).then(ca=>ca.put(e.request,cl));return r;})));return;",
+    "    e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{",
+    "      if(r.ok){const cl=r.clone();caches.open(CACHE).then(ca=>ca.put(e.request,cl));}return r;",
+    "    })));return;",
     "  }",
-    "  e.respondWith(fetch(e.request).then(r=>{if(r.ok&&e.request.method==='GET'){const cl=r.clone();caches.open(CACHE).then(c=>c.put(e.request,cl));}return r;}).catch(()=>caches.match(e.request)));",
+    // HTML and everything else: network-first, fallback to cache
+    "  e.respondWith(fetch(e.request).then(r=>{",
+    "    if(r.ok){const cl=r.clone();caches.open(CACHE).then(c=>c.put(e.request,cl));}",
+    "    return r;",
+    "  }).catch(()=>caches.match(e.request)));",
     "});"
   ].join('\n');
+
   if(!('serviceWorker' in navigator)) return;
   try {
     var blob = new Blob([SW_CODE], {type:'application/javascript'});
@@ -10569,10 +10677,9 @@ async function generarCatalogoPDF(){
           .then(function(r){ console.log('[SW] Blob SW activo'); })
           .catch(function(e){ console.warn('[SW] No disponible:', e.message); });
       });
-  } catch(e){ console.warn('[SW] Error init:', e.message); }
+  } catch(e){ console.warn('[SW] Error:', e.message); }
 })();
 
-// ── Inicializar sistema offline al cargar ──
 window.addEventListener('load', function(){
   _loadReadCache();
   _loadQueue();
