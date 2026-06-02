@@ -9405,24 +9405,33 @@ function _renderZonasEnClientes(){
 
 async function cargarClientesSection() {
   if (!empresaKey) return;
+  var body = document.getElementById("cli-list-body");
+  if(body && !Object.keys(_clientesDB).length){
+    body.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 10px"></div>Cargando clientes…</div>';
+  }
   try {
     var usuarios = await fbGet("empresas/"+empresaKey+"/usuarios");
-    _clientesDB = usuarios || {};
-    // También actualizar dbCli para que el picker lo vea inmediatamente
-    if(_clientesDB && Object.keys(_clientesDB).length > 0){
+    if(usuarios && Object.keys(usuarios).length > 0){
+      _clientesDB = usuarios;
+      // Actualizar dbCli para el picker del vendedor
       dbCli = Object.values(_clientesDB).filter(function(u){
         if(!u.id && !u.name) return false;
         if(currentUser && u.id === currentUser.id) return false;
-        var rol = (u.role||"").toLowerCase();
-        if((rol === "admin" || rol === "repartidor") && !u.catalogo) return false;
-        if(rol === "vendedor" && u.catalogo !== true) return false;
-        return true;
+        var rol = (u.role||"cliente").toLowerCase();
+        return rol === "cliente" || u.catalogo === true;
       }).map(function(u){
-        return { id:u.id||"", nombre:u.name||u.nombre||u.id||"", lista:u.lista||"Clientes" };
+        return { id:u.id||"", nombre:u.name||u.id||"", lista:u.lista||"Clientes" };
       });
       dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
     }
-  } catch(e) { _clientesDB = {}; }
+  } catch(e) {
+    console.warn("cargarClientesSection error:", e.message);
+    // Si falla, usar lo que haya en caché
+    if(!Object.keys(_clientesDB).length && body){
+      body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ Error cargando clientes. <button onclick="cargarClientesSection()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px">Reintentar</button></div>';
+      return;
+    }
+  }
   _renderClientesList();
   // Actualizar título y visibilidad de rol según perfil
   var isAdmin = currentUser && currentUser.role === "admin";
@@ -9457,16 +9466,15 @@ function _setRolFilter(rol, btn){
 function _renderClientesList() {
   var body = document.getElementById("cli-list-body");
   var countEl = document.getElementById("cli-count");
+  if(!body) return;
   var allEntries = Object.entries(_clientesDB);
   var isAdminView = currentUser && currentUser.role === "admin";
 
-  // Admin ve TODOS. No-admin solo ve clientes
+  // Admin ve TODOS. Vendedor solo ve clientes (role=cliente o catalogo=true)
   var entries = isAdminView ? allEntries : allEntries.filter(function(entry){
     var u = entry[1];
-    var rol = (u.role||"").toLowerCase();
-    if((rol==="admin"||rol==="repartidor")&&!u.catalogo) return false;
-    if(rol==="vendedor"&&u.catalogo!==true) return false;
-    return true;
+    var rol = (u.role||"cliente").toLowerCase();
+    return rol === "cliente" || u.catalogo === true;
   });
 
   // Filtro por rol
