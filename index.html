@@ -4196,7 +4196,7 @@ function _initCliPicker(t){
         box.innerHTML = '<div class="cli-empty">⏳ Cargando clientes…</div>';
         box.style.display = "block";
         fbGet("empresas/"+empresaKey+"/usuarios").then(function(data){
-          if(data){ _clientesDB = Object.assign(_clientesDB||{}, data); }
+          if(data && !Object.keys(_clientesGestion).length){ _clientesDB = Object.assign(_clientesDB||{}, data); }
           render(q);
         }).catch(function(){});
       } else { box.style.display="none"; }
@@ -9282,8 +9282,11 @@ function _renderZonasEnClientes(){
 var _cliSearchQ = "";
 var _cliRolFilter = "";
 var _clientesGestion = {};
+var _cargandoClientes = false; // lock para evitar llamadas concurrentes
 
 async function cargarClientesSection(){
+  if(_cargandoClientes) return; // evitar llamadas concurrentes
+  _cargandoClientes = true;
   var isAdmin = currentUser && currentUser.role === "admin";
   var titleEl = document.getElementById("cli-form-title");
   if(titleEl) titleEl.textContent = isAdmin ? "➕ Agregar usuario" : "➕ Agregar cliente";
@@ -9326,6 +9329,7 @@ async function cargarClientesSection(){
     var body=document.getElementById("cli-list-body");
     if(body) body.innerHTML='<div style="padding:30px;text-align:center;color:#b91c1c">❌ '+escHtml(e.message)+'<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Reintentar</button></div>';
   }
+  _cargandoClientes = false;
 }
 
 
