@@ -2047,41 +2047,71 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <div id="clientes" class="section">
 
-  <!-- Barra superior -->
+  <!-- Header -->
   <div class="cli-list-header">
-    <div class="cli-list-title">Clientes (<span id="cli-count">0</span>)</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost btn-sm" onclick="_cargandoClientes=false;cargarClientesSection()">🔄</button>
-      <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
+    <div class="cli-list-title">Clientes&nbsp;(<span id="cli-count">0</span>)</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-ghost btn-sm" onclick="_cliForceReload()" title="Recargar">🔄</button>
+      <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">🗺️ Zonas</button>
     </div>
   </div>
 
-  <!-- Panel zonas -->
+  <!-- Panel Zonas (colapsable) -->
   <div id="cli-zonas-panel" style="display:none;margin-bottom:12px">
     <div class="card"><div class="card-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-weight:700">🗺️ Zonas de venta</span>
+        <span style="font-weight:700;font-size:14px">🗺️ Zonas de venta</span>
         <div style="display:flex;gap:8px">
           <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:7px 14px;font-size:12px">+ Nueva zona</button>
-          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer">✕</button>
+          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer">✕ Cerrar</button>
         </div>
       </div>
       <div id="cli-zonas-list"></div>
     </div></div>
   </div>
 
+  <!-- CSV Import (colapsable) -->
+  <div class="card" style="margin-bottom:12px" id="cli-csv-card">
+    <div class="card-head" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'">
+      <span class="card-title">📥 Importar desde CSV</span>
+      <span style="font-size:11px;color:var(--muted)">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
+    </div>
+    <div id="cli-csv-body" style="display:none;padding:14px">
+      <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
+        style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer"
+        ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+        ondragleave="this.style.borderColor='var(--border)'"
+        ondrop="event.preventDefault();this.style.borderColor='var(--border)';procesarCSVFile(event.dataTransfer.files[0])">
+        <div style="font-size:24px">📂</div>
+        <div style="font-size:13px;color:var(--muted)">Tocá o arrastrá el archivo CSV</div>
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="procesarCSVFile(this.files[0])">
+      <div id="csv-preview" style="display:none;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div id="csv-preview-title" style="font-size:12px;font-weight:700"></div>
+          <div style="display:flex;gap:6px">
+            <button onclick="limpiarCSV()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);cursor:pointer">✕</button>
+            <button onclick="importarCSV()" id="btn-importar-csv" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:6px;background:var(--text);color:#fff;cursor:pointer">⬆ Importar</button>
+          </div>
+        </div>
+        <div id="csv-preview-table-wrap" style="overflow:auto;border:1px solid var(--border);border-radius:8px;max-height:220px"></div>
+        <div id="csv-import-result" style="display:none;margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Buscador -->
   <div style="position:relative;margin-bottom:10px">
     <input type="text" id="cli-search-input"
-      placeholder="🔍 Buscar por nombre, ID, teléfono, zona, dirección…"
-      autocomplete="off" oninput="_filtrarClientes(this.value)"
-      style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff">
-    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+      placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
+      oninput="_filtrarClientes(this.value)" autocomplete="off"
+      style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none">🔍</span>
     <button id="cli-search-clear" onclick="document.getElementById('cli-search-input').value='';_filtrarClientes('')"
       style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted)">✕</button>
   </div>
 
-  <!-- Filtros de rol -->
+  <!-- Filtros rol -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="cli-filter-roles">
     <button class="bk-tab active" onclick="_setRolFilter('',this)">Todos</button>
     <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
@@ -3904,11 +3934,9 @@ async function cargarCatalogo(){
     }
     if(!navigator.onLine && msg){ msg.className="warn"; msg.textContent="📦 Catálogo offline (cache)"; }
     empresaData=Object.assign({},empresaData,emp);
-    // Poblar _clientesDB desde los usuarios cargados (solo si no hay datos frescos de Gestión de Clientes)
-    if(emp.usuarios && Object.keys(emp.usuarios).length > 0){
-      if(!Object.keys(_clientesGestion).length){
-        _clientesDB = emp.usuarios;
-      }
+    // Poblar _clientesDB desde los usuarios cargados (solo si la sección de Gestión no tiene datos propios)
+    if(emp.usuarios && Object.keys(emp.usuarios).length > 0 && !Object.keys(_cliData).length){
+      _clientesDB = emp.usuarios;
       // También actualizar dbCli para el picker de clientes
       dbCli = Object.values(emp.usuarios).filter(function(u){
         if(!u.id && !u.name) return false;
@@ -9129,51 +9157,86 @@ function _renderZonasEnClientes(){
 }
 
 // ══ GESTIÓN DE CLIENTES ══
-var _cliSearchQ = "";
-var _cliRolFilter = "";
-var _clientesGestion = {};
-var _cargandoClientes = false;
+
+// ══════════════════════════════════════════
+//  GESTIÓN DE CLIENTES — reescrita completa
+// ══════════════════════════════════════════
+var _cliSearchQ      = "";
+var _cliRolFilter    = "";
+var _cliData         = {};   // fuente única, keyed por sbId
+var _cliLoading      = false;
+
+// Forzar recarga (botón 🔄)
+function _cliForceReload(){
+  _cliData = {};
+  _cliLoading = false;
+  cargarClientesSection();
+}
 
 async function cargarClientesSection(){
-  if(_cargandoClientes) return;
-  _cargandoClientes = true;
+  if(_cliLoading) return;
+  _cliLoading = true;
+
+  // Config UI
   var isAdmin = currentUser && currentUser.role === "admin";
-  var cntEl = document.getElementById("cli-count");
+  var ncRol = document.getElementById("nc-rol-wrap");
+  if(ncRol) ncRol.style.display = isAdmin ? "block" : "none";
+
+  // Si ya tenemos datos, renderizar inmediatamente
+  if(Object.keys(_cliData).length) _renderClientesList();
 
   try {
-    if(!_sbEmpId) throw new Error("sin empresa");
+    if(!_sbEmpId) throw new Error("Sin empresa");
     var rows = await sbGet("usuarios",
       "select=id,uid,name,pass,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo" +
       "&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+
     if(rows && rows.length){
       var map = {};
       rows.forEach(function(u){
         map[u.id] = {
-          _sbId: u.id, id: u.uid||"", name: u.name||"", pass: u.pass||"",
-          role: u.role||"cliente", lista: u.lista||"Clientes", catalogo: u.catalogo,
-          direccion: u.direccion||"", tel: u.telefono||"", cuit: u.cuit||"",
-          zona: u.zona||"", zona_id: u.zona_id||null, rec: u.recepciona||"", nota: u.nota||""
+          _sbId:u.id, id:u.uid||"", name:u.name||"", pass:u.pass||"",
+          role:u.role||"cliente", lista:u.lista||"Clientes", catalogo:u.catalogo,
+          direccion:u.direccion||"", tel:u.telefono||"", cuit:u.cuit||"",
+          zona:u.zona||"", zona_id:u.zona_id||null, rec:u.recepciona||"", nota:u.nota||""
         };
       });
-      _clientesGestion = map;
+      _cliData = map;
       _clientesDB = map;
+      dbCli = rows
+        .filter(function(u){ var r=(u.role||"cliente").toLowerCase(); return r==="cliente"||u.catalogo===true; })
+        .map(function(u){ return {id:u.uid||"",nombre:u.name||u.uid||"",lista:u.lista||"Clientes"}; });
+      dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
     }
-  } catch(e){ console.warn("[CLI]", e.message); }
+  } catch(e){
+    console.warn("[CLI] Error:", e.message);
+    if(!Object.keys(_cliData).length){
+      var b=document.getElementById("cli-list-body");
+      if(b) b.innerHTML='<div style="text-align:center;padding:30px;color:#b91c1c">'+
+        '❌ Error: '+escHtml(e.message)+'<br>'+
+        '<button onclick="_cliForceReload()" style="margin-top:10px;padding:9px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit">Reintentar</button></div>';
+      _cliLoading = false; return;
+    }
+  }
 
-  _cargandoClientes = false;
+  _cliLoading = false;
   _renderClientesList();
 }
 
 function _renderClientesList(){
-  var body = document.getElementById("cli-list-body");
+  var body  = document.getElementById("cli-list-body");
   var cntEl = document.getElementById("cli-count");
   if(!body) return;
 
-  var src = Object.keys(_clientesGestion).length ? _clientesGestion : (_clientesDB||{});
+  // Fuente: _cliData primero, fallback _clientesDB
+  var src = Object.keys(_cliData).length ? _cliData : (_clientesDB||{});
   var all = Object.entries(src);
 
   if(!all.length){
-    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Sin clientes.<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:9px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px">🔄 Recargar</button></div>';
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">'+
+      '<div style="font-size:32px;margin-bottom:8px">📋</div>'+
+      '<div>Sin clientes cargados</div>'+
+      '<button onclick="_cliForceReload()" style="margin-top:12px;padding:9px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px">🔄 Cargar</button></div>';
     if(cntEl) cntEl.textContent="0";
     return;
   }
@@ -9194,54 +9257,62 @@ function _renderClientesList(){
         || (u.tel||"").includes(q)
         || (u.cuit||"").includes(q)
         || (u.zona||"").toLowerCase().includes(q)
-        || (u.direccion||"").toLowerCase().includes(q);
+        || (u.direccion||"").toLowerCase().includes(q)
+        || (u.rec||"").toLowerCase().includes(q);
     });
   }
 
   if(cntEl) cntEl.textContent = entries.length + (_cliSearchQ||_cliRolFilter ? "/"+all.length : "");
 
   if(!entries.length){
-    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Sin resultados</div>';
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Sin resultados para "'+escHtml(_cliSearchQ)+'"</div>';
     return;
   }
 
-  var rolColor = {cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed"};
-  var rolLabel = {cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",admin:"Admin"};
+  var RC = {cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed"};
+  var RL = {cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",admin:"Admin"};
+
+  function hl(s){
+    if(!s||!_cliSearchQ) return escHtml(s||"");
+    var re = new RegExp("("+_cliSearchQ.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");
+    return escHtml(s).replace(re,'<mark style="background:#fef3c7;border-radius:2px;padding:0 1px">$1</mark>');
+  }
 
   body.innerHTML = entries.map(function(e){
-    var pk = e[0], u = e[1];
-    var rol = u.role||"cliente";
-    var col = rolColor[rol]||"#059669";
-    var ini = (u.name||u.id||"?").charAt(0).toUpperCase();
-    var meta = [
-      u.id   ? "ID: "+u.id : null,
-      u.tel  ? "📞 "+u.tel : null,
-      u.cuit ? "CUIT: "+u.cuit : null,
-      u.rec  ? "👤 "+u.rec : null
+    var pk=e[0], u=e[1], rol=u.role||"cliente", col=RC[rol]||"#059669";
+    var ini=(u.name||u.id||"?").charAt(0).toUpperCase();
+    var meta=[
+      u.id   ? "ID: <b>"+hl(u.id)+"</b>" : null,
+      u.tel  ? "📞 "+hl(u.tel)            : null,
+      u.cuit ? "CUIT: "+hl(u.cuit)        : null,
+      u.rec  ? "👤 "+hl(u.rec)            : null
     ].filter(Boolean).join(" · ");
-    return '<div class="cli-card">' +
-      '<div class="cli-avatar" style="background:'+col+'22;color:'+col+';font-weight:800">'+ini+'</div>' +
-      '<div class="cli-info">' +
-        '<div class="cli-name">'+escHtml(u.name||u.id)+
-          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700;margin-left:6px">'+rolLabel[rol]+'</span>'+
-          (u.zona ? '<span style="font-size:10.5px;color:var(--muted);margin-left:4px">🗺 '+escHtml(u.zona)+'</span>' : '')+
-        '</div>' +
-        (meta ? '<div class="cli-meta">'+escHtml(meta)+'</div>' : '')+
-        (u.direccion ? '<div class="cli-meta" style="color:var(--text2)">📍 '+escHtml(u.direccion)+'</div>' : '')+
-      '</div>' +
-      '<div class="cli-badge">'+( u.lista||"Clientes")+'</div>' +
-      '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">' +
-        '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)">✏️</button>' +
-        '<button class="cli-act cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)">🗑</button>' +
-      '</div>' +
+    return '<div class="cli-card">'+
+      '<div class="cli-avatar" style="background:'+col+'22;color:'+col+';font-weight:800">'+ini+'</div>'+
+      '<div class="cli-info">'+
+        '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
+          hl(u.name||u.id)+
+          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+RL[rol]+'</span>'+
+          (u.zona ? '<span style="font-size:10.5px;color:var(--muted)">🗺 '+hl(u.zona)+'</span>' : '')+
+        '</div>'+
+        (meta ? '<div class="cli-meta">'+meta+'</div>' : '')+
+        (u.direccion ? '<div class="cli-meta" style="color:var(--text2);margin-top:1px">📍 '+hl(u.direccion)+'</div>' : (rol==="cliente"?'<div class="cli-meta" style="color:var(--amber)">⚠️ Sin dirección</div>':""))+
+      '</div>'+
+      '<div class="cli-badge">'+(u.lista||"Clientes")+'</div>'+
+      '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
+        '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)" title="Editar">✏️</button>'+
+        '<button class="cli-act cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)" title="Eliminar">🗑</button>'+
+      '</div>'+
     '</div>';
   }).join("");
 }
 
 function _filtrarClientes(q){
   _cliSearchQ = (q||"").toLowerCase().trim();
-  var c = document.getElementById("cli-search-clear");
-  if(c) c.style.display = _cliSearchQ ? "block" : "none";
+  var cl = document.getElementById("cli-search-clear");
+  if(cl) cl.style.display = _cliSearchQ ? "block" : "none";
+  var inp = document.getElementById("cli-search-input");
+  if(inp) inp.style.borderColor = _cliSearchQ ? "var(--accent)" : "var(--border)";
   _renderClientesList();
 }
 
@@ -9251,6 +9322,8 @@ function _setRolFilter(rol, btn){
   if(btn) btn.classList.add("active");
   _renderClientesList();
 }
+
+// fin gestión de clientes
 
 
 function _generarSiguienteId(){
