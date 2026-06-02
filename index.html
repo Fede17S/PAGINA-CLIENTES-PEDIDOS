@@ -5583,6 +5583,10 @@ async function _confirmarRutaReasignar(rkOrigen){
 async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
   var ruta = rutasData[rkOrigen];
   if(!ruta||!selectedSet||!selectedSet.size) return;
+
+  console.log('[Mover] rkOrigen=',rkOrigen,'rkDest=',rkDest,'selected=',Array.from(selectedSet));
+  console.log('[Mover] clientes disponibles:', Object.keys(ruta.clientes||{}));
+
   var ok=0, fail=0;
   var ckArray = Array.from(selectedSet);
 
@@ -5622,14 +5626,21 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
       if(!rutasData[rkDest].clientes) rutasData[rkDest].clientes = {};
       rutasData[rkDest].clientes[nck] = Object.assign({}, cli, {_rcId: nck});
 
-      // Borrar de ruta origen en Supabase (ck = UUID del row)
-      await sbDel("ruta_clientes", "id=eq."+ck);
+      // Borrar de ruta origen en Supabase
+      console.log('[Mover] Borrando ck='+ck+' de ruta='+rkOrigen);
+      try {
+        await sbDel("ruta_clientes", "id=eq."+ck+"&empresa_id=eq."+_sbEmpId);
+      } catch(delErr) {
+        console.warn('[Mover] Delete con empresa_id falló, reintentando sin empresa_id:', delErr.message);
+        await sbDel("ruta_clientes", "id=eq."+ck);
+      }
       delete rutasData[rkOrigen].clientes[ck];
       ok++;
       console.log('[Mover] ✓', cli.nom, '→', rkDest);
 
     } catch(e){
       console.error('[Mover] ERROR en', ck, ':', e.message);
+      alert("ERROR al mover '"+cli.nom+"':\n\n"+e.message+"\n\nck="+ck+"\nrkDest="+rkDest);
       fail++;
     }
   }
