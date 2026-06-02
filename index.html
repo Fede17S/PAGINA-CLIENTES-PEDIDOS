@@ -546,7 +546,7 @@ select option { background:#fff }
 /* ── MODALS ── */
 .modal-bg {
   position:fixed; inset:0; background:rgba(20,18,12,.5);
-  z-index:500; display:none; align-items:center; justify-content:center;
+  z-index:9000; display:none; align-items:center; justify-content:center;
   padding:16px; backdrop-filter:blur(4px);
   animation: fadeBg .15s;
 }
@@ -9404,16 +9404,21 @@ function _renderZonasEnClientes(){
 }
 
 async function cargarClientesSection() {
-  if (!empresaKey) return;
+  if (!empresaKey && !_sbEmpId) return;
   var body = document.getElementById("cli-list-body");
   if(body && !Object.keys(_clientesDB).length){
     body.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 10px"></div>Cargando clientes…</div>';
   }
   try {
-    var usuarios = await fbGet("empresas/"+empresaKey+"/usuarios");
+    var usuarios = null;
+    // Intentar via fbGet (que usa Supabase internamente)
+    if(empresaKey) usuarios = await fbGet("empresas/"+empresaKey+"/usuarios");
+    // Si no hay datos, intentar directamente con _sbGetUsuarios
+    if((!usuarios || !Object.keys(usuarios).length) && _sbEmpId){
+      usuarios = await _sbGetUsuarios();
+    }
     if(usuarios && Object.keys(usuarios).length > 0){
       _clientesDB = usuarios;
-      // Actualizar dbCli para el picker del vendedor
       dbCli = Object.values(_clientesDB).filter(function(u){
         if(!u.id && !u.name) return false;
         if(currentUser && u.id === currentUser.id) return false;
@@ -9426,9 +9431,8 @@ async function cargarClientesSection() {
     }
   } catch(e) {
     console.warn("cargarClientesSection error:", e.message);
-    // Si falla, usar lo que haya en caché
     if(!Object.keys(_clientesDB).length && body){
-      body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ Error cargando clientes. <button onclick="cargarClientesSection()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px">Reintentar</button></div>';
+      body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ Error cargando clientes. <button onclick="cargarClientesSection()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px;text-decoration:underline">Reintentar</button></div>';
       return;
     }
   }
