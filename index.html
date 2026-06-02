@@ -4039,17 +4039,7 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes"){
-    // Render inmediato con lo que hay
-    _renderClientesList();
-    // Cargar fresh desde Supabase directamente
-    if(_sbEmpId){
-      _sbGetUsuarios().then(function(u){
-        if(u && Object.keys(u).length){
-          _clientesDB = u;
-          _renderClientesList();
-        }
-      }).catch(function(){});
-    }
+    cargarClientesSection();
     if(!Object.keys(_zonasData).length) cargarZonas();
   }
   if(id==="pedidos-acum")cargarPedidosAcum();
@@ -9332,6 +9322,7 @@ function _renderZonasEnClientes(){
 // ══ GESTIÓN DE CLIENTES ══
 var _cliSearchQ   = "";
 var _cliRolFilter = "";
+var _clientesGestion = {}; // datos dedicados — solo esta sección los toca
 
 async function cargarClientesSection(){
   var body    = document.getElementById("cli-list-body");
@@ -9341,7 +9332,10 @@ async function cargarClientesSection(){
   var rolWrap = document.getElementById("nc-rol-wrap");
   if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
 
-  // Cargar directo de Supabase sin pasar por fbGet
+  if(body && !Object.keys(_clientesGestion).length){
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando clientes…</div>';
+  }
+
   try {
     if(!_sbEmpId) throw new Error("Sin _sbEmpId");
     var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
@@ -9353,10 +9347,8 @@ async function cargarClientesSection(){
           tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",zona_id:u.zona_id||null,
           rec:u.recepciona||"",nota:u.nota||""};
       });
-      _clientesDB = map;
-      dbCli = rows.filter(function(u){ var r=(u.role||"cliente").toLowerCase(); return r==="cliente"||u.catalogo===true; })
-              .map(function(u){ return {id:u.uid||"",nombre:u.name||u.uid||"",lista:u.lista||"Clientes"}; });
-      dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
+      _clientesGestion = map;
+      _clientesDB = map; // mantener sincronizado para editar/eliminar
     }
   } catch(e){ console.warn("[Clientes]", e.message); }
   _renderClientesList();
@@ -9366,7 +9358,9 @@ function _renderClientesList(){
   var body=document.getElementById("cli-list-body");
   var countEl=document.getElementById("cli-count");
   if(!body) return;
-  var all=Object.entries(_clientesDB||{});
+  // Usar datos dedicados; si están vacíos, caer a _clientesDB
+  var src = Object.keys(_clientesGestion).length ? _clientesGestion : (_clientesDB||{});
+  var all=Object.entries(src);
   if(!all.length){
     body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Sin clientes cargados. <button onclick="cargarClientesSection()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:13px;margin-left:8px">🔄 Recargar</button></div>';
     if(countEl) countEl.textContent="0"; return;
