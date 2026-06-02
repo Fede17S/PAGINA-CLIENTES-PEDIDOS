@@ -5343,15 +5343,18 @@ function renderRutas(){
     var detailCard=document.createElement("div");
     detailCard.className="ruta-detail-card";
 
-    // Clientes
+    // Clientes — con soporte de modo selección
     var cliKeys=Object.keys(ruta.clientes||{}).sort();
+    var cliWrap=document.createElement("div");
+    cliWrap.id="cli-wrap-"+rutaKey;
     if(!cliKeys.length){
-      detailCard.innerHTML='<div class="empty-box" style="padding:16px">Sin clientes</div>';
+      cliWrap.innerHTML='<div class="empty-box" style="padding:16px">Sin clientes</div>';
     } else {
       cliKeys.forEach(function(ck){
-        detailCard.appendChild(buildClienteRow(rutaKey,ck,ruta.clientes[ck]));
+        cliWrap.appendChild(buildClienteRow(rutaKey,ck,ruta.clientes[ck]));
       });
     }
+    detailCard.appendChild(cliWrap);
 
     // Total bar
     var totalBar=document.createElement("div");
@@ -5440,17 +5443,6 @@ function renderRutas(){
       '<button onclick="_rutaReasignar(\''+rutaKey+'\')" style="background:#fff;color:var(--accent);border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar</button>'+
       '<button onclick="_rutaToggleSelect(\''+rutaKey+'\')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>';
     detail.appendChild(selToolbar);
-
-    // Clientes de la ruta
-    var cliWrap=document.createElement("div");
-    cliWrap.id="cli-wrap-"+rutaKey;
-    var sortedClis=Object.entries(ruta.clientes||{});
-    sortedClis.forEach(function(ce){
-      var ck=ce[0], cli=ce[1];
-      var cliRow=buildClienteRow(rutaKey,ck,cli);
-      cliWrap.appendChild(cliRow);
-    });
-    detail.appendChild(cliWrap);
 
     outer.appendChild(detail);
     wrap.appendChild(outer);
