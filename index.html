@@ -2092,170 +2092,99 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div><!-- end datos-empresa section -->
 
 <div id="clientes" class="section">
-
-  <!-- ── BARRA SUPERIOR ── -->
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">
-    <span style="font-size:16px;font-weight:700">Gestión de Clientes</span>
-    <button onclick="abrirPanelZonas()" style="display:flex;align-items:center;gap:6px;padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">
-      🗺️ Zonas
-    </button>
+    <span style="font-size:16px;font-weight:700">Gestión de Clientes (<span id="cli-count">0</span>)</span>
+    <div style="display:flex;gap:8px">
+      <button onclick="cargarClientesSection()" style="padding:8px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">🔄</button>
+      <button onclick="abrirPanelZonas()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
+    </div>
   </div>
 
-  <!-- ── PANEL ZONAS (colapsable) ── -->
+  <!-- Panel zonas -->
   <div id="cli-zonas-panel" style="display:none;margin-bottom:14px">
-    <div class="card">
-      <div class="card-body" style="padding-bottom:8px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <span style="font-weight:700;font-size:14px">🗺️ Zonas de venta</span>
-          <div style="display:flex;gap:8px">
-            <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:8px 16px;font-size:12px">+ Nueva zona</button>
-            <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;color:var(--muted)">✕ Cerrar</button>
-          </div>
+    <div class="card"><div class="card-body" style="padding-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-weight:700;font-size:14px">🗺️ Zonas de venta</span>
+        <div style="display:flex;gap:8px">
+          <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:8px 16px;font-size:12px">+ Nueva zona</button>
+          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;color:var(--muted)">✕ Cerrar</button>
         </div>
-        <div id="cli-zonas-list"></div>
       </div>
+      <div id="cli-zonas-list"></div>
+    </div></div>
+  </div>
+
+  <!-- Formulario nuevo cliente/usuario -->
+  <div class="card" style="margin-bottom:14px" id="cli-form-wrap">
+    <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('cli-form-inner');b.style.display=b.style.display==='none'?'block':'none'">
+      <span class="card-title" id="cli-form-title">➕ Agregar nuevo cliente</span>
+    </div>
+    <div id="cli-form-inner" style="display:none;padding:14px;display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="cli-field"><label>ID / Usuario *</label><input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off"></div>
+        <div class="cli-field"><label>Nombre *</label><input type="text" id="nc-name" placeholder="ej: Carnicería López" autocomplete="off"></div>
+        <div class="cli-field"><label>Contraseña</label><input type="text" id="nc-pass" placeholder="dejar vacío = usa el ID" autocomplete="off"></div>
+        <div class="cli-field"><label>Teléfono</label><input type="tel" id="nc-tel" autocomplete="off"></div>
+        <div class="cli-field"><label>Dirección</label><input type="text" id="nc-dir" autocomplete="off"></div>
+        <div class="cli-field"><label>CUIT</label><input type="text" id="nc-cuit" autocomplete="off" inputmode="numeric"></div>
+        <div class="cli-field"><label>Zona</label><input type="text" id="nc-zona" autocomplete="off" list="nc-zona-list"><datalist id="nc-zona-list"></datalist></div>
+        <div class="cli-field"><label>Recepciona</label><input type="text" id="nc-rec" autocomplete="off"></div>
+        <div class="cli-field"><label>Lista de precios</label>
+          <select id="nc-lista"><option value="Clientes">Clientes</option><option value="Patagonia">Patagonia</option><option value="Distribuidores">Distribuidores</option></select>
+        </div>
+        <div class="cli-field" id="nc-rol-wrap" style="display:none"><label>Rol</label>
+          <select id="nc-rol"><option value="cliente">👤 Cliente</option><option value="vendedor">📝 Vendedor</option><option value="repartidor">🚚 Repartidor</option><option value="admin">👑 Admin</option></select>
+        </div>
+        <div class="cli-field" style="grid-column:1/-1"><label>Nota</label><input type="text" id="nc-nota" autocomplete="off"></div>
+      </div>
+      <button class="mbtn mbtn-primary" onclick="guardarNuevoCliente()" style="margin-top:10px;padding:11px 24px">+ Guardar</button>
     </div>
   </div>
 
-  <!-- ── IMPORTADOR CSV ── -->
-  <div class="cli-form-card" id="csv-importer-card">
-    <div class="cli-form-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>📥 Importar clientes desde CSV</span>
-      <button onclick="toggleCsvImporter()" id="btn-toggle-csv" style="font-size:11px;font-weight:600;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);cursor:pointer">Abrir</button>
+  <!-- Importador CSV -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('csv-importer-body');b.style.display=b.style.display==='none'?'block':'none'">
+      <span class="card-title">📥 Importar CSV</span>
+      <span style="font-size:11px;color:var(--muted)">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
     </div>
-    <div id="csv-importer-body" style="display:none;margin-top:12px">
-      <div style="font-size:12px;color:var(--muted);background:var(--s3);border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.6">
-        📋 <b>Formato esperado:</b><br>
-        <code style="font-size:11px;background:var(--s2);padding:3px 8px;border-radius:5px;border:1px solid var(--border);display:inline-block;margin:4px 0">ID, NOMBRE, DIRECCION, TELEFONO, CUIT, ZONA, RECEPCIONA</code><br>
-        <span style="font-size:11px">• Acepta coma o punto y coma · UTF-8<br>
-        • Si el cliente ya existe (mismo ID) solo completa los campos vacíos — no sobreescribe</span>
+    <div id="csv-importer-body" style="display:none;padding:14px">
+      <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()" style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer">
+        <div style="font-size:24px">📂</div>
+        <div style="font-size:13px;color:var(--muted)">Tocá para elegir CSV</div>
       </div>
-      <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
-        style="border:2px dashed var(--border);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px"
-        ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--accent-bg)'"
-        ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
-        ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='';procesarCSVFile(event.dataTransfer.files[0])">
-        <div style="font-size:28px;margin-bottom:6px">📂</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text2)">Arrastrá el CSV acá</div>
-        <div style="font-size:11.5px;color:var(--muted);margin-top:3px">o tocá para elegir archivo</div>
-      </div>
-      <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" onchange="procesarCSVFile(this.files[0])">
-
-      <!-- Preview -->
-      <div id="csv-preview" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div id="csv-preview-title" style="font-size:12px;font-weight:700;color:var(--text)"></div>
+      <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="procesarCSVFile(this.files[0])">
+      <div id="csv-preview" style="display:none;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <div id="csv-preview-title" style="font-size:12px;font-weight:700"></div>
           <div style="display:flex;gap:6px">
-            <button onclick="limpiarCSV()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);color:var(--muted);cursor:pointer">✕ Cancelar</button>
+            <button onclick="limpiarCSV()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);cursor:pointer">✕</button>
             <button onclick="importarCSV()" id="btn-importar-csv" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:6px;background:var(--text);color:#fff;cursor:pointer">⬆ Importar</button>
           </div>
         </div>
-        <div id="csv-preview-table-wrap" style="overflow-x:auto;border:1px solid var(--border);border-radius:8px;max-height:260px;overflow-y:auto"></div>
-        <div id="csv-import-result" style="display:none;margin-top:8px;font-size:12.5px;padding:9px 12px;border-radius:8px"></div>
+        <div id="csv-preview-table-wrap" style="overflow:auto;border:1px solid var(--border);border-radius:8px;max-height:220px"></div>
+        <div id="csv-import-result" style="display:none;margin-top:8px"></div>
       </div>
     </div>
   </div>
 
-  <!-- Formulario agregar -->
-  <div class="cli-form-card">
-    <div class="cli-form-title" id="cli-form-title">Agregar nuevo usuario</div>
-    <div class="cli-form-grid">
-      <div class="cli-field">
-        <label>ID / Usuario</label>
-        <input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off" onfocus="if(!this.value)this.value=_generarSiguienteId()">
-      </div>
-      <div class="cli-field">
-        <label>Contraseña</label>
-        <input type="text" id="nc-pass" placeholder="por defecto = al ID" autocomplete="off">
-      </div>
-      <div class="cli-field full">
-        <label>Nombre completo</label>
-        <input type="text" id="nc-name" placeholder="Nombre del negocio o persona">
-      </div>
-      <div class="cli-field">
-        <label>Lista de precios</label>
-        <select id="nc-lista">
-          <option value="Clientes">Clientes</option>
-          <option value="Patagonia">Patagonia</option>
-        </select>
-      </div>
-      <!-- Rol — solo visible para admin -->
-      <div class="cli-field" id="nc-rol-wrap" style="display:none">
-        <label>Rol</label>
-        <select id="nc-rol">
-          <option value="cliente">👤 Cliente</option>
-          <option value="vendedor">📝 Vendedor</option>
-          <option value="repartidor">🚚 Repartidor</option>
-          <option value="admin">👑 Admin</option>
-        </select>
-      </div>
-      <div class="cli-field">
-        <label>Teléfono</label>
-        <input type="tel" id="nc-tel" placeholder="ej: 2804123456">
-      </div>
-      <div class="cli-field">
-        <label>CUIT / CUIL</label>
-        <input type="text" id="nc-cuit" placeholder="ej: 20-12345678-9" autocomplete="off" inputmode="numeric">
-      </div>
-      <div class="cli-field full">
-        <label>Dirección</label>
-        <div style="display:flex;gap:7px;margin-bottom:6px">
-          <input type="text" id="nc-dir" placeholder="ej: San Martín 450, Rawson, Chubut" style="flex:1"
-                 oninput="_dirAutoComplete('nc-dir','nc-dir-suggestions')"
-                 onblur="setTimeout(function(){var w=document.getElementById('nc-dir-suggestions');if(w)w.style.display='none';},200)">
-          <button class="btn btn-ghost btn-sm" onclick="_capturarGPSParaCliente('nc')" title="Usar mi ubicación GPS ahora" style="white-space:nowrap;flex-shrink:0;background:var(--text);color:#fff;border-color:var(--text)">
-            📍 GPS
-          </button>
-        </div>
-        <div id="nc-dir-suggestions" style="display:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.1);margin-bottom:4px;max-height:200px;overflow-y:auto;z-index:50;position:relative"></div>
-        <div id="nc-dir-result" style="display:none;margin-top:4px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
-        <input type="hidden" id="nc-lat">
-        <input type="hidden" id="nc-lng">
-      </div>
-      <div class="cli-field">
-        <label>Zona</label>
-        <select id="nc-zona" style="font-size:13px">
-          <option value="">— Sin zona —</option>
-        </select>
-      </div>
-      <div class="cli-field">
-        <label>Recepciona</label>
-        <input type="text" id="nc-rec" placeholder="Nombre de quien recibe">
-      </div>
-      <div class="cli-field full">
-        <label>Notas</label>
-        <input type="text" id="nc-nota" placeholder="ej: Visitar lunes y miércoles">
-      </div>
-    </div>
-    <button class="btn-add-cli" onclick="guardarNuevoCliente()">+ Guardar cliente</button>
+  <!-- Buscador y filtros -->
+  <div style="position:relative;margin-bottom:10px">
+    <input type="text" id="cli-search-input" placeholder="🔍 Buscar por nombre, ID, teléfono, CUIT, zona…"
+      oninput="_filtrarClientes(this.value)" autocomplete="off"
+      style="width:100%;padding:11px 36px 11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
+    <button id="cli-search-clear" onclick="document.getElementById('cli-search-input').value='';_filtrarClientes('')" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted)">✕</button>
   </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="cli-filter-roles">
+    <button class="bk-tab active" onclick="_setRolFilter('',this)">Todos</button>
+    <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
+    <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
+    <button class="bk-tab" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
+    <button class="bk-tab" onclick="_setRolFilter('admin',this)">👑 Admin</button>
+  </div>
+
   <!-- Lista -->
-  <div class="cli-list-header">
-    <div class="cli-list-title">Clientes registrados (<span id="cli-count">0</span>)</div>
-    <button class="btn btn-ghost btn-sm" onclick="cargarClientesSection()">🔄</button>
-  </div>
-  <!-- Buscador -->
-  <div style="position:relative;margin-bottom:12px">
-    <input type="text" id="cli-search-input"
-      placeholder="🔍 Buscar por nombre, ID, teléfono, zona, dirección…"
-      autocomplete="off" autocorrect="off"
-      oninput="_filtrarClientes(this.value)"
-      style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;background:#fff">
-    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
-    <button id="cli-search-clear" onclick="document.getElementById('cli-search-input').value='';_filtrarClientes('')"
-      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:4px">✕</button>
-  </div>
-  <!-- Filtros de rol -->
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="cli-filter-roles">
-    <button class="bk-tab active" data-role="" onclick="_setRolFilter('',this)">Todos</button>
-    <button class="bk-tab" data-role="cliente" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
-    <button class="bk-tab" data-role="vendedor" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
-    <button class="bk-tab" data-role="repartidor" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
-    <button class="bk-tab" data-role="admin" onclick="_setRolFilter('admin',this)">👑 Admin</button>
-  </div>
-  <div id="cli-list-body"></div>
+  <div id="cli-list-body" style="min-height:100px"></div>
 </div>
-
 <!-- MODAL EDITAR CLIENTE -->
 <div class="modal-bg" id="modal-edit-cli">
   <div class="modal-box" style="max-width:480px;width:94%">
@@ -9454,122 +9383,107 @@ async function cargarClientesSection() {
   }
 }
 
-var _cliSearchQ = "";
+// ══ GESTIÓN DE CLIENTES ══
+var _cliSearchQ   = "";
 var _cliRolFilter = "";
 
-function _filtrarClientes(q){
-  _cliSearchQ = (q||"").toLowerCase().trim();
-  var clearBtn = document.getElementById("cli-search-clear");
-  if(clearBtn) clearBtn.style.display = _cliSearchQ ? "block" : "none";
-  var inp = document.getElementById("cli-search-input");
-  if(inp) inp.style.borderColor = _cliSearchQ ? "var(--accent)" : "var(--border)";
+async function cargarClientesSection(){
+  var body    = document.getElementById("cli-list-body");
+  var isAdmin = currentUser && currentUser.role === "admin";
+  var titleEl = document.getElementById("cli-form-title");
+  if(titleEl) titleEl.textContent = isAdmin ? "➕ Agregar nuevo usuario" : "➕ Agregar nuevo cliente";
+  var rolWrap = document.getElementById("nc-rol-wrap");
+  if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
+
+  // Cargar directo de Supabase sin pasar por fbGet
+  try {
+    if(!_sbEmpId) throw new Error("Sin _sbEmpId");
+    var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+    if(rows && rows.length){
+      var map = {};
+      rows.forEach(function(u){
+        map[u.id]={_sbId:u.id,id:u.uid||"",name:u.name||"",pass:u.pass||"",role:u.role||"cliente",
+          lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
+          tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",zona_id:u.zona_id||null,
+          rec:u.recepciona||"",nota:u.nota||""};
+      });
+      _clientesDB = map;
+      dbCli = rows.filter(function(u){ var r=(u.role||"cliente").toLowerCase(); return r==="cliente"||u.catalogo===true; })
+              .map(function(u){ return {id:u.uid||"",nombre:u.name||u.uid||"",lista:u.lista||"Clientes"}; });
+      dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
+    }
+  } catch(e){ console.warn("[Clientes]", e.message); }
   _renderClientesList();
 }
 
-function _setRolFilter(rol, btn){
-  _cliRolFilter = rol;
-  document.querySelectorAll("#cli-filter-roles .bk-tab").forEach(function(b){ b.classList.remove("active"); });
-  if(btn) btn.classList.add("active");
-  _renderClientesList();
-}
-
-function _renderClientesList() {
-  var body = document.getElementById("cli-list-body");
-  var countEl = document.getElementById("cli-count");
+function _renderClientesList(){
+  var body=document.getElementById("cli-list-body");
+  var countEl=document.getElementById("cli-count");
   if(!body) return;
-
-  var allEntries = Object.entries(_clientesDB);
-  var isAdminView = currentUser && (currentUser.role === "admin");
-  
-  if(!allEntries.length){
-    body.innerHTML='<div style="padding:20px;text-align:center">'+
-      '<div style="color:var(--muted);margin-bottom:12px">⏳ Cargando clientes... role='+((currentUser&&currentUser.role)||"?")+' empId='+(_sbEmpId||"?")+'</div>'+
-      '<button onclick="cargarClientesSection()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-family:inherit;cursor:pointer;font-weight:600">🔄 Cargar clientes</button>'+
-    '</div>';
-    if(countEl) countEl.textContent="0";
-    return;
+  var all=Object.entries(_clientesDB||{});
+  if(!all.length){
+    body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Sin clientes cargados. <button onclick="cargarClientesSection()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:13px;margin-left:8px">🔄 Recargar</button></div>';
+    if(countEl) countEl.textContent="0"; return;
   }
-
-  // Filtro base por rol de usuario
-  var entries = isAdminView ? allEntries : allEntries.filter(function(entry){
-    var u = entry[1];
-    var rol = (u.role||"cliente").toLowerCase();
-    // Vendedor ve: clientes, o usuarios con catalogo=true
-    return rol === "cliente" || u.catalogo === true;
-  });
-
-  // Filtro adicional por rol seleccionado
-  if(_cliRolFilter){
-    entries = entries.filter(function(e){
-      return (e[1].role||"cliente").toLowerCase() === _cliRolFilter;
-    });
-  }
-
-  // Filtro búsqueda
+  var isAdmin=currentUser&&currentUser.role==="admin";
+  var entries=isAdmin?all:all.filter(function(e){ return (e[1].role||"cliente")==="cliente"||e[1].catalogo===true; });
+  if(_cliRolFilter) entries=entries.filter(function(e){ return (e[1].role||"cliente")===_cliRolFilter; });
   if(_cliSearchQ){
-    var q = _cliSearchQ;
-    entries = entries.filter(function(e){
-      var u = e[1];
-      return (u.name||"").toLowerCase().includes(q)
-          || (u.id||"").toLowerCase().includes(q)
-          || (u.tel||u.telefono||"").includes(q)
-          || (u.zona||"").toLowerCase().includes(q)
-          || (u.direccion||"").toLowerCase().includes(q)
-          || (u.cuit||"").includes(q);
+    var q=_cliSearchQ;
+    entries=entries.filter(function(e){
+      var u=e[1];
+      return (u.name||"").toLowerCase().includes(q)||(u.id||"").toLowerCase().includes(q)
+        ||(u.tel||"").includes(q)||(u.cuit||"").includes(q)
+        ||(u.zona||"").toLowerCase().includes(q)||(u.direccion||"").toLowerCase().includes(q);
     });
   }
-
-  if(countEl) countEl.textContent = entries.length + (_cliSearchQ||_cliRolFilter ? " de "+allEntries.length : "");
-
+  if(countEl) countEl.textContent=entries.length+(_cliSearchQ||_cliRolFilter?" / "+all.length:"");
   if(!entries.length){
-    body.innerHTML = '<div class="cli-empty-box">' +
-      (_cliSearchQ ? '🔍 Sin resultados para "'+_cliSearchQ+'"' : '📋 Sin clientes con ese filtro.') +
-      '</div>';
+    body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Sin resultados</div>';
     return;
   }
-
-  var rolLabel = { cliente:"👤 Cliente", vendedor:"📝 Vendedor", repartidor:"🚚 Repartidor", admin:"👑 Admin" };
-  var rolClass = { cliente:"cli-rol-cliente", vendedor:"cli-rol-vendedor", repartidor:"cli-rol-repartidor", admin:"cli-rol-admin" };
-  var rolBg    = { cliente:"var(--s3)", vendedor:"oklch(90% 0.05 240)", repartidor:"oklch(92% 0.05 50)", admin:"oklch(90% 0.05 300)" };
-
-  function hl(str){
-    if(!str||!_cliSearchQ) return escHtml(str||"");
-    var re = new RegExp("("+_cliSearchQ.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");
-    return escHtml(str).replace(re,'<mark style="background:#fef3c7;border-radius:2px;padding:0 1px">$1</mark>');
+  var rolLabel={cliente:"👤 Cliente",vendedor:"📝 Vendedor",repartidor:"🚚 Repartidor",admin:"👑 Admin"};
+  var rolColor={cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed"};
+  function hl(s){
+    if(!s||!_cliSearchQ) return escHtml(s||"");
+    return escHtml(s).replace(new RegExp("("+_cliSearchQ.replace(/[.*+?^${}()|[\\]\\]/g,"\\$&")+")","gi"),'<mark style="background:#fef3c7">$1</mark>');
   }
-
-  body.innerHTML = entries.map(function(entry) {
-    var key = entry[0], u = entry[1];
-    var rol = (u.role||"cliente").toLowerCase();
-    var inicial = (u.name||u.id||"?").charAt(0).toUpperCase();
-    var rolBadge = '<span class="cli-rol-badge '+(rolClass[rol]||"cli-rol-cliente")+'">'+(rolLabel[rol]||rol)+'</span>';
-    var avatarBg = rolBg[rol]||"var(--s3)";
-    var zonaText = (u.zona||u.zona_id) ?
-      (u.zona_id && _zonasData[u.zona_id]
-        ? '<span style="font-size:10px;background:'+_zonasData[u.zona_id].color+'22;color:'+_zonasData[u.zona_id].color+';border-radius:5px;padding:1px 6px;font-weight:700">🗺️ '+escHtml(_zonasData[u.zona_id].nombre)+'</span>'
-        : (u.zona ? '<span style="font-size:10.5px;color:var(--muted)">🗺 '+hl(u.zona)+'</span>' : ''))
-      : '';
-    var metaParts = [
-      u.id   ? "ID: <b>"+hl(u.id)+"</b>" : null,
-      u.cuit ? "CUIT: "+hl(u.cuit) : null,
-      u.tel  ? "📞 "+hl(u.tel) : null,
-      u.rec  ? "👤 "+hl(u.rec) : null
-    ].filter(Boolean);
-    return '<div class="cli-card">' +
-      '<div class="cli-avatar" style="background:'+avatarBg+'">'+inicial+'</div>' +
-      '<div class="cli-info">' +
-        '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+hl(u.name||u.id)+rolBadge+zonaText+'</div>' +
-        (metaParts.length ? '<div class="cli-meta">'+metaParts.join(" · ")+'</div>' : '') +
-        (u.direccion ? '<div class="cli-meta" style="color:var(--text2);margin-top:2px">📍 '+hl(u.direccion)+'</div>' : '') +
-      '</div>' +
-      '<div class="cli-badge">'+(u.lista||"Clientes")+'</div>' +
+  body.innerHTML=entries.map(function(e){
+    var pk=e[0],u=e[1],rol=(u.role||"cliente"),col=rolColor[rol]||"#059669";
+    var meta=[u.id?"ID: "+hl(u.id):null,u.cuit?"CUIT: "+hl(u.cuit):null,u.tel?"📞 "+hl(u.tel):null,u.rec?"👤 "+hl(u.rec):null].filter(Boolean).join(" · ");
+    return '<div class="cli-card">'+
+      '<div class="cli-avatar" style="background:'+col+'22;color:'+col+';font-weight:700">'+((u.name||u.id||"?").charAt(0).toUpperCase())+'</div>'+
+      '<div class="cli-info">'+
+        '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+hl(u.name||u.id)+
+          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+( rolLabel[rol]||rol)+'</span>'+
+          (u.zona?'<span style="font-size:10.5px;color:var(--muted)">🗺 '+hl(u.zona)+'</span>':"")+
+        '</div>'+
+        (meta?'<div class="cli-meta">'+meta+'</div>':"")+
+        (u.direccion?'<div class="cli-meta" style="color:var(--text2)">📍 '+hl(u.direccion)+'</div>':"")+
+      '</div>'+
+      '<div class="cli-badge">'+( u.lista||"Clientes")+'</div>'+
       '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
-        '<button class="cli-act" title="Editar" onclick="abrirEditCliente(\''+key+'\')">✏️</button>' +
-        '<button class="cli-act cli-del" title="Eliminar" onclick="_eliminarCliente(\''+key+'\')">🗑</button>' +
+        '<button class="cli-act" onclick="abrirEditCliente(\\"'+pk+'\\")">✏️</button>'+
+        '<button class="cli-act cli-del" onclick="_eliminarCliente(\\"'+pk+'\\")">🗑</button>'+
       '</div>'+
     '</div>';
   }).join("");
 }
+
+function _filtrarClientes(q){
+  _cliSearchQ=(q||"").toLowerCase().trim();
+  var c=document.getElementById("cli-search-clear");
+  if(c) c.style.display=_cliSearchQ?"block":"none";
+  _renderClientesList();
+}
+
+function _setRolFilter(rol,btn){
+  _cliRolFilter=rol;
+  document.querySelectorAll("#cli-filter-roles .bk-tab").forEach(function(b){b.classList.remove("active");});
+  if(btn) btn.classList.add("active");
+  _renderClientesList();
+}
+
 
 function _generarSiguienteId(){
   // Extraer todos los IDs existentes de _clientesDB
