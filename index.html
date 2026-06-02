@@ -2055,6 +2055,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
   </div>
 
+  <!-- Panel Zonas -->
   <div id="cli-zonas-panel" style="display:none;margin-bottom:12px">
     <div class="card"><div class="card-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2068,9 +2069,56 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div></div>
   </div>
 
+  <!-- Formulario nuevo cliente (colapsable) -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-head" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between"
+      onclick="var b=document.getElementById('nc-form-body');b.style.display=b.style.display==='none'?'block':'none'">
+      <span class="card-title" id="cli-form-title">➕ Agregar nuevo cliente</span>
+      <span style="font-size:11px;color:var(--muted)">tocá para abrir</span>
+    </div>
+    <div id="nc-form-body" style="display:none;padding:14px">
+      <div class="cli-form-grid">
+        <div class="cli-field"><label>ID / Usuario *</label>
+          <input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off"
+            onfocus="if(!this.value)this.value=_generarSiguienteId()"></div>
+        <div class="cli-field"><label>Nombre *</label>
+          <input type="text" id="nc-name" placeholder="ej: Carnicería López" autocomplete="off"></div>
+        <div class="cli-field"><label>Contraseña</label>
+          <input type="text" id="nc-pass" placeholder="dejar vacío = usa el ID" autocomplete="off"></div>
+        <div class="cli-field"><label>Teléfono</label>
+          <input type="tel" id="nc-tel" autocomplete="off"></div>
+        <div class="cli-field"><label>Dirección</label>
+          <input type="text" id="nc-dir" autocomplete="off"></div>
+        <div class="cli-field"><label>CUIT</label>
+          <input type="text" id="nc-cuit" autocomplete="off" inputmode="numeric"></div>
+        <div class="cli-field"><label>Zona</label>
+          <input type="text" id="nc-zona" autocomplete="off"></div>
+        <div class="cli-field"><label>Recepciona</label>
+          <input type="text" id="nc-rec" autocomplete="off"></div>
+        <div class="cli-field"><label>Lista de precios</label>
+          <select id="nc-lista">
+            <option value="Clientes">Clientes</option>
+            <option value="Patagonia">Patagonia</option>
+            <option value="Distribuidores">Distribuidores</option>
+          </select></div>
+        <div class="cli-field" id="nc-rol-wrap" style="display:none"><label>Rol</label>
+          <select id="nc-rol">
+            <option value="cliente">👤 Cliente</option>
+            <option value="vendedor">📝 Vendedor</option>
+            <option value="repartidor">🚚 Repartidor</option>
+            <option value="admin">👑 Admin</option>
+          </select></div>
+        <div class="cli-field" style="grid-column:1/-1"><label>Nota</label>
+          <input type="text" id="nc-nota" autocomplete="off"></div>
+      </div>
+      <button class="btn-add-cli" onclick="guardarNuevoCliente()" style="margin-top:10px">+ Guardar cliente</button>
+    </div>
+  </div>
+
+  <!-- Importar CSV (colapsable) -->
   <div class="card" style="margin-bottom:12px">
     <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'">
-      <span class="card-title">📥 Importar CSV &nbsp;—&nbsp; ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
+      <span class="card-title">📥 Importar CSV — ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
     </div>
     <div id="cli-csv-body" style="display:none;padding:14px">
       <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
@@ -2096,6 +2144,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
   </div>
 
+  <!-- Buscador -->
   <div style="position:relative;margin-bottom:10px">
     <input type="text" id="cli-search-input"
       placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
@@ -2106,6 +2155,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted)">✕</button>
   </div>
 
+  <!-- Filtros rol -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="cli-filter-roles">
     <button class="bk-tab active" onclick="_setRolFilter('',this)">Todos</button>
     <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
@@ -2114,7 +2164,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="bk-tab" onclick="_setRolFilter('admin',this)">👑 Admin</button>
   </div>
 
-  <div id="cli-list-body" style="min-height:200px"></div>
+  <!-- Lista -->
+  <div id="cli-list-body"></div>
 
 </div>
 <!-- MODAL EDITAR CLIENTE -->
@@ -9155,6 +9206,14 @@ function cargarClientesSection(){
 
   var body   = document.getElementById("cli-list-body");
   var isAdmin = currentUser && currentUser.role === "admin";
+  // Configurar formulario según rol
+  var titleEl = document.getElementById("cli-form-title");
+  if(titleEl) titleEl.textContent = isAdmin ? "➕ Agregar nuevo usuario" : "➕ Agregar nuevo cliente";
+  var rolWrap = document.getElementById("nc-rol-wrap");
+  if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
+  // Pre-generar ID
+  var ncId = document.getElementById("nc-id");
+  if(ncId && !ncId.value) ncId.value = _generarSiguienteId();
 
   // Mostrar datos de caché inmediatamente si existen
   if(Object.keys(_cliData).length){
