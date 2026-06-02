@@ -276,7 +276,7 @@ body {
 }
 
 .section { display:none }
-.section.active { display:block; animation: fadeIn .18s ease-out }
+.section.active { display:block; animation: fadeIn .18s ease-out; animation-fill-mode: forwards }
 .section.me-root.active { display:flex }
 @keyframes spinner-spin { to { transform:rotate(360deg) } }
 .spinner-ring { width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spinner-spin .7s linear infinite }
@@ -3836,9 +3836,6 @@ function closeSidebar(){ document.getElementById("sidebar").classList.remove("op
 function verTab(id,btn){
   // Cerrar cualquier modal abierto al cambiar de sección
   document.querySelectorAll(".modal-bg.open").forEach(function(m){ m.classList.remove("open"); });
-  // DEBUG: log who calls verTab
-  var caller = (new Error()).stack.split('\n').slice(1,4).join(' | ');
-  console.log('[verTab] id='+id+' | '+caller);
   // Guard: vendedor solo puede acceder a pedido y mis-ventas
   var role = currentUser ? (currentUser.role || "vendedor") : "vendedor";
   var isAdmin      = role === "admin";
@@ -3860,21 +3857,6 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes"){
-    // Observer para detectar quién borra cli-list-body
-    setTimeout(function(){
-      var target = document.getElementById("cli-list-body");
-      if(target && !target._observed){
-        target._observed = true;
-        var obs = new MutationObserver(function(muts){
-          muts.forEach(function(m){
-            if(m.type==="childList"){
-              console.warn("[MUT] cli-list-body changed! children="+target.children.length+" innerHTML len="+target.innerHTML.length, (new Error()).stack.split('\n').slice(1,4).join(' '));
-            }
-          });
-        });
-        obs.observe(target, {childList:true, subtree:false});
-      }
-    }, 100);
     cargarClientesSection();
     if(!Object.keys(_zonasData).length) cargarZonas();
   }
@@ -9216,7 +9198,6 @@ function _renderClientesList(){
 
   var src = Object.keys(_cliData).length ? _cliData : (_clientesDB||{});
   var all = Object.entries(src);
-  console.log("[RENDER] _cliData="+Object.keys(_cliData).length+" _clientesDB="+Object.keys(_clientesDB||{}).length+" → all="+all.length, (new Error()).stack.split('\n')[2]);
 
   if(!all.length){
     body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">'+
