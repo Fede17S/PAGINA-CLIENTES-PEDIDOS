@@ -3836,6 +3836,9 @@ function closeSidebar(){ document.getElementById("sidebar").classList.remove("op
 function verTab(id,btn){
   // Cerrar cualquier modal abierto al cambiar de sección
   document.querySelectorAll(".modal-bg.open").forEach(function(m){ m.classList.remove("open"); });
+  // DEBUG: log who calls verTab
+  var caller = (new Error()).stack.split('\n').slice(1,4).join(' | ');
+  console.log('[verTab] id='+id+' | '+caller);
   // Guard: vendedor solo puede acceder a pedido y mis-ventas
   var role = currentUser ? (currentUser.role || "vendedor") : "vendedor";
   var isAdmin      = role === "admin";
