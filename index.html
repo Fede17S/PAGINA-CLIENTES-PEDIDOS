@@ -4051,11 +4051,13 @@ async function cargarCatalogo(){
     }
     if(!navigator.onLine && msg){ msg.className="warn"; msg.textContent="📦 Catálogo offline (cache)"; }
     empresaData=Object.assign({},empresaData,emp);
-    // Poblar _clientesDB inmediatamente desde los usuarios cargados
+    // Poblar _clientesDB desde los usuarios cargados (solo si no hay datos frescos de Gestión de Clientes)
     if(emp.usuarios && Object.keys(emp.usuarios).length > 0){
-      _clientesDB = emp.usuarios;
+      if(!Object.keys(_clientesGestion).length){
+        _clientesDB = emp.usuarios;
+      }
       // También actualizar dbCli para el picker de clientes
-      dbCli = Object.values(_clientesDB).filter(function(u){
+      dbCli = Object.values(emp.usuarios).filter(function(u){
         if(!u.id && !u.name) return false;
         var rol=(u.role||"").toLowerCase();
         if((rol==="admin"||rol==="repartidor")&&!u.catalogo) return false;
