@@ -22,8 +22,6 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 <style>
 /* ══════════════════════════════════════════════════
    CoreDistri Central · Rediseño minimalista
@@ -2096,36 +2094,35 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div><!-- end datos-empresa section -->
 
 <div id="clientes" class="section">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
     <span style="font-size:16px;font-weight:700">Clientes (<span id="cli-count">…</span>)</span>
     <div style="display:flex;gap:8px">
-      <button onclick="cargarClientesSection()" style="padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit">🔄 Recargar</button>
-      <button onclick="abrirPanelZonas()" style="padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
+      <button onclick="_cargandoClientes=false;cargarClientesSection()" style="padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit">🔄</button>
+      <button onclick="abrirPanelZonas()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
     </div>
   </div>
 
-  <div id="cli-zonas-panel" style="display:none;margin-bottom:14px">
+  <div id="cli-zonas-panel" style="display:none;margin-bottom:12px">
     <div class="card"><div class="card-body">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span style="font-weight:700">🗺️ Zonas de venta</span>
         <div style="display:flex;gap:8px">
-          <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:8px 16px;font-size:12px">+ Nueva zona</button>
-          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer">✕ Cerrar</button>
+          <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:7px 14px;font-size:12px">+ Nueva zona</button>
+          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer">✕</button>
         </div>
       </div>
       <div id="cli-zonas-list"></div>
     </div></div>
   </div>
 
-  <div id="cli-list-body" style="min-height:60px">
-    <div style="text-align:center;padding:40px;color:var(--muted)">Cargando clientes…</div>
-  </div>
-  <div id="cli-debug" style="font-size:10px;color:#999;padding:4px 8px;background:#f9f9f9;border-radius:4px;margin-top:4px;display:none"></div>
-
-  <div style="position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px;border-top:1px solid var(--border2);margin-top:8px">
+  <div style="position:relative;margin-bottom:10px">
     <input type="text" id="cli-search-input" placeholder="🔍 Buscar por nombre, ID, teléfono, CUIT, zona…"
       oninput="_filtrarClientes(this.value)" autocomplete="off"
       style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
+  </div>
+
+  <div id="cli-list-body">
+    <p style="text-align:center;color:var(--muted);padding:30px">Cargando…</p>
   </div>
 </div>
 <!-- MODAL EDITAR CLIENTE -->
@@ -9293,21 +9290,16 @@ async function cargarClientesSection(){
   var rolWrap = document.getElementById("nc-rol-wrap");
   if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
 
-  function dbg(msg){
-    var el=document.getElementById("cli-debug");
-    if(el){el.style.display="block";el.innerHTML+=msg+"<br>";}
-    console.log("[Clientes]",msg);
-  }
-  dbg("start · _sbEmpId="+(_sbEmpId||"NULL")+" role="+(currentUser&&currentUser.role||"?"));
+console.log("[Clientes] start _sbEmpId="+(_sbEmpId||"NULL")+" role="+(currentUser&&currentUser.role||"?"));
 
   _renderClientesList(); // render inmediato con cache
 
   try {
     if(!_sbEmpId) throw new Error("_sbEmpId null");
     var q = "select=id,uid,name,pass,role,lista,direccion,telefono,cuit,zona,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc";
-    dbg("sbGet...");
+    console.log("[Clientes] sbGet");
     var rows = await sbGet("usuarios", q);
-    dbg("rows="+(rows?rows.length:"null"));
+    console.log("[Clientes] rows="+(rows?rows.length:"null"));
     if(rows && rows.length > 0){
       var map = {};
       rows.forEach(function(u){
@@ -9317,15 +9309,15 @@ async function cargarClientesSection(){
       });
       _clientesGestion = map;
       _clientesDB = map;
-      dbg("render "+Object.keys(map).length+" clientes");
+      console.log("[Clientes] render",Object.keys(map).length);
       _renderClientesList();
     } else {
-      dbg("sin filas");
+      console.log("[Clientes] sin filas");
       var body=document.getElementById("cli-list-body");
       if(body) body.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted)">Sin clientes. rows='+(rows?"[]":"null")+'</div>';
     }
   } catch(e){
-    dbg("ERROR: "+e.message);
+    console.error("[Clientes]",e.message);
     var body=document.getElementById("cli-list-body");
     if(body) body.innerHTML='<div style="padding:30px;text-align:center;color:#b91c1c">❌ '+escHtml(e.message)+'<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Reintentar</button></div>';
   }
