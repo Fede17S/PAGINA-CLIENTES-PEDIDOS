@@ -1993,7 +1993,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <option value="vendedor">📝 Vendedores</option>
         <option value="repartidor">🚚 Repartidores</option>
       </select>
-      <button class="btn btn-ghost btn-sm" onclick="cargarClientesSection();cfgRenderUsuarios()">🔄</button>
+      <button class="btn btn-ghost btn-sm" onclick="cfgCargarYRenderUsuarios()">🔄</button>
     </div>
     <div id="cfg-usuarios-list"></div>
   </div>
@@ -3708,8 +3708,22 @@ function setCfgTab(tab, btn){
 }
 
 async function cfgCargarYRenderUsuarios(){
-  // Asegurarse de tener todos los usuarios frescos
-  if(!Object.keys(_clientesDB).length) await cargarClientesSection();
+  // Query propia — NO llama cargarClientesSection para no interferir con Gestión de Clientes
+  if(_sbEmpId){
+    try{
+      var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,telefono,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+      if(rows && rows.length){
+        rows.forEach(function(u){
+          // Solo agregar/actualizar en _clientesDB sin borrar lo que ya hay
+          if(!_clientesDB[u.id]){
+            _clientesDB[u.id]={_sbId:u.id,id:u.uid||"",name:u.name||"",pass:u.pass||"",
+              role:u.role||"cliente",lista:u.lista||"Clientes",catalogo:u.catalogo,
+              tel:u.telefono||"",nota:u.nota||""};
+          }
+        });
+      }
+    }catch(e){ console.warn("[Cfg usuarios]", e.message); }
+  }
   cfgRenderUsuarios();
 }
 
@@ -9351,7 +9365,9 @@ async function cargarClientesSection(){
       _clientesDB = map; // mantener sincronizado para editar/eliminar
     }
   } catch(e){ console.warn("[Clientes]", e.message); }
-  _renderClientesList();
+  // Solo renderizar si la sección está activa
+  var sec = document.getElementById("clientes");
+  if(sec && sec.classList.contains("active")) _renderClientesList();
 }
 
 function _renderClientesList(){
