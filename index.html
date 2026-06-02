@@ -9455,84 +9455,87 @@ function _renderClientesList() {
   var body = document.getElementById("cli-list-body");
   var countEl = document.getElementById("cli-count");
   if(!body) return;
-  var allEntries = Object.entries(_clientesDB);
-  var isAdminView = currentUser && currentUser.role === "admin";
 
-  // Admin ve TODOS. Vendedor solo ve clientes (role=cliente o catalogo=true)
+  var allEntries = Object.entries(_clientesDB);
+  if(!allEntries.length){
+    body.innerHTML='<div class="cli-empty-box">📋 No hay usuarios cargados aún. Esperá un momento o tocá 🔄 para recargar.</div>';
+    if(countEl) countEl.textContent="0";
+    return;
+  }
+
+  var isAdminView = currentUser && (currentUser.role === "admin");
+
+  // Filtro base por rol de usuario
   var entries = isAdminView ? allEntries : allEntries.filter(function(entry){
     var u = entry[1];
     var rol = (u.role||"cliente").toLowerCase();
+    // Vendedor ve: clientes, o usuarios con catalogo=true
     return rol === "cliente" || u.catalogo === true;
   });
 
-  // Filtro por rol
+  // Filtro adicional por rol seleccionado
   if(_cliRolFilter){
-    entries = entries.filter(function(e){ return (e[1].role||"cliente").toLowerCase() === _cliRolFilter; });
+    entries = entries.filter(function(e){
+      return (e[1].role||"cliente").toLowerCase() === _cliRolFilter;
+    });
   }
 
-  // Filtro de búsqueda
+  // Filtro búsqueda
   if(_cliSearchQ){
     var q = _cliSearchQ;
     entries = entries.filter(function(e){
       var u = e[1];
       return (u.name||"").toLowerCase().includes(q)
           || (u.id||"").toLowerCase().includes(q)
-          || (u.uid||"").toLowerCase().includes(q)
-          || (u.tel||u.telefono||"").toLowerCase().includes(q)
+          || (u.tel||u.telefono||"").includes(q)
           || (u.zona||"").toLowerCase().includes(q)
           || (u.direccion||"").toLowerCase().includes(q)
-          || (u.cuit||"").toLowerCase().includes(q)
-          || (u.rec||"").toLowerCase().includes(q)
-          || (u.nota||"").toLowerCase().includes(q)
-          || (u.lista||"").toLowerCase().includes(q);
+          || (u.cuit||"").includes(q);
     });
   }
 
-  if(countEl) countEl.textContent = entries.length +
-    (_cliSearchQ||_cliRolFilter ? " de "+allEntries.length : "");
+  if(countEl) countEl.textContent = entries.length + (_cliSearchQ||_cliRolFilter ? " de "+allEntries.length : "");
+
   if(!entries.length){
-    body.innerHTML = '<div class="cli-empty-box">'
-      +(_cliSearchQ ? '🔍 Sin resultados para "'+_cliSearchQ+'"<br><small>Probá con otro término</small>' : '📋 Todavía no hay usuarios registrados.<br>Usá el formulario de arriba para agregar el primero.')
-      +'</div>';
+    body.innerHTML = '<div class="cli-empty-box">' +
+      (_cliSearchQ ? '🔍 Sin resultados para "'+_cliSearchQ+'"' : '📋 Sin clientes con ese filtro.') +
+      '</div>';
     return;
   }
 
   var rolLabel = { cliente:"👤 Cliente", vendedor:"📝 Vendedor", repartidor:"🚚 Repartidor", admin:"👑 Admin" };
   var rolClass = { cliente:"cli-rol-cliente", vendedor:"cli-rol-vendedor", repartidor:"cli-rol-repartidor", admin:"cli-rol-admin" };
-  var rolBg    = { vendedor:"oklch(90% 0.05 240)", repartidor:"oklch(92% 0.05 50)", admin:"oklch(90% 0.05 300)" };
+  var rolBg    = { cliente:"var(--s3)", vendedor:"oklch(90% 0.05 240)", repartidor:"oklch(92% 0.05 50)", admin:"oklch(90% 0.05 300)" };
 
-  var q = _cliSearchQ;
-  function hl(str){ // highlight matching text
-    if(!str||!q) return escHtml(str||"");
-    var re = new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");
+  function hl(str){
+    if(!str||!_cliSearchQ) return escHtml(str||"");
+    var re = new RegExp("("+_cliSearchQ.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");
     return escHtml(str).replace(re,'<mark style="background:#fef3c7;border-radius:2px;padding:0 1px">$1</mark>');
   }
 
   body.innerHTML = entries.map(function(entry) {
     var key = entry[0], u = entry[1];
-    var inicial = (u.name||u.id||"?").charAt(0).toUpperCase();
     var rol = (u.role||"cliente").toLowerCase();
+    var inicial = (u.name||u.id||"?").charAt(0).toUpperCase();
     var rolBadge = '<span class="cli-rol-badge '+(rolClass[rol]||"cli-rol-cliente")+'">'+(rolLabel[rol]||rol)+'</span>';
-    var avatarBg = rolBg[rol] || "var(--s3)";
-    // Zona badge con color si existe en _zonasData
-    var zonaText = u.zona_id && _zonasData[u.zona_id]
-      ? '<span style="font-size:10px;background:'+_zonasData[u.zona_id].color+'22;color:'+_zonasData[u.zona_id].color+';border-radius:5px;padding:1px 6px;font-weight:700">🗺️ '+escHtml(_zonasData[u.zona_id].nombre)+'</span>'
-      : (u.zona ? '<span style="font-size:10.5px;color:var(--muted)">🗺 '+hl(u.zona)+'</span>' : '');
+    var avatarBg = rolBg[rol]||"var(--s3)";
+    var zonaText = (u.zona||u.zona_id) ?
+      (u.zona_id && _zonasData[u.zona_id]
+        ? '<span style="font-size:10px;background:'+_zonasData[u.zona_id].color+'22;color:'+_zonasData[u.zona_id].color+';border-radius:5px;padding:1px 6px;font-weight:700">🗺️ '+escHtml(_zonasData[u.zona_id].nombre)+'</span>'
+        : (u.zona ? '<span style="font-size:10.5px;color:var(--muted)">🗺 '+hl(u.zona)+'</span>' : ''))
+      : '';
     var metaParts = [
       u.id   ? "ID: <b>"+hl(u.id)+"</b>" : null,
       u.cuit ? "CUIT: "+hl(u.cuit) : null,
       u.tel  ? "📞 "+hl(u.tel) : null,
-      u.rec  ? "👤 "+hl(u.rec) : null,
-      u.nota ? hl(u.nota) : null
+      u.rec  ? "👤 "+hl(u.rec) : null
     ].filter(Boolean);
     return '<div class="cli-card">' +
-      '<div class="cli-avatar" style="background:'+avatarBg+'">'+ inicial+'</div>' +
+      '<div class="cli-avatar" style="background:'+avatarBg+'">'+inicial+'</div>' +
       '<div class="cli-info">' +
         '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+hl(u.name||u.id)+rolBadge+zonaText+'</div>' +
         (metaParts.length ? '<div class="cli-meta">'+metaParts.join(" · ")+'</div>' : '') +
-        (u.direccion
-          ? '<div class="cli-meta" style="color:var(--text2);margin-top:2px">📍 '+hl(u.direccion)+'</div>'
-          : (rol==="cliente"?'<div class="cli-meta" style="color:var(--amber);margin-top:2px">⚠️ Sin dirección</div>':'')) +
+        (u.direccion ? '<div class="cli-meta" style="color:var(--text2);margin-top:2px">📍 '+hl(u.direccion)+'</div>' : '') +
       '</div>' +
       '<div class="cli-badge">'+(u.lista||"Clientes")+'</div>' +
       '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
