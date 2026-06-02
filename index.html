@@ -1966,7 +1966,6 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
             <select id="cfg-usr-role">
               <option value="vendedor">📝 Vendedor</option>
               <option value="repartidor">🚚 Repartidor</option>
-              <option value="cliente">👤 Cliente</option>
               <option value="admin">👑 Admin</option>
             </select>
           </div>
@@ -1988,10 +1987,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <input type="text" id="cfg-usr-search" placeholder="🔍 Buscar usuario…" oninput="cfgRenderUsuarios()" style="flex:1;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit" autocomplete="off">
       <select id="cfg-usr-rol-fil" onchange="cfgRenderUsuarios()" style="font-size:12px;padding:8px;border:1px solid var(--border);border-radius:8px">
         <option value="">Todos los roles</option>
+        <option value="admin">👑 Admins</option>
         <option value="vendedor">📝 Vendedores</option>
         <option value="repartidor">🚚 Repartidores</option>
-        <option value="cliente">👤 Clientes</option>
-        <option value="admin">👑 Admins</option>
       </select>
       <button class="btn btn-ghost btn-sm" onclick="cargarClientesSection();cfgRenderUsuarios()">🔄</button>
     </div>
@@ -3816,6 +3814,11 @@ function cfgRenderUsuarios(){
   var rolBg    = {vendedor:"#eff6ff",repartidor:"#fffbeb",admin:"#f5f3ff",cliente:"#f0fdf4"};
 
   var entries = Object.entries(_clientesDB);
+  // Solo mostrar vendedores, repartidores y admins — no clientes
+  entries = entries.filter(function(e){
+    var rol = (e[1].role||"cliente").toLowerCase();
+    return rol === "vendedor" || rol === "repartidor" || rol === "admin";
+  });
   if(rolFil) entries=entries.filter(function(e){return (e[1].role||"cliente")===rolFil;});
   if(q) entries=entries.filter(function(e){
     var u=e[1]; return (u.name||"").toLowerCase().includes(q)||(u.id||"").toLowerCase().includes(q)||(u.tel||"").includes(q);
@@ -3828,9 +3831,12 @@ function cfgRenderUsuarios(){
     return ra!==rb ? ra-rb : (a[1].name||"").localeCompare(b[1].name||"","es");
   });
 
-  // Stats
-  var stats={admin:0,vendedor:0,repartidor:0,cliente:0};
-  Object.values(_clientesDB).forEach(function(u){ stats[u.role||"cliente"]=(stats[u.role||"cliente"]||0)+1; });
+  // Stats — solo roles relevantes
+  var stats={admin:0,vendedor:0,repartidor:0};
+  Object.values(_clientesDB).forEach(function(u){
+    var r=u.role||"cliente";
+    if(stats[r]!==undefined) stats[r]++;
+  });
 
   wrap.innerHTML =
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
