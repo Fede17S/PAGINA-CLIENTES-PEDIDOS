@@ -3140,7 +3140,9 @@ async function _sbGetEmpresa(empId){
   ]);
   var users=res[0]||[], prods=res[1]||[], stockRows=res[2]||[], listas=res[3]||[];
   var uMap={},pMap={},sMap={},scMap={},lMap={};
-  users.forEach(function(u){uMap[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,direccion:u.direccion,telefono:u.telefono,zona:u.zona,rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id};});
+  users.forEach(function(u){ uMap[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,
+    direccion:u.direccion,telefono:u.telefono,zona:u.zona,zona_id:u.zona_id||null,
+    cuit:u.cuit||"",rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id}; });
   prods.forEach(function(p){pMap[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto};});
   stockRows.forEach(function(s){sMap[s.codigo]=s.cantidad;scMap[s.codigo]={umbral:s.umbral};});
   listas.forEach(function(l){lMap[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});
@@ -3357,6 +3359,15 @@ window.onload = function(){
     _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
     aplicarRestricciones();
     cargarListasPrecios();
+    // Intentar cargar _clientesDB desde Supabase cache para que los PDFs funcionen
+    var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
+    if(cachedUsers && cachedUsers.length){
+      cachedUsers.forEach(function(u){
+        _clientesDB[u.id] = {id:u.uid||u.id,_sbId:u.id,name:u.name,role:u.role,lista:u.lista,
+          direccion:u.direccion||"",tel:u.telefono||"",cuit:u.cuit||"",
+          zona:u.zona||"",zona_id:u.zona_id||"",rec:u.recepciona||"",nota:u.nota||""};
+      });
+    }
     iniciarApp();
     setTimeout(_checkNotifButton, 1000);
   }catch(e){ localStorage.removeItem("dm_session"); } }
@@ -3924,12 +3935,30 @@ async function cargarCatalogo(){
   _loadReadCache();
   fbGetCached("empresas/"+empresaKey).then(function(emp){
     if(!emp){
-      if(msg){msg.className="err"; msg.textContent="❌ Empresa no encontrada";}
+      if(msg){msg.className="err"; msg.textContent="📦 Usando datos guardados";}
+      // Si ya tenemos empresaData en memoria, no alertar — trabajar con lo que hay
+      if(empresaData && (empresaData.nombre||empresaData.id)){
+        console.warn("cargarCatalogo: empresa no encontrada online, usando datos de sesión");
+        return;
+      }
       alert("Error: No se encontraron datos de la empresa (key="+empresaKey+"). Avisá al admin.");
       return;
     }
     if(!navigator.onLine && msg){ msg.className="warn"; msg.textContent="📦 Catálogo offline (cache)"; }
     empresaData=Object.assign({},empresaData,emp);
+    // Poblar _clientesDB inmediatamente desde los usuarios cargados
+    if(emp.usuarios && Object.keys(emp.usuarios).length > 0){
+      _clientesDB = emp.usuarios;
+      // También actualizar dbCli para el picker de clientes
+      dbCli = Object.values(_clientesDB).filter(function(u){
+        if(!u.id && !u.name) return false;
+        var rol=(u.role||"").toLowerCase();
+        if((rol==="admin"||rol==="repartidor")&&!u.catalogo) return false;
+        if(rol==="vendedor"&&u.catalogo!==true) return false;
+        return true;
+      }).map(function(u){ return {id:u.id||"",nombre:u.name||u.nombre||u.id||"",lista:u.lista||"Clientes"}; });
+      dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
+    }
     // Actualizar selector de vendedores si es admin
     if(currentUser && (currentUser.role==="admin")) _poblarSelectorVendedores();
     var productos=emp.productos||null;
