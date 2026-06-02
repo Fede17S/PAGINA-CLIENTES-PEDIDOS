@@ -3213,9 +3213,9 @@ async function _sbGetRutas(){
     var cm={};
     (clis||[]).filter(function(c){return c.ruta_id===r.id;}).forEach(function(c){
       cm[c.id]={
-        id:            c.id,
+        _rcId:         c.id,          // UUID de la fila ruta_clientes (para borrar/editar)
+        id:            c.cliente_id,  // ID del cliente
         nom:           c.nom,
-        id:            c.cliente_id,
         importe:       c.importe,
         efectivo:      c.efectivo,
         transferencia: c.transferencia,
@@ -5584,41 +5584,67 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
   var ruta = rutasData[rkOrigen];
   if(!ruta||!selectedSet||!selectedSet.size) return;
   var ok=0, fail=0;
-  for(var ck of selectedSet){
+  var ckArray = Array.from(selectedSet);
+
+  for(var i=0; i<ckArray.length; i++){
+    var ck  = ckArray[i]; // UUID de ruta_clientes
     var cli = (ruta.clientes||{})[ck];
-    if(!cli) continue;
+    if(!cli){ console.warn('[Mover] ck no encontrado en clientes:', ck); fail++; continue; }
+
     try {
-      // Insertar en ruta destino
+      // Insertar copia en ruta destino
       var inserted = await sbPost("ruta_clientes",{
         ruta_id:    rkDest,
         empresa_id: _sbEmpId,
         nom:        cli.nom||"",
-        cliente_id: cli.id||"",
+        cliente_id: cli.id||cli._rcId||"",   // cliente_id del cli
         items:      cli.items||[],
         importe:    cli.importe||0,
         lista:      cli.lista||"Clientes",
         obs:        cli.obs||"",
         fecha:      cli.fecha||new Date().toISOString(),
-        modo:       cli.modo||"ninguno"
+        modo:       cli.modo||"ninguno",
+        efectivo:   cli.efectivo||0,
+        transferencia: cli.transferencia||0,
+        firma:      "",
+        pagos_adicionales: [],
+        comprobantes: []
       });
-      if(inserted&&inserted[0]){
-        var nck=inserted[0].id;
-        if(!rutasData[rkDest]) rutasData[rkDest]={clientes:{}};
-        if(!rutasData[rkDest].clientes) rutasData[rkDest].clientes={};
-        rutasData[rkDest].clientes[nck]=Object.assign({},cli,{id:nck});
+
+      if(!inserted||!inserted[0]){
+        throw new Error("Insert no retornó ID — verificá la tabla ruta_clientes en Supabase");
       }
-      // Borrar de ruta origen
-      await sbDel("ruta_clientes","id=eq."+ck+"&ruta_id=eq."+rkOrigen);
+
+      var nck = inserted[0].id;
+
+      // Actualizar memoria local destino
+      if(!rutasData[rkDest])         rutasData[rkDest]         = {clientes:{}};
+      if(!rutasData[rkDest].clientes) rutasData[rkDest].clientes = {};
+      rutasData[rkDest].clientes[nck] = Object.assign({}, cli, {_rcId: nck});
+
+      // Borrar de ruta origen en Supabase (ck = UUID del row)
+      await sbDel("ruta_clientes", "id=eq."+ck);
       delete rutasData[rkOrigen].clientes[ck];
       ok++;
-    } catch(e){ console.warn('[Reasignar ruta]',ck,e.message); fail++; }
+      console.log('[Mover] ✓', cli.nom, '→', rkDest);
+
+    } catch(e){
+      console.error('[Mover] ERROR en', ck, ':', e.message);
+      fail++;
+    }
   }
+
   // Salir del modo selección
-  _rutaSelectMode[rkOrigen]=false;
-  _rutaSelected[rkOrigen]=new Set();
-  var toolbar=document.getElementById("ruta-sel-toolbar-"+rkOrigen);
-  if(toolbar) toolbar.style.display="none";
-  showNotif(ok+" pedido"+(ok!==1?'s':'')+" movido"+(ok!==1?'s':'')+" correctamente"+(fail?" ("+fail+" fallaron":"")+"","ok");
+  _rutaSelectMode[rkOrigen] = false;
+  _rutaSelected[rkOrigen]   = new Set();
+  var toolbar = document.getElementById("ruta-sel-toolbar-"+rkOrigen);
+  if(toolbar) toolbar.style.display = "none";
+
+  if(fail > 0){
+    showNotif(ok+" movido"+(ok!==1?"s":"")+" ✓  ·  "+fail+" fallaron — ver consola","err");
+  } else {
+    showNotif("✅ "+ok+" pedido"+(ok!==1?"s":"")+" movido"+(ok!==1?"s":"")+" correctamente","ok");
+  }
 }
 
 // ══ BUSCADOR EN HOJA DE RUTA ══
