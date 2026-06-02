@@ -3958,6 +3958,8 @@ function verTab(id,btn){
     sincronizarPendientesBackup();
     cargarBackupFirebase();
     _bkStartAutoRefresh();
+    // Mostrar aviso si hay pendientes
+    setTimeout(_bkShowPendingWarning, 500);
   } else {
     _bkStopAutoRefresh();
   }
@@ -6997,65 +6999,121 @@ async function _sbInsertBackupConReintento(item, intentosRestantes, delayMs){
 
 function _bkShowPendingWarning(){
   var q = _bkQueueGet();
-  if(!q.length) return;
+  // Mostrar en Backup Pedidos si está abierto
   var s = document.getElementById("bk-sync-status");
-  if(s){
+  if(s && q.length>0){
     s.style.display="block";
     s.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:8px 12px;border-radius:7px;font-weight:600;background:#fffbeb;color:#b45309;border:1px solid #fde68a;cursor:pointer";
     s.innerHTML="⚠️ "+q.length+" pedido"+(q.length!==1?"s":"")+" sin sincronizar — <b>tocá aquí para reintentar</b>";
-    s.onclick = function(){ _syncPendingBackups(); };
+    s.onclick=function(){ _syncPendingBackups(); };
+  } else if(s && q.length===0){
+    s.style.display="none";
   }
-  showNotif("⚠️ "+q.length+" pedido"+(q.length!==1?"s":"")+" pendiente"+(q.length!==1?"s":"")+" de subir","warn");
+  if(q.length>0) showNotif("⚠️ "+q.length+" pedido"+(q.length!==1?"s":"")+" pendiente"+(q.length!==1?"s":"")+" — conectate para subir","warn");
 }
 
-// Sincronizar pendientes cuando vuelve la conexión
+// Sincronizar pendientes — versión robusta
 async function _syncPendingBackups(){
   var pending = _bkQueueGet();
-  if(!pending.length || !_sbEmpId) return;
-  if(!navigator.onLine){ showNotif("Sin conexión — esperando…","warn"); return; }
+  if(!pending.length){ 
+    var s=document.getElementById("bk-sync-status"); 
+    if(s) s.style.display="none"; 
+    return; 
+  }
 
+  // Si no hay _sbEmpId, intentar recuperarlo desde la sesión
+  if(!_sbEmpId){
+    try{
+      var sess=JSON.parse(localStorage.getItem("dm_session")||"{}");
+      if(sess.empresaKey){ _sbEmpId=sess.empresaKey; empresaKey=sess.empresaKey; }
+    }catch(e){}
+  }
+
+  if(!_sbEmpId){
+    showNotif("Error: sesión inválida. Cerrá sesión y volvé a entrar.","err");
+    return;
+  }
+
+  if(!navigator.onLine){
+    showNotif("📵 Sin conexión — cuando vuelva internet se sube solo","warn");
+    // Esperar a que vuelva
+    window.addEventListener("online", function onlineRetry(){
+      window.removeEventListener("online", onlineRetry);
+      setTimeout(_syncPendingBackups, 1500);
+    });
+    return;
+  }
+
+  // Mostrar progreso
   var s = document.getElementById("bk-sync-status");
-  if(s){ s.innerHTML="⏳ Sincronizando "+pending.length+" pedido"+(pending.length!==1?"s":"")+"…"; }
+  if(s){
+    s.style.display="block";
+    s.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:8px 12px;border-radius:7px;font-weight:600;background:#e8f4fd;color:#1e40af;border:1px solid #bfdbfe";
+    s.innerHTML="⏳ Subiendo "+pending.length+" pedido"+(pending.length!==1?"s":"")+" al servidor…";
+    s.onclick=null;
+  }
+  showNotif("⏳ Sincronizando "+pending.length+" pedidos…","ok");
 
-  console.log('[Backup] Sincronizando '+pending.length+' pendientes…');
   var synced=0, errores=0;
 
   for(var i=0;i<pending.length;i++){
     var item=pending[i];
+    if(s) s.innerHTML="⏳ Subiendo pedido "+(i+1)+"/"+pending.length+"…";
     try{
+      // Verificar si ya existe (por UUID o por fecha+cliente)
       var existe=null;
-      if(item._sbId && !item._sbId.startsWith("bk_")){
-        existe=await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId);
+      if(item._sbId && typeof item._sbId==="string" && item._sbId.length>10 && !item._sbId.startsWith("bk_")){
+        var chk=await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId);
+        if(chk&&chk.length) existe=chk;
       }
       if((!existe||!existe.length) && item.fecha && item.clienteNom){
         var fe=(item.fecha||"").slice(0,19);
-        existe=await sbGet("backup_pedidos",
-          "select=id&empresa_id=eq."+_sbEmpId+"&fecha=gte."+fe+
-          "&cliente_nom=eq."+encodeURIComponent(item.clienteNom));
+        var chk2=await sbGet("backup_pedidos",
+          "select=id&empresa_id=eq."+_sbEmpId+
+          "&fecha=gte."+fe+
+          "&cliente_nom=eq."+encodeURIComponent(item.clienteNom||""));
+        if(chk2&&chk2.length) existe=chk2;
       }
-      if(existe && existe.length){
+      if(existe&&existe.length){
         item._sbId=existe[0].id; item._synced=true;
         _bkAddToLocal(item); _bkQueueRemove(item.id);
         synced++; continue;
       }
+      // Insertar
       var newId=await _sbInsertBackup(item);
       if(newId){
         item._sbId=newId; item._synced=true;
         _bkAddToLocal(item); _bkQueueRemove(item.id);
         synced++;
+        console.log('[Sync] ✅ '+item.clienteNom+' → '+newId);
+      } else {
+        throw new Error("Insert no devolvió ID");
       }
     }catch(ex){
-      console.warn('[Backup] Pendiente fallo:', ex.message);
+      console.warn('[Sync] Fallo pedido '+i+' ('+((item&&item.clienteNom)||"?")+'):', ex.message);
       errores++;
     }
   }
 
-  if(s) s.style.display="none";
+  // Resultado
+  if(s){
+    var restantes=_bkQueueGet().length;
+    if(restantes===0){
+      s.style.display="none";
+    } else {
+      s.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:8px 12px;border-radius:7px;font-weight:600;background:#fffbeb;color:#b45309;border:1px solid #fde68a;cursor:pointer";
+      s.innerHTML="⚠️ "+restantes+" pedido"+(restantes!==1?"s":"")+" sin sincronizar — <b>tocá aquí para reintentar</b>";
+      s.onclick=function(){ _syncPendingBackups(); };
+    }
+  }
+
   if(synced>0){
-    showNotif("✅ "+synced+" pedido"+(synced!==1?"s":"")+" sincronizado"+(synced!==1?"s":""),"ok");
+    showNotif("✅ "+synced+" pedido"+(synced!==1?"s":"")+" sincronizado"+(synced!==1?"s":"")+" correctamente","ok");
     cargarBackupFirebase();
   }
-  if(errores>0) _bkShowPendingWarning();
+  if(errores>0 && synced===0){
+    showNotif("❌ No se pudo sincronizar. Verificá la conexión.","err");
+  }
 }
 
 // Sincronizar al volver online
