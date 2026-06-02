@@ -1948,58 +1948,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <!-- Tabs -->
   <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0" id="cfg-tabs">
     <button class="bk-tab active" id="cfg-tab-empresa" onclick="setCfgTab('empresa',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🏢 Datos empresa</button>
-    <button class="bk-tab" id="cfg-tab-usuarios" onclick="setCfgTab('usuarios',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">👥 Usuarios</button>
     <button class="bk-tab" id="cfg-tab-remito" onclick="setCfgTab('remito',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🎨 Remito</button>
   </div>
 
   <!-- ═══ PANEL USUARIOS ═══ -->
-  <div id="cfg-panel-usuarios" style="display:none">
-
-    <!-- Agregar nuevo usuario -->
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('cfg-nuevo-usr-body');b.style.display=b.style.display==='none'?'block':'none'">
-        <span class="card-title">➕ Nuevo usuario</span>
-        <span style="font-size:11px;color:var(--muted)">Vendedor, repartidor, admin o cliente</span>
-      </div>
-      <div class="card-body" id="cfg-nuevo-usr-body" style="display:none">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="cli-field"><label>ID / Usuario *</label><input type="text" id="cfg-usr-id" placeholder="ej: vendedor01" autocomplete="off" autocapitalize="none"></div>
-          <div class="cli-field"><label>Contraseña *</label><input type="text" id="cfg-usr-pass" placeholder="ej: 1234" autocomplete="off"></div>
-          <div class="cli-field"><label>Nombre completo *</label><input type="text" id="cfg-usr-name" placeholder="ej: Juan Pérez" autocomplete="off"></div>
-          <div class="cli-field"><label>Rol</label>
-            <select id="cfg-usr-role">
-              <option value="vendedor">📝 Vendedor</option>
-              <option value="repartidor">🚚 Repartidor</option>
-              <option value="admin">👑 Admin</option>
-            </select>
-          </div>
-          <div class="cli-field"><label>Lista de precios</label>
-            <select id="cfg-usr-lista">
-              <option value="Clientes">Clientes</option>
-              <option value="Patagonia">Patagonia</option>
-              <option value="Distribuidores">Distribuidores</option>
-            </select>
-          </div>
-          <div class="cli-field"><label>Teléfono</label><input type="tel" id="cfg-usr-tel" placeholder="ej: 2804-123456" autocomplete="off"></div>
-        </div>
-        <button class="mbtn mbtn-primary" onclick="cfgCrearUsuario()" style="padding:11px 24px;margin-top:8px">💾 Crear usuario</button>
-      </div>
-    </div>
-
-    <!-- Lista de todos los usuarios -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-      <input type="text" id="cfg-usr-search" placeholder="🔍 Buscar usuario…" oninput="cfgRenderUsuarios()" style="flex:1;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit" autocomplete="off">
-      <select id="cfg-usr-rol-fil" onchange="cfgRenderUsuarios()" style="font-size:12px;padding:8px;border:1px solid var(--border);border-radius:8px">
-        <option value="">Todos los roles</option>
-        <option value="admin">👑 Admins</option>
-        <option value="vendedor">📝 Vendedores</option>
-        <option value="repartidor">🚚 Repartidores</option>
-      </select>
-      <button class="btn btn-ghost btn-sm" onclick="cfgCargarYRenderUsuarios()">🔄</button>
-    </div>
-    <div id="cfg-usuarios-list"></div>
-  </div>
-
   <!-- ═══ PANEL DATOS EMPRESA ═══ -->
   <div id="cfg-panel-empresa">
   <!-- ── DATOS DE EMPRESA ── -->
@@ -2094,14 +2046,17 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div><!-- end datos-empresa section -->
 
 <div id="clientes" class="section">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <span style="font-size:16px;font-weight:700">Clientes (<span id="cli-count">…</span>)</span>
+
+  <!-- Barra superior -->
+  <div class="cli-list-header">
+    <div class="cli-list-title">Clientes (<span id="cli-count">0</span>)</div>
     <div style="display:flex;gap:8px">
-      <button onclick="_cargandoClientes=false;cargarClientesSection()" style="padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit">🔄</button>
-      <button onclick="abrirPanelZonas()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
+      <button class="btn btn-ghost btn-sm" onclick="_cargandoClientes=false;cargarClientesSection()">🔄</button>
+      <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
     </div>
   </div>
 
+  <!-- Panel zonas -->
   <div id="cli-zonas-panel" style="display:none;margin-bottom:12px">
     <div class="card"><div class="card-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2115,15 +2070,29 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div></div>
   </div>
 
+  <!-- Buscador -->
   <div style="position:relative;margin-bottom:10px">
-    <input type="text" id="cli-search-input" placeholder="🔍 Buscar por nombre, ID, teléfono, CUIT, zona…"
-      oninput="_filtrarClientes(this.value)" autocomplete="off"
-      style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
+    <input type="text" id="cli-search-input"
+      placeholder="🔍 Buscar por nombre, ID, teléfono, zona, dirección…"
+      autocomplete="off" oninput="_filtrarClientes(this.value)"
+      style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff">
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+    <button id="cli-search-clear" onclick="document.getElementById('cli-search-input').value='';_filtrarClientes('')"
+      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted)">✕</button>
   </div>
 
-  <div id="cli-list-body">
-    <p style="text-align:center;color:var(--muted);padding:30px">Cargando…</p>
+  <!-- Filtros de rol -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="cli-filter-roles">
+    <button class="bk-tab active" onclick="_setRolFilter('',this)">Todos</button>
+    <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
+    <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
+    <button class="bk-tab" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
+    <button class="bk-tab" onclick="_setRolFilter('admin',this)">👑 Admin</button>
   </div>
+
+  <!-- Lista -->
+  <div id="cli-list-body"></div>
+
 </div>
 <!-- MODAL EDITAR CLIENTE -->
 <div class="modal-bg" id="modal-edit-cli">
@@ -3640,135 +3609,9 @@ function setCfgTab(tab, btn){
   document.querySelectorAll("#cfg-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
   document.getElementById("cfg-panel-empresa").style.display = tab==="empresa"?"block":"none";
-  document.getElementById("cfg-panel-usuarios").style.display = tab==="usuarios"?"block":"none";
   document.getElementById("cfg-panel-remito").style.display   = tab==="remito"?"block":"none";
-  if(tab==="usuarios") cfgCargarYRenderUsuarios();
   if(tab==="empresa")  cargarDatosEmpresa();
   if(tab==="remito")   cargarDisenoRemito();
-}
-
-async function cfgCargarYRenderUsuarios(){
-  // Query propia — NO llama cargarClientesSection para no interferir con Gestión de Clientes
-  if(_sbEmpId){
-    try{
-      var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,telefono,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
-      if(rows && rows.length){
-        rows.forEach(function(u){
-          // Solo agregar/actualizar en _clientesDB sin borrar lo que ya hay
-          if(!_clientesDB[u.id]){
-            _clientesDB[u.id]={_sbId:u.id,id:u.uid||"",name:u.name||"",pass:u.pass||"",
-              role:u.role||"cliente",lista:u.lista||"Clientes",catalogo:u.catalogo,
-              tel:u.telefono||"",nota:u.nota||""};
-          }
-        });
-      }
-    }catch(e){ console.warn("[Cfg usuarios]", e.message); }
-  }
-  cfgRenderUsuarios();
-}
-
-function cfgRenderUsuarios(){
-  var wrap = document.getElementById("cfg-usuarios-list");
-  if(!wrap) return;
-  var q      = (document.getElementById("cfg-usr-search")||{value:""}).value.toLowerCase();
-  var rolFil = (document.getElementById("cfg-usr-rol-fil")||{value:""}).value;
-  var rolLabel = {cliente:"👤 Cliente",vendedor:"📝 Vendedor",repartidor:"🚚 Repartidor",admin:"👑 Admin"};
-  var rolColor = {vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed",cliente:"#059669"};
-  var rolBg    = {vendedor:"#eff6ff",repartidor:"#fffbeb",admin:"#f5f3ff",cliente:"#f0fdf4"};
-
-  var entries = Object.entries(_clientesDB);
-  // Solo mostrar vendedores, repartidores y admins — no clientes
-  entries = entries.filter(function(e){
-    var rol = (e[1].role||"cliente").toLowerCase();
-    return rol === "vendedor" || rol === "repartidor" || rol === "admin";
-  });
-  if(rolFil) entries=entries.filter(function(e){return (e[1].role||"cliente")===rolFil;});
-  if(q) entries=entries.filter(function(e){
-    var u=e[1]; return (u.name||"").toLowerCase().includes(q)||(u.id||"").toLowerCase().includes(q)||(u.tel||"").includes(q);
-  });
-
-  // Ordenar: admins > vendedores > repartidores > clientes, luego alfabético
-  var order={admin:0,vendedor:1,repartidor:2,cliente:3};
-  entries.sort(function(a,b){
-    var ra=order[a[1].role||"cliente"]||3, rb=order[b[1].role||"cliente"]||3;
-    return ra!==rb ? ra-rb : (a[1].name||"").localeCompare(b[1].name||"","es");
-  });
-
-  // Stats — solo roles relevantes
-  var stats={admin:0,vendedor:0,repartidor:0};
-  Object.values(_clientesDB).forEach(function(u){
-    var r=u.role||"cliente";
-    if(stats[r]!==undefined) stats[r]++;
-  });
-
-  wrap.innerHTML =
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
-    Object.entries(stats).map(function(e){
-      return '<div style="flex:1;min-width:80px;background:'+rolBg[e[0]]+';border:1.5px solid '+rolColor[e[0]]+'33;border-radius:10px;padding:10px;text-align:center">'+
-        '<div style="font-size:18px;font-weight:800;color:'+rolColor[e[0]]+'">'+e[1]+'</div>'+
-        '<div style="font-size:11px;color:var(--muted);font-weight:600">'+rolLabel[e[0]]+'</div>'+
-      '</div>';
-    }).join('')+
-    '</div>'+
-    '<div style="display:flex;flex-direction:column;gap:8px">'+
-    entries.map(function(entry){
-      var pk=entry[0], u=entry[1];
-      var rol=(u.role||"cliente");
-      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border:1.5px solid var(--border);border-left:4px solid '+rolColor[rol]+';border-radius:10px">'+
-        '<div style="width:36px;height:36px;border-radius:50%;background:'+rolBg[rol]+';border:2px solid '+rolColor[rol]+';display:grid;place-items:center;font-size:15px;flex-shrink:0">'+
-          (u.name||u.id||"?").charAt(0).toUpperCase()+
-        '</div>'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px">'+escHtml(u.name||u.id)+
-            '<span style="font-size:10px;background:'+rolBg[rol]+';color:'+rolColor[rol]+';border-radius:5px;padding:1px 7px;font-weight:700">'+rolLabel[rol]+'</span>'+
-          '</div>'+
-          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">ID: <b>'+escHtml(u.id||"")+'</b>'+
-            (u.tel?' · 📞 '+escHtml(u.tel):'')+(u.lista?' · '+escHtml(u.lista):'')+'</div>'+
-        '</div>'+
-        '<div style="display:flex;gap:4px;flex-shrink:0">'+
-          '<button class="btn btn-ghost btn-sm" onclick="abrirEditCliente(\''+pk+'\')" title="Editar">✏️</button>'+
-          '<button class="btn btn-ghost btn-sm" onclick="cfgResetPass(\''+pk+'\',\''+escHtml(u.name||u.id)+'\')" title="Cambiar contraseña">🔑</button>'+
-          '<button class="btn btn-ghost btn-sm" onclick="_eliminarCliente(\''+pk+'\')" style="color:var(--red)" title="Eliminar">🗑</button>'+
-        '</div>'+
-      '</div>';
-    }).join('')+
-    (entries.length===0?'<div style="padding:40px;text-align:center;color:var(--muted)">Sin usuarios con esos filtros</div>':'')+
-    '</div>';
-}
-
-async function cfgCrearUsuario(){
-  var id    = (document.getElementById("cfg-usr-id")||{value:""}).value.trim().toLowerCase();
-  var pass  = (document.getElementById("cfg-usr-pass")||{value:""}).value.trim();
-  var name  = (document.getElementById("cfg-usr-name")||{value:""}).value.trim();
-  var role  = (document.getElementById("cfg-usr-role")||{value:"vendedor"}).value;
-  var lista = (document.getElementById("cfg-usr-lista")||{value:"Clientes"}).value;
-  var tel   = (document.getElementById("cfg-usr-tel")||{value:""}).value.trim();
-  if(!id||!name){ showNotif("ID y nombre son obligatorios","err"); return; }
-  var dup = Object.values(_clientesDB).find(function(u){return (u.id||"").toLowerCase()===id;});
-  if(dup){ showNotif("Ya existe un usuario con ese ID: "+id,"err"); return; }
-  var nuevo={id:id,pass:pass||id,name:name,lista:lista,catalogo:true,role:role};
-  if(tel) nuevo.tel=tel;
-  try{
-    var newKey=await fbPush("empresas/"+empresaKey+"/usuarios",nuevo);
-    if(newKey){ _clientesDB[newKey]=Object.assign({},nuevo,{_sbId:newKey}); }
-    // Limpiar form
-    ["cfg-usr-id","cfg-usr-pass","cfg-usr-name","cfg-usr-tel"].forEach(function(fid){
-      var el=document.getElementById(fid); if(el) el.value="";
-    });
-    document.getElementById("cfg-nuevo-usr-body").style.display="none";
-    cfgRenderUsuarios();
-    showNotif("✅ Usuario '"+name+"' creado ("+role+")","ok");
-  }catch(e){ showNotif("Error: "+e.message,"err"); }
-}
-
-async function cfgResetPass(pk, nombre){
-  var nueva = prompt("Nueva contraseña para "+nombre+":");
-  if(!nueva||!nueva.trim()) return;
-  try{
-    await fbPatch("empresas/"+empresaKey+"/usuarios/"+pk,{pass:nueva.trim()});
-    if(_clientesDB[pk]) _clientesDB[pk].pass=nueva.trim();
-    showNotif("✅ Contraseña de "+nombre+" actualizada","ok");
-  }catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 
 async function cargarDatosEmpresa(){
@@ -9289,112 +9132,123 @@ function _renderZonasEnClientes(){
 var _cliSearchQ = "";
 var _cliRolFilter = "";
 var _clientesGestion = {};
-var _cargandoClientes = false; // lock para evitar llamadas concurrentes
+var _cargandoClientes = false;
 
 async function cargarClientesSection(){
-  if(_cargandoClientes) return; // evitar llamadas concurrentes
+  if(_cargandoClientes) return;
   _cargandoClientes = true;
   var isAdmin = currentUser && currentUser.role === "admin";
-  var titleEl = document.getElementById("cli-form-title");
-  if(titleEl) titleEl.textContent = isAdmin ? "➕ Agregar usuario" : "➕ Agregar cliente";
-  var rolWrap = document.getElementById("nc-rol-wrap");
-  if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
-
-console.log("[Clientes] start _sbEmpId="+(_sbEmpId||"NULL")+" role="+(currentUser&&currentUser.role||"?"));
-
-  _renderClientesList(); // render inmediato con cache
+  var cntEl = document.getElementById("cli-count");
 
   try {
-    if(!_sbEmpId) throw new Error("_sbEmpId null");
-    var q = "select=id,uid,name,pass,role,lista,direccion,telefono,cuit,zona,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc";
-    console.log("[Clientes] sbGet");
-    var rows = await sbGet("usuarios", q);
-    console.log("[Clientes] rows="+(rows?rows.length:"null"));
-    if(rows && rows.length > 0){
+    if(!_sbEmpId) throw new Error("sin empresa");
+    var rows = await sbGet("usuarios",
+      "select=id,uid,name,pass,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo" +
+      "&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+    if(rows && rows.length){
       var map = {};
       rows.forEach(function(u){
-        map[u.id]={_sbId:u.id,id:u.uid||"",name:u.name||"",pass:u.pass||"",role:u.role||"cliente",
-          lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
-          tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
+        map[u.id] = {
+          _sbId: u.id, id: u.uid||"", name: u.name||"", pass: u.pass||"",
+          role: u.role||"cliente", lista: u.lista||"Clientes", catalogo: u.catalogo,
+          direccion: u.direccion||"", tel: u.telefono||"", cuit: u.cuit||"",
+          zona: u.zona||"", zona_id: u.zona_id||null, rec: u.recepciona||"", nota: u.nota||""
+        };
       });
       _clientesGestion = map;
       _clientesDB = map;
-      console.log("[Clientes] render",Object.keys(map).length);
-      _renderClientesList();
-    } else {
-      console.log("[Clientes] sin filas");
-      var body=document.getElementById("cli-list-body");
-      if(body) body.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted)">Sin clientes. rows='+(rows?"[]":"null")+'</div>';
     }
-  } catch(e){
-    console.error("[Clientes]",e.message);
-    var body=document.getElementById("cli-list-body");
-    if(body) body.innerHTML='<div style="padding:30px;text-align:center;color:#b91c1c">❌ '+escHtml(e.message)+'<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Reintentar</button></div>';
-  }
-  _cargandoClientes = false;
-}
+  } catch(e){ console.warn("[CLI]", e.message); }
 
+  _cargandoClientes = false;
+  _renderClientesList();
+}
 
 function _renderClientesList(){
   var body = document.getElementById("cli-list-body");
+  var cntEl = document.getElementById("cli-count");
   if(!body) return;
-  var src = Object.keys(_clientesGestion).length ? _clientesGestion : _clientesDB;
-  if(!src || !Object.keys(src).length){
-    body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Sin datos. <button onclick="cargarClientesSection()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:13px">🔄 Recargar</button></div>';
+
+  var src = Object.keys(_clientesGestion).length ? _clientesGestion : (_clientesDB||{});
+  var all = Object.entries(src);
+
+  if(!all.length){
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Sin clientes.<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:9px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px">🔄 Recargar</button></div>';
+    if(cntEl) cntEl.textContent="0";
     return;
   }
+
   var isAdmin = currentUser && currentUser.role === "admin";
-  var entries = Object.entries(src);
-  if(!isAdmin) entries = entries.filter(function(e){ return (e[1].role||"cliente")==="cliente" || e[1].catalogo===true; });
-  if(_cliRolFilter) entries = entries.filter(function(e){ return (e[1].role||"cliente")===_cliRolFilter; });
+  var entries = isAdmin ? all : all.filter(function(e){
+    return (e[1].role||"cliente")==="cliente" || e[1].catalogo===true;
+  });
+  if(_cliRolFilter) entries = entries.filter(function(e){
+    return (e[1].role||"cliente") === _cliRolFilter;
+  });
   if(_cliSearchQ){
     var q = _cliSearchQ;
     entries = entries.filter(function(e){
-      var u=e[1];
-      return (u.name||"").toLowerCase().includes(q)||(u.id||"").toLowerCase().includes(q)
-        ||(u.tel||"").includes(q)||(u.cuit||"").includes(q)
-        ||(u.zona||"").toLowerCase().includes(q)||(u.direccion||"").toLowerCase().includes(q);
+      var u = e[1];
+      return (u.name||"").toLowerCase().includes(q)
+        || (u.id||"").toLowerCase().includes(q)
+        || (u.tel||"").includes(q)
+        || (u.cuit||"").includes(q)
+        || (u.zona||"").toLowerCase().includes(q)
+        || (u.direccion||"").toLowerCase().includes(q);
     });
   }
-  var cnt = document.getElementById("cli-count");
-  if(cnt) cnt.textContent = entries.length;
+
+  if(cntEl) cntEl.textContent = entries.length + (_cliSearchQ||_cliRolFilter ? "/"+all.length : "");
+
   if(!entries.length){
     body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Sin resultados</div>';
     return;
   }
-  var rolColor={cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed"};
-  var rolLabel={cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",admin:"Admin"};
+
+  var rolColor = {cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed"};
+  var rolLabel = {cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",admin:"Admin"};
+
   body.innerHTML = entries.map(function(e){
-    var pk=e[0], u=e[1];
+    var pk = e[0], u = e[1];
     var rol = u.role||"cliente";
     var col = rolColor[rol]||"#059669";
-    var inicial = (u.name||u.id||"?").charAt(0).toUpperCase();
-    var meta = [u.id&&("ID: "+u.id), u.tel&&("📞 "+u.tel), u.cuit&&("CUIT: "+u.cuit)].filter(Boolean).join(" · ");
-    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-left:4px solid '+col+';border-radius:10px;margin-bottom:8px">'+
-      '<div style="width:38px;height:38px;border-radius:50%;background:'+col+'22;color:'+col+';font-weight:800;font-size:16px;display:grid;place-items:center;flex-shrink:0">'+inicial+'</div>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px">'+escHtml(u.name||u.id)+
-          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+rolLabel[rol]+'</span>'+
-          (u.zona?'<span style="font-size:11px;color:var(--muted)">🗺 '+escHtml(u.zona)+'</span>':'')+ 
-        '</div>'+
-        (meta?'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+escHtml(meta)+'</div>':'')+
-        (u.direccion?'<div style="font-size:12px;color:var(--text2);margin-top:1px">📍 '+escHtml(u.direccion)+'</div>':'')+
-      '</div>'+
-      '<div style="display:flex;gap:4px;flex-shrink:0">'+
-        '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)" title="Editar">✏️</button>'+
-        '<button class="cli-act cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)" title="Eliminar">🗑</button>'+
-      '</div>'+
+    var ini = (u.name||u.id||"?").charAt(0).toUpperCase();
+    var meta = [
+      u.id   ? "ID: "+u.id : null,
+      u.tel  ? "📞 "+u.tel : null,
+      u.cuit ? "CUIT: "+u.cuit : null,
+      u.rec  ? "👤 "+u.rec : null
+    ].filter(Boolean).join(" · ");
+    return '<div class="cli-card">' +
+      '<div class="cli-avatar" style="background:'+col+'22;color:'+col+';font-weight:800">'+ini+'</div>' +
+      '<div class="cli-info">' +
+        '<div class="cli-name">'+escHtml(u.name||u.id)+
+          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700;margin-left:6px">'+rolLabel[rol]+'</span>'+
+          (u.zona ? '<span style="font-size:10.5px;color:var(--muted);margin-left:4px">🗺 '+escHtml(u.zona)+'</span>' : '')+
+        '</div>' +
+        (meta ? '<div class="cli-meta">'+escHtml(meta)+'</div>' : '')+
+        (u.direccion ? '<div class="cli-meta" style="color:var(--text2)">📍 '+escHtml(u.direccion)+'</div>' : '')+
+      '</div>' +
+      '<div class="cli-badge">'+( u.lista||"Clientes")+'</div>' +
+      '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">' +
+        '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)">✏️</button>' +
+        '<button class="cli-act cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)">🗑</button>' +
+      '</div>' +
     '</div>';
   }).join("");
 }
 
 function _filtrarClientes(q){
   _cliSearchQ = (q||"").toLowerCase().trim();
+  var c = document.getElementById("cli-search-clear");
+  if(c) c.style.display = _cliSearchQ ? "block" : "none";
   _renderClientesList();
 }
 
 function _setRolFilter(rol, btn){
   _cliRolFilter = rol;
+  document.querySelectorAll("#cli-filter-roles .bk-tab").forEach(function(b){ b.classList.remove("active"); });
+  if(btn) btn.classList.add("active");
   _renderClientesList();
 }
 
