@@ -3342,12 +3342,11 @@ async function _sbGetBackup(){
 }
 
 async function _sbInsertBackup(data){
-  var rows=await sbPost("backup_pedidos",{
+  var body = {
     empresa_id:    _sbEmpId,
     fecha:         data.fecha||new Date().toISOString(),
     cliente_nom:   data.clienteNom||"",
     cliente_id:    data.clienteId||"",
-    lista:         data.lista||"",
     obs:           data.obs||"",
     items:         data.items||[],
     total:         data.total||0,
@@ -3357,7 +3356,11 @@ async function _sbInsertBackup(data){
     usuario:       data.usuario||"",
     usuario_nom:   data.usuarioNom||"",
     descuentos:    data.descuentos||null
-  });
+  };
+  // Solo incluir lista si ya existe la columna
+  if(data.lista) body.lista = data.lista;
+
+  var rows=await sbPost("backup_pedidos", body);
   return rows&&rows[0]?rows[0].id:null;
 }
 
@@ -6935,12 +6938,26 @@ function _bkAddToLocal(item){
 async function _sbInsertBackupConReintento(item, intentosRestantes, delayMs){
   if(!_sbEmpId) return;
   try {
-    // Verificar si ya existe (evita duplicados si se llama dos veces)
-    var existe = await sbGet("backup_pedidos","select=id&id=eq."+item.id+"&empresa_id=eq."+_sbEmpId);
+    // Verificar si ya existe por _sbId (UUID real) o por fecha+cliente (para items con id local tipo "bk_...")
+    var existe = null;
+    if(item._sbId && !item._sbId.startsWith("bk_")){
+      existe = await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId);
+    }
+    // Si no tiene UUID real, buscar por fecha exacta + cliente (ventana de 5 segundos)
+    if(!existe || !existe.length){
+      var fechaExacta = (item.fecha||"").slice(0,19); // "2024-01-15T14:32:10"
+      if(fechaExacta && item.clienteNom){
+        existe = await sbGet("backup_pedidos",
+          "select=id&empresa_id=eq."+_sbEmpId+
+          "&fecha=gte."+fechaExacta+
+          "&fecha=lte."+(fechaExacta.slice(0,17)+(parseInt(fechaExacta.slice(17,19))+5).toString().padStart(2,"0"))+
+          "&cliente_nom=eq."+encodeURIComponent(item.clienteNom));
+      }
+    }
     if(existe && existe.length){
       item._sbId=existe[0].id; item._synced=true;
       _bkAddToLocal(item); _bkQueueRemove(item.id);
-      console.log('[Backup] ✅ Ya existía en Supabase:', item.id);
+      console.log('[Backup] ✅ Ya existía en Supabase:', existe[0].id);
       return;
     }
 
@@ -7006,18 +7023,25 @@ async function _syncPendingBackups(){
   for(var i=0;i<pending.length;i++){
     var item=pending[i];
     try{
-      var existe=await sbGet("backup_pedidos","select=id&id=eq."+item.id+"&empresa_id=eq."+_sbEmpId);
+      var existe=null;
+      if(item._sbId && !item._sbId.startsWith("bk_")){
+        existe=await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId);
+      }
+      if((!existe||!existe.length) && item.fecha && item.clienteNom){
+        var fe=(item.fecha||"").slice(0,19);
+        existe=await sbGet("backup_pedidos",
+          "select=id&empresa_id=eq."+_sbEmpId+"&fecha=gte."+fe+
+          "&cliente_nom=eq."+encodeURIComponent(item.clienteNom));
+      }
       if(existe && existe.length){
         item._sbId=existe[0].id; item._synced=true;
-        _bkAddToLocal(item);
-        _bkQueueRemove(item.id);
+        _bkAddToLocal(item); _bkQueueRemove(item.id);
         synced++; continue;
       }
       var newId=await _sbInsertBackup(item);
       if(newId){
         item._sbId=newId; item._synced=true;
-        _bkAddToLocal(item);
-        _bkQueueRemove(item.id);
+        _bkAddToLocal(item); _bkQueueRemove(item.id);
         synced++;
       }
     }catch(ex){
