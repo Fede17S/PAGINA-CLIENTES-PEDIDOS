@@ -4110,9 +4110,17 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes"){
-    // Render inmediato + cargar en fondo
+    // Render inmediato con lo que hay
     _renderClientesList();
-    cargarClientesSection();
+    // Cargar fresh desde Supabase directamente
+    if(_sbEmpId){
+      _sbGetUsuarios().then(function(u){
+        if(u && Object.keys(u).length){
+          _clientesDB = u;
+          _renderClientesList();
+        }
+      }).catch(function(){});
+    }
     if(!Object.keys(_zonasData).length) cargarZonas();
   }
   if(id==="pedidos-acum")cargarPedidosAcum();
