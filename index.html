@@ -2094,98 +2094,36 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div><!-- end datos-empresa section -->
 
 <div id="clientes" class="section">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">
-    <span style="font-size:16px;font-weight:700">Gestión de Clientes (<span id="cli-count">0</span>)</span>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <span style="font-size:16px;font-weight:700">Clientes (<span id="cli-count">…</span>)</span>
     <div style="display:flex;gap:8px">
-      <button onclick="cargarClientesSection()" style="padding:8px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">🔄</button>
-      <button onclick="abrirPanelZonas()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
+      <button onclick="cargarClientesSection()" style="padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit">🔄 Recargar</button>
+      <button onclick="abrirPanelZonas()" style="padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
     </div>
   </div>
 
-  <!-- Panel zonas -->
   <div id="cli-zonas-panel" style="display:none;margin-bottom:14px">
-    <div class="card"><div class="card-body" style="padding-bottom:8px">
+    <div class="card"><div class="card-body">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <span style="font-weight:700;font-size:14px">🗺️ Zonas de venta</span>
+        <span style="font-weight:700">🗺️ Zonas de venta</span>
         <div style="display:flex;gap:8px">
           <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:8px 16px;font-size:12px">+ Nueva zona</button>
-          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;color:var(--muted)">✕ Cerrar</button>
+          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer">✕ Cerrar</button>
         </div>
       </div>
       <div id="cli-zonas-list"></div>
     </div></div>
   </div>
 
-  <!-- Formulario nuevo cliente/usuario -->
-  <div class="card" style="margin-bottom:14px" id="cli-form-wrap">
-    <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('cli-form-inner');b.style.display=b.style.display==='none'?'block':'none'">
-      <span class="card-title" id="cli-form-title">➕ Agregar nuevo cliente</span>
-    </div>
-    <div id="cli-form-inner" style="display:none;padding:14px;display:none">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="cli-field"><label>ID / Usuario *</label><input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off"></div>
-        <div class="cli-field"><label>Nombre *</label><input type="text" id="nc-name" placeholder="ej: Carnicería López" autocomplete="off"></div>
-        <div class="cli-field"><label>Contraseña</label><input type="text" id="nc-pass" placeholder="dejar vacío = usa el ID" autocomplete="off"></div>
-        <div class="cli-field"><label>Teléfono</label><input type="tel" id="nc-tel" autocomplete="off"></div>
-        <div class="cli-field"><label>Dirección</label><input type="text" id="nc-dir" autocomplete="off"></div>
-        <div class="cli-field"><label>CUIT</label><input type="text" id="nc-cuit" autocomplete="off" inputmode="numeric"></div>
-        <div class="cli-field"><label>Zona</label><input type="text" id="nc-zona" autocomplete="off" list="nc-zona-list"><datalist id="nc-zona-list"></datalist></div>
-        <div class="cli-field"><label>Recepciona</label><input type="text" id="nc-rec" autocomplete="off"></div>
-        <div class="cli-field"><label>Lista de precios</label>
-          <select id="nc-lista"><option value="Clientes">Clientes</option><option value="Patagonia">Patagonia</option><option value="Distribuidores">Distribuidores</option></select>
-        </div>
-        <div class="cli-field" id="nc-rol-wrap" style="display:none"><label>Rol</label>
-          <select id="nc-rol"><option value="cliente">👤 Cliente</option><option value="vendedor">📝 Vendedor</option><option value="repartidor">🚚 Repartidor</option><option value="admin">👑 Admin</option></select>
-        </div>
-        <div class="cli-field" style="grid-column:1/-1"><label>Nota</label><input type="text" id="nc-nota" autocomplete="off"></div>
-      </div>
-      <button class="mbtn mbtn-primary" onclick="guardarNuevoCliente()" style="margin-top:10px;padding:11px 24px">+ Guardar</button>
-    </div>
+  <div id="cli-list-body" style="min-height:60px">
+    <div style="text-align:center;padding:40px;color:var(--muted)">Cargando clientes…</div>
   </div>
 
-  <!-- Importador CSV -->
-  <div class="card" style="margin-bottom:14px">
-    <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('csv-importer-body');b.style.display=b.style.display==='none'?'block':'none'">
-      <span class="card-title">📥 Importar CSV</span>
-      <span style="font-size:11px;color:var(--muted)">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
-    </div>
-    <div id="csv-importer-body" style="display:none;padding:14px">
-      <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()" style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer">
-        <div style="font-size:24px">📂</div>
-        <div style="font-size:13px;color:var(--muted)">Tocá para elegir CSV</div>
-      </div>
-      <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="procesarCSVFile(this.files[0])">
-      <div id="csv-preview" style="display:none;margin-top:10px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-          <div id="csv-preview-title" style="font-size:12px;font-weight:700"></div>
-          <div style="display:flex;gap:6px">
-            <button onclick="limpiarCSV()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--s2);cursor:pointer">✕</button>
-            <button onclick="importarCSV()" id="btn-importar-csv" style="font-size:12px;font-weight:700;padding:5px 14px;border:none;border-radius:6px;background:var(--text);color:#fff;cursor:pointer">⬆ Importar</button>
-          </div>
-        </div>
-        <div id="csv-preview-table-wrap" style="overflow:auto;border:1px solid var(--border);border-radius:8px;max-height:220px"></div>
-        <div id="csv-import-result" style="display:none;margin-top:8px"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Buscador y filtros -->
-  <div style="position:relative;margin-bottom:10px">
+  <div style="position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px;border-top:1px solid var(--border2);margin-top:8px">
     <input type="text" id="cli-search-input" placeholder="🔍 Buscar por nombre, ID, teléfono, CUIT, zona…"
       oninput="_filtrarClientes(this.value)" autocomplete="off"
-      style="width:100%;padding:11px 36px 11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
-    <button id="cli-search-clear" onclick="document.getElementById('cli-search-input').value='';_filtrarClientes('')" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted)">✕</button>
+      style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
   </div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="cli-filter-roles">
-    <button class="bk-tab active" onclick="_setRolFilter('',this)">Todos</button>
-    <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
-    <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
-    <button class="bk-tab" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
-    <button class="bk-tab" onclick="_setRolFilter('admin',this)">👑 Admin</button>
-  </div>
-
-  <!-- Lista -->
-  <div id="cli-list-body" style="min-height:100px"></div>
 </div>
 <!-- MODAL EDITAR CLIENTE -->
 <div class="modal-bg" id="modal-edit-cli">
@@ -9336,109 +9274,113 @@ function _renderZonasEnClientes(){
 }
 
 // ══ GESTIÓN DE CLIENTES ══
-var _cliSearchQ   = "";
+var _cliSearchQ = "";
 var _cliRolFilter = "";
-var _clientesGestion = {}; // datos dedicados — solo esta sección los toca
+var _clientesGestion = {};
 
 async function cargarClientesSection(){
+  var body = document.getElementById("cli-list-body");
+  if(!body) return;
   var isAdmin = currentUser && currentUser.role === "admin";
-  var titleEl = document.getElementById("cli-form-title");
-  if(titleEl) titleEl.textContent = isAdmin ? "➕ Agregar nuevo usuario" : "➕ Agregar nuevo cliente";
-  var rolWrap = document.getElementById("nc-rol-wrap");
-  if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
+  // Config UI
+  document.getElementById("cli-count") && (document.getElementById("cli-count").textContent = "…");
 
-  // Renderizar inmediatamente con lo que haya en caché
-  _renderClientesList();
-
-  // Cargar desde Supabase
+  // Direct Supabase call — no wrappers
   try {
-    if(!_sbEmpId) throw new Error("Sin _sbEmpId");
-    var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
-    if(rows && rows.length){
+    var q = "select=id,uid,name,pass,role,lista,direccion,telefono,cuit,zona,recepciona,nota,catalogo";
+    q += "&empresa_id=eq." + _sbEmpId + "&order=name.asc";
+    var rows = await sbGet("usuarios", q);
+    if(rows && rows.length > 0){
       var map = {};
       rows.forEach(function(u){
-        map[u.id]={_sbId:u.id,id:u.uid||"",name:u.name||"",pass:u.pass||"",role:u.role||"cliente",
-          lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
-          tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",zona_id:u.zona_id||null,
-          rec:u.recepciona||"",nota:u.nota||""};
+        map[u.id] = {
+          _sbId: u.id, id: u.uid||"", name: u.name||"",
+          pass: u.pass||"", role: u.role||"cliente",
+          lista: u.lista||"Clientes", catalogo: u.catalogo,
+          direccion: u.direccion||"", tel: u.telefono||"",
+          cuit: u.cuit||"", zona: u.zona||"",
+          rec: u.recepciona||"", nota: u.nota||""
+        };
       });
       _clientesGestion = map;
       _clientesDB = map;
-      _renderClientesList(); // re-render con datos frescos
+    } else {
+      body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron clientes en la base de datos.</div>';
+      document.getElementById("cli-count") && (document.getElementById("cli-count").textContent = "0");
+      return;
     }
   } catch(e){
-    console.warn("[Clientes]", e.message);
-    _renderClientesList(); // igual renderizar aunque falle
+    console.error("[Clientes] Error:", e.message);
+    body.innerHTML = '<div style="text-align:center;padding:30px;color:#b91c1c">Error cargando: ' + e.message + '<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Reintentar</button></div>';
+    return;
   }
+
+  _cliSearchQ = "";
+  var inp = document.getElementById("cli-search-input");
+  if(inp) inp.value = "";
+  _renderClientesList();
 }
 
 function _renderClientesList(){
-  var body=document.getElementById("cli-list-body");
-  var countEl=document.getElementById("cli-count");
+  var body = document.getElementById("cli-list-body");
   if(!body) return;
-  // Usar datos dedicados; si están vacíos, caer a _clientesDB
-  var src = Object.keys(_clientesGestion).length ? _clientesGestion : (_clientesDB||{});
-  var all=Object.entries(src);
-  if(!all.length){
-    body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Sin clientes cargados. <button onclick="cargarClientesSection()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:13px;margin-left:8px">🔄 Recargar</button></div>';
-    if(countEl) countEl.textContent="0"; return;
+  var src = Object.keys(_clientesGestion).length ? _clientesGestion : _clientesDB;
+  if(!src || !Object.keys(src).length){
+    body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Sin datos. <button onclick="cargarClientesSection()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:13px">🔄 Recargar</button></div>';
+    return;
   }
-  var isAdmin=currentUser&&currentUser.role==="admin";
-  var entries=isAdmin?all:all.filter(function(e){ return (e[1].role||"cliente")==="cliente"||e[1].catalogo===true; });
-  if(_cliRolFilter) entries=entries.filter(function(e){ return (e[1].role||"cliente")===_cliRolFilter; });
+  var isAdmin = currentUser && currentUser.role === "admin";
+  var entries = Object.entries(src);
+  if(!isAdmin) entries = entries.filter(function(e){ return (e[1].role||"cliente")==="cliente" || e[1].catalogo===true; });
+  if(_cliRolFilter) entries = entries.filter(function(e){ return (e[1].role||"cliente")===_cliRolFilter; });
   if(_cliSearchQ){
-    var q=_cliSearchQ;
-    entries=entries.filter(function(e){
+    var q = _cliSearchQ;
+    entries = entries.filter(function(e){
       var u=e[1];
       return (u.name||"").toLowerCase().includes(q)||(u.id||"").toLowerCase().includes(q)
         ||(u.tel||"").includes(q)||(u.cuit||"").includes(q)
         ||(u.zona||"").toLowerCase().includes(q)||(u.direccion||"").toLowerCase().includes(q);
     });
   }
-  if(countEl) countEl.textContent=entries.length+(_cliSearchQ||_cliRolFilter?" / "+all.length:"");
+  var cnt = document.getElementById("cli-count");
+  if(cnt) cnt.textContent = entries.length;
   if(!entries.length){
-    body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Sin resultados</div>';
+    body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Sin resultados</div>';
     return;
   }
-  var rolLabel={cliente:"👤 Cliente",vendedor:"📝 Vendedor",repartidor:"🚚 Repartidor",admin:"👑 Admin"};
   var rolColor={cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed"};
-  function hl(s){
-    if(!s||!_cliSearchQ) return escHtml(s||"");
-    return escHtml(s).replace(new RegExp("("+_cliSearchQ.replace(/[.*+?^${}()|[\\]\\]/g,"\\$&")+")","gi"),'<mark style="background:#fef3c7">$1</mark>');
-  }
-  body.innerHTML=entries.map(function(e){
-    var pk=e[0],u=e[1],rol=(u.role||"cliente"),col=rolColor[rol]||"#059669";
-    var meta=[u.id?"ID: "+hl(u.id):null,u.cuit?"CUIT: "+hl(u.cuit):null,u.tel?"📞 "+hl(u.tel):null,u.rec?"👤 "+hl(u.rec):null].filter(Boolean).join(" · ");
-    return '<div class="cli-card">'+
-      '<div class="cli-avatar" style="background:'+col+'22;color:'+col+';font-weight:700">'+((u.name||u.id||"?").charAt(0).toUpperCase())+'</div>'+
-      '<div class="cli-info">'+
-        '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+hl(u.name||u.id)+
-          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+( rolLabel[rol]||rol)+'</span>'+
-          (u.zona?'<span style="font-size:10.5px;color:var(--muted)">🗺 '+hl(u.zona)+'</span>':"")+
+  var rolLabel={cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",admin:"Admin"};
+  body.innerHTML = entries.map(function(e){
+    var pk=e[0], u=e[1];
+    var rol = u.role||"cliente";
+    var col = rolColor[rol]||"#059669";
+    var inicial = (u.name||u.id||"?").charAt(0).toUpperCase();
+    var meta = [u.id&&("ID: "+u.id), u.tel&&("📞 "+u.tel), u.cuit&&("CUIT: "+u.cuit)].filter(Boolean).join(" · ");
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-left:4px solid '+col+';border-radius:10px;margin-bottom:8px">'+
+      '<div style="width:38px;height:38px;border-radius:50%;background:'+col+'22;color:'+col+';font-weight:800;font-size:16px;display:grid;place-items:center;flex-shrink:0">'+inicial+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px">'+escHtml(u.name||u.id)+
+          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+rolLabel[rol]+'</span>'+
+          (u.zona?'<span style="font-size:11px;color:var(--muted)">🗺 '+escHtml(u.zona)+'</span>':'')+ 
         '</div>'+
-        (meta?'<div class="cli-meta">'+meta+'</div>':"")+
-        (u.direccion?'<div class="cli-meta" style="color:var(--text2)">📍 '+hl(u.direccion)+'</div>':"")+
+        (meta?'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+escHtml(meta)+'</div>':'')+
+        (u.direccion?'<div style="font-size:12px;color:var(--text2);margin-top:1px">📍 '+escHtml(u.direccion)+'</div>':'')+
       '</div>'+
-      '<div class="cli-badge">'+( u.lista||"Clientes")+'</div>'+
-      '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
-        '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)">✏️</button>'+
-        '<button class="cli-act cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)">🗑</button>'+
+      '<div style="display:flex;gap:4px;flex-shrink:0">'+
+        '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)" title="Editar">✏️</button>'+
+        '<button class="cli-act cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)" title="Eliminar">🗑</button>'+
       '</div>'+
     '</div>';
   }).join("");
 }
 
 function _filtrarClientes(q){
-  _cliSearchQ=(q||"").toLowerCase().trim();
-  var c=document.getElementById("cli-search-clear");
-  if(c) c.style.display=_cliSearchQ?"block":"none";
+  _cliSearchQ = (q||"").toLowerCase().trim();
   _renderClientesList();
 }
 
-function _setRolFilter(rol,btn){
-  _cliRolFilter=rol;
-  document.querySelectorAll("#cli-filter-roles .bk-tab").forEach(function(b){b.classList.remove("active");});
-  if(btn) btn.classList.add("active");
+function _setRolFilter(rol, btn){
+  _cliRolFilter = rol;
   _renderClientesList();
 }
 
