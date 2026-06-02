@@ -5601,11 +5601,9 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
         ruta_id:    rkDest,
         empresa_id: _sbEmpId,
         nom:        cli.nom||"",
-        cliente_id: cli.id||cli._rcId||"",   // cliente_id del cli
+        cliente_id: cli.id||cli._rcId||"",
         items:      cli.items||[],
         importe:    cli.importe||0,
-        lista:      cli.lista||"Clientes",
-        obs:        cli.obs||"",
         fecha:      cli.fecha||new Date().toISOString(),
         modo:       cli.modo||"ninguno",
         efectivo:   cli.efectivo||0,
@@ -5640,7 +5638,6 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
 
     } catch(e){
       console.error('[Mover] ERROR en', ck, ':', e.message);
-      alert("ERROR al mover '"+cli.nom+"':\n\n"+e.message+"\n\nck="+ck+"\nrkDest="+rkDest);
       fail++;
     }
   }
