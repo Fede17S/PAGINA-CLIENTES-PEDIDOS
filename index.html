@@ -6170,7 +6170,23 @@ function buildClienteRow(rutaKey, cliKey, cli){
       : '<span class="rc-badge rc-badge-red">Sin pago</span>';
   head.innerHTML=
     '<div class="rc-head-info">'+
-      '<div class="rc-nom">'+cli.nom+(cli.dscGeneral?'<span class="rc-item-dsc-badge">🏷️ −'+(cli.dscGeneral.tipo==="%"?cli.dscGeneral.valor+"%":"$"+fM(cli.dscGeneral.valor))+'</span>':'')+'</div>'+
+      '<div class="rc-nom">'+cli.nom+
+        (function(){
+          // Mostrar badge de descuentos si hay alguno
+          var dscObj = cli.dscGeneral || (cli.descuentos&&(cli.descuentos.montoDscGen||cli.descuentos.ahorroItems)?cli.descuentos:null);
+          var hasDscItem = cli.descuentos&&cli.descuentos.ahorroItems>0;
+          var hasDscGen  = cli.dscGeneral||(cli.descuentos&&cli.descuentos.montoDscGen>0);
+          var badges = "";
+          if(hasDscItem){
+            badges += '<span class="rc-item-dsc-badge" style="background:#fef3c7;color:#b45309">🏷️ dsc. productos</span>';
+          }
+          if(hasDscGen){
+            var gv = cli.dscGeneral ? (cli.dscGeneral.tipo==="%"?cli.dscGeneral.valor+"%":"$"+fM(cli.dscGeneral.valor)) : (cli.descuentos.dscGenTipo==="%"?cli.descuentos.dscGenValor+"%":"$"+fM(cli.descuentos.montoDscGen));
+            badges += '<span class="rc-item-dsc-badge" style="background:#fee2e2;color:#b91c1c">🏷️ −'+gv+'</span>';
+          }
+          return badges;
+        })()+
+      '</div>'+
       '<div class="rc-sub">$'+fM(tot)+'</div>'+
     '</div>'+
     estadoHtml+
@@ -8184,11 +8200,23 @@ function generarPDFDesdeBackup(bk, compartir){
   // ── Pie: Obs + Totales COMPLETOS siempre ──
   var yP=doc.lastAutoTable.finalY+4;
   var dsc=bk.descuentos||{};
-  var total=bk.total||items.reduce(function(s,i){return s+(i.sub||(i.p||0)*(i.c||1));},0);
-  var totalDsc   = dsc.ahorroTotal || 0;
-  var subtotLista= dsc.subtotalLista || (total + totalDsc);
-  var ivaAmt     = Math.round(total*0.21*100)/100;
-  var totalFinal = esFactura ? Math.round(total*1.21*100)/100 : total;
+
+  // Calcular todos los descuentos correctamente
+  // items[].sub ya tiene el precio con descuento por ítem aplicado
+  var subtotItems  = items.reduce(function(s,i){ return s+(i.sub||(i.p||0)*(i.c||1)); },0);
+  var subtotLista  = dsc.subtotalLista || items.reduce(function(s,i){ return s+(i.p||0)*(i.c||1); },0);
+  var ahorroItems  = dsc.ahorroItems  || Math.max(0, subtotLista - subtotItems);
+  // Descuento general (aplicado sobre el subtotal ya con descuento de ítems)
+  var montoDscGen  = dsc.montoDscGen  || 0;
+  // Si no está guardado pero hay dscGenTipo, recalcular
+  if(!montoDscGen && dsc.dscGenTipo && dsc.dscGenValor>0){
+    montoDscGen = dsc.dscGenTipo==="%" ? Math.round(subtotItems*dsc.dscGenValor/100*100)/100
+                                       : Math.min(dsc.dscGenValor, subtotItems);
+  }
+  var totalDsc     = ahorroItems + montoDscGen;
+  var total        = bk.total || (subtotLista - totalDsc);
+  var ivaAmt       = Math.round(total*0.21*100)/100;
+  var totalFinal   = esFactura ? Math.round(total*1.21*100)/100 : total;
 
   // Layout: obs ocupa más, totales más compactos
   var obsH   = showObs ? 38 : 0;  // altura caja obs — más grande
@@ -8214,19 +8242,46 @@ function generarPDFDesdeBackup(bk, compartir){
   doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor.apply(doc,INK);
   doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
 
-  // Subtotal lista
+  // Subtotal lista (precio sin ningún descuento)
   doc.rect(tX,ty,tW,rowH);
   doc.text("Subtotal lista:",tX+2,ty+4);
   doc.setFont("helvetica","normal"); doc.setFontSize(8);
-  doc.text("$"+fM(totalDsc>0?subtotLista:total),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
+  doc.text("$"+fM(subtotLista),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
 
-  // Descuento total
-  doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-  doc.text("Dscto. total:",tX+2,ty+4);
-  doc.setFont("helvetica","normal");
-  if(totalDsc>0){ doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(totalDsc),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); }
-  else { doc.text("$0,00",tX+tW-2,ty+4,{align:"right"}); }
-  ty+=rowH;
+  // Dscto. por ítems (si hay)
+  if(ahorroItems>0){
+    doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
+    doc.text("Dscto. productos:",tX+2,ty+4);
+    doc.setFont("helvetica","normal");
+    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    ty+=rowH;
+  }
+
+  // Dscto. general (si hay)
+  if(montoDscGen>0){
+    var dscGenLbl = dsc.dscGenTipo==="%" ? "Dscto. gral. ("+dsc.dscGenValor+"%)" : "Dscto. general";
+    doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
+    doc.text(dscGenLbl+":",tX+2,ty+4);
+    doc.setFont("helvetica","normal");
+    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(montoDscGen),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    ty+=rowH;
+  }
+
+  // Si no hay ningún descuento, mostrar fila de Dscto. total en cero
+  if(totalDsc===0){
+    doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
+    doc.text("Dscto. total:",tX+2,ty+4);
+    doc.setFont("helvetica","normal"); doc.text("$0,00",tX+tW-2,ty+4,{align:"right"});
+    ty+=rowH;
+  }
+
+  // Subtotal con descuentos (si hubo algún descuento)
+  if(totalDsc>0){
+    doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
+    doc.text("Subtotal final:",tX+2,ty+4);
+    doc.setFont("helvetica","normal"); doc.text("$"+fM(total),tX+tW-2,ty+4,{align:"right"});
+    ty+=rowH;
+  }
 
   // IVA 21%
   doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
