@@ -3860,6 +3860,21 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes"){
+    // Observer para detectar quién borra cli-list-body
+    setTimeout(function(){
+      var target = document.getElementById("cli-list-body");
+      if(target && !target._observed){
+        target._observed = true;
+        var obs = new MutationObserver(function(muts){
+          muts.forEach(function(m){
+            if(m.type==="childList"){
+              console.warn("[MUT] cli-list-body changed! children="+target.children.length+" innerHTML len="+target.innerHTML.length, (new Error()).stack.split('\n').slice(1,4).join(' '));
+            }
+          });
+        });
+        obs.observe(target, {childList:true, subtree:false});
+      }
+    }, 100);
     cargarClientesSection();
     if(!Object.keys(_zonasData).length) cargarZonas();
   }
