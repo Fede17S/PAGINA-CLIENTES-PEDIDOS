@@ -4109,7 +4109,12 @@ function verTab(id,btn){
   if(mainEl) { mainEl.scrollTop = 0; mainEl.scrollLeft = 0; }
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
-  if(id==="clientes"){ cargarClientesSection(); if(!Object.keys(_zonasData).length) cargarZonas(); }
+  if(id==="clientes"){
+    // Render inmediato + cargar en fondo
+    _renderClientesList();
+    cargarClientesSection();
+    if(!Object.keys(_zonasData).length) cargarZonas();
+  }
   if(id==="pedidos-acum")cargarPedidosAcum();
   var mainEl = document.querySelector(".main");
   if(id==="mapa-entregas"){
@@ -9466,13 +9471,16 @@ function _renderClientesList() {
   if(!body) return;
 
   var allEntries = Object.entries(_clientesDB);
+  var isAdminView = currentUser && (currentUser.role === "admin");
+  
   if(!allEntries.length){
-    body.innerHTML='<div class="cli-empty-box">📋 No hay usuarios cargados aún. Esperá un momento o tocá 🔄 para recargar.</div>';
+    body.innerHTML='<div style="padding:20px;text-align:center">'+
+      '<div style="color:var(--muted);margin-bottom:12px">⏳ Cargando clientes... role='+((currentUser&&currentUser.role)||"?")+' empId='+(_sbEmpId||"?")+'</div>'+
+      '<button onclick="cargarClientesSection()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-family:inherit;cursor:pointer;font-weight:600">🔄 Cargar clientes</button>'+
+    '</div>';
     if(countEl) countEl.textContent="0";
     return;
   }
-
-  var isAdminView = currentUser && (currentUser.role === "admin");
 
   // Filtro base por rol de usuario
   var entries = isAdminView ? allEntries : allEntries.filter(function(entry){
