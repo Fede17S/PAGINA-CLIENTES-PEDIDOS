@@ -5398,6 +5398,16 @@ function renderRutas(){
     btnPrintAll.onclick=function(e){e.stopPropagation();imprimirPedidosDeRuta(rutaKey);};
     actBtns.appendChild(btnPrintAll);
 
+    // Botón Seleccionar (admin only)
+    if(role==="admin"){
+      var btnSel=document.createElement("button");
+      btnSel.className="btn-rename";
+      btnSel.innerHTML="☑️ Seleccionar";
+      btnSel.dataset.rk = rutaKey;
+      btnSel.onclick=function(e){ e.stopPropagation(); _rutaToggleSelect(this.dataset.rk); };
+      actBtns.appendChild(btnSel);
+    }
+
     var btnDel=document.createElement("button");
     if(role==="admin"){
       // Botón Finalizar ruta
@@ -5420,11 +5430,204 @@ function renderRutas(){
     }
     detail.appendChild(actBtns);
 
+    // Toolbar de selección múltiple por ruta (oculto por defecto)
+    var selToolbar = document.createElement("div");
+    selToolbar.id = "ruta-sel-toolbar-"+rutaKey;
+    selToolbar.style.cssText="display:none;background:var(--accent);border-radius:10px;padding:9px 14px;margin:8px 0;align-items:center;gap:10px;flex-wrap:wrap";
+    selToolbar.innerHTML=
+      '<span id="ruta-sel-count-'+rutaKey+'" style="color:#fff;font-weight:700;font-size:13px;flex:1">0 seleccionados</span>'+
+      '<button onclick="_rutaSelAll(\''+rutaKey+'\')" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☑ Todos</button>'+
+      '<button onclick="_rutaReasignar(\''+rutaKey+'\')" style="background:#fff;color:var(--accent);border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar</button>'+
+      '<button onclick="_rutaToggleSelect(\''+rutaKey+'\')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>';
+    detail.appendChild(selToolbar);
+
+    // Clientes de la ruta
+    var cliWrap=document.createElement("div");
+    cliWrap.id="cli-wrap-"+rutaKey;
+    var sortedClis=Object.entries(ruta.clientes||{});
+    sortedClis.forEach(function(ce){
+      var ck=ce[0], cli=ce[1];
+      var cliRow=buildClienteRow(rutaKey,ck,cli);
+      cliWrap.appendChild(cliRow);
+    });
+    detail.appendChild(cliWrap);
+
     outer.appendChild(detail);
     wrap.appendChild(outer);
   });
 }
 
+
+// ══ HOJA DE RUTA — MULTI-SELECT ══
+var _rutaSelectMode = {}; // { rutaKey: true/false }
+var _rutaSelected   = {}; // { rutaKey: Set<cliKey> }
+
+function _rutaToggleSelect(rk){
+  _rutaSelectMode[rk] = !_rutaSelectMode[rk];
+  if(!_rutaSelected[rk]) _rutaSelected[rk] = new Set();
+  else _rutaSelected[rk].clear();
+  var toolbar = document.getElementById("ruta-sel-toolbar-"+rk);
+  if(toolbar) toolbar.style.display = _rutaSelectMode[rk] ? "flex" : "none";
+  // Re-render client rows in this ruta
+  _rutaRenderCliRows(rk);
+}
+
+function _rutaRenderCliRows(rk){
+  var ruta = rutasData[rk];
+  if(!ruta) return;
+  var wrap = document.getElementById("cli-wrap-"+rk);
+  if(!wrap) return;
+  wrap.innerHTML = "";
+  Object.entries(ruta.clientes||{}).forEach(function(ce){
+    var ck=ce[0], cli=ce[1];
+    if(_rutaSelectMode[rk]){
+      // Render as checkbox card
+      var isSelected = _rutaSelected[rk] && _rutaSelected[rk].has(ck);
+      var chk = document.createElement("div");
+      chk.style.cssText="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--border2);cursor:pointer;background:"+(isSelected?"oklch(96% 0.04 240)":"#fff");
+      chk.innerHTML=
+        '<div style="width:24px;height:24px;border-radius:6px;border:2px solid var(--accent);background:'+(isSelected?"var(--accent)":"#fff")+';display:grid;place-items:center;flex-shrink:0;font-size:15px;color:#fff">'+(isSelected?"✓":"")+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:700;font-size:13px">'+(cli.nom||"")+'</div>'+
+          '<div style="font-size:11.5px;color:var(--muted)">'+(cli.items||[]).length+' productos · $'+(cli.importe||0).toLocaleString("es-AR")+'</div>'+
+        '</div>'+
+        '<div style="font-weight:800;font-size:14px">$'+fM(cli.importe||0)+'</div>';
+      (function(ck_){ chk.onclick=function(){ _rutaToggleCli(rk, ck_); }; })(ck);
+      wrap.appendChild(chk);
+    } else {
+      var cliRow=buildClienteRow(rk,ck,cli);
+      wrap.appendChild(cliRow);
+    }
+  });
+}
+
+function _rutaToggleCli(rk, ck){
+  if(!_rutaSelected[rk]) _rutaSelected[rk]=new Set();
+  if(_rutaSelected[rk].has(ck)) _rutaSelected[rk].delete(ck);
+  else _rutaSelected[rk].add(ck);
+  var countEl = document.getElementById("ruta-sel-count-"+rk);
+  if(countEl) countEl.textContent = _rutaSelected[rk].size+" seleccionado"+(_rutaSelected[rk].size!==1?"s":"");
+  _rutaRenderCliRows(rk);
+}
+
+function _rutaSelAll(rk){
+  var ruta = rutasData[rk]; if(!ruta) return;
+  if(!_rutaSelected[rk]) _rutaSelected[rk]=new Set();
+  var cliKeys = Object.keys(ruta.clientes||{});
+  var allSel = cliKeys.length>0 && cliKeys.every(function(k){ return _rutaSelected[rk].has(k); });
+  if(allSel){ _rutaSelected[rk].clear(); }
+  else { cliKeys.forEach(function(k){ _rutaSelected[rk].add(k); }); }
+  var countEl = document.getElementById("ruta-sel-count-"+rk);
+  if(countEl) countEl.textContent = _rutaSelected[rk].size+" seleccionado"+(_rutaSelected[rk].size!==1?"s":"");
+  _rutaRenderCliRows(rk);
+}
+
+async function _rutaReasignar(rkOrigen){
+  var sel = _rutaSelected[rkOrigen];
+  if(!sel||!sel.size){ showNotif("Seleccioná al menos un pedido","err"); return; }
+
+  // Construir opciones de rutas disponibles (excluyendo la de origen)
+  var rutaOpts = Object.entries(rutasData||{})
+    .filter(function(e){ return e[0]!==rkOrigen; })
+    .map(function(e){
+      var rk=e[0], r=e[1];
+      var cnt=Object.keys(r.clientes||{}).length;
+      var hrTag=r.hrNum?r.hrNum+' — ':'';
+      return '<option value="'+rk+'">'+hrTag+(r.nombre||rk.slice(-6))+' ('+cnt+' pedidos)</option>';
+    }).join('');
+
+  var overlay = document.createElement("div");
+  overlay.className = "modal-bg open";
+  overlay.id = "modal-ruta-reasignar";
+  overlay.innerHTML =
+    '<div class="modal-box" style="max-width:420px">'+
+      '<div class="modal-head"><span class="modal-title">🔀 Reasignar '+sel.size+' pedido'+(sel.size!==1?'s':'')+' de ruta</span>'+
+        '<button class="modal-x" onclick="document.getElementById(\'modal-ruta-reasignar\').remove()">✕</button></div>'+
+      '<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">'+
+        '<div style="font-size:12.5px;color:var(--muted)">Destino de los '+sel.size+' pedidos seleccionados:</div>'+
+        '<div class="cli-field"><label>Hoja de ruta existente</label>'+
+          '<select id="rrasig-ruta-sel" style="font-size:13px">'+
+            '<option value="">— Seleccionar ruta —</option>'+
+            rutaOpts+
+          '</select>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:10px;margin:-4px 0"><hr style="flex:1;border-color:var(--border)"><span style="font-size:12px;color:var(--muted);white-space:nowrap">o</span><hr style="flex:1;border-color:var(--border)"></div>'+
+        '<button onclick="_rutaReasignarNueva(\''+rkOrigen+'\')" style="width:100%;padding:11px;background:var(--s2);border:1.5px dashed var(--border);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text)">'+
+          '➕ Crear nueva hoja de ruta y mover ahí</button>'+
+        '<button onclick="_confirmarRutaReasignar(\''+rkOrigen+'\')" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">'+
+          '✅ Confirmar reasignación</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function _rutaReasignarNueva(rkOrigen){
+  var overlay = document.getElementById("modal-ruta-reasignar");
+  if(overlay) overlay.remove();
+  var hrNum = await _nextHojaRutaNum();
+  var nombre = hrNum+" — Ruta "+new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
+  var nuevaRuta = {nombre:nombre, hrNum:hrNum, fecha:new Date().toISOString(), clientes:{}};
+  try {
+    var res = await sbPost("rutas",{ empresa_id:_sbEmpId, nombre:nombre, hr_num:hrNum, fecha:nuevaRuta.fecha });
+    if(!res||!res[0]) throw new Error("No se pudo crear la ruta");
+    var rkNuevo = res[0].id;
+    rutasData[rkNuevo] = nuevaRuta;
+    await _moverCliEntreRutas(rkOrigen, rkNuevo, _rutaSelected[rkOrigen]);
+    renderRutas();
+    showNotif("✅ Nueva ruta "+hrNum+" creada y pedidos movidos","ok");
+  } catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
+async function _confirmarRutaReasignar(rkOrigen){
+  var sel = document.getElementById("rrasig-ruta-sel");
+  if(!sel||!sel.value){ showNotif("Elegí una ruta destino","err"); return; }
+  var rkDest = sel.value;
+  var overlay = document.getElementById("modal-ruta-reasignar");
+  if(overlay) overlay.remove();
+  await _moverCliEntreRutas(rkOrigen, rkDest, _rutaSelected[rkOrigen]);
+  renderRutas();
+}
+
+async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
+  var ruta = rutasData[rkOrigen];
+  if(!ruta||!selectedSet||!selectedSet.size) return;
+  var ok=0, fail=0;
+  for(var ck of selectedSet){
+    var cli = (ruta.clientes||{})[ck];
+    if(!cli) continue;
+    try {
+      // Insertar en ruta destino
+      var inserted = await sbPost("ruta_clientes",{
+        ruta_id:    rkDest,
+        empresa_id: _sbEmpId,
+        nom:        cli.nom||"",
+        cliente_id: cli.id||"",
+        items:      cli.items||[],
+        importe:    cli.importe||0,
+        lista:      cli.lista||"Clientes",
+        obs:        cli.obs||"",
+        fecha:      cli.fecha||new Date().toISOString(),
+        modo:       cli.modo||"ninguno"
+      });
+      if(inserted&&inserted[0]){
+        var nck=inserted[0].id;
+        if(!rutasData[rkDest]) rutasData[rkDest]={clientes:{}};
+        if(!rutasData[rkDest].clientes) rutasData[rkDest].clientes={};
+        rutasData[rkDest].clientes[nck]=Object.assign({},cli,{id:nck});
+      }
+      // Borrar de ruta origen
+      await sbDel("ruta_clientes","id=eq."+ck+"&ruta_id=eq."+rkOrigen);
+      delete rutasData[rkOrigen].clientes[ck];
+      ok++;
+    } catch(e){ console.warn('[Reasignar ruta]',ck,e.message); fail++; }
+  }
+  // Salir del modo selección
+  _rutaSelectMode[rkOrigen]=false;
+  _rutaSelected[rkOrigen]=new Set();
+  var toolbar=document.getElementById("ruta-sel-toolbar-"+rkOrigen);
+  if(toolbar) toolbar.style.display="none";
+  showNotif(ok+" pedido"+(ok!==1?'s':'')+" movido"+(ok!==1?'s':'')+" correctamente"+(fail?" ("+fail+" fallaron":"")+"","ok");
+}
 
 // ══ BUSCADOR EN HOJA DE RUTA ══
 var _rutaSearchQ = "";
