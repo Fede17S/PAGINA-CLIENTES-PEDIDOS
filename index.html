@@ -545,10 +545,11 @@ select option { background:#fff }
 
 /* ── MODALS ── */
 .modal-bg {
-  position:fixed; inset:0; background:rgba(20,18,12,.5);
+  position:fixed; inset:0; background:rgba(20,18,12,.55);
   z-index:9000; display:none; align-items:center; justify-content:center;
   padding:16px; backdrop-filter:blur(4px);
   animation: fadeBg .15s;
+  -webkit-overflow-scrolling: touch;
 }
 @keyframes fadeBg { from { opacity:0 } }
 .modal-bg.open { display:flex }
@@ -1560,6 +1561,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="sb-item" id="nav-catalogo" onclick="verTab('catalogo',this)">
       <span class="sb-icon">📒</span>Catálogo PDF
     </button>
+    <div class="sb-group-lbl" id="nav-admin-section">Admin</div>
     <button class="sb-item" id="nav-datos-empresa" onclick="verTab('datos-empresa',this)">
       <span class="sb-icon">⚙️</span>Configuración
     </button>
@@ -2638,7 +2640,6 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <!-- MODAL TIPO COMPROBANTE -->
-<!-- MODAL TIPO COMPROBANTE -->
 <div class="modal-bg" id="modal-tipo-comprobante">
   <div class="modal-box" style="max-width:360px">
     <div class="modal-head">
@@ -2724,27 +2725,6 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
   </div>
 </div>
-  <div class="modal-box" style="max-width:380px;text-align:center">
-    <div style="font-size:36px;margin-bottom:6px">🧾</div>
-    <div class="modal-title" style="font-size:17px;margin-bottom:4px">¿Con qué comprobante?</div>
-    <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px">Elegí cómo se cierra este pedido. El precio con Factura A incluye 21% de IVA.</div>
-    <div id="tc-precios" style="background:var(--s2);border-radius:10px;padding:12px 16px;margin-bottom:16px;text-align:left">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:12px;color:var(--muted);font-weight:600">💰 Total Remito</span>
-        <span id="tc-precio-remito" style="font-size:18px;font-weight:800;color:var(--text)">$0</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:var(--muted);font-weight:600">🟦 Total c/IVA 21%</span>
-        <span id="tc-precio-iva" style="font-size:18px;font-weight:800;color:#1e2a4a">$0</span>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <button onclick="elegirTipoComprobante('factura_a')" style="width:100%;padding:14px;border-radius:10px;background:#1e2a4a;color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation">🟦 Factura A (c/IVA)</button>
-      <button onclick="elegirTipoComprobante('remito')" style="width:100%;padding:14px;border-radius:10px;background:var(--s2);color:var(--text);border:1.5px solid var(--border);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation">📄 Solo Remito (sin IVA)</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL EDITAR BACKUP PEDIDO -->
 <div class="modal-bg" id="modal-editar-backup">
   <div class="modal-box" style="max-width:520px;max-height:90vh;display:flex;flex-direction:column">
@@ -4076,13 +4056,15 @@ function aplicarRol(){
     } else if (isVendedor) {
       show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup");
     } else if (isRepartidor) {
-      // Repartidor: solo Hoja de Ruta y Mapa de Entregas
       show = (id === "nav-hoja" || id === "nav-mapa-entregas");
     } else {
       show = (id === "nav-pedido");
     }
     el.style.display = show ? "flex" : "none";
   });
+  // Mostrar/ocultar label Admin
+  var adminLbl = document.getElementById("nav-admin-section");
+  if(adminLbl) adminLbl.style.display = isAdmin ? "" : "none";
 
   // Mostrar campos de rol solo para admin
   var ncRolWrap = document.getElementById("nc-rol-wrap");
@@ -4105,6 +4087,8 @@ function aplicarRol(){
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
 function closeSidebar(){ document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); }
 function verTab(id,btn){
+  // Cerrar cualquier modal abierto al cambiar de sección
+  document.querySelectorAll(".modal-bg.open").forEach(function(m){ m.classList.remove("open"); });
   // Guard: vendedor solo puede acceder a pedido y mis-ventas
   var role = currentUser ? (currentUser.role || "vendedor") : "vendedor";
   var isAdmin      = role === "admin";
