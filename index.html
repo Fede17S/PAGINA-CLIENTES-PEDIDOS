@@ -3412,6 +3412,9 @@ window.onload = function(){
     }
     iniciarApp();
     setTimeout(_checkNotifButton, 1000);
+    // Sincronizar pedidos pendientes al restaurar sesión
+    _bkPendingQueue = _bkQueueGet();
+    if(_bkPendingQueue.length) setTimeout(_syncPendingBackups, 4000);
   }catch(e){ localStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
   // Pre-rellenar con credenciales guardadas si existen
@@ -3550,6 +3553,9 @@ function doLogin(){
       iniciarApp();
       setTimeout(_tryInitPush, 2500);
       setTimeout(_checkNotifButton, 1000);
+      // Sincronizar pedidos pendientes al hacer login
+      _bkPendingQueue = _bkQueueGet();
+      if(_bkPendingQueue.length) setTimeout(_syncPendingBackups, 4000);
     });
   })
   .catch(function(e){ err.textContent="❌ Error: "+(e.message||e); });
@@ -6885,89 +6891,155 @@ function saveBackups(arr){
 }
 
 async function guardarBackup(item){
-  if(!_sbEmpId){
-    // Sin Supabase: solo local
-    var arr=getBackups();
-    if(!arr.find(function(x){return x.id===item.id;})){
-      arr.unshift(item); saveBackups(arr);
-    }
-    renderBackup();
-    return;
-  }
-
-  // Agregar a caché local inmediatamente para que se vea al instante
-  var arr=getBackups();
-  if(!arr.find(function(x){return x.id===item.id;})){
-    arr.unshift(item); saveBackups(arr);
-  }
+  // 1. Guardar en caché local INMEDIATAMENTE — siempre, pase lo que pase
+  item._localTs = Date.now();
+  item._synced  = false;
+  _bkAddToLocal(item);
   renderBackup();
 
-  // Intentar subir a Supabase con reintentos
-  _sbInsertBackupConReintento(item, 3);
+  // 2. Agregar a cola persistente ANTES de intentar Supabase
+  _bkQueueAdd(item);
+
+  // 3. Intentar subir a Supabase si hay conexión
+  if(_sbEmpId && navigator.onLine){
+    _sbInsertBackupConReintento(item, 5, 2000);
+  }
 }
 
-async function _sbInsertBackupConReintento(item, intentosRestantes){
+// ── Cola persistente en localStorage ──
+function _bkQueueAdd(item){
+  var q = _bkQueueGet();
+  if(!q.find(function(x){ return x.id===item.id; })){
+    q.push(item);
+    try{ localStorage.setItem("dm_bk_queue", JSON.stringify(q.slice(-100))); }catch(e){}
+  }
+}
+function _bkQueueRemove(id){
+  var q = _bkQueueGet().filter(function(x){ return x.id!==id; });
+  try{ localStorage.setItem("dm_bk_queue", JSON.stringify(q)); }catch(e){}
+  _bkPendingQueue = q;
+}
+function _bkQueueGet(){
+  try{ return JSON.parse(localStorage.getItem("dm_bk_queue")||"[]"); }catch(e){ return []; }
+}
+
+// ── Caché local de backups ──
+function _bkAddToLocal(item){
+  var arr = getBackups();
+  var idx = arr.findIndex(function(x){ return x.id===item.id; });
+  if(idx>=0) arr[idx]=item; else arr.unshift(item);
+  saveBackups(arr);
+  _backupCache = arr;
+}
+
+async function _sbInsertBackupConReintento(item, intentosRestantes, delayMs){
+  if(!_sbEmpId) return;
   try {
+    // Verificar si ya existe (evita duplicados si se llama dos veces)
+    var existe = await sbGet("backup_pedidos","select=id&id=eq."+item.id+"&empresa_id=eq."+_sbEmpId);
+    if(existe && existe.length){
+      item._sbId=existe[0].id; item._synced=true;
+      _bkAddToLocal(item); _bkQueueRemove(item.id);
+      console.log('[Backup] ✅ Ya existía en Supabase:', item.id);
+      return;
+    }
+
     var newId = await _sbInsertBackup(item);
     if(newId){
-      item._sbId    = newId;
-      item._fbKey   = newId;
-      item._synced  = true;
-      // Actualizar en caché
-      var arr = getBackups();
-      var idx = arr.findIndex(function(x){ return x.id===item.id; });
-      if(idx>=0) arr[idx]=item; else arr.unshift(item);
-      saveBackups(arr);
+      item._sbId=newId; item._fbKey=newId; item._synced=true;
+      _bkAddToLocal(item);
+      _bkQueueRemove(item.id);
+      _bkPendingQueue = _bkPendingQueue.filter(function(x){ return x.id!==item.id; });
       console.log('[Backup] ✅ Guardado en Supabase:', newId);
+      // Actualizar badge de sync en UI
+      var syncEl = document.getElementById("bk-sync-status");
+      if(syncEl) syncEl.style.display="none";
+    } else {
+      throw new Error("Insert no retornó ID");
     }
   } catch(e){
-    console.warn('[Backup] Error subiendo (intentos restantes: '+intentosRestantes+'):', e.message);
+    console.warn('[Backup] Error ('+intentosRestantes+' intentos rest.):', e.message);
     if(intentosRestantes > 1){
-      // Reintentar en 4 segundos
+      var delay = Math.min(delayMs * 1.5, 30000); // backoff exponencial, máx 30s
       setTimeout(function(){
-        _sbInsertBackupConReintento(item, intentosRestantes-1);
-      }, 4000);
+        if(navigator.onLine) _sbInsertBackupConReintento(item, intentosRestantes-1, delay);
+        else {
+          // Offline: esperar a que vuelva la conexión
+          window.addEventListener("online", function retry(){
+            window.removeEventListener("online", retry);
+            setTimeout(function(){ _sbInsertBackupConReintento(item, intentosRestantes-1, delay); }, 1500);
+          });
+        }
+      }, delayMs);
     } else {
-      // Agregar a cola pendiente para cuando vuelva la conexión
-      _bkPendingQueue.push(item);
-      try{ localStorage.setItem("dm_bk_pending", JSON.stringify(_bkPendingQueue)); }catch(e){}
-      showNotif("⚠️ Pedido guardado localmente — se subirá cuando haya conexión","warn");
+      // Agotados los intentos — queda en cola persistente para la próxima sesión
+      _bkShowPendingWarning();
     }
   }
+}
+
+function _bkShowPendingWarning(){
+  var q = _bkQueueGet();
+  if(!q.length) return;
+  var s = document.getElementById("bk-sync-status");
+  if(s){
+    s.style.display="block";
+    s.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:8px 12px;border-radius:7px;font-weight:600;background:#fffbeb;color:#b45309;border:1px solid #fde68a;cursor:pointer";
+    s.innerHTML="⚠️ "+q.length+" pedido"+(q.length!==1?"s":"")+" sin sincronizar — <b>tocá aquí para reintentar</b>";
+    s.onclick = function(){ _syncPendingBackups(); };
+  }
+  showNotif("⚠️ "+q.length+" pedido"+(q.length!==1?"s":"")+" pendiente"+(q.length!==1?"s":"")+" de subir","warn");
 }
 
 // Sincronizar pendientes cuando vuelve la conexión
 async function _syncPendingBackups(){
-  var pending = _bkPendingQueue.slice();
-  if(!pending.length){
-    try{
-      var saved = JSON.parse(localStorage.getItem("dm_bk_pending")||"[]");
-      pending = saved;
-    }catch(e){}
-  }
-  if(!pending.length || !_sbEmpId || !navigator.onLine) return;
+  var pending = _bkQueueGet();
+  if(!pending.length || !_sbEmpId) return;
+  if(!navigator.onLine){ showNotif("Sin conexión — esperando…","warn"); return; }
+
+  var s = document.getElementById("bk-sync-status");
+  if(s){ s.innerHTML="⏳ Sincronizando "+pending.length+" pedido"+(pending.length!==1?"s":"")+"…"; }
+
   console.log('[Backup] Sincronizando '+pending.length+' pendientes…');
-  var synced = 0;
+  var synced=0, errores=0;
+
   for(var i=0;i<pending.length;i++){
+    var item=pending[i];
     try{
-      var item=pending[i];
-      // Verificar si ya existe en Supabase
-      var exists=await sbGet("backup_pedidos","select=id&id=eq."+item.id+"&empresa_id=eq."+_sbEmpId);
-      if(exists && exists.length) { synced++; continue; }
+      var existe=await sbGet("backup_pedidos","select=id&id=eq."+item.id+"&empresa_id=eq."+_sbEmpId);
+      if(existe && existe.length){
+        item._sbId=existe[0].id; item._synced=true;
+        _bkAddToLocal(item);
+        _bkQueueRemove(item.id);
+        synced++; continue;
+      }
       var newId=await _sbInsertBackup(item);
-      if(newId){ item._sbId=newId; item._synced=true; synced++; }
-    }catch(ex){ console.warn('[Backup] Pendiente '+i+' falló:', ex.message); }
+      if(newId){
+        item._sbId=newId; item._synced=true;
+        _bkAddToLocal(item);
+        _bkQueueRemove(item.id);
+        synced++;
+      }
+    }catch(ex){
+      console.warn('[Backup] Pendiente fallo:', ex.message);
+      errores++;
+    }
   }
-  if(synced > 0){
-    _bkPendingQueue = pending.slice(synced);
-    try{ localStorage.setItem("dm_bk_pending", JSON.stringify(_bkPendingQueue)); }catch(e){}
-    if(synced > 0) showNotif("✅ "+synced+" pedido(s) sincronizados","ok");
+
+  if(s) s.style.display="none";
+  if(synced>0){
+    showNotif("✅ "+synced+" pedido"+(synced!==1?"s":"")+" sincronizado"+(synced!==1?"s":""),"ok");
     cargarBackupFirebase();
   }
+  if(errores>0) _bkShowPendingWarning();
 }
 
-// Hook: sincronizar cuando vuelve la conexión
-window.addEventListener("online", function(){ setTimeout(_syncPendingBackups, 2000); });
+// Sincronizar al volver online
+window.addEventListener("online", function(){
+  setTimeout(function(){
+    if(_sbEmpId && _bkQueueGet().length) _syncPendingBackups();
+  }, 2000);
+});
 
 function subirBackupFirebase(item){ /* no-op */ }
 function sincronizarPendientesBackup(){ _syncPendingBackups(); }
