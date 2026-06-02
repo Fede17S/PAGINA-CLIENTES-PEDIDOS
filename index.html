@@ -1561,7 +1561,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">📒</span>Catálogo PDF
     </button>
     <button class="sb-item" id="nav-datos-empresa" onclick="verTab('datos-empresa',this)">
-      <span class="sb-icon">🏢</span>Datos Empresa
+      <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
   <div class="sb-foot">
@@ -1941,6 +1941,65 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 ══════════════════════════════════ -->
 <div id="datos-empresa" class="section">
 
+  <!-- Tabs -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0" id="cfg-tabs">
+    <button class="bk-tab active" id="cfg-tab-empresa" onclick="setCfgTab('empresa',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🏢 Datos empresa</button>
+    <button class="bk-tab" id="cfg-tab-usuarios" onclick="setCfgTab('usuarios',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">👥 Usuarios</button>
+    <button class="bk-tab" id="cfg-tab-remito" onclick="setCfgTab('remito',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🎨 Remito</button>
+  </div>
+
+  <!-- ═══ PANEL USUARIOS ═══ -->
+  <div id="cfg-panel-usuarios" style="display:none">
+
+    <!-- Agregar nuevo usuario -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('cfg-nuevo-usr-body');b.style.display=b.style.display==='none'?'block':'none'">
+        <span class="card-title">➕ Nuevo usuario</span>
+        <span style="font-size:11px;color:var(--muted)">Vendedor, repartidor, admin o cliente</span>
+      </div>
+      <div class="card-body" id="cfg-nuevo-usr-body" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="cli-field"><label>ID / Usuario *</label><input type="text" id="cfg-usr-id" placeholder="ej: vendedor01" autocomplete="off" autocapitalize="none"></div>
+          <div class="cli-field"><label>Contraseña *</label><input type="text" id="cfg-usr-pass" placeholder="ej: 1234" autocomplete="off"></div>
+          <div class="cli-field"><label>Nombre completo *</label><input type="text" id="cfg-usr-name" placeholder="ej: Juan Pérez" autocomplete="off"></div>
+          <div class="cli-field"><label>Rol</label>
+            <select id="cfg-usr-role">
+              <option value="vendedor">📝 Vendedor</option>
+              <option value="repartidor">🚚 Repartidor</option>
+              <option value="cliente">👤 Cliente</option>
+              <option value="admin">👑 Admin</option>
+            </select>
+          </div>
+          <div class="cli-field"><label>Lista de precios</label>
+            <select id="cfg-usr-lista">
+              <option value="Clientes">Clientes</option>
+              <option value="Patagonia">Patagonia</option>
+              <option value="Distribuidores">Distribuidores</option>
+            </select>
+          </div>
+          <div class="cli-field"><label>Teléfono</label><input type="tel" id="cfg-usr-tel" placeholder="ej: 2804-123456" autocomplete="off"></div>
+        </div>
+        <button class="mbtn mbtn-primary" onclick="cfgCrearUsuario()" style="padding:11px 24px;margin-top:8px">💾 Crear usuario</button>
+      </div>
+    </div>
+
+    <!-- Lista de todos los usuarios -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <input type="text" id="cfg-usr-search" placeholder="🔍 Buscar usuario…" oninput="cfgRenderUsuarios()" style="flex:1;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit" autocomplete="off">
+      <select id="cfg-usr-rol-fil" onchange="cfgRenderUsuarios()" style="font-size:12px;padding:8px;border:1px solid var(--border);border-radius:8px">
+        <option value="">Todos los roles</option>
+        <option value="vendedor">📝 Vendedores</option>
+        <option value="repartidor">🚚 Repartidores</option>
+        <option value="cliente">👤 Clientes</option>
+        <option value="admin">👑 Admins</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="cargarClientesSection();cfgRenderUsuarios()">🔄</button>
+    </div>
+    <div id="cfg-usuarios-list"></div>
+  </div>
+
+  <!-- ═══ PANEL DATOS EMPRESA ═══ -->
+  <div id="cfg-panel-empresa">
   <!-- ── DATOS DE EMPRESA ── -->
   <div class="card">
     <div class="card-head">
@@ -1960,9 +2019,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <button class="mbtn mbtn-primary" onclick="guardarDatosEmpresa()" style="padding:11px 24px">💾 Guardar datos de empresa</button>
     </div>
   </div>
+  </div><!-- end cfg-panel-empresa -->
 
-  <!-- ── DISEÑO DEL REMITO ── -->
-  <div class="card">
+  <!-- ═══ PANEL REMITO ═══ -->
+  <div id="cfg-panel-remito" style="display:none">
     <div class="card-head">
       <span class="card-title">🎨 Diseño del Remito / Pedido</span>
       <span style="font-size:11px;color:var(--muted)">Personalizá qué se muestra y cómo</span>
@@ -2027,8 +2087,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
     </div>
   </div>
+  </div><!-- end cfg-panel-remito -->
 
-</div>
+</div><!-- end datos-empresa section -->
 
 <div id="clientes" class="section">
 
@@ -2839,28 +2900,6 @@ function sbGet(table, params){
     return data;
   });
 }
-  var banner = document.createElement("div");
-  banner.id = "conn-banner";
-  banner.style.cssText = "position:fixed;bottom:0;left:0;right:0;z-index:9999;padding:8px 16px;text-align:center;font-size:12px;font-weight:700;transform:translateY(100%);transition:transform .3s;pointer-events:none";
-  document.body.appendChild(banner);
-
-  function update(){
-    if(navigator.onLine){
-      banner.style.cssText += ";background:#1b5e20;color:#fff";
-      banner.textContent = "✅ Conexión restaurada — sincronizando…";
-      banner.style.transform = "translateY(0)";
-      setTimeout(function(){ banner.style.transform="translateY(100%)"; }, 3000);
-      // Sincronizar cola offline
-      if(typeof _syncQueue==="function") _syncQueue();
-    } else {
-      banner.style.cssText += ";background:#7f1d1d;color:#fca5a5";
-      banner.textContent = "📵 Sin conexión — trabajando con datos guardados";
-      banner.style.transform = "translateY(0)";
-    }
-  }
-  window.addEventListener("online",  update);
-  window.addEventListener("offline", function(){ update(); });
-  if(!navigator.onLine) update();
 // ── PUSH NOTIFICATIONS ──
 var VAPID_PUBLIC_KEY = 'BBPMEYmiwpVa5uYjOLoDFdv-yAcXmJbuNX7pGC1ng-oswP0LAYpOe0p-XYPJiZYdmRXUxNeIQHZ5ongUPwmrrEU';
 
@@ -3749,6 +3788,120 @@ function descargarPlantillaRemito(){
   },300);
 }
 
+// ══ CONFIGURACIÓN DE EMPRESA — TABS ══
+function setCfgTab(tab, btn){
+  document.querySelectorAll("#cfg-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
+  if(btn) btn.classList.add("active");
+  document.getElementById("cfg-panel-empresa").style.display = tab==="empresa"?"block":"none";
+  document.getElementById("cfg-panel-usuarios").style.display = tab==="usuarios"?"block":"none";
+  document.getElementById("cfg-panel-remito").style.display   = tab==="remito"?"block":"none";
+  if(tab==="usuarios") cfgCargarYRenderUsuarios();
+  if(tab==="empresa")  cargarDatosEmpresa();
+  if(tab==="remito")   cargarDisenoRemito();
+}
+
+async function cfgCargarYRenderUsuarios(){
+  // Asegurarse de tener todos los usuarios frescos
+  if(!Object.keys(_clientesDB).length) await cargarClientesSection();
+  cfgRenderUsuarios();
+}
+
+function cfgRenderUsuarios(){
+  var wrap = document.getElementById("cfg-usuarios-list");
+  if(!wrap) return;
+  var q      = (document.getElementById("cfg-usr-search")||{value:""}).value.toLowerCase();
+  var rolFil = (document.getElementById("cfg-usr-rol-fil")||{value:""}).value;
+  var rolLabel = {cliente:"👤 Cliente",vendedor:"📝 Vendedor",repartidor:"🚚 Repartidor",admin:"👑 Admin"};
+  var rolColor = {vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed",cliente:"#059669"};
+  var rolBg    = {vendedor:"#eff6ff",repartidor:"#fffbeb",admin:"#f5f3ff",cliente:"#f0fdf4"};
+
+  var entries = Object.entries(_clientesDB);
+  if(rolFil) entries=entries.filter(function(e){return (e[1].role||"cliente")===rolFil;});
+  if(q) entries=entries.filter(function(e){
+    var u=e[1]; return (u.name||"").toLowerCase().includes(q)||(u.id||"").toLowerCase().includes(q)||(u.tel||"").includes(q);
+  });
+
+  // Ordenar: admins > vendedores > repartidores > clientes, luego alfabético
+  var order={admin:0,vendedor:1,repartidor:2,cliente:3};
+  entries.sort(function(a,b){
+    var ra=order[a[1].role||"cliente"]||3, rb=order[b[1].role||"cliente"]||3;
+    return ra!==rb ? ra-rb : (a[1].name||"").localeCompare(b[1].name||"","es");
+  });
+
+  // Stats
+  var stats={admin:0,vendedor:0,repartidor:0,cliente:0};
+  Object.values(_clientesDB).forEach(function(u){ stats[u.role||"cliente"]=(stats[u.role||"cliente"]||0)+1; });
+
+  wrap.innerHTML =
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
+    Object.entries(stats).map(function(e){
+      return '<div style="flex:1;min-width:80px;background:'+rolBg[e[0]]+';border:1.5px solid '+rolColor[e[0]]+'33;border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:18px;font-weight:800;color:'+rolColor[e[0]]+'">'+e[1]+'</div>'+
+        '<div style="font-size:11px;color:var(--muted);font-weight:600">'+rolLabel[e[0]]+'</div>'+
+      '</div>';
+    }).join('')+
+    '</div>'+
+    '<div style="display:flex;flex-direction:column;gap:8px">'+
+    entries.map(function(entry){
+      var pk=entry[0], u=entry[1];
+      var rol=(u.role||"cliente");
+      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border:1.5px solid var(--border);border-left:4px solid '+rolColor[rol]+';border-radius:10px">'+
+        '<div style="width:36px;height:36px;border-radius:50%;background:'+rolBg[rol]+';border:2px solid '+rolColor[rol]+';display:grid;place-items:center;font-size:15px;flex-shrink:0">'+
+          (u.name||u.id||"?").charAt(0).toUpperCase()+
+        '</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px">'+escHtml(u.name||u.id)+
+            '<span style="font-size:10px;background:'+rolBg[rol]+';color:'+rolColor[rol]+';border-radius:5px;padding:1px 7px;font-weight:700">'+rolLabel[rol]+'</span>'+
+          '</div>'+
+          '<div style="font-size:11.5px;color:var(--muted);margin-top:2px">ID: <b>'+escHtml(u.id||"")+'</b>'+
+            (u.tel?' · 📞 '+escHtml(u.tel):'')+(u.lista?' · '+escHtml(u.lista):'')+'</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:4px;flex-shrink:0">'+
+          '<button class="btn btn-ghost btn-sm" onclick="abrirEditCliente(\''+pk+'\')" title="Editar">✏️</button>'+
+          '<button class="btn btn-ghost btn-sm" onclick="cfgResetPass(\''+pk+'\',\''+escHtml(u.name||u.id)+'\')" title="Cambiar contraseña">🔑</button>'+
+          '<button class="btn btn-ghost btn-sm" onclick="_eliminarCliente(\''+pk+'\')" style="color:var(--red)" title="Eliminar">🗑</button>'+
+        '</div>'+
+      '</div>';
+    }).join('')+
+    (entries.length===0?'<div style="padding:40px;text-align:center;color:var(--muted)">Sin usuarios con esos filtros</div>':'')+
+    '</div>';
+}
+
+async function cfgCrearUsuario(){
+  var id    = (document.getElementById("cfg-usr-id")||{value:""}).value.trim().toLowerCase();
+  var pass  = (document.getElementById("cfg-usr-pass")||{value:""}).value.trim();
+  var name  = (document.getElementById("cfg-usr-name")||{value:""}).value.trim();
+  var role  = (document.getElementById("cfg-usr-role")||{value:"vendedor"}).value;
+  var lista = (document.getElementById("cfg-usr-lista")||{value:"Clientes"}).value;
+  var tel   = (document.getElementById("cfg-usr-tel")||{value:""}).value.trim();
+  if(!id||!name){ showNotif("ID y nombre son obligatorios","err"); return; }
+  var dup = Object.values(_clientesDB).find(function(u){return (u.id||"").toLowerCase()===id;});
+  if(dup){ showNotif("Ya existe un usuario con ese ID: "+id,"err"); return; }
+  var nuevo={id:id,pass:pass||id,name:name,lista:lista,catalogo:true,role:role};
+  if(tel) nuevo.tel=tel;
+  try{
+    var newKey=await fbPush("empresas/"+empresaKey+"/usuarios",nuevo);
+    if(newKey){ _clientesDB[newKey]=Object.assign({},nuevo,{_sbId:newKey}); }
+    // Limpiar form
+    ["cfg-usr-id","cfg-usr-pass","cfg-usr-name","cfg-usr-tel"].forEach(function(fid){
+      var el=document.getElementById(fid); if(el) el.value="";
+    });
+    document.getElementById("cfg-nuevo-usr-body").style.display="none";
+    cfgRenderUsuarios();
+    showNotif("✅ Usuario '"+name+"' creado ("+role+")","ok");
+  }catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
+async function cfgResetPass(pk, nombre){
+  var nueva = prompt("Nueva contraseña para "+nombre+":");
+  if(!nueva||!nueva.trim()) return;
+  try{
+    await fbPatch("empresas/"+empresaKey+"/usuarios/"+pk,{pass:nueva.trim()});
+    if(_clientesDB[pk]) _clientesDB[pk].pass=nueva.trim();
+    showNotif("✅ Contraseña de "+nombre+" actualizada","ok");
+  }catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
 async function cargarDatosEmpresa(){
   if(!_sbEmpId) return;
   try {
@@ -3989,7 +4142,9 @@ function verTab(id,btn){
   if(id==="vendedores") cargarVendedores();
   if(id==="stock") cargarStock();
   if(id==="catalogo"){ iniciarCatalogo(); }
-  if(id==="datos-empresa"){ cargarDatosEmpresa(); cargarDisenoRemito(); setTimeout(previsualizarRemito,300); }
+  if(id==="datos-empresa"){ 
+    setCfgTab("empresa", document.getElementById("cfg-tab-empresa"));
+  }
   if(id==="pedido"||id==="remito"||id==="hoja"){
     // Asegurar stockConfig cargado para badges en pedidos
     if(empresaKey && !Object.keys(stockConfig).length){
