@@ -3120,7 +3120,10 @@ async function _sbGetAllEmpresas(){
   emps.forEach(function(e){
     var uMap={};
     (users||[]).filter(function(u){return u.empresa_id===e.id;}).forEach(function(u){
-      uMap[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,direccion:u.direccion,telefono:u.telefono,zona:u.zona,rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id};
+      uMap[u.id]={id:u.uid||"",_sbId:u.id,name:u.name||"",pass:u.pass||"",role:u.role||"cliente",
+        lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
+        tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",zona_id:u.zona_id||null,
+        rec:u.recepciona||"",nota:u.nota||""};
     });
     result[e.id]=Object.assign({},e,{usuarios:uMap});
   });
@@ -3141,9 +3144,22 @@ async function _sbGetEmpresa(empId){
   ]);
   var users=res[0]||[], prods=res[1]||[], stockRows=res[2]||[], listas=res[3]||[];
   var uMap={},pMap={},sMap={},scMap={},lMap={};
-  users.forEach(function(u){ uMap[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,
-    direccion:u.direccion,telefono:u.telefono,zona:u.zona,zona_id:u.zona_id||null,
-    cuit:u.cuit||"",rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id}; });
+  users.forEach(function(u){ uMap[u.id]={
+    id:        u.uid||"",      // login ID (ej: "CL8450")
+    _sbId:     u.id,           // Supabase UUID
+    name:      u.name||"",
+    pass:      u.pass||"",
+    role:      u.role||"cliente",
+    lista:     u.lista||"Clientes",
+    catalogo:  u.catalogo,
+    direccion: u.direccion||"",
+    tel:       u.telefono||"",
+    cuit:      u.cuit||"",
+    zona:      u.zona||"",
+    zona_id:   u.zona_id||null,
+    rec:       u.recepciona||"",
+    nota:      u.nota||""
+  }; });
   prods.forEach(function(p){pMap[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto};});
   stockRows.forEach(function(s){sMap[s.codigo]=s.cantidad;scMap[s.codigo]={umbral:s.umbral};});
   listas.forEach(function(l){lMap[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});
@@ -3202,7 +3218,32 @@ async function _sbGetProductos(){ var rows=await sbGet("productos","select=id,co
 async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||""}); return rows&&rows[0]?rows[0].id:null; }
 async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
-async function _sbGetUsuarios(){ var rows=await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,zona,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc"); if(!rows)return null; var r={};rows.forEach(function(u){r[u.id]={id:u.uid,pass:u.pass,name:u.name,role:u.role,lista:u.lista,direccion:u.direccion,telefono:u.telefono,zona:u.zona,rec:u.recepciona,nota:u.nota,catalogo:u.catalogo,_sbId:u.id};});return r; }
+async function _sbGetUsuarios(){
+  var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+  if(!rows) return null;
+  var r={};
+  rows.forEach(function(u){
+    r[u.id]={
+      id:        u.uid||"",
+      _sbId:     u.id,
+      name:      u.name||"",
+      pass:      u.pass||"",
+      role:      u.role||"cliente",
+      lista:     u.lista||"Clientes",
+      catalogo:  u.catalogo,
+      direccion: u.direccion||"",
+      tel:       u.telefono||"",
+      cuit:      u.cuit||"",
+      zona:      u.zona||"",
+      zona_id:   u.zona_id||null,
+      rec:       u.recepciona||"",
+      nota:      u.nota||"",
+      lat:       u.lat||null,
+      lng:       u.lng||null
+    };
+  });
+  return r;
+}
 async function _sbInsertUsuario(u){ var rows=await sbPost("usuarios",{empresa_id:_sbEmpId,uid:u.id,pass:u.pass||u.id,name:u.name||u.id,role:u.role||"vendedor",lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.tel||"",zona:u.zona||"",recepciona:u.rec||"",nota:u.nota||"",catalogo:u.catalogo!==false}); return rows&&rows[0]?rows[0].id:null; }
 async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.zona_id!==undefined)b.zona_id=u.zona_id;if(u.cuit!==undefined)b.cuit=u.cuit;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;if(u.uid!==undefined)b.uid=u.uid;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
@@ -7687,19 +7728,29 @@ function generarPDFDesdeBackup(bk, compartir){
   var hrNum     = bk._hrNum || "";
   var fechaStr  = new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
 
-  // ── Datos del cliente (múltiples estrategias) ──
+  // ── Datos del cliente (búsqueda robusta multi-campo) ──
   var cliRaw = null;
   var allClis = Object.values(_clientesDB||{});
-  if(allClis.length && bk.clienteId){
-    cliRaw = allClis.find(function(u){ return u.id===bk.clienteId||u.uid===bk.clienteId||u._sbId===bk.clienteId; });
-  }
-  if(!cliRaw && nom){
-    var nomLow=nom.toLowerCase();
-    cliRaw = allClis.find(function(u){ return (u.name||"").toLowerCase()===nomLow; });
+  var _nomLow    = nom.toLowerCase();
+  var _cliIdLow  = (bk.clienteId||"").toLowerCase();
+
+  if(allClis.length){
+    // 1. Por login ID exacto
+    if(_cliIdLow)
+      cliRaw = allClis.find(function(u){ return (u.id||"").toLowerCase()===_cliIdLow; });
+    // 2. Por Supabase UUID
+    if(!cliRaw && _cliIdLow)
+      cliRaw = allClis.find(function(u){ return (u._sbId||"").toLowerCase()===_cliIdLow; });
+    // 3. Por nombre exacto
+    if(!cliRaw)
+      cliRaw = allClis.find(function(u){ return (u.name||"").toLowerCase()===_nomLow; });
+    // 4. Por nombre parcial
+    if(!cliRaw && nom.length>5)
+      cliRaw = allClis.find(function(u){ var n=(u.name||"").toLowerCase(); return n.includes(_nomLow)||_nomLow.includes(n.slice(0,8)); });
   }
   if(!cliRaw && dbCli && dbCli.length){
-    var dc=dbCli.find(function(c){ return c.id===bk.clienteId||c.nombre===nom; });
-    if(dc) cliRaw=dc;
+    var _dc=dbCli.find(function(c){ return (c.id||"").toLowerCase()===_cliIdLow||(c.nombre||"").toLowerCase()===_nomLow; });
+    if(_dc) cliRaw=_dc;
   }
   var cfg      = _getPdfConfig();
   var pdfMinRows = cfg.minRows||12;
