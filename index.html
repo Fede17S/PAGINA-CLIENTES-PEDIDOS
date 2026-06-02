@@ -7586,7 +7586,7 @@ async function confirmarBackupComoRemito(bkParam){
 // ══ PDF UNIFICADO — FORMATO LA REGIONAL ══
 function generarPDFDesdeBackup(bk, compartir){
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
-  var INK=[20,20,20], LINE=[180,180,180];
+  var INK=[20,20,20], LINE=[180,180,180], RED=[160,60,0];
   var nom      = bk.clienteNom||bk.cliente_nom||bk.cliente||"Mostrador";
   var ed       = _getEmpDatos();
   var empNom   = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
@@ -7597,146 +7597,150 @@ function generarPDFDesdeBackup(bk, compartir){
   var hrNum     = bk._hrNum || "";
   var fechaStr  = new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
 
-  // Buscar datos del cliente con múltiples estrategias (fix del bug intermitente)
+  // ── Datos del cliente (múltiples estrategias) ──
   var cliRaw = null;
   var allClis = Object.values(_clientesDB||{});
   if(allClis.length && bk.clienteId){
-    cliRaw = allClis.find(function(u){ return u.id===bk.clienteId || u.uid===bk.clienteId || u._sbId===bk.clienteId; });
+    cliRaw = allClis.find(function(u){ return u.id===bk.clienteId||u.uid===bk.clienteId||u._sbId===bk.clienteId; });
   }
   if(!cliRaw && nom){
-    var nomLow = nom.toLowerCase();
+    var nomLow=nom.toLowerCase();
     cliRaw = allClis.find(function(u){ return (u.name||"").toLowerCase()===nomLow; });
   }
-  // Fallback: buscar en dbCli (array simplificado)
   if(!cliRaw && dbCli && dbCli.length){
-    var dc = dbCli.find(function(c){ return c.id===bk.clienteId || c.nombre===nom; });
-    if(dc) cliRaw = dc;
+    var dc=dbCli.find(function(c){ return c.id===bk.clienteId||c.nombre===nom; });
+    if(dc) cliRaw=dc;
   }
-  var cliDir  = cliRaw?(cliRaw.direccion||""):"";
-  var cliCuit = cliRaw?(cliRaw.cuit||""):"";
-  var cliTel  = cliRaw?(cliRaw.tel||cliRaw.telefono||""):"";
-  var cliZona = cliRaw?(cliRaw.zona||""):"";
-  var cliRec  = cliRaw?(cliRaw.rec||cliRaw.recepciona||""):"";
-  var cfg = _getPdfConfig();
-  if(cfg.showTelefono   ===false) cliTel="";
-  if(cfg.showZona       ===false) cliZona="";
-  if(cfg.showEncargado  ===false) cliRec="";
-  if(cfg.showCuitCliente===false) cliCuit="";
-  if(cfg.showDirCliente ===false) cliDir="";
-  var pdfMinRows=cfg.minRows||15;
-  var showObs   =cfg.showObs!==false;
+  var cfg      = _getPdfConfig();
+  var pdfMinRows = cfg.minRows||12;
+  var showObs    = cfg.showObs!==false;
 
+  // CUIT siempre obligatorio
+  var cliCuit = cliRaw?(cliRaw.cuit||""):"";
+  var cliDir  = (cfg.showDirCliente !==false)?(cliRaw?(cliRaw.direccion||""):""):"";
+  var cliTel  = (cfg.showTelefono   !==false)?(cliRaw?(cliRaw.tel||cliRaw.telefono||""):""):"";
+  var cliZona = (cfg.showZona       !==false)?(cliRaw?(cliRaw.zona||""):""):"";
+  var cliRec  = (cfg.showEncargado  !==false)?(cliRaw?(cliRaw.rec||cliRaw.recepciona||""):""):"";
+
+  // ── Encabezado empresa ──
   if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",80,6,50,16);}catch(e){}}
   doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
   doc.text(empNom.toUpperCase(),105,25,{align:"center"});
-
   doc.setFontSize(8.5);
   var ey=18;
   if(ed.cuit){doc.text("CUIT: "+ed.cuit,10,ey);ey+=5;}
   if(ed.dir) {doc.text("Dirección: "+ed.dir,10,ey);ey+=5;}
   if(ed.tel) {doc.text("Tel: "+ed.tel,10,ey);ey+=5;}
 
+  // ── Tipo doc + N° (derecha) ──
   doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text(tipoLabel,200,20,{align:"right"});
   doc.setFont("helvetica","normal"); doc.setFontSize(9);
   doc.text("N°: "+remitoNum,200,27,{align:"right"});
   doc.text("Fecha: "+fechaStr,200,33,{align:"right"});
-  if(hrNum){doc.setFont("helvetica","bold");doc.setTextColor(37,99,235);doc.text("Ruta: "+hrNum,200,39,{align:"right"});doc.setFont("helvetica","normal");doc.setTextColor.apply(doc,INK);}
+  if(hrNum){doc.setFont("helvetica","bold");doc.setTextColor(37,99,235);doc.text("Ruta: "+hrNum,200,39,{align:"right"});doc.setTextColor.apply(doc,INK);}
   if(bk.usuarioNom){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text("Vendedor: "+bk.usuarioNom,200,hrNum?44:39,{align:"right"});}
 
   var SEP1=Math.max(ey+4,hrNum?48:44);
   doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,SEP1,200,SEP1);
 
+  // ── Datos del cliente ──
   var CY=SEP1+5;
   doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text("Datos del cliente",10,CY);
-  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.line(10,CY+1,80,CY+1); CY+=7;
-  doc.setFont("helvetica","bold"); doc.text("Nombre:",10,CY); doc.setFont("helvetica","normal"); doc.text(nom,35,CY);
+  doc.setLineWidth(0.3); doc.line(10,CY+1,80,CY+1); CY+=7;
+
+  // Fila 1: Nombre + Dirección
+  doc.setFont("helvetica","bold"); doc.text("Nombre:",10,CY);
+  doc.setFont("helvetica","normal"); doc.text(nom,35,CY);
   if(cliDir){doc.setFont("helvetica","bold");doc.text("Dirección:",118,CY);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(cliDir,72),145,CY);}
   CY+=6;
+  // Fila 2: Encargado + CUIT (SIEMPRE mostrar CUIT)
   if(cliRec){doc.setFont("helvetica","bold");doc.text("Encargado:",10,CY);doc.setFont("helvetica","normal");doc.text(cliRec,38,CY);}
-  if(cliCuit){doc.setFont("helvetica","bold");doc.text("CUIT:",118,CY);doc.setFont("helvetica","normal");doc.text(cliCuit,133,CY);}
+  doc.setFont("helvetica","bold"); doc.text("CUIT:",118,CY);
+  doc.setFont("helvetica","normal"); doc.text(cliCuit||"—",133,CY);
   CY+=6;
+  // Fila 3: Tel + Zona
   if(cliTel){doc.setFont("helvetica","bold");doc.text("Teléfono:",10,CY);doc.setFont("helvetica","normal");doc.text(cliTel,35,CY);}
   if(cliZona){doc.setFont("helvetica","bold");doc.text("Zona:",118,CY);doc.setFont("helvetica","normal");doc.text(cliZona,133,CY);}
   CY+=5;
   doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,CY,200,CY);
 
+  // ── Productos — SIEMPRE con columna Descuento ──
   CY+=4; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Productos",10,CY); CY+=2;
 
   var items=bk.items||[];
-  var tieneDescItems=items.some(function(i){return i.dsc&&i.dsc.valor>0;});
-  var head,body;
+  var head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
+  var body=items.map(function(i){
+    var pL  = Math.round((i.p||0)*100)/100;
+    var hasDsc = i.dsc && i.dsc.valor>0;
+    var dscLbl = hasDsc ? (i.dsc.tipo==="%"?"-"+i.dsc.valor+"%":"-$"+fM(i.dsc.valor)) : "—";
+    var subSin = i.sub||(i.p||0)*(i.c||1);
+    var subCon = esFactura?Math.round(subSin*iva*100)/100:subSin;
+    var pLcon  = esFactura?Math.round(pL*iva*100)/100:pL;
+    var pF     = hasDsc?Math.round(subCon/(i.c||1)*100)/100:pLcon;
+    return[i.n||"", i.c||1, "$"+fM(pLcon), dscLbl, "$"+fM(pF), "$"+fM(subCon)];
+  });
+  while(body.length<pdfMinRows) body.push(["","","","","",""]);
+  doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
+    headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
+    bodyStyles:{fontSize:8.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:2,left:2,right:2},minCellHeight:7},
+    alternateRowStyles:{fillColor:[255,255,255]},
+    columnStyles:{0:{cellWidth:76},1:{halign:"center",cellWidth:14},2:{halign:"right",cellWidth:24},3:{halign:"center",cellWidth:18},4:{halign:"right",cellWidth:22},5:{halign:"right",cellWidth:26}},
+    didParseCell:function(d){
+      if(d.section==="body"&&d.column.index===3&&d.cell.raw&&String(d.cell.raw).startsWith("-")){
+        d.cell.styles.textColor=RED; d.cell.styles.fontStyle="bold";
+      }
+    }
+  });
 
-  if(tieneDescItems){
-    head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
-    body=items.map(function(i){
-      var pL=esFactura?Math.round((i.p||0)*iva*100)/100:(i.p||0);
-      var hasDsc=i.dsc&&i.dsc.valor>0;
-      var dscLbl=hasDsc?(i.dsc.tipo==="%"?"-"+i.dsc.valor+"%":"-$"+fM(i.dsc.valor)):"";
-      var sub=esFactura?Math.round(((i.sub||(i.p||0)*(i.c||1)))*iva*100)/100:(i.sub||(i.p||0)*(i.c||1));
-      var pF=hasDsc?Math.round(sub/(i.c||1)*100)/100:pL;
-      return[i.n||"",i.c||1,"$"+fM(pL),dscLbl,hasDsc?"$"+fM(pF):"—","$"+fM(sub)];
-    });
-    while(body.length<pdfMinRows) body.push(["","","","","",""]);
-    doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
-      headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
-      bodyStyles:{fontSize:8.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:2,left:2,right:2},minCellHeight:7},
-      alternateRowStyles:{fillColor:[255,255,255]},
-      columnStyles:{0:{cellWidth:76},1:{halign:"center",cellWidth:14},2:{halign:"right",cellWidth:24},3:{halign:"center",cellWidth:18},4:{halign:"right",cellWidth:22},5:{halign:"right",cellWidth:26}},
-      didParseCell:function(d){if(d.section==="body"&&d.column.index===3&&d.cell.raw&&String(d.cell.raw).indexOf("-")===0){d.cell.styles.textColor=[180,60,0];d.cell.styles.fontStyle="bold";}}
-    });
-  } else {
-    head=[["Descripción","Cant.",esFactura?"P.U. c/IVA":"Precio","Subtotal"]];
-    body=items.map(function(i){
-      var p=esFactura?Math.round((i.p||0)*iva*100)/100:(i.p||0);
-      var s=esFactura?Math.round(((i.sub||(i.p||0)*(i.c||1)))*iva*100)/100:(i.sub||(i.p||0)*(i.c||1));
-      return[i.n||"",i.c||1,"$"+fM(p),"$"+fM(s)];
-    });
-    while(body.length<pdfMinRows) body.push(["","","",""]);
-    doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
-      headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
-      bodyStyles:{fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3},minCellHeight:7},
-      alternateRowStyles:{fillColor:[255,255,255]},
-      columnStyles:{0:{cellWidth:105},1:{halign:"center",cellWidth:20},2:{halign:"right",cellWidth:30},3:{halign:"right",cellWidth:35}}
-    });
-  }
-
+  // ── Pie: Obs + Totales COMPLETOS siempre ──
   var yP=doc.lastAutoTable.finalY+4;
-  var dsc=bk.descuentos;
+  var dsc=bk.descuentos||{};
   var total=bk.total||items.reduce(function(s,i){return s+(i.sub||(i.p||0)*(i.c||1));},0);
-  var totalMostrar=esFactura?Math.round(total*iva*100)/100:total;
+  var totalDsc   = dsc.ahorroTotal || 0;
+  var subtotLista= dsc.subtotalLista || (total + totalDsc);
+  var ivaAmt     = Math.round(total*0.21*100)/100;
+  var totalFinal = esFactura ? Math.round(total*1.21*100)/100 : total;
 
+  // Caja observaciones
   if(showObs){
     doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
     doc.text("Observaciones:",10,yP+5);
-    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.rect(10,yP+7,88,20);
-    if(bk.obs&&bk.obs.trim()){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.text(doc.splitTextToSize(bk.obs,84),12,yP+13);}
+    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.rect(10,yP+7,88,24);
+    if(bk.obs&&bk.obs.trim()){doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(bk.obs,84),12,yP+13);}
   }
 
+  // Columna de totales (siempre completa)
   var tX=102,tW=98,ty=yP+7;
   doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc,INK);
+  doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
 
-  if(dsc&&dsc.ahorroTotal>0){
-    doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
-    doc.rect(tX,ty,tW,7); doc.text("Subtotal lista:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.text("$"+fM(dsc.subtotalLista||total),tX+tW-3,ty+5,{align:"right"}); ty+=7;
-    if(dsc.ahorroItems>0){
-      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,7); doc.text("Dsc. productos:",tX+3,ty+5);
-      doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0); doc.text("-$"+fM(dsc.ahorroItems),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
-    }
-    if(dsc.montoDscGen>0){
-      var dgl=dsc.dscGenTipo==="%"?"Dsc. gral. ("+dsc.dscGenValor+"%)":"Dsc. gral. fijo";
-      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,7); doc.text(dgl,tX+3,ty+5);
-      doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0); doc.text("-$"+fM(dsc.montoDscGen),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
-    }
-  }
-  if(esFactura){
-    var ivaAmt=Math.round(total*0.21*100)/100;
-    doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
-    doc.text("IVA 21%:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.text("+$"+fM(ivaAmt),tX+tW-3,ty+5,{align:"right"}); ty+=7;
-  }
-  doc.setDrawColor.apply(doc,INK); doc.setLineWidth(0.5); doc.rect(tX,ty,tW,11);
-  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
-  doc.text("Total: $"+fM(totalMostrar),tX+tW-4,ty+7.5,{align:"right"});
+  // Subtotal lista (siempre)
+  doc.rect(tX,ty,tW,7);
+  doc.text("Subtotal lista:",tX+3,ty+5);
+  doc.setFont("helvetica","normal"); doc.text("$"+fM(totalDsc>0?subtotLista:total),tX+tW-3,ty+5,{align:"right"}); ty+=7;
 
+  // Descuento total (siempre — 0 si no hay)
+  doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,7);
+  doc.text("Dscto. total:",tX+3,ty+5);
+  doc.setFont("helvetica","normal");
+  if(totalDsc>0){ doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(totalDsc),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); }
+  else { doc.text("$0,00",tX+tW-3,ty+5,{align:"right"}); }
+  ty+=7;
+
+  // IVA 21% (siempre — "$0" si no es factura)
+  doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,7);
+  doc.text("IVA 21%:",tX+3,ty+5);
+  doc.setFont("helvetica","normal");
+  if(esFactura){ doc.text("+$"+fM(ivaAmt),tX+tW-3,ty+5,{align:"right"}); }
+  else { doc.setTextColor(150,150,150); doc.text("No aplica",tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); }
+  ty+=7;
+
+  // TOTAL FINAL
+  doc.setDrawColor.apply(doc,INK); doc.setLineWidth(0.6); doc.rect(tX,ty,tW,12);
+  doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor.apply(doc,INK);
+  doc.text("TOTAL: $"+fM(totalFinal),tX+tW-4,ty+8.5,{align:"right"});
+
+  // Pie de página
   var pieParts=[empNom,tipoLabel+" N°"+remitoNum,hrNum?"Ruta "+hrNum:"",fechaStr].filter(Boolean);
   doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
   doc.text(pieParts.join("  ·  "),105,289,{align:"center"});
@@ -7744,7 +7748,6 @@ function generarPDFDesdeBackup(bk, compartir){
   var nomSafe=nom.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g,"").replace(/\s+/g,"_").slice(0,25);
   var hrTag=hrNum?hrNum.replace("-","")+"_":"";
   var fname=(esFactura?"FactA":"Remito")+"_"+hrTag+"N"+remitoNum+"_"+nomSafe+".pdf";
-
   var blob=doc.output("blob");
   var file=new File([blob],fname,{type:"application/pdf"});
   if(compartir&&navigator.share){
@@ -7753,6 +7756,7 @@ function generarPDFDesdeBackup(bk, compartir){
     doc.save(fname);
   }
 }
+
 function reenviarPedido(bk){
   generarPDFDesdeBackup(bk, true);
 }
