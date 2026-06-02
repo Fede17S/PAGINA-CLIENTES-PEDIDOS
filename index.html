@@ -2064,9 +2064,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
     <div id="csv-importer-body" style="display:none;margin-top:12px">
       <div style="font-size:12px;color:var(--muted);background:var(--s3);border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.6">
-        El CSV debe tener encabezados en la primera fila. Columnas reconocidas:<br>
-        <code style="font-size:11px;background:var(--s2);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">ID, NOMBRE, DIRECCION, TELEFONO, ZONA, RECEPCIONA</code><br>
-        <span style="font-size:11px;color:var(--muted2)">Separador: coma o punto y coma. Codificación: UTF-8.</span>
+        📋 <b>Formato esperado:</b><br>
+        <code style="font-size:11px;background:var(--s2);padding:3px 8px;border-radius:5px;border:1px solid var(--border);display:inline-block;margin:4px 0">ID, NOMBRE, DIRECCION, TELEFONO, CUIT, ZONA, RECEPCIONA</code><br>
+        <span style="font-size:11px">• Acepta coma o punto y coma · UTF-8<br>
+        • Si el cliente ya existe (mismo ID) solo completa los campos vacíos — no sobreescribe</span>
       </div>
       <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
         style="border:2px dashed var(--border);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px"
@@ -9311,7 +9312,6 @@ function _parsearCSVClientes(text, filename){
   var firstLine = text.split(/\r?\n/)[0] || "";
   var sep = (firstLine.split(";").length >= firstLine.split(",").length) ? ";" : ",";
 
-  // Parsear líneas respetando comillas
   function parseLine(line){
     var result=[], cur="", inQ=false;
     for(var c=0;c<line.length;c++){
@@ -9327,8 +9327,12 @@ function _parsearCSVClientes(text, filename){
   var lines = text.split(/\r?\n/).filter(function(l){return l.trim();});
   if(lines.length < 2){ _csvError("El archivo no tiene datos (mínimo encabezado + 1 fila)"); return; }
 
-  // Mapear encabezados → índices (flexible, ignora mayúsculas/acentos)
-  var rawHeaders = parseLine(lines[0]).map(function(h){ return h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,""); });
+  // Orden esperado: ID, NOMBRE, DIRECCION, TELEFONO, CUIT, ZONA, RECEPCIONA
+  // Pero también acepta cualquier orden vía encabezados
+  var rawHeaders = parseLine(lines[0]).map(function(h){
+    return h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+  });
+
   function findCol(keywords){
     for(var k=0;k<keywords.length;k++){
       var idx = rawHeaders.findIndex(function(h){ return h.includes(keywords[k]); });
@@ -9336,70 +9340,75 @@ function _parsearCSVClientes(text, filename){
     }
     return -1;
   }
+
   var cols = {
     id:     findCol(["id","codigo","cod","usuario"]),
     nombre: findCol(["nombre","name","razon","cliente"]),
     dir:    findCol(["direccion","domicilio","dir","address"]),
     tel:    findCol(["telefono","tel","celular","phone","whatsapp"]),
+    cuit:   findCol(["cuit","cuil","ruc","nif","fiscal"]),
     zona:   findCol(["zona","area","sector","barrio"]),
     rec:    findCol(["recepciona","recibe","recepcion","contacto","referente"])
   };
 
-  if(cols.id < 0 && cols.nombre < 0){
-    _csvError("No se encontraron columnas de ID o NOMBRE. Verificá los encabezados del CSV."); return;
+  // Si no hay encabezados reconocidos, asumir orden fijo: ID,NOMBRE,DIR,TEL,CUIT,ZONA,REC
+  var hasHeaders = rawHeaders.some(function(h){ return h.length>0 && !h.match(/^\d/); });
+  if(!hasHeaders || (cols.id<0 && cols.nombre<0)){
+    // Orden posicional fijo
+    cols = { id:0, nombre:1, dir:2, tel:3, cuit:4, zona:5, rec:6 };
   }
 
-  // Parsear filas
+  if(cols.id < 0 && cols.nombre < 0){
+    _csvError("No se encontraron columnas. El CSV debe tener: ID, NOMBRE, DIRECCION, TELEFONO, CUIT, ZONA, RECEPCIONA"); return;
+  }
+
+  var idsExistentes = {};
+  Object.entries(_clientesDB).forEach(function(e){ idsExistentes[(e[1].id||"").toLowerCase()] = e[0]; });
+
   _csvRows = [];
-  var errores = [];
   for(var i=1;i<lines.length;i++){
     var r = parseLine(lines[i]);
+    if(r.length < 2) continue;
     var id     = cols.id>=0     ? (r[cols.id]||"").trim()     : "";
     var nombre = cols.nombre>=0 ? (r[cols.nombre]||"").trim() : "";
     var dir    = cols.dir>=0    ? (r[cols.dir]||"").trim()    : "";
     var tel    = cols.tel>=0    ? (r[cols.tel]||"").trim()    : "";
+    var cuit   = cols.cuit>=0   ? (r[cols.cuit]||"").trim()   : "";
     var zona   = cols.zona>=0   ? (r[cols.zona]||"").trim()   : "";
     var rec    = cols.rec>=0    ? (r[cols.rec]||"").trim()    : "";
-    if(!id && !nombre){ errores.push("Fila "+(i+1)+": sin ID ni nombre"); continue; }
+    if(!id && !nombre) continue;
     if(!id) id = nombre.toLowerCase().replace(/\s+/g,"-").substring(0,12);
-    _csvRows.push({ id:id, nombre:nombre, dir:dir, tel:tel, zona:zona, rec:rec, _row:i+1 });
+    var existePK = idsExistentes[id.toLowerCase()] || null;
+    _csvRows.push({ id:id, nombre:nombre, dir:dir, tel:tel, cuit:cuit, zona:zona, rec:rec, _row:i+1, _dup:!!existePK, _pk:existePK });
   }
 
-  if(!_csvRows.length){ _csvError("No se pudieron leer filas válidas. "+errores.join(", ")); return; }
-
-  // Detectar duplicados con base existente
-  var idsExistentes = new Set(Object.values(_clientesDB).map(function(u){return u.id;}));
-  _csvRows.forEach(function(r){ r._dup = idsExistentes.has(r.id); });
+  if(!_csvRows.length){ _csvError("No se pudieron leer filas válidas. Verificá el formato."); return; }
 
   var dups = _csvRows.filter(function(r){return r._dup;}).length;
   var prevTitle = document.getElementById("csv-preview-title");
-  prevTitle.innerHTML = '<b>'+_csvRows.length+' clientes</b> encontrados en <i>'+filename+'</i>' +
-    (dups ? ' · <span style="color:var(--amber)">⚠ '+dups+' ya existen (se actualizarán)</span>' : ' · <span style="color:var(--green)">✓ Sin duplicados</span>');
+  prevTitle.innerHTML = '<b>'+_csvRows.length+' clientes</b> en <i>'+filename+'</i>' +
+    (dups ? ' · <span style="color:var(--amber)">⚠ '+dups+' ya existen (se completará info faltante)</span>' : ' · <span style="color:var(--green)">✓ Sin duplicados</span>');
 
-  // Tabla preview
-  var tableHTML = '<table style="width:100%;border-collapse:collapse;font-size:11.5px">'+
+  var tableHTML = '<table style="width:100%;border-collapse:collapse;font-size:11px">'+
     '<thead><tr style="position:sticky;top:0;background:var(--s3)">'+
-    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">ID</th>'+
-    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Nombre</th>'+
-    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Dirección</th>'+
-    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Teléfono</th>'+
-    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Zona</th>'+
-    '<th style="padding:7px 10px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Recepciona</th>'+
-    '<th style="padding:7px 10px;text-align:center;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)">Estado</th>'+
-    '</tr></thead><tbody>';
+    ['ID','Nombre','Dirección','Teléfono','CUIT','Zona','Recepciona','Estado'].map(function(h){
+      return '<th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap">'+h+'</th>';
+    }).join('')+'</tr></thead><tbody>';
+
   _csvRows.forEach(function(r){
     var bg = r._dup ? "background:#fffbeb" : "";
     var badge = r._dup
-      ? '<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:10px">Actualizar</span>'
+      ? '<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:10px">Completar</span>'
       : '<span style="font-size:10px;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 6px;border-radius:10px">Nuevo</span>';
-    tableHTML += '<tr style="border-bottom:1px solid var(--border2);'+bg+'">' +
-      '<td style="padding:6px 10px;font-family:monospace;color:var(--text)">'+escHtml(r.id)+'</td>'+
-      '<td style="padding:6px 10px;font-weight:600">'+escHtml(r.nombre)+'</td>'+
-      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.dir)+'</td>'+
-      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.tel)+'</td>'+
-      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.zona)+'</td>'+
-      '<td style="padding:6px 10px;color:var(--text2)">'+escHtml(r.rec)+'</td>'+
-      '<td style="padding:6px 10px;text-align:center">'+badge+'</td>'+
+    tableHTML += '<tr style="border-bottom:1px solid var(--border2);'+bg+'">'+
+      '<td style="padding:5px 8px;font-family:monospace">'+escHtml(r.id)+'</td>'+
+      '<td style="padding:5px 8px;font-weight:600">'+escHtml(r.nombre)+'</td>'+
+      '<td style="padding:5px 8px;color:var(--text2)">'+escHtml(r.dir)+'</td>'+
+      '<td style="padding:5px 8px;color:var(--text2)">'+escHtml(r.tel)+'</td>'+
+      '<td style="padding:5px 8px;color:var(--text2)">'+escHtml(r.cuit)+'</td>'+
+      '<td style="padding:5px 8px;color:var(--text2)">'+escHtml(r.zona)+'</td>'+
+      '<td style="padding:5px 8px;color:var(--text2)">'+escHtml(r.rec)+'</td>'+
+      '<td style="padding:5px 8px;text-align:center">'+badge+'</td>'+
     '</tr>';
   });
   tableHTML += '</tbody></table>';
@@ -9428,45 +9437,58 @@ async function importarCSV(){
   var btn = document.getElementById("btn-importar-csv");
   btn.disabled = true; btn.textContent = "Importando…";
 
-  var idsExistentes = {}; // id → pushKey
-  Object.entries(_clientesDB).forEach(function(e){ idsExistentes[e[1].id] = e[0]; });
-
   var importados=0, actualizados=0, errores=0;
   var resultEl = document.getElementById("csv-import-result");
 
   for(var i=0;i<_csvRows.length;i++){
     var r = _csvRows[i];
-    var obj = { id:r.id, pass:r.id, name:r.nombre||r.id, lista:"Clientes", catalogo:true };
-    if(r.dir)  obj.direccion = r.dir;
-    if(r.tel)  obj.tel  = r.tel;
-    if(r.zona) obj.zona = r.zona;
-    if(r.rec)  obj.rec  = r.rec;
+    btn.textContent = "Importando "+(i+1)+"/"+_csvRows.length+"…";
 
     try {
-      if(r._dup && idsExistentes[r.id]){
-        // Actualizar existente
-        var pk = idsExistentes[r.id];
-        await fbPatchQ("empresas/"+empresaKey+"/usuarios/"+pk, obj, "CSV update: "+r.id);
-        _clientesDB[pk] = Object.assign(_clientesDB[pk]||{}, obj);
-        actualizados++;
-      } else {
-        // Nuevo
-        var newKey = await fbPushQ("empresas/"+empresaKey+"/usuarios", obj, "CSV nuevo: "+r.id);
-        if(newKey) _clientesDB[newKey] = obj;
-        importados++;
-      }
-    } catch(e){ errores++; console.warn("CSV import error row "+r._row, e); }
+      if(r._dup && r._pk){
+        // Existe — completar SOLO los campos vacíos (no pisar datos que ya tiene)
+        var existing = _clientesDB[r._pk] || {};
+        var patch = {};
+        if(r.nombre && !existing.name)      patch.name      = r.nombre;
+        if(r.dir    && !existing.direccion) patch.direccion = r.dir;
+        if(r.tel    && !existing.tel)       patch.tel       = r.tel;
+        if(r.cuit   && !existing.cuit)      patch.cuit      = r.cuit;
+        if(r.zona   && !existing.zona)      patch.zona      = r.zona;
+        if(r.rec    && !existing.rec)       patch.rec       = r.rec;
 
-    // Actualizar progreso
-    btn.textContent = "Importando "+(i+1)+"/"+_csvRows.length+"…";
+        if(Object.keys(patch).length > 0){
+          await fbPatch("empresas/"+empresaKey+"/usuarios/"+r._pk, patch);
+          _clientesDB[r._pk] = Object.assign(_clientesDB[r._pk]||{}, patch);
+          actualizados++;
+        }
+      } else {
+        // Nuevo cliente
+        var obj = {
+          id:      r.id,
+          pass:    r.id,
+          name:    r.nombre || r.id,
+          lista:   "Clientes",
+          catalogo: true,
+          role:    "cliente"
+        };
+        if(r.dir)  obj.direccion = r.dir;
+        if(r.tel)  obj.tel       = r.tel;
+        if(r.cuit) obj.cuit      = r.cuit;
+        if(r.zona) obj.zona      = r.zona;
+        if(r.rec)  obj.rec       = r.rec;
+
+        var newKey = await fbPushQ("empresas/"+empresaKey+"/usuarios", obj, "CSV: "+r.id);
+        if(newKey){ _clientesDB[newKey] = Object.assign({},obj,{_sbId:newKey}); importados++; }
+      }
+    } catch(e){ errores++; console.warn("CSV fila "+r._row+":", e.message); }
   }
 
   btn.disabled = false; btn.textContent = "⬆ Importar";
   _renderClientesList();
 
   var resMsg = "✅ "+importados+" nuevo"+(importados!==1?"s":"")+
-    (actualizados>0 ? " · "+actualizados+" actualizado"+(actualizados!==1?"s":"") : "")+
-    (errores>0     ? " · ⚠ "+errores+" error"+(errores!==1?"es":"") : "");
+    (actualizados>0 ? " · "+actualizados+" completado"+(actualizados!==1?"s":"") : "")+
+    (errores>0      ? " · ⚠ "+errores+" error"+(errores!==1?"es":"") : "");
   resultEl.style.cssText = "display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:9px 12px;color:#065f46;font-weight:600";
   resultEl.textContent = resMsg;
   showNotif(resMsg,"ok");
