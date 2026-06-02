@@ -9389,20 +9389,35 @@ function _renderZonasEnClientes(){
 
 async function cargarClientesSection() {
   if (!empresaKey && !_sbEmpId) return;
-  var body = document.getElementById("cli-list-body");
-  if(body && !Object.keys(_clientesDB).length){
-    body.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 10px"></div>Cargando clientes…</div>';
+
+  // ── Paso 1: Renderizar INMEDIATAMENTE lo que ya hay en caché ──
+  var tieneCache = Object.keys(_clientesDB).length > 0;
+  if(tieneCache){
+    _renderClientesList(); // muestra datos al instante sin esperar la red
+  } else {
+    var body = document.getElementById("cli-list-body");
+    if(body) body.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 10px"></div>Cargando clientes…</div>';
   }
+
+  // Actualizar título y visibilidad según perfil
+  var isAdmin = currentUser && currentUser.role === "admin";
+  var titleEl = document.getElementById("cli-form-title");
+  if(titleEl) titleEl.textContent = isAdmin ? "Agregar nuevo usuario" : "Agregar nuevo cliente";
+  var ncRolWrap = document.getElementById("nc-rol-wrap");
+  if(ncRolWrap) ncRolWrap.style.display = isAdmin ? "block" : "none";
+  var ncId = document.getElementById("nc-id");
+  if(ncId && !ncId.value) ncId.value = _generarSiguienteId();
+
+  // ── Paso 2: Recargar desde Supabase en background ──
   try {
     var usuarios = null;
-    // Intentar via fbGet (que usa Supabase internamente)
     if(empresaKey) usuarios = await fbGet("empresas/"+empresaKey+"/usuarios");
-    // Si no hay datos, intentar directamente con _sbGetUsuarios
     if((!usuarios || !Object.keys(usuarios).length) && _sbEmpId){
       usuarios = await _sbGetUsuarios();
     }
     if(usuarios && Object.keys(usuarios).length > 0){
       _clientesDB = usuarios;
+      // Actualizar dbCli para el picker del vendedor
       dbCli = Object.values(_clientesDB).filter(function(u){
         if(!u.id && !u.name) return false;
         if(currentUser && u.id === currentUser.id) return false;
@@ -9412,24 +9427,18 @@ async function cargarClientesSection() {
         return { id:u.id||"", nombre:u.name||u.id||"", lista:u.lista||"Clientes" };
       });
       dbCli.sort(function(a,b){ return a.nombre.localeCompare(b.nombre,"es"); });
+      _renderClientesList(); // re-render con datos frescos
+    } else if(!tieneCache){
+      var body2 = document.getElementById("cli-list-body");
+      if(body2) body2.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ No se pudieron cargar los clientes. <button onclick="cargarClientesSection()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px;text-decoration:underline">Reintentar</button></div>';
     }
   } catch(e) {
     console.warn("cargarClientesSection error:", e.message);
-    if(!Object.keys(_clientesDB).length && body){
-      body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ Error cargando clientes. <button onclick="cargarClientesSection()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px;text-decoration:underline">Reintentar</button></div>';
-      return;
+    if(!tieneCache){
+      var body3 = document.getElementById("cli-list-body");
+      if(body3) body3.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ Error de red. <button onclick="cargarClientesSection()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px;text-decoration:underline">Reintentar</button></div>';
     }
   }
-  _renderClientesList();
-  // Actualizar título y visibilidad de rol según perfil
-  var isAdmin = currentUser && currentUser.role === "admin";
-  var titleEl = document.getElementById("cli-form-title");
-  if(titleEl) titleEl.textContent = isAdmin ? "Agregar nuevo usuario" : "Agregar nuevo cliente";
-  var ncRolWrap = document.getElementById("nc-rol-wrap");
-  if(ncRolWrap) ncRolWrap.style.display = isAdmin ? "block" : "none";
-  // Pre-llenar el campo ID con el siguiente correlativo
-  var ncId = document.getElementById("nc-id");
-  if(ncId && !ncId.value) ncId.value = _generarSiguienteId();
 }
 
 var _cliSearchQ = "";
