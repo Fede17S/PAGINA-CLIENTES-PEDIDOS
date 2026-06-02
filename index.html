@@ -261,7 +261,7 @@ body {
   position:fixed;
   top:var(--header-h);
   left:0; right:0; bottom:0;
-  overflow-y:auto;
+  overflow-y:scroll;
   overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior-y:contain;
@@ -276,9 +276,9 @@ body {
 }
 
 .section { display:none }
-.section.active { display:block; animation: fadeIn .2s ease both }
-.section.active.anim-done { animation:none; opacity:1 }
+.section.active { display:block; animation:fadeIn .2s ease both }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+ to{opacity:1} }
 .section.me-root.active { display:flex }
 @keyframes spinner-spin { to { transform:rotate(360deg) } }
 .spinner-ring { width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spinner-spin .7s linear infinite }
@@ -3901,15 +3901,9 @@ function verTab(id,btn){
 
   document.querySelectorAll(".section").forEach(function(s){
     s.classList.remove("active");
-    s.classList.remove("anim-done");
   });
   document.querySelectorAll(".sb-item").forEach(function(b){b.classList.remove("active");});
-  var _activeEl = document.getElementById(id);
-  _activeEl.classList.add("active");
-  // Remove animation after it completes so scroll works freely
-  setTimeout(function(){
-    _activeEl.classList.add("anim-done");
-  }, 250);
+  document.getElementById(id).classList.add("active");
   if(btn)btn.classList.add("active");
   document.getElementById("header-title").textContent=TITLES[id]||id;
   // Resetear scroll al cambiar de sección
