@@ -2779,12 +2779,27 @@ var SB_HDR  = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY, "Content-Ty
 var _sbEmpId = null;
 
 function sbFetch(method, path, body){
-  return fetch(SB_URL+path, { method:method, headers:SB_HDR, body: body ? JSON.stringify(body) : undefined })
+  // Timeout de 15 segundos para evitar que quede colgado
+  var controller = typeof AbortController!=="undefined" ? new AbortController() : null;
+  var timer = controller ? setTimeout(function(){ controller.abort(); }, 15000) : null;
+  var opts = { method:method, headers:SB_HDR, body: body ? JSON.stringify(body) : undefined };
+  if(controller) opts.signal = controller.signal;
+  return fetch(SB_URL+path, opts)
     .then(function(r){
-      if(!r.ok) return r.text().then(function(t){ throw new Error(t||r.status); });
+      if(timer) clearTimeout(timer);
+      if(!r.ok) return r.text().then(function(t){
+        var msg = t||String(r.status);
+        try{ var parsed=JSON.parse(t); msg=parsed.message||parsed.details||parsed.hint||msg; }catch(e){}
+        throw new Error(msg);
+      });
       var ct = r.headers.get("content-type")||"";
       if(r.status===204 || !ct.includes("json")) return null;
       return r.json();
+    })
+    .catch(function(e){
+      if(timer) clearTimeout(timer);
+      if(e.name==="AbortError") throw new Error("Timeout — conexión muy lenta. Reintentá con mejor señal.");
+      throw e;
     });
 }
 function _sbGetRaw(table, params){ return sbFetch("GET", "/rest/v1/"+table+"?"+(params||""), null); }
@@ -3342,26 +3357,32 @@ async function _sbGetBackup(){
 }
 
 async function _sbInsertBackup(data){
+  // Limpiar items — quitar campos innecesarios para reducir payload
+  var itemsLimpios = (data.items||[]).map(function(i){
+    return { id:i.id, n:i.n, c:i.c, p:i.p, sub:i.sub,
+             dsc: i.dsc ? {tipo:i.dsc.tipo, valor:i.dsc.valor} : null };
+  });
+
   var body = {
     empresa_id:    _sbEmpId,
     fecha:         data.fecha||new Date().toISOString(),
-    cliente_nom:   data.clienteNom||"",
-    cliente_id:    data.clienteId||"",
-    obs:           data.obs||"",
-    items:         data.items||[],
+    cliente_nom:   (data.clienteNom||"").slice(0,200),
+    cliente_id:    (data.clienteId||"").slice(0,100),
+    obs:           (data.obs||"").slice(0,500),
+    items:         itemsLimpios,
     total:         data.total||0,
     total_con_iva: data.totalConIVA||Math.round((data.total||0)*1.21*100)/100,
     tipo:          data.tipo||"pedido",
     tipo_comprobante: data.tipoComprobante||null,
-    usuario:       data.usuario||"",
-    usuario_nom:   data.usuarioNom||"",
+    usuario:       (data.usuario||"").slice(0,100),
+    usuario_nom:   (data.usuarioNom||"").slice(0,200),
     descuentos:    data.descuentos||null
   };
-  // Solo incluir lista si ya existe la columna
+  // Agregar lista solo si existe la columna (silencia el error)
   if(data.lista) body.lista = data.lista;
 
-  var rows=await sbPost("backup_pedidos", body);
-  return rows&&rows[0]?rows[0].id:null;
+  var rows = await sbPost("backup_pedidos", body);
+  return rows&&rows[0] ? rows[0].id : null;
 }
 
 async function _sbGetCC(cliNom){ var rows=await sbGet("cuentas_corrientes","select=saldo&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)); if(!rows||!rows.length)return null; var movs=await sbGet("cc_movimientos","select=*&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)+"&order=fecha.desc"); return {saldo:rows[0].saldo,movimientos:movs||[]}; }
@@ -7092,6 +7113,8 @@ async function _syncPendingBackups(){
     }catch(ex){
       console.warn('[Sync] Fallo pedido '+i+' ('+((item&&item.clienteNom)||"?")+'):', ex.message);
       errores++;
+      // Guardar el error para mostrarlo
+      if(i===0) window._lastSyncError = ex.message;
     }
   }
 
@@ -7112,7 +7135,12 @@ async function _syncPendingBackups(){
     cargarBackupFirebase();
   }
   if(errores>0 && synced===0){
-    showNotif("❌ No se pudo sincronizar. Verificá la conexión.","err");
+    var errMsg = window._lastSyncError || "Error desconocido";
+    showNotif("❌ No se pudo sincronizar: "+errMsg.slice(0,80),"err");
+    // Mostrar alerta si el error no es obvio
+    if(!errMsg.includes("network") && !errMsg.includes("fetch")){
+      alert("Error al sincronizar pedido:\n\n"+errMsg+"\n\nMostrá esta pantalla al admin.");
+    }
   }
 }
 
