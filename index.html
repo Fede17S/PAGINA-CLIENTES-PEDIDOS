@@ -3960,11 +3960,21 @@ function aplicarRol(){
   if(remVndWrap) remVndWrap.style.display = isAdmin ? "block" : "none";
   if(isAdmin) _poblarSelectorVendedores();
 
-  // Navegación inicial por rol
-  if (isVendedor) {
-    setTimeout(function(){ verTab("pedido", document.getElementById("nav-pedido")); }, 100);
-  } else if (isRepartidor) {
-    setTimeout(function(){ verTab("hoja", document.getElementById("nav-hoja")); }, 100);
+  // Navegación inicial por rol — solo una vez por sesión, no en recargas/restores subsiguientes
+  if(!window._aplicarRolFired){
+    window._aplicarRolFired = true;
+    if (isVendedor) {
+      setTimeout(function(){ 
+        // Solo redirigir si el usuario no navegó manualmente ya
+        var activa = document.querySelector(".section.active");
+        if(!activa || activa.id === "pedido") verTab("pedido", document.getElementById("nav-pedido"));
+      }, 200);
+    } else if (isRepartidor) {
+      setTimeout(function(){
+        var activa = document.querySelector(".section.active");
+        if(!activa || activa.id === "pedido") verTab("hoja", document.getElementById("nav-hoja"));
+      }, 200);
+    }
   }
 }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
@@ -3993,9 +4003,6 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes"){
-    // TEST DIRECTO: escribir inmediatamente antes de cualquier async
-    var _testBody = document.getElementById("cli-list-body");
-    if(_testBody) _testBody.innerHTML = '<div style="background:red;color:white;padding:20px;font-size:20px;font-weight:bold">SECCIÓN ACTIVA - cargando clientes...</div>';
     cargarClientesSection();
     if(!Object.keys(_zonasData).length) cargarZonas();
   }
