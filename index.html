@@ -1768,13 +1768,23 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <div id="backup" class="section">
-  <!-- Buscador y contador -->
+  <!-- Buscador y acciones -->
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
     <input type="text" id="bk-search" placeholder="🔍 Buscar por cliente, vendedor…"
       oninput="renderBackup()" style="flex:1;font-size:14px"
       autocomplete="off" autocorrect="off" autocapitalize="off">
+    <button class="btn btn-ghost btn-sm" id="bk-sel-btn" onclick="_bkToggleSelect()" title="Seleccionar pedidos">☑️</button>
     <button class="btn btn-ghost btn-sm" onclick="_bkRefresh()" id="bk-refresh-btn" title="Actualizar pedidos">🔄</button>
   </div>
+
+  <!-- Toolbar de selección múltiple (oculto por defecto) -->
+  <div id="bk-select-toolbar" style="display:none;background:var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
+    <span id="bk-sel-count" style="color:#fff;font-weight:700;font-size:13px;flex:1">0 seleccionados</span>
+    <button onclick="_bkSelAll()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☑ Todos</button>
+    <button onclick="_bkReasignar()" style="background:#fff;color:var(--accent);border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar a Ruta</button>
+    <button onclick="_bkToggleSelect()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>
+  </div>
+
   <div id="bk-sync-status" style="display:none;font-size:11.5px;margin-bottom:8px;padding:6px 10px;border-radius:7px;font-weight:600"></div>
 
   <!-- Tabs de estado -->
@@ -3651,15 +3661,22 @@ async function guardarDatosEmpresa(){
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 async function _nextHojaRutaNum(){
-  if(!_sbEmpId) return "HR-0001";
+  if(!_sbEmpId) return "HR-0120";
   try {
     var rows=await sbGet("empresas_config","select=hr_contador&empresa_id=eq."+_sbEmpId);
-    var actual=(rows&&rows[0]&&rows[0].hr_contador)||0;
-    var sig=actual+1;
+    var actual = rows&&rows[0]&&rows[0].hr_contador!=null ? rows[0].hr_contador : null;
+    if(actual === null){
+      // Primera vez — determinar base según empresa
+      var esCod = (empresaData&&empresaData.codigo||"").toLowerCase();
+      var esNom = (empresaData&&empresaData.nombre||"").toLowerCase();
+      var esLaRegional = esCod.includes("regional") || esNom.includes("regional");
+      actual = esLaRegional ? 119 : 0; // La Regional arranca en 120, resto en 1
+    }
+    var sig = actual + 1;
     await sbUpsert("empresas_config",{empresa_id:_sbEmpId, hr_contador:sig});
     if(empresaData&&empresaData._config) empresaData._config.hr_contador=sig;
     return "HR-"+String(sig).padStart(4,"0");
-  } catch(e){ return "HR-0001"; }
+  } catch(e){ return "HR-"+String(Math.floor(Math.random()*9000)+1000); }
 }
 
 async function _nextRemitoNum(){
@@ -6567,6 +6584,148 @@ async function cargarBackupFirebase(){
 
 
 
+// ══ BACKUP MULTI-SELECT ══
+var _bkSelectMode = false;
+var _bkSelected   = new Set(); // Set de bk.id seleccionados
+
+function _bkToggleSelect(){
+  _bkSelectMode = !_bkSelectMode;
+  _bkSelected.clear();
+  var toolbar = document.getElementById("bk-select-toolbar");
+  var btn     = document.getElementById("bk-sel-btn");
+  if(toolbar) toolbar.style.display = _bkSelectMode ? "flex" : "none";
+  if(btn) btn.style.background = _bkSelectMode ? "var(--accent)" : "";
+  renderBackup();
+}
+
+function _bkToggleItem(id){
+  if(_bkSelected.has(id)) _bkSelected.delete(id);
+  else _bkSelected.add(id);
+  var countEl = document.getElementById("bk-sel-count");
+  if(countEl) countEl.textContent = _bkSelected.size + " seleccionado" + (_bkSelected.size!==1?"s":"");
+  // Update card visual
+  var card = document.querySelector("[data-bk-id='"+id+"']");
+  if(card) card.style.outline = _bkSelected.has(id) ? "2.5px solid var(--accent)" : "none";
+}
+
+function _bkSelAll(){
+  var cards = document.querySelectorAll("[data-bk-id]");
+  var allSelected = cards.length > 0 && Array.from(cards).every(function(c){ return _bkSelected.has(c.dataset.bkId); });
+  if(allSelected){
+    // Deseleccionar todos
+    cards.forEach(function(c){ _bkSelected.delete(c.dataset.bkId); c.style.outline="none"; });
+  } else {
+    // Seleccionar todos visibles
+    cards.forEach(function(c){ _bkSelected.add(c.dataset.bkId); c.style.outline="2.5px solid var(--accent)"; });
+  }
+  var countEl = document.getElementById("bk-sel-count");
+  if(countEl) countEl.textContent = _bkSelected.size+" seleccionado"+(_bkSelected.size!==1?"s":"");
+}
+
+async function _bkReasignar(){
+  if(!_bkSelected.size){ showNotif("Seleccioná al menos un pedido","err"); return; }
+
+  // Construir lista de rutas disponibles para elegir
+  var rutas = Object.entries(rutasData||{});
+  if(!rutas.length){ showNotif("No hay hojas de ruta disponibles","err"); return; }
+
+  // Mostrar modal inline para elegir la ruta destino
+  var overlay = document.createElement("div");
+  overlay.className = "modal-bg open";
+  overlay.id = "modal-reasignar";
+  var rutaOpts = rutas.map(function(e){
+    var rk=e[0], r=e[1];
+    var cnt=Object.keys(r.clientes||{}).length;
+    var hrTag=r.hrNum?r.hrNum+' — ':'';
+    return '<option value="'+rk+'">'+hrTag+(r.nombre||rk.slice(-6))+' ('+cnt+' pedidos)</option>';
+  }).join('');
+
+  overlay.innerHTML =
+    '<div class="modal-box" style="max-width:400px">'+
+      '<div class="modal-head"><span class="modal-title">🔀 Reasignar '+_bkSelected.size+' pedido'+(_bkSelected.size!==1?'s':'')+'</span>'+
+        '<button class="modal-x" onclick="document.getElementById(\'modal-reasignar\').remove()">✕</button></div>'+
+      '<div class="modal-body" style="display:flex;flex-direction:column;gap:14px">'+
+        '<div class="cli-field"><label>Hoja de Ruta destino</label>'+
+          '<select id="reasig-ruta-sel" style="font-size:13px">'+rutaOpts+'</select></div>'+
+        '<div style="font-size:12.5px;color:var(--muted)">'+
+          'Se moverán '+_bkSelected.size+' pedido'+(_bkSelected.size!==1?'s':'')+' a la hoja de ruta seleccionada.'+
+        '</div>'+
+        '<button class="mbtn mbtn-primary" onclick="_confirmarReasignar()" style="padding:12px">✅ Confirmar reasignación</button>'+
+        '<button class="mbtn mbtn-ghost" onclick="document.getElementById(\'modal-reasignar\').remove()" style="padding:10px">Cancelar</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function _confirmarReasignar(){
+  var sel = document.getElementById("reasig-ruta-sel");
+  if(!sel||!sel.value){ showNotif("Elegí una ruta","err"); return; }
+  var rutaDestKey = sel.value;
+  var rutaDest = rutasData[rutaDestKey];
+  if(!rutaDest){ showNotif("Ruta no encontrada","err"); return; }
+
+  var overlay = document.getElementById("modal-reasignar");
+  if(overlay) overlay.remove();
+
+  var selectedIds = Array.from(_bkSelected);
+  var backups     = getBackups();
+  var errores     = 0;
+
+  showNotif("⏳ Reasignando "+selectedIds.length+" pedidos…","ok");
+
+  for(var i=0; i<selectedIds.length; i++){
+    var bkId = selectedIds[i];
+    var bk   = backups.find(function(x){ return x.id===bkId||x._sbId===bkId; });
+    if(!bk) continue;
+    try {
+      // Agregar el pedido como cliente en la ruta destino
+      var nom = bk.clienteNom||"Mostrador";
+      var items = bk.items||[];
+      var total = bk.total||0;
+      var cliData = {
+        nom:    nom,
+        id:     bk.clienteId||"",
+        items:  items,
+        importe:total,
+        lista:  bk.lista||"Clientes",
+        obs:    bk.obs||"",
+        fecha:  bk.fecha||new Date().toISOString(),
+        modo:   "ninguno"
+      };
+      // Insertar en ruta_clientes de Supabase
+      var inserted = await sbPost("ruta_clientes", Object.assign({
+        ruta_id: rutaDestKey,
+        empresa_id: _sbEmpId
+      }, {
+        nom:     nom,
+        cliente_id: bk.clienteId||"",
+        items:   items,
+        importe: total,
+        lista:   bk.lista||"Clientes",
+        obs:     bk.obs||"",
+        fecha:   bk.fecha||new Date().toISOString(),
+        modo:    "ninguno"
+      }));
+      if(inserted && inserted[0]){
+        var ck = inserted[0].id;
+        if(!rutasData[rutaDestKey].clientes) rutasData[rutaDestKey].clientes={};
+        rutasData[rutaDestKey].clientes[ck] = Object.assign({}, cliData, {id:ck});
+      }
+    } catch(e){ console.warn('[Reasignar] Error en '+bkId+':', e.message); errores++; }
+  }
+
+  // Salir del modo selección
+  _bkSelectMode=false; _bkSelected.clear();
+  var toolbar=document.getElementById("bk-select-toolbar");
+  if(toolbar) toolbar.style.display="none";
+  var btn=document.getElementById("bk-sel-btn");
+  if(btn) btn.style.background="";
+
+  renderBackup();
+  var ok = selectedIds.length - errores;
+  showNotif(ok+" pedido"+(ok!==1?'s':'')+" reasignado"+(ok!==1?'s':'')+" a "+(rutaDest.hrNum||rutaDest.nombre)+(errores?", "+errores+" fallaron":""),"ok");
+}
+
 var _bkAutoRefreshTimer = null;
 
 function _bkRefresh(){
@@ -6686,6 +6845,23 @@ function renderBackup(){
     var card = document.createElement("div");
     var estadoClass = bk.aprobado===true ? " estado-aprobado" : bk.aprobado===false ? " estado-rechazado" : " estado-espera";
     card.className = "bk-card" + estadoClass + (isOpen?" open":"");
+    card.dataset.bkId = bk.id;
+    // Select mode visual
+    if(_bkSelectMode && _bkSelected.has(bk.id)){
+      card.style.outline = "2.5px solid var(--accent)";
+    }
+
+    /* Checkbox de selección (visible en modo select) */
+    if(_bkSelectMode){
+      var chk = document.createElement("div");
+      chk.style.cssText="display:flex;align-items:center;gap:10px;padding:10px 16px 0;cursor:pointer";
+      chk.innerHTML = '<div style="width:22px;height:22px;border-radius:6px;border:2px solid var(--accent);background:'+(_bkSelected.has(bk.id)?"var(--accent)":"#fff")+';display:grid;place-items:center;flex-shrink:0;font-size:14px">'+(_bkSelected.has(bk.id)?"✓":"")+'</div><span style="font-size:13px;font-weight:600">'+(bk.clienteNom||"Sin cliente")+'</span><span style="margin-left:auto;font-weight:700;font-size:14px">$'+fM(bk.total||0)+'</span>';
+      chk.onclick = function(e){ e.stopPropagation(); _bkToggleItem(bk.id); renderBackup(); };
+      card.appendChild(chk);
+      card.style.cursor="pointer";
+      card.onclick=function(){ _bkToggleItem(bk.id); renderBackup(); };
+      wrap.appendChild(card);
+    } else {
 
     /* Header */
     var header = document.createElement("div");
@@ -6869,6 +7045,7 @@ function renderBackup(){
 
     card.appendChild(detail);
     wrap.appendChild(card);
+    } // end else (normal render)
   });
 }
 
