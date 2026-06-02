@@ -278,6 +278,8 @@ body {
 .section { display:none }
 .section.active { display:block; animation: fadeIn .18s ease-out }
 .section.me-root.active { display:flex }
+@keyframes spinner-spin { to { transform:rotate(360deg) } }
+.spinner-ring { width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spinner-spin .7s linear infinite }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
 
 /* ── CARDS ── */
@@ -9339,17 +9341,16 @@ var _cliRolFilter = "";
 var _clientesGestion = {}; // datos dedicados — solo esta sección los toca
 
 async function cargarClientesSection(){
-  var body    = document.getElementById("cli-list-body");
   var isAdmin = currentUser && currentUser.role === "admin";
   var titleEl = document.getElementById("cli-form-title");
   if(titleEl) titleEl.textContent = isAdmin ? "➕ Agregar nuevo usuario" : "➕ Agregar nuevo cliente";
   var rolWrap = document.getElementById("nc-rol-wrap");
   if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
 
-  if(body && !Object.keys(_clientesGestion).length){
-    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando clientes…</div>';
-  }
+  // Renderizar inmediatamente con lo que haya en caché
+  _renderClientesList();
 
+  // Cargar desde Supabase
   try {
     if(!_sbEmpId) throw new Error("Sin _sbEmpId");
     var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
@@ -9362,12 +9363,13 @@ async function cargarClientesSection(){
           rec:u.recepciona||"",nota:u.nota||""};
       });
       _clientesGestion = map;
-      _clientesDB = map; // mantener sincronizado para editar/eliminar
+      _clientesDB = map;
+      _renderClientesList(); // re-render con datos frescos
     }
-  } catch(e){ console.warn("[Clientes]", e.message); }
-  // Solo renderizar si la sección está activa
-  var sec = document.getElementById("clientes");
-  if(sec && sec.classList.contains("active")) _renderClientesList();
+  } catch(e){
+    console.warn("[Clientes]", e.message);
+    _renderClientesList(); // igual renderizar aunque falle
+  }
 }
 
 function _renderClientesList(){
