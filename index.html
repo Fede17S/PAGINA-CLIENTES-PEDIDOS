@@ -3833,21 +3833,9 @@ function aplicarRol(){
   if(remVndWrap) remVndWrap.style.display = isAdmin ? "block" : "none";
   if(isAdmin) _poblarSelectorVendedores();
 
-  // Navegación inicial por rol — solo una vez por sesión, no en recargas/restores subsiguientes
-  if(!window._aplicarRolFired){
-    window._aplicarRolFired = true;
-    if (isVendedor) {
-      setTimeout(function(){ 
-        // Solo redirigir si el usuario no navegó manualmente ya
-        var activa = document.querySelector(".section.active");
-        if(!activa || activa.id === "pedido") verTab("pedido", document.getElementById("nav-pedido"));
-      }, 200);
-    } else if (isRepartidor) {
-      setTimeout(function(){
-        var activa = document.querySelector(".section.active");
-        if(!activa || activa.id === "pedido") verTab("hoja", document.getElementById("nav-hoja"));
-      }, 200);
-    }
+  // Repartidor: navegar a hoja de ruta al iniciar (sin timeout que interfiera)
+  if (isRepartidor) {
+    verTab("hoja", document.getElementById("nav-hoja"));
   }
 }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
