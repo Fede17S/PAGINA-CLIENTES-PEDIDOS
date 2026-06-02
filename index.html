@@ -1758,7 +1758,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
   </div>
   <!-- Resultado de búsqueda global -->
-  <div id="ruta-search-result" style="display:none;padding:10px 14px;background:var(--s2);border-radius:9px;margin-bottom:8px;font-size:13px;color:var(--muted)"></div>
+  <div id="ruta-search-result" style="display:none;background:#fff;border:1.5px solid var(--accent);border-radius:12px;overflow:hidden;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.07)"></div>
   <div id="ruta-summary-bar" style="display:none" class="ruta-summary-bar">
     <div class="rsb-item"><div class="rsb-val" id="rsb-total">$0</div><div class="rsb-lbl">Total</div></div>
     <div class="rsb-item"><div class="rsb-val" id="rsb-cobrado">$0</div><div class="rsb-lbl">Cobrado</div></div>
@@ -5626,62 +5626,102 @@ var _rutaSearchQ = "";
 
 function _buscarEnRutas(q){
   _rutaSearchQ = (q||"").toLowerCase().trim();
-  var clearBtn = document.getElementById("ruta-buscar-clear");
-  var inp = document.getElementById("ruta-buscar-cli");
+  var clearBtn  = document.getElementById("ruta-buscar-clear");
+  var inp       = document.getElementById("ruta-buscar-cli");
+  var resultDiv = document.getElementById("ruta-search-result");
+  var rutasList = document.getElementById("rutas-list");
+
   if(clearBtn) clearBtn.style.display = _rutaSearchQ ? "block" : "none";
   if(inp) inp.style.borderColor = _rutaSearchQ ? "var(--accent)" : "var(--border)";
 
-  var resultDiv = document.getElementById("ruta-search-result");
   if(!_rutaSearchQ){
     if(resultDiv) resultDiv.style.display="none";
-    // Mostrar todas las rutas y todos los clientes normalmente
-    document.querySelectorAll(".ruta-cli-card").forEach(function(c){ c.style.display=""; });
-    document.querySelectorAll(".ruta-detail-card").forEach(function(d){ d.style.display=""; });
+    if(rutasList) rutasList.style.display="";
     return;
   }
 
-  var totalEncontrados = 0;
-  var rutasConMatch = 0;
-
-  // Buscar en cada ruta
+  // Buscar en datos — no en el DOM
+  var resultados = []; // [ { rk, rutaNom, hrNum, ck, cli } ]
   Object.entries(rutasData||{}).forEach(function(entry){
-    var rk = entry[0];
-    var ruta = entry[1];
-    var clientes = ruta.clientes||{};
-    var matchEnEstaRuta = 0;
-
-    Object.entries(clientes).forEach(function(ce){
-      var ck = ce[0], cli = ce[1];
-      var nom = (cli.nom||"").toLowerCase();
-      var matches = nom.includes(_rutaSearchQ);
-      // Buscar el card DOM de este cliente
-      var cliCard = document.querySelector("[data-rk='"+rk+"'][data-ck='"+ck+"']");
-      if(!cliCard){
-        // Buscar por ID alternativo si existe
-        cliCard = document.getElementById("cli-row-"+rk+"-"+ck);
+    var rk=entry[0], ruta=entry[1];
+    Object.entries(ruta.clientes||{}).forEach(function(ce){
+      var ck=ce[0], cli=ce[1];
+      var nom=(cli.nom||"").toLowerCase();
+      if(nom.includes(_rutaSearchQ)){
+        resultados.push({
+          rk: rk, ck: ck, cli: cli,
+          rutaNom: ruta.nombre||rk.slice(-6),
+          hrNum:   ruta.hrNum||""
+        });
       }
-      if(cliCard) cliCard.style.display = matches ? "" : "none";
-      if(matches){ matchEnEstaRuta++; totalEncontrados++; }
     });
-
-    // Abrir automáticamente la ruta si tiene coincidencias
-    var detailCard = document.querySelector(".ruta-detail-card[data-rk='"+rk+"']");
-    var toggleBtn  = document.querySelector(".ruta-list-btn[data-rk='"+rk+"']");
-    if(detailCard && toggleBtn){
-      if(matchEnEstaRuta > 0){
-        detailCard.style.display="block";
-        toggleBtn.classList.add("open");
-        rutasConMatch++;
-      }
-    }
   });
 
-  if(resultDiv){
-    resultDiv.style.display="block";
-    resultDiv.innerHTML = totalEncontrados > 0
-      ? '🔍 <b>'+totalEncontrados+'</b> cliente'+(totalEncontrados!==1?'s':'')+' encontrado'+(totalEncontrados!==1?'s':'')+' en <b>'+rutasConMatch+'</b> ruta'+(rutasConMatch!==1?'s':'')
-      : '🔍 Sin clientes que coincidan con "<b>'+escHtml(_rutaSearchQ)+'</b>"';
+  // Ocultar lista de rutas y mostrar panel de resultados
+  if(rutasList) rutasList.style.display = resultados.length ? "none" : "";
+
+  if(!resultDiv) return;
+  resultDiv.style.display = "block";
+
+  if(!resultados.length){
+    resultDiv.innerHTML =
+      '<div style="padding:20px;text-align:center;color:var(--muted)">'+
+        '🔍 Sin clientes que coincidan con "<b>'+escHtml(_rutaSearchQ)+'</b>"'+
+      '</div>';
+    return;
   }
+
+  // Agrupar por ruta
+  var porRuta = {};
+  resultados.forEach(function(r){
+    if(!porRuta[r.rk]) porRuta[r.rk]={ rutaNom:r.rutaNom, hrNum:r.hrNum, clientes:[] };
+    porRuta[r.rk].clientes.push(r);
+  });
+
+  var total = resultados.length;
+  var rutas  = Object.keys(porRuta).length;
+
+  resultDiv.innerHTML =
+    '<div style="font-size:12px;font-weight:700;color:var(--muted);padding:10px 14px 6px;border-bottom:1px solid var(--border2)">'+
+      '🔍 <b>'+total+'</b> cliente'+(total!==1?'s':'')+' en <b>'+rutas+'</b> hoja'+(rutas!==1?'s':'')+' de ruta'+
+    '</div>'+
+    Object.entries(porRuta).map(function(entry){
+      var rk=entry[0], grupo=entry[1];
+      var hrBadge=grupo.hrNum?'<span style="font-size:11px;background:var(--accent);color:#fff;padding:1px 7px;border-radius:5px;margin-right:6px">'+escHtml(grupo.hrNum)+'</span>':'';
+      return '<div style="border-bottom:1px solid var(--border2)">'+
+        '<div style="padding:8px 14px;background:var(--s2);font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'+
+          hrBadge+escHtml(grupo.rutaNom)+
+          '<span style="margin-left:auto;font-size:11px;color:var(--muted)">'+grupo.clientes.length+' coincidencia'+(grupo.clientes.length!==1?'s':'')+'</span>'+
+          '<button onclick="rutaAbierta=\''+rk+'\';_rutaSearchQ=\'\';document.getElementById(\'ruta-buscar-cli\').value=\'\';document.getElementById(\'ruta-search-result\').style.display=\'none\';document.getElementById(\'rutas-list\').style.display=\'\';renderRutas();" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Ver ruta →</button>'+
+        '</div>'+
+        grupo.clientes.map(function(r){
+          var ef=(r.cli.efectivo||0), tr=(r.cli.transferencia||0);
+          var pagado=ef+tr;
+          var saldo=(r.cli.importe||0)-pagado;
+          var saldoHtml=saldo<=0
+            ? '<span style="color:var(--green);font-size:11px;font-weight:600">✓ Cobrado</span>'
+            : '<span style="color:var(--amber);font-size:11px;font-weight:600">$'+fM(saldo)+' pend.</span>';
+          var entregadoHtml=r.cli.entregado
+            ? '<span style="color:var(--green);font-size:10.5px">✅ Entregado</span>'
+            : '';
+          // Highlight match
+          var nomHL=escHtml(r.cli.nom||"").replace(
+            new RegExp("("+_rutaSearchQ.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"),
+            '<mark style="background:#fef3c7;border-radius:2px;padding:0 1px">$1</mark>'
+          );
+          return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--border2)">'+
+            '<div style="flex:1;min-width:0">'+
+              '<div style="font-weight:600;font-size:13px">'+nomHL+'</div>'+
+              '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+(r.cli.items||[]).length+' productos'+entregadoHtml+'</div>'+
+            '</div>'+
+            '<div style="text-align:right;flex-shrink:0">'+
+              '<div style="font-weight:800;font-size:14px">$'+fM(r.cli.importe||0)+'</div>'+
+              saldoHtml+
+            '</div>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+    }).join('');
 }
 
 // ══ FINALIZAR RUTA ══
