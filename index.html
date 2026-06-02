@@ -3993,6 +3993,9 @@ function verTab(id,btn){
   closeSidebar();
   if(id==="hoja")cargarRutasFirebase();
   if(id==="clientes"){
+    // TEST DIRECTO: escribir inmediatamente antes de cualquier async
+    var _testBody = document.getElementById("cli-list-body");
+    if(_testBody) _testBody.innerHTML = '<div style="background:red;color:white;padding:20px;font-size:20px;font-weight:bold">SECCIÓN ACTIVA - cargando clientes...</div>';
     cargarClientesSection();
     if(!Object.keys(_zonasData).length) cargarZonas();
   }
