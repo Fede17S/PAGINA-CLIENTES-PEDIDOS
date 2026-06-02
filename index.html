@@ -22,6 +22,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
 <style>
 /* ══════════════════════════════════════════════════
    CoreDistri Central · Rediseño minimalista
@@ -2118,6 +2120,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div id="cli-list-body" style="min-height:60px">
     <div style="text-align:center;padding:40px;color:var(--muted)">Cargando clientes…</div>
   </div>
+  <div id="cli-debug" style="font-size:10px;color:#999;padding:4px 8px;background:#f9f9f9;border-radius:4px;margin-top:4px;display:none"></div>
 
   <div style="position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px;border-top:1px solid var(--border2);margin-top:8px">
     <input type="text" id="cli-search-input" placeholder="🔍 Buscar por nombre, ID, teléfono, CUIT, zona…"
@@ -9281,47 +9284,50 @@ var _cliRolFilter = "";
 var _clientesGestion = {};
 
 async function cargarClientesSection(){
-  var body = document.getElementById("cli-list-body");
-  if(!body) return;
   var isAdmin = currentUser && currentUser.role === "admin";
-  // Config UI
-  document.getElementById("cli-count") && (document.getElementById("cli-count").textContent = "…");
+  var titleEl = document.getElementById("cli-form-title");
+  if(titleEl) titleEl.textContent = isAdmin ? "➕ Agregar usuario" : "➕ Agregar cliente";
+  var rolWrap = document.getElementById("nc-rol-wrap");
+  if(rolWrap) rolWrap.style.display = isAdmin ? "block" : "none";
 
-  // Direct Supabase call — no wrappers
+  function dbg(msg){
+    var el=document.getElementById("cli-debug");
+    if(el){el.style.display="block";el.innerHTML+=msg+"<br>";}
+    console.log("[Clientes]",msg);
+  }
+  dbg("start · _sbEmpId="+(_sbEmpId||"NULL")+" role="+(currentUser&&currentUser.role||"?"));
+
+  _renderClientesList(); // render inmediato con cache
+
   try {
-    var q = "select=id,uid,name,pass,role,lista,direccion,telefono,cuit,zona,recepciona,nota,catalogo";
-    q += "&empresa_id=eq." + _sbEmpId + "&order=name.asc";
+    if(!_sbEmpId) throw new Error("_sbEmpId null");
+    var q = "select=id,uid,name,pass,role,lista,direccion,telefono,cuit,zona,recepciona,nota,catalogo&empresa_id=eq."+_sbEmpId+"&order=name.asc";
+    dbg("sbGet...");
     var rows = await sbGet("usuarios", q);
+    dbg("rows="+(rows?rows.length:"null"));
     if(rows && rows.length > 0){
       var map = {};
       rows.forEach(function(u){
-        map[u.id] = {
-          _sbId: u.id, id: u.uid||"", name: u.name||"",
-          pass: u.pass||"", role: u.role||"cliente",
-          lista: u.lista||"Clientes", catalogo: u.catalogo,
-          direccion: u.direccion||"", tel: u.telefono||"",
-          cuit: u.cuit||"", zona: u.zona||"",
-          rec: u.recepciona||"", nota: u.nota||""
-        };
+        map[u.id]={_sbId:u.id,id:u.uid||"",name:u.name||"",pass:u.pass||"",role:u.role||"cliente",
+          lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
+          tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
       });
       _clientesGestion = map;
       _clientesDB = map;
+      dbg("render "+Object.keys(map).length+" clientes");
+      _renderClientesList();
     } else {
-      body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">No se encontraron clientes en la base de datos.</div>';
-      document.getElementById("cli-count") && (document.getElementById("cli-count").textContent = "0");
-      return;
+      dbg("sin filas");
+      var body=document.getElementById("cli-list-body");
+      if(body) body.innerHTML='<div style="padding:30px;text-align:center;color:var(--muted)">Sin clientes. rows='+(rows?"[]":"null")+'</div>';
     }
   } catch(e){
-    console.error("[Clientes] Error:", e.message);
-    body.innerHTML = '<div style="text-align:center;padding:30px;color:#b91c1c">Error cargando: ' + e.message + '<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Reintentar</button></div>';
-    return;
+    dbg("ERROR: "+e.message);
+    var body=document.getElementById("cli-list-body");
+    if(body) body.innerHTML='<div style="padding:30px;text-align:center;color:#b91c1c">❌ '+escHtml(e.message)+'<br><button onclick="cargarClientesSection()" style="margin-top:10px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit">Reintentar</button></div>';
   }
-
-  _cliSearchQ = "";
-  var inp = document.getElementById("cli-search-input");
-  if(inp) inp.value = "";
-  _renderClientesList();
 }
+
 
 function _renderClientesList(){
   var body = document.getElementById("cli-list-body");
