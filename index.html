@@ -261,24 +261,22 @@ body {
   position:fixed;
   top:var(--header-h);
   left:0; right:0; bottom:0;
-  overflow-y:scroll;
+  overflow-y:hidden;
   overflow-x:hidden;
-  -webkit-overflow-scrolling:touch;
   overscroll-behavior-y:contain;
   padding:18px 16px calc(20px + var(--safe-bottom));
   background:var(--bg);
 }
 /* Contenido centrado dentro del main fijo */
-.main > .section { max-width:560px; margin:0 auto; width:100%; padding-bottom:40px }
+.main > .section { max-width:560px; margin:0 auto; width:100%; padding-bottom:80px }
 .main:has(.me-root.active) { padding:0; overflow-y:auto; display:flex; flex-direction:column }
 @supports not selector(:has(*)) {
   .main.has-map { padding:0; overflow:hidden; display:flex; flex-direction:column }
 }
 
 .section { display:none }
-.section.active { display:block; animation:fadeIn .2s ease both }
+.section.active { display:block; animation:fadeIn .01s ease both; height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
- to{opacity:1} }
 .section.me-root.active { display:flex }
 @keyframes spinner-spin { to { transform:rotate(360deg) } }
 .spinner-ring { width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spinner-spin .7s linear infinite }
@@ -1176,7 +1174,7 @@ select option { background:#fff }
   display:block;
   position:fixed;
   top:var(--header-h); left:0; right:0; bottom:0;
-  overflow-y:scroll;
+  overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
   background:var(--bg);
@@ -1389,7 +1387,7 @@ select option { background:#fff }
   display:block;
   position:fixed;
   top:var(--header-h); left:0; right:0; bottom:0;
-  overflow-y:scroll;
+  overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
   background:var(--bg);
@@ -1478,6 +1476,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 .cli-empty { padding:16px; text-align:center; font-size:13px; color:var(--muted); }
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -2049,80 +2048,102 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <div id="clientes" class="section">
 
-  <div class="cli-list-header">
-    <div class="cli-list-title">Gestión de Clientes (<span id="cli-count">0</span>)</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost btn-sm" onclick="_cliForceReload()">🔄</button>
-      <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">🗺️ Zonas</button>
-    </div>
+  <!-- Acciones -->
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <button class="btn btn-ghost btn-sm" onclick="_cliForceReload()">🔄</button>
+    <button onclick="abrirPanelZonas()" style="padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
+    <span style="flex:1"></span>
+    <span style="font-size:12px;color:var(--muted)"><b id="cli-count">0</b> clientes</span>
   </div>
 
   <!-- Panel Zonas -->
-  <div id="cli-zonas-panel" style="display:none;margin-bottom:12px">
-    <div class="card"><div class="card-body">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-weight:700">🗺️ Zonas</span>
-        <div style="display:flex;gap:8px">
-          <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:7px 14px;font-size:12px">+ Nueva</button>
-          <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer">✕</button>
-        </div>
+  <div id="cli-zonas-panel" style="display:none;margin-bottom:12px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-weight:700">🗺️ Zonas de venta</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="abrirModalZona(null)" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ Nueva</button>
+        <button onclick="cerrarPanelZonas()" style="background:none;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>
       </div>
-      <div id="cli-zonas-list"></div>
-    </div></div>
+    </div>
+    <div id="cli-zonas-list"></div>
   </div>
 
-  <!-- Formulario nuevo cliente (colapsable) -->
-  <div class="card" style="margin-bottom:12px">
-    <div class="card-head" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between"
-      onclick="var b=document.getElementById('nc-form-body');b.style.display=b.style.display==='none'?'block':'none'">
-      <span class="card-title" id="cli-form-title">➕ Agregar nuevo cliente</span>
+  <!-- Nuevo cliente -->
+  <div style="margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+    <div onclick="var b=document.getElementById('nc-form-body');b.style.display=b.style.display==='none'?'block':'none'"
+      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;font-weight:600;color:var(--text)" id="cli-form-title">➕ Agregar nuevo cliente</span>
       <span style="font-size:11px;color:var(--muted)">tocá para abrir</span>
     </div>
-    <div id="nc-form-body" style="display:none;padding:14px">
-      <div class="cli-form-grid">
-        <div class="cli-field"><label>ID / Usuario *</label>
+    <div id="nc-form-body" style="display:none;padding:14px;border-top:1px solid var(--border)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">ID *</label>
           <input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off"
-            onfocus="if(!this.value)this.value=_generarSiguienteId()"></div>
-        <div class="cli-field"><label>Nombre *</label>
-          <input type="text" id="nc-name" placeholder="ej: Carnicería López" autocomplete="off"></div>
-        <div class="cli-field"><label>Contraseña</label>
-          <input type="text" id="nc-pass" placeholder="dejar vacío = usa el ID" autocomplete="off"></div>
-        <div class="cli-field"><label>Teléfono</label>
-          <input type="tel" id="nc-tel" autocomplete="off"></div>
-        <div class="cli-field"><label>Dirección</label>
-          <input type="text" id="nc-dir" autocomplete="off"></div>
-        <div class="cli-field"><label>CUIT</label>
-          <input type="text" id="nc-cuit" autocomplete="off" inputmode="numeric"></div>
-        <div class="cli-field"><label>Zona</label>
-          <input type="text" id="nc-zona" autocomplete="off"></div>
-        <div class="cli-field"><label>Recepciona</label>
-          <input type="text" id="nc-rec" autocomplete="off"></div>
-        <div class="cli-field"><label>Lista de precios</label>
-          <select id="nc-lista">
+            onfocus="if(!this.value)this.value=_generarSiguienteId()"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Nombre *</label>
+          <input type="text" id="nc-name" placeholder="ej: Carnicería López" autocomplete="off"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Contraseña</label>
+          <input type="text" id="nc-pass" placeholder="vacío = usa el ID" autocomplete="off"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Teléfono</label>
+          <input type="tel" id="nc-tel" autocomplete="off"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
+        <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Dirección</label>
+          <div style="display:flex;gap:6px;align-items:stretch">
+            <input type="text" id="nc-dir" autocomplete="off"
+              style="flex:1;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box">
+            <button onclick="_capturarGPSParaCliente('nc')" title="Capturar ubicación GPS"
+              style="padding:9px 12px;background:var(--text);color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;touch-action:manipulation;flex-shrink:0">
+              📍 GPS
+            </button>
+          </div>
+          <input type="hidden" id="nc-lat">
+          <input type="hidden" id="nc-lng">
+          <div id="nc-dir-result" style="display:none;margin-top:4px"></div>
+        </div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">CUIT</label>
+          <input type="text" id="nc-cuit" autocomplete="off" inputmode="numeric"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Recepciona</label>
+          <input type="text" id="nc-rec" autocomplete="off"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Zona</label>
+          <input type="text" id="nc-zona" autocomplete="off"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Lista</label>
+          <select id="nc-lista" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
             <option value="Clientes">Clientes</option>
             <option value="Patagonia">Patagonia</option>
             <option value="Distribuidores">Distribuidores</option>
           </select></div>
-        <div class="cli-field" id="nc-rol-wrap" style="display:none"><label>Rol</label>
-          <select id="nc-rol">
+        <div id="nc-rol-wrap" style="display:none"><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Rol</label>
+          <select id="nc-rol" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
             <option value="cliente">👤 Cliente</option>
             <option value="vendedor">📝 Vendedor</option>
             <option value="repartidor">🚚 Repartidor</option>
             <option value="admin">👑 Admin</option>
           </select></div>
-        <div class="cli-field" style="grid-column:1/-1"><label>Nota</label>
-          <input type="text" id="nc-nota" autocomplete="off"></div>
+        <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Nota</label>
+          <input type="text" id="nc-nota" autocomplete="off"
+            style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
       </div>
-      <button class="btn-add-cli" onclick="guardarNuevoCliente()" style="margin-top:10px">+ Guardar cliente</button>
+      <button onclick="guardarNuevoCliente()"
+        style="margin-top:12px;width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+        + Guardar cliente
+      </button>
     </div>
   </div>
 
-  <!-- Importar CSV (colapsable) -->
-  <div class="card" style="margin-bottom:12px">
-    <div class="card-head" style="cursor:pointer" onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'">
-      <span class="card-title">📥 Importar CSV — ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
+  <!-- CSV -->
+  <div style="margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+    <div onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'"
+      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;font-weight:600;color:var(--text)">📥 Importar CSV</span>
+      <span style="font-size:11px;color:var(--muted)">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
     </div>
-    <div id="cli-csv-body" style="display:none;padding:14px">
+    <div id="cli-csv-body" style="display:none;padding:14px;border-top:1px solid var(--border)">
       <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
         style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer"
         ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
@@ -2147,23 +2168,18 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- Buscador -->
-  <div style="position:relative;margin-bottom:10px">
-    <input type="text" id="cli-search-input"
-      placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
-      oninput="_filtrarClientes(this.value)" autocomplete="off"
-      style="width:100%;padding:11px 14px 11px 38px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box">
-    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none">🔍</span>
-    <button id="cli-search-clear" onclick="document.getElementById('cli-search-input').value='';_filtrarClientes('')"
-      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted)">✕</button>
-  </div>
+  <input type="text" id="cli-search-input"
+    placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
+    oninput="_filtrarClientes(this.value)" autocomplete="off"
+    style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;margin-bottom:10px;display:block">
 
-  <!-- Filtros rol -->
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="cli-filter-roles">
+  <!-- Filtros -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
     <button class="bk-tab active" onclick="_setRolFilter('',this)">Todos</button>
     <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
     <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
     <button class="bk-tab" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
-    <button class="bk-tab" onclick="_setRolFilter('admin',this)">👑 Admin</button>
+    <button class="bk-tab" onclick="_setRolFilter('admin',this)" id="cli-filter-roles">👑 Admin</button>
   </div>
 
   <!-- Lista -->
@@ -2264,6 +2280,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <button class="btn btn-ghost btn-sm" onclick="cargarProductos()">🔄</button>
       <button class="btn btn-ghost btn-sm" onclick="abrirGestorListas()" title="Gestionar listas de precios">⚙️ Listas</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleProdCsvImporter()" id="btn-toggle-prod-csv" title="Importar CSV">📥</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportarProductosXLSX()" title="Exportar Excel">📊 Excel</button>
       <button class="btn btn-primary btn-sm" onclick="abrirModalProducto(null)">+ Nuevo</button>
     </div>
   </div>
@@ -2273,8 +2290,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--s3)">
       <div>
         <div style="font-size:13px;font-weight:700;color:var(--text)">📥 Importar productos desde CSV</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Encabezados requeridos (en cualquier idioma/capitalización):<br>
-          <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">ID, NOMBRE, PRECIO_BASE, STOCK, CATEGORIA</code>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Encabezados aceptados (en cualquier capitalización):<br>
+          <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">CODIGO, NOMBRE PRODUCTO, PRECIO VENTA, PORCENTAJE, STOCK, CATEGORIA, PRECIO COMPRA, URL IMAGEN</code>
           <span style="margin-left:6px;opacity:.7">· Separador: , o ;</span>
         </div>
       </div>
@@ -3059,7 +3076,7 @@ function fbDel(path){
 async function _sbGetAllEmpresas(){
   var [emps, users] = await Promise.all([
     sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence"),
-    sbGet("usuarios","select=id,empresa_id,uid,pass,name,role,lista,direccion,telefono,zona,recepciona,nota,catalogo")
+    sbGet("usuarios","select=id,empresa_id,uid,pass,name,role,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng")
   ]);
   if(!emps) return null;
   var result={};
@@ -3190,7 +3207,7 @@ async function _sbGetUsuarios(){
   });
   return r;
 }
-async function _sbInsertUsuario(u){ var rows=await sbPost("usuarios",{empresa_id:_sbEmpId,uid:u.id,pass:u.pass||u.id,name:u.name||u.id,role:u.role||"vendedor",lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.tel||"",zona:u.zona||"",recepciona:u.rec||"",nota:u.nota||"",catalogo:u.catalogo!==false}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbInsertUsuario(u){ var payload={empresa_id:_sbEmpId,uid:u.id,pass:u.pass||u.id,name:u.name||u.id,role:u.role||"vendedor",lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.tel||"",zona:u.zona||"",zona_id:u.zona_id||null,recepciona:u.rec||"",nota:u.nota||"",catalogo:u.catalogo!==false}; if(u.lat) payload.lat=u.lat; if(u.lng) payload.lng=u.lng; var rows=await sbPost("usuarios",payload); return rows&&rows[0]?rows[0].id:null; }
 async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.zona_id!==undefined)b.zona_id=u.zona_id;if(u.cuit!==undefined)b.cuit=u.cuit;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;if(u.uid!==undefined)b.uid=u.uid;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
 
 async function _sbGetRutas(){
@@ -3899,9 +3916,7 @@ function verTab(id,btn){
   if (!isAdmin      && id === "vendedores") return;
   if (!isAdmin      && id === "datos-empresa") return;
 
-  document.querySelectorAll(".section").forEach(function(s){
-    s.classList.remove("active");
-  });
+  document.querySelectorAll(".section").forEach(function(s){s.classList.remove("active");});
   document.querySelectorAll(".sb-item").forEach(function(b){b.classList.remove("active");});
   document.getElementById(id).classList.add("active");
   if(btn)btn.classList.add("active");
@@ -9312,20 +9327,20 @@ function _renderClientesList(){
       u.cuit ? "CUIT: "+escHtml(u.cuit)             : null,
       (u.rec||u.recepciona) ? "👤 "+escHtml(u.rec||u.recepciona) : null
     ].filter(Boolean).join(" · ");
-    return '<div class="cli-card">'+
-      '<div class="cli-avatar" style="background:'+col+'22;color:'+col+';font-weight:800">'+ini+'</div>'+
-      '<div class="cli-info">'+
-        '<div class="cli-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+escHtml(nom)+
-          '<span style="font-size:10px;background:'+col+'18;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+RL[rol]+'</span>'+
-          (u.zona ? '<span style="font-size:10.5px;color:var(--muted)">🗺 '+escHtml(u.zona)+'</span>' : '')+
+    return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:#ffffff;border:1px solid #e3e1da;border-left:4px solid '+col+';border-radius:10px;margin-bottom:8px">'+
+      '<div style="width:38px;height:38px;border-radius:50%;background:'+col+'22;color:'+col+';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0">'+ini+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13.5px;font-weight:600;color:#1a1a17;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+escHtml(nom)+
+          '<span style="font-size:10px;background:'+col+'22;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+RL[rol]+'</span>'+
+          (u.zona ? '<span style="font-size:10.5px;color:#75726a">🗺 '+escHtml(u.zona)+'</span>' : '')+
         '</div>'+
-        (meta ? '<div class="cli-meta">'+meta+'</div>' : '')+
-        ((u.direccion) ? '<div class="cli-meta" style="color:var(--text2);margin-top:1px">📍 '+escHtml(u.direccion)+'</div>' : '')+
+        (meta ? '<div style="font-size:11.5px;color:#75726a;margin-top:2px;line-height:1.5">'+meta+'</div>' : '')+
+        (u.direccion ? '<div style="font-size:11.5px;color:#75726a;margin-top:1px">📍 '+escHtml(u.direccion)+'</div>' : '')+
       '</div>'+
-      '<div class="cli-badge">'+(u.lista||"Clientes")+'</div>'+
+      '<div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:#e8f0fe;color:#1f4ea8;border:1px solid #c7d7f5;white-space:nowrap;flex-shrink:0;align-self:flex-start">'+(u.lista||'Clientes')+'</div>'+
       '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
-        '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)" title="Editar">✏️</button>'+
-        '<button class="cli-act cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)" title="Eliminar">🗑</button>'+
+        '<button onclick="abrirEditCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">✏️</button>'+
+        '<button onclick="_eliminarCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">🗑</button>'+
       '</div>'+
     '</div>';
   }).join("");
@@ -9408,6 +9423,8 @@ async function guardarNuevoCliente() {
   var nota = document.getElementById("nc-nota").value.trim();
   var rolEl = document.getElementById("nc-rol");
   var rol  = (currentUser && currentUser.role === "admin" && rolEl) ? rolEl.value : "cliente";
+  var lat  = parseFloat((document.getElementById("nc-lat")||{value:""}).value)||null;
+  var lng  = parseFloat((document.getElementById("nc-lng")||{value:""}).value)||null;
   if (!id)   { showNotif("El ID es obligatorio","err"); return; }
   if (!name) { showNotif("El nombre es obligatorio","err"); return; }
   var dup = Object.values(_clientesDB).find(function(u){ return u.id===id; });
@@ -9418,12 +9435,13 @@ async function guardarNuevoCliente() {
   if (cuit)   nuevo.cuit = cuit;
   if (zonaId) nuevo.zona_id = zonaId;
   if (zona)   nuevo.zona = zona;
-  if (rec)  nuevo.rec  = rec;
-  if (nota) nuevo.nota = nota;
+  if (rec)    nuevo.rec  = rec;
+  if (nota)   nuevo.nota = nota;
+  if (lat && lng) { nuevo.lat = lat; nuevo.lng = lng; }
   try {
     var pushKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
     _clientesDB[pushKey] = nuevo;
-    ["nc-pass","nc-name","nc-dir","nc-tel","nc-cuit","nc-zona","nc-rec","nc-nota"].forEach(function(fid){
+    ["nc-pass","nc-name","nc-dir","nc-tel","nc-cuit","nc-zona","nc-rec","nc-nota","nc-lat","nc-lng"].forEach(function(fid){
       var el=document.getElementById(fid); if(el)el.value="";
     });
     var ncRol=document.getElementById("nc-rol"); if(ncRol) ncRol.value="cliente";
@@ -10815,13 +10833,16 @@ function _parsearProdCSV(text, filename){
   });
   function col(kws){ for(var k=0;k<kws.length;k++){ var i=hdrs.findIndex(function(h){return h.includes(kws[k]);}); if(i>=0)return i; } return -1; }
 
-  var iId    = col(["id","codigo","cod","sku","referencia"]);
-  var iNom   = col(["nombre","name","descripcion","producto","articulo"]);
-  var iPrecio= col(["preciobase","precio","price","costo","base","pvp"]);
+  var iId    = col(["codigo","id","cod","sku","referencia"]);
+  var iNom   = col(["nombreproducto","nombre","name","descripcion","producto","articulo"]);
+  var iPrecioVenta  = col(["precioventa","precioclientes","precio","price","pvp"]);
+  var iPrecioCompra = col(["preciocompra","preciobase","costo","base","compra"]);
+  var iPorcentaje   = col(["porcentaje","margen","markup","pct","descuento"]);
   var iStock = col(["stock","cantidad","cant","qty","existencia","inventario"]);
   var iCat   = col(["categoria","category","cat","rubro","familia","grupo"]);
-  // opcionales
-  var iPrecioCli = col(["precioclientes","preciolist","listacli","cli"]);
+  var iFoto  = col(["urlimagen","imagen","foto","photo","img","url"]);
+  // backward compat
+  var iPrecioCli = (iPrecioVenta >= 0) ? iPrecioVenta : col(["precioclientes","listacli","cli"]);
   var iPrecioPat = col(["preciopatagonia","pat","mayorista","patagonia"]);
 
   if(iNom < 0 && iId < 0){ showNotif("No se encontró columna de ID o NOMBRE en el CSV","err"); return; }
@@ -10837,20 +10858,30 @@ function _parsearProdCSV(text, filename){
   var errores = [];
   for(var i=1;i<lines.length;i++){
     var r = parseLine(lines[i]);
-    var id    = iId>=0    ? (r[iId]||"").trim().toUpperCase()   : "";
-    var nom   = iNom>=0   ? (r[iNom]||"").trim()                : "";
-    var prBase= iPrecio>=0? parseFloat((r[iPrecio]||"0").replace(/[,$]/g,""))||0 : 0;
-    var stk   = iStock>=0 ? parseInt((r[iStock]||"0").replace(/[.,]/g,""))||0   : 0;
-    var cat   = iCat>=0   ? (r[iCat]||"").trim()                : "Sin categoría";
-    var pCli  = iPrecioCli>=0 ? parseFloat((r[iPrecioCli]||"0").replace(/[,$]/g,""))||0 : null;
-    var pPat  = iPrecioPat>=0 ? parseFloat((r[iPrecioPat]||"0").replace(/[,$]/g,""))||0 : null;
+    var id      = iId>=0       ? (r[iId]||"").trim().toUpperCase()                         : "";
+    var nom     = iNom>=0      ? (r[iNom]||"").trim()                                       : "";
+    var prVenta = iPrecioVenta>=0 ? parseFloat((r[iPrecioVenta]||"0").replace(/[,$\s]/g,""))||0 : 0;
+    var prCompra= iPrecioCompra>=0? parseFloat((r[iPrecioCompra]||"0").replace(/[,$\s]/g,""))||0: 0;
+    var pct     = iPorcentaje>=0  ? parseFloat((r[iPorcentaje]||"0").replace(/[,%\s]/g,""))||0  : null;
+    var stk     = iStock>=0    ? parseInt((r[iStock]||"0").replace(/[.,\s]/g,""))||0        : 0;
+    var cat     = iCat>=0      ? (r[iCat]||"").trim()                                       : "Sin categoría";
+    var foto    = iFoto>=0     ? (r[iFoto]||"").trim()                                       : "";
+    var pCli    = iPrecioCli>=0? parseFloat((r[iPrecioCli]||"0").replace(/[,$\s]/g,""))||0 : null;
+    var pPat    = iPrecioPat>=0? parseFloat((r[iPrecioPat]||"0").replace(/[,$\s]/g,""))||0 : null;
+
+    // Si hay porcentaje y precio compra, calcular precio venta
+    if(pct !== null && prCompra > 0 && prVenta === 0){
+      prVenta = Math.round(prCompra * (1 + pct / 100));
+    }
+    // Si hay precio venta pero no compra, usar precio venta como base
+    var prBase = prCompra > 0 ? prCompra : prVenta;
 
     if(!nom && !id){ errores.push("Fila "+(i+1)+": sin nombre ni ID"); continue; }
     if(!id) id = nom.substring(0,6).toUpperCase().replace(/\s/g,"");
     if(!nom) nom = id;
     if(!cat || cat==="") cat = "Sin categoría";
 
-    _prodCsvRows.push({ id:id, nombre:nom, precioBase:prBase, stock:stk, categoria:cat, pCli:pCli, pPat:pPat, _dup: !!existentes[id], _fbKey: existentes[id]||null, _row:i+1 });
+    _prodCsvRows.push({ id:id, nombre:nom, precioBase:prBase, precioVenta:prVenta, porcentaje:pct, stock:stk, categoria:cat, foto:foto, pCli:pCli, pPat:pPat, _dup: !!existentes[id], _fbKey: existentes[id]||null, _row:i+1 });
   }
 
   if(!_prodCsvRows.length){ showNotif("No se encontraron filas válidas: "+errores.slice(0,3).join(", "),"err"); return; }
@@ -10863,7 +10894,7 @@ function _parsearProdCSV(text, filename){
     (dups ? ' · <span style="color:var(--amber)">⚠ '+dups+' ya existen</span>' : ' · <span style="color:var(--green)">✓ Sin duplicados</span>');
 
   // Tabla preview
-  var cols = ['ID/Código','Nombre','Precio base','Stock','Categoría','Estado'];
+  var cols = ['Código','Nombre','P. Compra','P. Venta','Stock','Categoría','Estado'];
   var th = cols.map(function(c){return '<th style="padding:7px 10px;text-align:left;font-weight:700;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s3)">'+c+'</th>';}).join('');
   var rows = _prodCsvRows.map(function(r){
     var badge = r._dup
@@ -10872,8 +10903,9 @@ function _parsearProdCSV(text, filename){
     var bg = r._dup ? "background:#fffbeb;" : "";
     return '<tr style="border-bottom:1px solid var(--border2);'+bg+'">' +
       '<td style="padding:6px 10px;font-family:monospace;font-size:11.5px">'+escHtml(r.id)+'</td>' +
-      '<td style="padding:6px 10px;font-weight:600;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(r.nombre)+'</td>' +
-      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">$'+_fmt(r.precioBase)+'</td>' +
+      '<td style="padding:6px 10px;font-weight:600;font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(r.nombre)+'</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+( r.precioBase>0? '$'+_fmt(r.precioBase) : '—')+'</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+( r.precioVenta>0? '$'+_fmt(r.precioVenta) : '—')+'</td>' +
       '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+r.stock+'</td>' +
       '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+escHtml(r.categoria)+'</td>' +
       '<td style="padding:6px 10px">'+badge+'</td>' +
@@ -10884,6 +10916,79 @@ function _parsearProdCSV(text, filename){
     '<table style="width:100%;border-collapse:collapse"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table>';
   document.getElementById("prod-csv-result").style.display = "none";
   document.getElementById("prod-csv-preview").style.display = "block";
+}
+
+async function exportarProductosXLSX(){
+  if(!_sbEmpId){ showNotif("Sin empresa cargada","err"); return; }
+  if(typeof XLSX === "undefined"){ showNotif("Cargando librería Excel…","info"); return; }
+
+  showNotif("⏳ Generando Excel…","ok");
+
+  try {
+    // Cargar productos y stock en paralelo
+    var [prodRows, stockRows] = await Promise.all([
+      sbGet("productos","select=codigo,nombre,categoria,precio_base,precio_clientes,foto&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"),
+      sbGet("stock","select=codigo,cantidad&empresa_id=eq."+_sbEmpId)
+    ]);
+
+    // Mapa de stock por código
+    var stockMap = {};
+    (stockRows||[]).forEach(function(s){ if(s.codigo) stockMap[s.codigo.toUpperCase()] = s.cantidad||0; });
+
+    // Armar filas
+    var data = [["CODIGO","NOMBRE PRODUCTO","PRECIO VENTA","PORCENTAJE","STOCK","CATEGORIA","PRECIO COMPRA","URL IMAGEN"]];
+    (prodRows||[]).forEach(function(p){
+      var cod   = p.codigo || "";
+      var pComp = p.precio_base || 0;
+      var pVent = p.precio_clientes || 0;
+      var pct   = (pComp > 0 && pVent > 0) ? Math.round((pVent - pComp) / pComp * 100) : 0;
+      var stk   = stockMap[(cod+"").toUpperCase()] || 0;
+      var fotoVal = p.foto || "";
+      // Si es base64 (data:image/...), Excel no puede mostrarlo — omitir
+      if(fotoVal.startsWith("data:")) fotoVal = "";
+      // Truncar URLs muy largas al límite de Excel
+      if(fotoVal.length > 32700) fotoVal = fotoVal.substring(0, 32700);
+      data.push([
+        cod,
+        p.nombre || "",
+        pVent,
+        pct,
+        stk,
+        (p.categoria || "Sin categoría").replace(/^"+|"+$/g,"").trim(),
+        pComp,
+        fotoVal
+      ]);
+    });
+
+    // Crear libro Excel
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Anchos de columna
+    ws['!cols'] = [
+      {wch:14},{wch:40},{wch:14},{wch:12},{wch:10},{wch:22},{wch:14},{wch:50}
+    ];
+
+    // Estilo cabecera (negrita)
+    var range = XLSX.utils.decode_range(ws['!ref']);
+    for(var C = range.s.c; C <= range.e.c; C++){
+      var addr = XLSX.utils.encode_cell({r:0, c:C});
+      if(!ws[addr]) continue;
+      ws[addr].s = { font:{bold:true}, fill:{fgColor:{rgb:"E2E8F0"}}, alignment:{horizontal:"center"} };
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, "Productos");
+
+    // Nombre de archivo con fecha
+    var fecha = new Date().toISOString().slice(0,10);
+    var empNom = (empresaData&&empresaData.emp_nombre ? empresaData.emp_nombre : empresaKey).replace(/[^a-zA-Z0-9]/g,"_");
+    XLSX.writeFile(wb, "Productos_"+empNom+"_"+fecha+".xlsx");
+    showNotif("✅ Excel exportado ("+( data.length-1)+" productos)","ok");
+
+  } catch(e){
+    console.error("Export error:", e);
+    showNotif("Error al exportar: "+e.message,"err");
+  }
 }
 
 function limpiarProdCSV(){
@@ -10917,12 +11022,13 @@ async function importarProdCSV(){
     // Calcular precios según modo
     var pCli=0, pPat=0;
     if(r.pCli!==null && r.pPat!==null){
-      // CSV tiene ambas columnas explícitas
       pCli = r.pCli; pPat = r.pPat;
-    } else if(r.pCli!==null){
-      pCli = r.pCli; pPat = r.pPat!==null ? r.pPat : r.pCli;
+    } else if(r.precioVenta > 0){
+      // Usar precio venta del CSV
+      if(precioModo==="ambas")     { pCli=r.precioVenta; pPat=r.precioVenta; }
+      else if(precioModo==="clientes")  { pCli=r.precioVenta; pPat=0; }
+      else if(precioModo==="patagonia") { pCli=0; pPat=r.precioVenta; }
     } else {
-      // Usar precioBase según modo elegido
       if(precioModo==="ambas")     { pCli=r.precioBase; pPat=r.precioBase; }
       else if(precioModo==="clientes")  { pCli=r.precioBase; pPat=0; }
       else if(precioModo==="patagonia") { pCli=0; pPat=r.precioBase; }
@@ -10932,10 +11038,10 @@ async function importarProdCSV(){
       nombre: r.nombre,
       codigo: r.id,
       categoria: r.categoria || "Sin categoría",
+      precioBase:      r.precioBase || 0,
       precioClientes:  pCli,
       precioPatagonia: pPat,
-      _precioModo: precioModo==="ambas" ? "listas" : "listas",
-      foto: ""
+      foto: r.foto || ""
     };
 
     try {
