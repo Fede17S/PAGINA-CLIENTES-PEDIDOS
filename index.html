@@ -2626,7 +2626,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div class="modal-box" style="max-width:380px">
     <div class="modal-head">
       <span class="modal-title" id="tc-modal-titulo">🧾 ¿Qué tipo de comprobante?</span>
-      <button class="modal-x" onclick="cerrarModal('modal-tipo-comprobante')">✕</button>
+      <button class="modal-x" onclick="_cancelarTipoComprobante()" title="Volver al pedido sin enviarlo">← Pedido</button>
     </div>
     <!-- Paso 1: Tipo comprobante -->
     <div id="tc-paso-tipo" class="modal-body" style="display:flex;flex-direction:column;gap:10px;padding-top:4px">
@@ -2652,7 +2652,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         📅 ¿En qué fecha se entrega este pedido?
       </div>
       <div id="tc-fechas-opciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
-      <button onclick="_tcVolver()" style="width:100%;padding:10px;background:none;border:1.5px solid var(--border);border-radius:8px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)">← Volver</button>
+      <button onclick="_tcVolver()" style="width:100%;padding:10px;background:none;border:1.5px solid var(--border);border-radius:8px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)">← Volver a elegir tipo</button>
     </div>
   </div>
 </div>
@@ -5071,7 +5071,8 @@ async function generarPDF(m){
   bkItem._montoDscGen   = montoDscGen;
 
   descontarStock(ordenes[t]);
-  limpiarFormulario(t);
+  // NO limpiar el formulario todavía — se limpia cuando el usuario confirme el tipo de comprobante
+  // Así si cierra el modal sin elegir, puede seguir editando el pedido
 
   // Mostrar popup ANTES de generar el PDF
   _mostrarPopupTipoComprobante(bkItem);
@@ -7916,6 +7917,15 @@ function renderBackup(){
 // ══ TIPO COMPROBANTE (Factura A / Remito) ══
 var _bkItemPendiente = null;
 
+function _cancelarTipoComprobante(){
+  cerrarModal("modal-tipo-comprobante");
+  document.getElementById("tc-paso-tipo").style.display = "flex";
+  document.getElementById("tc-paso-fecha").style.display = "none";
+  document.getElementById("tc-modal-titulo").textContent = "🧾 ¿Qué tipo de comprobante?";
+  // NO limpiamos ni _bkItemPendiente ni el formulario — el pedido sigue intacto
+  showNotif("📋 Pedido guardado en pantalla — terminá de editarlo y volvé a enviar","ok");
+}
+
 function _mostrarPopupTipoComprobante(bkItem, total){
   _bkItemPendiente = bkItem;
   var t = total || bkItem.total || 0;
@@ -7993,7 +8003,8 @@ function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   _bkItemPendiente = null;
   bk.tipoComprobante = tipo;
   if(fechaEntrega){ bk.fechaEntrega = fechaEntrega; bk.diaEntrega = diaEntrega; }
-  // continúa igual que antes...
+  // Ahora sí limpiar el formulario — el usuario ya confirmó
+  if(bk._tPDF) limpiarFormulario(bk._tPDF);
 
   // Delegar SIEMPRE a generarPDFDesdeBackup — formato unificado con zona, descuentos, IVA
   // Construir items desde _ordenes (los del pedido actual, con descuentos)
