@@ -1474,6 +1474,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 .cli-result-nom { font-size:14px; font-weight:600; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cli-result-lista { font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0; }
 .cli-empty { padding:16px; text-align:center; font-size:13px; color:var(--muted); }
+.dia-ent-btn { display:flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;background:#fff;transition:all .15s }
+.dia-ent-btn:has(input:checked) { border-color:var(--accent);background:var(--blue-bg);color:var(--accent);font-weight:700 }
+.dia-ent-btn input { display:none }
 
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1580,6 +1583,22 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <div id="main-wrapper">
 
 <!-- OFFLINE BANNER -->
+<div id="pendientes-banner" style="display:none;background:#7f1d1d;color:#fef2f2;padding:10px 16px;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;cursor:pointer" onclick="abrirModalPendientes()">
+  <span style="margin-right:8px">🔴</span>
+  <span id="pendientes-banner-txt"></span>
+  <span style="margin-left:8px;opacity:.7;font-size:11px">→ Ver detalle</span>
+</div>
+
+<!-- MODAL PENDIENTES -->
+<div class="modal-bg" id="modal-pendientes" onclick="if(event.target===this)cerrarModal('modal-pendientes')">
+  <div class="modal-box" style="max-width:500px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <span style="font-size:15px;font-weight:700">🔴 Productos pendientes de entrega</span>
+      <button class="modal-close" onclick="cerrarModal('modal-pendientes')">✕</button>
+    </div>
+    <div id="modal-pendientes-body" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+</div>
 <div id="offline-banner" style="display:none;background:#1a0e00;color:#fbbf24;padding:10px 16px;text-align:center;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;display:flex;align-items:center;justify-content:center;gap:10px">
   <span>📵</span>
   <span id="offline-text">Sin conexión — Modo offline activo</span>
@@ -1764,6 +1783,24 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
   <!-- Resultado de búsqueda global -->
   <div id="ruta-search-result" style="display:none;background:#fff;border:1.5px solid var(--accent);border-radius:12px;overflow:hidden;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.07)"></div>
+  <!-- Banner pedidos sin pagar (admin) -->
+  <div id="ruta-unpaid-banner" style="display:none;background:#7c2d12;color:#fef2f2;border-radius:10px;padding:12px 16px;margin-bottom:12px;cursor:pointer" onclick="abrirModalSinPagar()">
+    <div style="font-weight:700;font-size:13px;margin-bottom:4px">💰 <span id="ruta-unpaid-titulo"></span></div>
+    <div id="ruta-unpaid-detalle" style="font-size:11.5px;opacity:.85;line-height:1.5"></div>
+    <div style="font-size:11px;opacity:.65;margin-top:4px">→ Tocá para ver el detalle</div>
+  </div>
+
+  <!-- Modal sin pagar -->
+  <div class="modal-bg" id="modal-sin-pagar" onclick="if(event.target===this)cerrarModal('modal-sin-pagar')">
+    <div class="modal-box" style="max-width:520px;max-height:82vh;display:flex;flex-direction:column">
+      <div class="modal-head">
+        <span style="font-size:15px;font-weight:700">💰 Entregas sin pagar / pago parcial</span>
+        <button class="modal-close" onclick="cerrarModal('modal-sin-pagar')">✕</button>
+      </div>
+      <div id="modal-sin-pagar-body" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+  </div>
+
   <div id="ruta-summary-bar" style="display:none" class="ruta-summary-bar">
     <div class="rsb-item"><div class="rsb-val" id="rsb-total">$0</div><div class="rsb-lbl">Total</div></div>
     <div class="rsb-item"><div class="rsb-val" id="rsb-cobrado">$0</div><div class="rsb-lbl">Cobrado</div></div>
@@ -1793,11 +1830,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div id="bk-sync-status" style="display:none;font-size:11.5px;margin-bottom:8px;padding:6px 10px;border-radius:7px;font-weight:600"></div>
 
   <!-- Tabs de estado -->
-  <div style="display:flex;gap:6px;margin-bottom:10px" id="bk-tabs">
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="bk-tabs">
     <button class="bk-tab active" id="bk-tab-todos"     onclick="setBkTab('todos',this)">📋 Todos <span id="bk-cnt-todos"    class="bk-tab-cnt"></span></button>
     <button class="bk-tab"        id="bk-tab-espera"    onclick="setBkTab('espera',this)">⏳ En espera <span id="bk-cnt-espera"   class="bk-tab-cnt"></span></button>
     <button class="bk-tab green"  id="bk-tab-aprobados" onclick="setBkTab('aprobados',this)">✓ Aprobados <span id="bk-cnt-aprobados" class="bk-tab-cnt"></span></button>
     <button class="bk-tab red"    id="bk-tab-rechazados" onclick="setBkTab('rechazados',this)">✕ Rechazados <span id="bk-cnt-rechazados" class="bk-tab-cnt"></span></button>
+    <!-- Tabs de días de entrega — se generan dinámicamente por JS -->
+    <span id="bk-tabs-dias"></span>
   </div>
 
   <div class="card" style="padding:0;overflow:visible">
@@ -1969,6 +2008,18 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <div class="cli-field"><label>Teléfono</label><input type="tel" id="de-tel" placeholder="ej: 2804-123456" autocomplete="off" oninput="previsualizarRemito()"></div>
       <div class="cli-field"><label>Email</label><input type="email" id="de-email" placeholder="ej: ventas@empresa.com" autocomplete="off"></div>
       <div class="cli-field"><label>Prefijo de remito</label><input type="text" id="de-prefijo" placeholder="ej: PMA-A" autocomplete="off" style="text-transform:uppercase" oninput="previsualizarRemito()"><div style="font-size:11px;color:var(--muted);margin-top:3px">Ej: PMA-A → PMA-A 00001</div></div>
+      <div class="cli-field" style="grid-column:1/-1">
+        <label>📅 Días de entrega al cliente</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px" id="de-dias-entrega">
+          <label class="dia-ent-btn"><input type="checkbox" value="lunes"> Lunes</label>
+          <label class="dia-ent-btn"><input type="checkbox" value="martes"> Martes</label>
+          <label class="dia-ent-btn"><input type="checkbox" value="miercoles"> Miércoles</label>
+          <label class="dia-ent-btn"><input type="checkbox" value="jueves"> Jueves</label>
+          <label class="dia-ent-btn"><input type="checkbox" value="viernes"> Viernes</label>
+          <label class="dia-ent-btn"><input type="checkbox" value="sabado"> Sábado</label>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px">Si configurás días, cada pedido pedirá obligatoriamente elegir fecha de entrega antes de enviarse</div>
+      </div>
     </div>
     <div class="card-body" style="padding-top:0">
       <button class="mbtn mbtn-primary" onclick="guardarDatosEmpresa()" style="padding:11px 24px">💾 Guardar datos de empresa</button>
@@ -2061,13 +2112,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- Nuevo cliente -->
-  <div style="margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
-    <div onclick="var b=document.getElementById('nc-form-body');b.style.display=b.style.display==='none'?'block':'none'"
-      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:13px;font-weight:600;color:var(--text)" id="cli-form-title">➕ Agregar nuevo cliente</span>
-      <span style="font-size:11px;color:var(--muted)">tocá para abrir</span>
+  <div style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
+    <div onclick="var b=document.getElementById('nc-form-body');var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('span:last-child').textContent=open?'tocá para abrir ▼':'tocá para cerrar ▲'"
+      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
+      <span style="font-size:13px;font-weight:600;color:#1a1a17" id="cli-form-title">➕ Agregar nuevo cliente</span>
+      <span style="font-size:11px;color:#75726a">tocá para cerrar ▲</span>
     </div>
-    <div id="nc-form-body" style="display:none;padding:14px;border-top:1px solid var(--border)">
+    <div id="nc-form-body" style="display:block;padding:14px;border-top:1px solid #e3e1da">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">ID *</label>
           <input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off"
@@ -2129,13 +2180,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- CSV -->
-  <div style="margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+  <div style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'"
-      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:13px;font-weight:600;color:var(--text)">📥 Importar CSV</span>
-      <span style="font-size:11px;color:var(--muted)">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA</span>
+      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
+      <span style="font-size:13px;font-weight:600;color:#1a1a17">📥 Importar CSV</span>
+      <span style="font-size:11px;color:#75726a">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA ▼</span>
     </div>
-    <div id="cli-csv-body" style="display:none;padding:14px;border-top:1px solid var(--border)">
+    <div id="cli-csv-body" style="display:none;padding:14px;border-top:1px solid #e3e1da">
       <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
         style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer"
         ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
@@ -2163,7 +2214,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <input type="text" id="cli-search-input"
     placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
     oninput="_filtrarClientes(this.value)" autocomplete="off"
-    style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;margin-bottom:10px;display:block">
+    style="width:100%;padding:11px 14px;border:1.5px solid #e3e1da;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#ffffff;box-sizing:border-box;margin-bottom:10px;display:block;color:#1a1a17">
 
   <!-- Filtros -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
@@ -2572,12 +2623,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <!-- MODAL TIPO COMPROBANTE -->
 <div class="modal-bg" id="modal-tipo-comprobante">
-  <div class="modal-box" style="max-width:360px">
+  <div class="modal-box" style="max-width:380px">
     <div class="modal-head">
-      <span class="modal-title">🧾 ¿Qué tipo de comprobante?</span>
+      <span class="modal-title" id="tc-modal-titulo">🧾 ¿Qué tipo de comprobante?</span>
       <button class="modal-x" onclick="cerrarModal('modal-tipo-comprobante')">✕</button>
     </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;padding-top:4px">
+    <!-- Paso 1: Tipo comprobante -->
+    <div id="tc-paso-tipo" class="modal-body" style="display:flex;flex-direction:column;gap:10px;padding-top:4px">
       <div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:4px">
         Elegí el tipo antes de descargar el PDF
       </div>
@@ -2593,6 +2645,14 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <span>Factura A <span style="font-size:12px;color:var(--muted);font-weight:400">(+IVA 21%)</span></span>
         <span id="tc-precio-iva" style="font-size:12px;color:var(--muted);font-weight:400">$0</span>
       </button>
+    </div>
+    <!-- Paso 2: Fecha de entrega (solo si hay días configurados) -->
+    <div id="tc-paso-fecha" style="display:none" class="modal-body">
+      <div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:12px">
+        📅 ¿En qué fecha se entrega este pedido?
+      </div>
+      <div id="tc-fechas-opciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+      <button onclick="_tcVolver()" style="width:100%;padding:10px;background:none;border:1.5px solid var(--border);border-radius:8px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)">← Volver</button>
     </div>
   </div>
 </div>
@@ -2663,7 +2723,19 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <div class="modal-title">✏️ Editar pedido</div>
       <button class="modal-cls" onclick="cerrarModal('modal-editar-backup')">✕</button>
     </div>
-    <div id="edit-bk-cli-info" style="font-size:12.5px;color:var(--muted);margin-bottom:12px"></div>
+    <div id="edit-bk-cli-info" style="font-size:12.5px;color:var(--muted);margin-bottom:6px"></div>
+    <!-- Cambiar cliente (solo si no está aprobado) -->
+    <div id="edit-bk-cambiar-cli-wrap" style="display:none;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Cambiar cliente</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="position:relative;flex:1">
+          <input type="text" id="edit-bk-cli-bus" placeholder="🔍 Buscar cliente…"
+            oninput="_filtrarEditBkCli(this.value)" autocomplete="off"
+            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+          <div id="edit-bk-cli-res" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--accent);border-radius:0 0 8px 8px;z-index:50;max-height:140px;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
     <div style="margin-bottom:10px">
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Agregar producto</div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -3126,7 +3198,11 @@ async function _sbGetEmpresa(empId){
   prods.forEach(function(p){pMap[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto};});
   stockRows.forEach(function(s){sMap[s.codigo]=s.cantidad;scMap[s.codigo]={umbral:s.umbral};});
   listas.forEach(function(l){lMap[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});
-  return Object.assign({},e,{usuarios:uMap,productos:pMap,stock:sMap,stockConfig:scMap,listasPrecios:Object.keys(lMap).length?lMap:null});
+  // Cargar días de entrega desde empresas_config
+  var cfgRows = null;
+  try { cfgRows = await sbGet("empresas_config","select=dias_entrega,emp_prefijo,emp_contador&empresa_id=eq."+empId); } catch(e){}
+  var diasEntrega = (cfgRows&&cfgRows[0]&&cfgRows[0].dias_entrega)||[];
+  return Object.assign({},e,{usuarios:uMap,productos:pMap,stock:sMap,stockConfig:scMap,listasPrecios:Object.keys(lMap).length?lMap:null,diasEntrega:diasEntrega});
 }
 
 function _ventaToRow(v){
@@ -3298,7 +3374,9 @@ async function _sbGetBackup(){
       aprobado:       b.aprobado===null ? null : (b.aprobado===true||b.aprobado==="true"),
       usuario:        b.usuario      || "",
       usuarioNom:     b.usuario_nom  || b.usuarioNom  || "",
-      descuentos:     b.descuentos   || null
+      descuentos:     b.descuentos   || null,
+      fechaEntrega:   b.fecha_entrega|| b.fechaEntrega|| null,
+      diaEntrega:     b.dia_entrega  || b.diaEntrega  || null
     };
   });
   return r;
@@ -3326,6 +3404,8 @@ async function _sbInsertBackup(data){
     usuario_nom:   (data.usuarioNom||"").slice(0,200),
     descuentos:    data.descuentos||null
   };
+  if(data.fechaEntrega) body.fecha_entrega = data.fechaEntrega;
+  if(data.diaEntrega)   body.dia_entrega   = data.diaEntrega;
   // Agregar lista solo si existe la columna (silencia el error)
   if(data.lista) body.lista = data.lista;
 
@@ -3710,22 +3790,30 @@ function setCfgTab(tab, btn){
 async function cargarDatosEmpresa(){
   if(!_sbEmpId) return;
   try {
-    var rows = await sbGet("empresas_config","select=emp_nombre,emp_razon,emp_cuit,emp_dir,emp_tel,emp_email,emp_prefijo,emp_contador&empresa_id=eq."+_sbEmpId);
+    var rows = await sbGet("empresas_config","select=emp_nombre,emp_razon,emp_cuit,emp_dir,emp_tel,emp_email,emp_prefijo,emp_contador,dias_entrega&empresa_id=eq."+_sbEmpId);
     if(rows&&rows[0]){ if(!empresaData._config)empresaData._config={}; Object.assign(empresaData._config,rows[0]); }
   } catch(e){}
   var d=_getEmpDatos();
   var s=function(id,v){var el=document.getElementById(id);if(el)el.value=v||"";};
   s("de-nombre",d.nombre); s("de-razon",d.razon); s("de-cuit",d.cuit);
   s("de-dir",d.dir); s("de-tel",d.tel); s("de-email",d.email); s("de-prefijo",d.prefijo);
+  // Cargar días de entrega
+  var diasGuardados = (empresaData._config&&empresaData._config.dias_entrega)||[];
+  document.querySelectorAll("#de-dias-entrega input[type=checkbox]").forEach(function(cb){
+    cb.checked = diasGuardados.indexOf(cb.value) >= 0;
+  });
 }
 async function guardarDatosEmpresa(){
   if(!_sbEmpId){showNotif("Sin empresa activa","err");return;}
   var g=function(id){var el=document.getElementById(id);return el?(el.value||"").trim():"";};
-  var body={empresa_id:_sbEmpId,emp_nombre:g("de-nombre"),emp_razon:g("de-razon"),emp_cuit:g("de-cuit"),emp_dir:g("de-dir"),emp_tel:g("de-tel"),emp_email:g("de-email"),emp_prefijo:g("de-prefijo").toUpperCase()};
+  var dias = [];
+  document.querySelectorAll("#de-dias-entrega input[type=checkbox]:checked").forEach(function(cb){ dias.push(cb.value); });
+  var body={empresa_id:_sbEmpId,emp_nombre:g("de-nombre"),emp_razon:g("de-razon"),emp_cuit:g("de-cuit"),emp_dir:g("de-dir"),emp_tel:g("de-tel"),emp_email:g("de-email"),emp_prefijo:g("de-prefijo").toUpperCase(),dias_entrega:dias};
   try {
     await sbUpsert("empresas_config",body);
     if(!empresaData._config)empresaData._config={};
     Object.assign(empresaData._config,body);
+    empresaData.diasEntrega = dias; // cache global
     showNotif("✅ Datos guardados","ok");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
@@ -3854,7 +3942,7 @@ function doLogout(){
   localStorage.removeItem("dm_creds");
   location.reload();
 }
-function iniciarApp(){ document.getElementById("login-screen").style.display="none"; document.getElementById("app").classList.add("on"); document.getElementById("sb-username").textContent=currentUser.name||currentUser.id; aplicarRol(); cargarCatalogo(); }
+function iniciarApp(){ document.getElementById("login-screen").style.display="none"; document.getElementById("app").classList.add("on"); document.getElementById("sb-username").textContent=currentUser.name||currentUser.id; aplicarRol(); cargarCatalogo(); setTimeout(_checkPendientes, 2500); }
 function aplicarRol(){
   var role = currentUser.role || "vendedor";
   var isAdmin      = role === "admin";
@@ -3921,7 +4009,9 @@ function verTab(id,btn){
   document.getElementById(id).classList.add("active");
   if(btn)btn.classList.add("active");
   document.getElementById("header-title").textContent=TITLES[id]||id;
-  // Resetear scroll al cambiar de sección
+  // Resetear scroll al cambiar de sección (el scroll vive en .section.active)
+  var prevSec = document.querySelector(".section.active");
+  if(prevSec) prevSec.scrollTop = 0;
   var mainEl = document.querySelector(".main");
   if(mainEl) { mainEl.scrollTop = 0; mainEl.scrollLeft = 0; }
   closeSidebar();
@@ -3929,6 +4019,9 @@ function verTab(id,btn){
   if(id==="clientes"){
     cargarClientesSection();
     if(!Object.keys(_zonasData).length) cargarZonas();
+    // Reset scroll de la sección (el scroll es en .section, no en .main)
+    var secEl = document.getElementById("clientes");
+    if(secEl) secEl.scrollTop = 0;
   }
   if(id==="pedidos-acum")cargarPedidosAcum();
   var mainEl = document.querySelector(".main");
@@ -5450,7 +5543,7 @@ function renderRutas(){
     return true;
   });
 
-  if(!keys.length){document.getElementById("ruta-summary-bar").style.display="none";wrap.innerHTML='<div class="empty-box"><div class="empty-icon">🗺️</div>Sin hojas de ruta'+(filEstado||filMes||filZona?" con esos filtros.":".")+'<br><small>Creá una con el botón de arriba.</small></div>';return;}
+  if(!keys.length){document.getElementById("ruta-summary-bar").style.display="none";wrap.innerHTML='<div class="empty-box"><div class="empty-icon">🗺️</div>Sin hojas de ruta'+(filEstado||filMes||filZona?" con esos filtros.":".")+'<br><small>Creá una con el botón de arriba.</small></div>';_renderUnpaidBanner([]);return;}
   var gT=0,gC=0;
   keys.forEach(function(k){var c=calcRuta(rutasData[k]);gT+=c.total;gC+=c.cobrado;});
   document.getElementById("ruta-summary-bar").style.display="grid";
@@ -5460,6 +5553,8 @@ function renderRutas(){
   var rsv=document.getElementById("rsb-saldo");
   rsv.textContent="$"+fM(gS);
   rsv.style.color=gS<=0?"var(--green)":"var(--amber)";
+  // Mostrar banner de entregas sin cobrar (solo admin)
+  _renderUnpaidBanner(_getUnpaidList());
 
   wrap.innerHTML="";
   keys.forEach(function(rutaKey){
@@ -5808,6 +5903,74 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
   } else {
     showNotif("✅ "+ok+" pedido"+(ok!==1?"s":"")+" movido"+(ok!==1?"s":"")+" correctamente","ok");
   }
+}
+
+// ══ PEDIDOS SIN PAGAR — HOJA DE RUTA ══
+function _renderUnpaidBanner(sinPagarList){
+  var banner  = document.getElementById("ruta-unpaid-banner");
+  var titulo  = document.getElementById("ruta-unpaid-titulo");
+  var detalle = document.getElementById("ruta-unpaid-detalle");
+  if(!banner) return;
+  var isAdmin = currentUser && currentUser.role === "admin";
+  if(!isAdmin || !sinPagarList.length){ banner.style.display="none"; return; }
+  var totalDeuda = sinPagarList.reduce(function(s,x){ return s+x.pendiente; },0);
+  titulo.textContent = sinPagarList.length+" entrega"+(sinPagarList.length!==1?"s":"")+" sin cobrar · $"+fM(totalDeuda)+" pendiente";
+  detalle.innerHTML = sinPagarList.slice(0,4).map(function(x){
+    return "📦 <b>"+escHtml(x.nom)+"</b> — $"+fM(x.pendiente)+" · "+x.tiempoStr;
+  }).join("<br>"+(sinPagarList.length>4?"<br>+ "+(sinPagarList.length-4)+" más…":""));
+  banner.style.display = "block";
+}
+
+function _getUnpaidList(){
+  var ahora = Date.now();
+  var lista = [];
+  Object.values(rutasData||{}).forEach(function(ruta){
+    Object.values(ruta.clientes||{}).forEach(function(cli){
+      if(!cli.entregado) return; // solo entregados
+      var cobrado = (cli.efectivo||0)+(cli.transferencia||0)+(cli.pagosAdicionales||[]).reduce(function(s,p){ return s+( p.monto||0); },0);
+      var pendiente = (cli.importe||0) - cobrado;
+      if(pendiente <= 0) return; // ya pagado
+      var desde = cli.entregadoEn ? new Date(cli.entregadoEn) : new Date(ruta.fecha||ahora);
+      var msDesde = ahora - desde.getTime();
+      var dias  = Math.floor(msDesde/(1000*60*60*24));
+      var horas = Math.floor(msDesde/(1000*60*60));
+      var tiempoStr = dias > 0 ? "hace "+dias+" día"+(dias!==1?"s":"") : horas > 0 ? "hace "+horas+" h" : "hace un momento";
+      lista.push({ nom:cli.nom||"Sin cliente", pendiente:pendiente, importe:cli.importe||0, tiempoStr:tiempoStr, msDesde:msDesde, cli:cli });
+    });
+  });
+  lista.sort(function(a,b){ return b.msDesde - a.msDesde; }); // más viejos primero
+  return lista;
+}
+
+function abrirModalSinPagar(){
+  var lista = _getUnpaidList();
+  var body = document.getElementById("modal-sin-pagar-body");
+  if(!body) return;
+  if(!lista.length){
+    body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">✅ Sin entregas pendientes de pago</div>';
+  } else {
+    body.innerHTML = lista.map(function(x){
+      var pct = Math.round((1-x.pendiente/x.importe)*100);
+      var urgencia = x.msDesde > 3*24*60*60*1000 ? "#7f1d1d" : x.msDesde > 24*60*60*1000 ? "#9a3412" : "#92400e";
+      return '<div style="background:#fff7ed;border:1.5px solid #fcd34d;border-left:4px solid '+urgencia+';border-radius:10px;padding:14px">'+
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">'+
+          '<div>'+
+            '<div style="font-size:14px;font-weight:700;color:#7c2d12">'+escHtml(x.nom)+'</div>'+
+            '<div style="font-size:11px;color:#9a3412;margin-top:2px">⏱ Entregado '+x.tiempoStr+'</div>'+
+          '</div>'+
+          '<div style="text-align:right;flex-shrink:0">'+
+            '<div style="font-size:16px;font-weight:800;color:#7c2d12">$'+fM(x.pendiente)+'</div>'+
+            '<div style="font-size:10.5px;color:#9a3412">pendiente de $'+fM(x.importe)+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div style="margin-top:8px;background:#fde68a;border-radius:6px;overflow:hidden;height:6px">'+
+          '<div style="height:100%;background:#d97706;border-radius:6px;width:'+pct+'%"></div>'+
+        '</div>'+
+        '<div style="font-size:11px;color:#92400e;margin-top:4px">'+pct+'% cobrado</div>'+
+      '</div>';
+    }).join('');
+  }
+  abrirModal("modal-sin-pagar");
 }
 
 // ══ BUSCADOR EN HOJA DE RUTA ══
@@ -7354,13 +7517,101 @@ function _bkStopAutoRefresh(){
   if(_bkAutoRefreshTimer){ clearInterval(_bkAutoRefreshTimer); _bkAutoRefreshTimer=null; }
 }
 
-var _bkTab = "todos"; // "todos" | "espera" | "aprobados" | "rechazados"
+var _bkTab = "todos"; // "todos" | "espera" | "aprobados" | "rechazados" | "dia_martes" etc.
 
 function setBkTab(tab, el){
   _bkTab = tab;
   document.querySelectorAll(".bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(el) el.classList.add("active");
   renderBackup();
+}
+
+function _renderBkDiasTabs(backups){
+  var span = document.getElementById("bk-tabs-dias");
+  if(!span) return;
+  var dias = (empresaData && empresaData.diasEntrega) || (empresaData&&empresaData._config&&empresaData._config.dias_entrega) || [];
+  if(!dias.length){ span.innerHTML=""; return; }
+  var DL = {lunes:"Lunes",martes:"Martes",miercoles:"Miérc.",jueves:"Jueves",viernes:"Viernes",sabado:"Sábado"};
+  span.innerHTML = dias.map(function(dia){
+    var tab = "dia_"+dia;
+    var cnt = backups.filter(function(bk){ return bk.diaEntrega===dia && bk.aprobado!==true && bk.aprobado!==false; }).length;
+    var active = _bkTab===tab ? " active" : "";
+    return '<button class="bk-tab'+active+'" onclick="setBkTab(\''+tab+'\',this)">'+
+      '📅 En espera '+DL[dia]+' <span class="bk-tab-cnt">'+cnt+'</span>'+
+    '</button>';
+  }).join('');
+}
+
+// ══ SISTEMA PENDIENTES ══
+var _pendientesMap = {};
+
+function _checkPendientes(){
+  var backups = getBackups ? getBackups() : [];
+  _pendientesMap = {};
+  backups.forEach(function(bk){
+    var pends = (bk.items||[]).filter(function(i){ return i.pendiente; });
+    if(pends.length){
+      var key = bk.id||bk._fbKey||bk._sbId||("loc_"+bk.clienteNom+bk.fecha);
+      _pendientesMap[key] = { id:key, clienteNom:bk.clienteNom||"Sin cliente", fecha:bk.fecha, items:pends };
+    }
+  });
+  var banner = document.getElementById("pendientes-banner");
+  var txt    = document.getElementById("pendientes-banner-txt");
+  if(!banner||!txt) return;
+  var totalPed = Object.keys(_pendientesMap).length;
+  if(totalPed === 0){ banner.style.display="none"; return; }
+  var totalProds = Object.values(_pendientesMap).reduce(function(s,p){ return s+p.items.length; },0);
+  var clientesUnicos = Object.values(_pendientesMap).map(function(p){ return p.clienteNom; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  txt.textContent = "⚠️ "+totalProds+" producto"+(totalProds!==1?"s":"")+" pendiente"+(totalProds!==1?"s":"")+" en "+totalPed+" pedido"+(totalPed!==1?"s":"")+" · "+clientesUnicos.slice(0,3).join(", ")+(clientesUnicos.length>3?" +"+(clientesUnicos.length-3)+" más":"");
+  banner.style.display="flex"; banner.style.alignItems="center";
+}
+
+function abrirModalPendientes(){
+  verTab('backup', document.getElementById('nav-backup'));
+  var body = document.getElementById("modal-pendientes-body");
+  if(!body) return;
+  var peds = Object.values(_pendientesMap);
+  if(!peds.length){
+    body.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)">Sin pendientes actualmente.</div>';
+  } else {
+    body.innerHTML = peds.map(function(p){
+      var fecha = p.fecha ? new Date(p.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
+      var itemsHtml = p.items.map(function(it){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #fee2e2">'+
+          '<span style="font-size:11px;background:#f97316;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;flex-shrink:0">'+it.c+'×</span>'+
+          '<span style="font-size:13px;flex:1;color:#7c2d12">'+it.n+'</span>'+
+          '<span style="font-size:12px;font-weight:600;color:#9a3412">$'+fM(it.sub||it.p*it.c)+'</span>'+
+        '</div>';
+      }).join('');
+      return '<div style="background:#fff7ed;border:1.5px solid #f97316;border-radius:10px;padding:14px">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'+
+          '<div>'+
+            '<div style="font-size:14px;font-weight:700;color:#7c2d12">'+escHtml(p.clienteNom)+'</div>'+
+            '<div style="font-size:11px;color:#9a3412;margin-top:2px">📅 '+fecha+'</div>'+
+          '</div>'+
+          '<button onclick="irAPedidoPendiente(this.dataset.id)" data-id="'+p.id+'" '+
+            'style="padding:8px 14px;background:#7c2d12;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation">'+
+            '→ Ir al pedido'+
+          '</button>'+
+        '</div>'+
+        itemsHtml+
+      '</div>';
+    }).join('');
+  }
+  abrirModal("modal-pendientes");
+}
+
+function irAPedidoPendiente(id){
+  cerrarModal("modal-pendientes");
+  verTab('backup', document.getElementById('nav-backup'));
+  setTimeout(function(){
+    backupAbierto = id;
+    renderBackup();
+    setTimeout(function(){
+      var el = document.getElementById("bk-card-"+id);
+      if(el) el.scrollIntoView({behavior:"smooth",block:"center"});
+    }, 200);
+  }, 150);
 }
 
 function renderBackup(){
@@ -7396,18 +7647,25 @@ function renderBackup(){
     var el=document.getElementById("bk-cnt-"+k);
     if(el) el.textContent = cnt[k]||"";
   });
+  // Renderizar tabs de días de entrega
+  _renderBkDiasTabs(all);
 
   // Filtro por tab
   var arr = all.filter(function(bk){
     if(_bkTab==="aprobados")  return bk.aprobado===true;
     if(_bkTab==="rechazados") return bk.aprobado===false;
     if(_bkTab==="espera")     return bk.aprobado!==true && bk.aprobado!==false;
+    if(_bkTab.indexOf("dia_")===0){
+      var dia = _bkTab.slice(4);
+      return bk.diaEntrega===dia && bk.aprobado!==true && bk.aprobado!==false;
+    }
     return true;
   });
 
   if(!arr.length){
     var msgs={todos:"Sin pedidos",espera:"Sin pedidos en espera",aprobados:"Sin pedidos aprobados",rechazados:"Sin pedidos rechazados"};
-    wrap.innerHTML='<div class="bk-zero"><div class="bk-zero-icon">💾</div><div class="bk-zero-txt">'+( msgs[_bkTab]||"Sin pedidos")+'</div></div>';
+    var msgDia = _bkTab.indexOf("dia_")===0 ? "Sin pedidos para este día de entrega" : (msgs[_bkTab]||"Sin pedidos");
+    wrap.innerHTML='<div class="bk-zero"><div class="bk-zero-icon">💾</div><div class="bk-zero-txt">'+msgDia+'</div></div>';
     return;
   }
   wrap.innerHTML="";
@@ -7436,6 +7694,10 @@ function renderBackup(){
     var estadoClass = bk.aprobado===true ? " estado-aprobado" : bk.aprobado===false ? " estado-rechazado" : " estado-espera";
     card.className = "bk-card" + estadoClass + (isOpen?" open":"");
     card.dataset.bkId = bk.id;
+    card.id = "bk-card-"+bk.id;
+    // Pendiente indicator
+    var tienePendientes = (bk.items||[]).some(function(i){ return i.pendiente; });
+    if(tienePendientes) card.style.borderLeft = "4px solid #f97316";
     // Select mode visual
     if(_bkSelectMode && _bkSelected.has(bk.id)){
       card.style.outline = "2.5px solid var(--accent)";
@@ -7456,9 +7718,17 @@ function renderBackup(){
     /* Header */
     var header = document.createElement("div");
     header.className = "bk-card-head";
+    var pendCantidad = (bk.items||[]).filter(function(i){ return i.pendiente; }).length;
+    var pendBadgeHeader = pendCantidad > 0
+      ? '<span style="font-size:10px;background:#f97316;color:#fff;border-radius:5px;padding:2px 7px;font-weight:700;margin-left:6px">⏳ '+pendCantidad+' pendiente'+(pendCantidad!==1?'s':'')+'</span>'
+      : '';
+    var DL2 = {lunes:"Lun",martes:"Mar",miercoles:"Mié",jueves:"Jue",viernes:"Vie",sabado:"Sáb"};
+    var entregaBadge = bk.fechaEntrega
+      ? '<span style="font-size:10px;background:#dbeafe;color:#1e40af;border-radius:5px;padding:2px 7px;font-weight:700;margin-left:6px">📅 '+(bk.diaEntrega?DL2[bk.diaEntrega]+' ':'')+new Date(bk.fechaEntrega+'T12:00:00').toLocaleDateString("es-AR",{day:"numeric",month:"short"})+'</span>'
+      : '';
     header.innerHTML =
       '<div class="bk-card-left">'+
-        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+'</div>'+
+        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+'</div>'+
         '<div class="bk-card-meta">'+
           tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
           listaBadge+vndBadge+
@@ -7483,15 +7753,18 @@ function renderBackup(){
       (bk.items||[]).forEach(function(it){
         var r = document.createElement("div");
         r.className = "bk-card-item";
+        var pend = !!it.pendiente;
+        if(pend) r.style.cssText = "background:#fff7ed;border-left:3px solid #f97316;padding-left:6px;border-radius:4px;margin-bottom:2px;";
         var dscHtml = (it.dsc && it.dsc.valor)
           ? '<span style="font-size:10px;color:#b45309;font-weight:600;margin-left:4px">'+
             (it.dsc.tipo==="%"?"-"+it.dsc.valor+"%":"-$"+fM(it.dsc.valor))+
             '</span>'
           : '';
+        var pendBadge = pend ? '<span style="font-size:9px;background:#f97316;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:5px">PENDIENTE</span>' : '';
         r.innerHTML =
-          '<span class="bk-ci-cant">'+it.c+'×</span>'+
-          '<span class="bk-ci-name">'+it.n+dscHtml+'</span>'+
-          '<span class="bk-ci-sub">$'+fM(it.sub)+'</span>';
+          '<span class="bk-ci-cant" style="'+(pend?'color:#9a3412;':'')+'">'+it.c+'×</span>'+
+          '<span class="bk-ci-name" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">'+it.n+dscHtml+pendBadge+'</span>'+
+          '<span class="bk-ci-sub" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">$'+fM(it.sub)+'</span>';
         itemsDiv.appendChild(r);
       });
       /* Descuentos desglosados */
@@ -7654,12 +7927,73 @@ function _mostrarPopupTipoComprobante(bkItem, total){
   abrirModal("modal-tipo-comprobante");
 }
 
+var _tcTipoElegido = null;
+
 function elegirTipoComprobante(tipo){
+  _tcTipoElegido = tipo;
+  // Verificar si hay días de entrega configurados
+  var dias = (empresaData && empresaData.diasEntrega) || [];
+  if(dias.length > 0){
+    // Mostrar paso 2: fecha de entrega
+    document.getElementById("tc-paso-tipo").style.display = "none";
+    document.getElementById("tc-paso-fecha").style.display = "block";
+    document.getElementById("tc-modal-titulo").textContent = "📅 Fecha de entrega";
+    _generarOpcionesFecha(dias);
+    return;
+  }
+  // Sin días configurados → proceder directo
+  _confirmarTipoYFecha(tipo, null);
+}
+
+function _tcVolver(){
+  document.getElementById("tc-paso-tipo").style.display = "flex";
+  document.getElementById("tc-paso-fecha").style.display = "none";
+  document.getElementById("tc-modal-titulo").textContent = "🧾 ¿Qué tipo de comprobante?";
+}
+
+var _DIA_NOMBRES = { lunes:1, martes:2, miercoles:3, jueves:4, viernes:5, sabado:6 };
+var _DIA_LABELS  = { lunes:"Lunes", martes:"Martes", miercoles:"Miércoles", jueves:"Jueves", viernes:"Viernes", sabado:"Sábado" };
+
+function _generarOpcionesFecha(dias){
+  var opciones = [];
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  // Generar próximas 4 semanas de fechas para cada día configurado
+  dias.forEach(function(dia){
+    var diaN = _DIA_NOMBRES[dia];
+    if(diaN === undefined) return;
+    for(var i=1; i<=28; i++){
+      var d = new Date(hoy); d.setDate(hoy.getDate()+i);
+      if(d.getDay() === diaN){
+        opciones.push({ dia:dia, fecha:d });
+        break; // solo la próxima para cada día
+      }
+    }
+  });
+  // Ordenar por fecha
+  opciones.sort(function(a,b){ return a.fecha-b.fecha; });
+  var wrap = document.getElementById("tc-fechas-opciones");
+  wrap.innerHTML = opciones.map(function(op){
+    var fStr = op.fecha.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+    var iso = op.fecha.toISOString().slice(0,10);
+    return '<button onclick="_confirmarTipoYFecha(this.dataset.t,this.dataset.f,this.dataset.d)" data-t="'+_tcTipoElegido+'" data-f="'+iso+'" data-d="'+op.dia+'" '+
+      'style="width:100%;padding:13px;background:#fff;border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;transition:border-color .15s">'+
+      '<span style="font-size:18px;margin-right:8px">📅</span>'+
+      '<span style="text-transform:capitalize">'+fStr+'</span>'+
+    '</button>';
+  }).join('');
+}
+
+function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   cerrarModal("modal-tipo-comprobante");
+  document.getElementById("tc-paso-tipo").style.display = "flex";
+  document.getElementById("tc-paso-fecha").style.display = "none";
+  document.getElementById("tc-modal-titulo").textContent = "🧾 ¿Qué tipo de comprobante?";
   if(!_bkItemPendiente) return;
   var bk = _bkItemPendiente;
   _bkItemPendiente = null;
   bk.tipoComprobante = tipo;
+  if(fechaEntrega){ bk.fechaEntrega = fechaEntrega; bk.diaEntrega = diaEntrega; }
+  // continúa igual que antes...
 
   // Delegar SIEMPRE a generarPDFDesdeBackup — formato unificado con zona, descuentos, IVA
   // Construir items desde _ordenes (los del pedido actual, con descuentos)
@@ -7684,8 +8018,18 @@ var _editBkSelProd = null;
 
 function abrirEditarBackup(bk){
   _editBkItem = JSON.parse(JSON.stringify(bk)); // copia profunda
+  var aprobado = bk.aprobado === true || bk.aprobado === false; // ya fue procesado
   var info = document.getElementById("edit-bk-cli-info");
-  if(info) info.textContent = "👤 "+( bk.clienteNom||"Sin cliente")+" · Lista: "+(bk.lista||"Clientes")+" · "+new Date(bk.fecha).toLocaleDateString("es-AR");
+  if(info) info.textContent = "👤 "+(bk.clienteNom||"Sin cliente")+" · Lista: "+(bk.lista||"Clientes")+" · "+new Date(bk.fecha).toLocaleDateString("es-AR");
+  // Mostrar cambio de cliente solo si NO está aprobado/rechazado
+  var cliWrap = document.getElementById("edit-bk-cambiar-cli-wrap");
+  if(cliWrap){
+    cliWrap.style.display = aprobado ? "none" : "block";
+    var cliBus = document.getElementById("edit-bk-cli-bus");
+    if(cliBus) cliBus.value = "";
+    var cliRes = document.getElementById("edit-bk-cli-res");
+    if(cliRes){ cliRes.style.display="none"; cliRes.innerHTML=""; }
+  }
   // Limpiar buscador
   var bus = document.getElementById("edit-bk-bus");
   var res = document.getElementById("edit-bk-res");
@@ -7698,13 +8042,52 @@ function abrirEditarBackup(bk){
   abrirModal("modal-editar-backup");
 }
 
+function _filtrarEditBkCli(q){
+  var res = document.getElementById("edit-bk-cli-res");
+  if(!res) return;
+  var term = (q||"").toLowerCase().trim();
+  if(!term){ res.style.display="none"; res.innerHTML=""; return; }
+  var src = Object.values(_cliData||_clientesDB||{});
+  var hits = src.filter(function(u){
+    return (u.name||"").toLowerCase().includes(term)||(u.id||"").toLowerCase().includes(term);
+  }).slice(0,8);
+  if(!hits.length){ res.style.display="none"; return; }
+  res.innerHTML = hits.map(function(u){
+    return '<div onclick="_seleccionarEditBkCli(\''+escHtml(u.id||"")+'\',\''+escHtml(u.name||u.id||"")+'\',\''+escHtml(u.lista||"Clientes")+'\')" '+
+      'style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)"'+
+      ' onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'\'">'+
+      '<b>'+escHtml(u.name||u.id)+'</b> <span style="color:var(--muted);font-size:11px">'+escHtml(u.id)+'</span>'+
+    '</div>';
+  }).join('');
+  res.style.display = "block";
+}
+
+function _seleccionarEditBkCli(id, nombre, lista){
+  if(!_editBkItem) return;
+  _editBkItem.clienteId  = id;
+  _editBkItem.clienteNom = nombre;
+  _editBkItem.lista      = lista;
+  var info = document.getElementById("edit-bk-cli-info");
+  if(info) info.textContent = "👤 "+nombre+" · Lista: "+lista+" · "+new Date(_editBkItem.fecha).toLocaleDateString("es-AR");
+  var bus = document.getElementById("edit-bk-cli-bus");
+  if(bus) bus.value = nombre;
+  var res = document.getElementById("edit-bk-cli-res");
+  if(res){ res.style.display="none"; res.innerHTML=""; }
+  showNotif("Cliente cambiado a "+nombre,"ok");
+}
+
 function _renderEditBkItems(){
   var wrap = document.getElementById("edit-bk-items");
   var totalEl = document.getElementById("edit-bk-total");
   if(!wrap || !_editBkItem) return;
   var items = _editBkItem.items || [];
-  var total = items.reduce(function(s,i){ return s+(i.c||0)*(i.p||0); }, 0);
-  if(totalEl) totalEl.textContent = "$"+fM(total);
+  var total = items.reduce(function(s,i){ return !i.pendiente ? s+(i.c||0)*(i.p||0) : s; }, 0);
+  var totalPend = items.reduce(function(s,i){ return i.pendiente ? s+(i.c||0)*(i.p||0) : s; }, 0);
+  if(totalEl){
+    totalEl.textContent = "$"+fM(total);
+    if(totalPend>0) totalEl.textContent += ' <span style="font-size:11px;color:#f97316;font-weight:600">(−$'+fM(totalPend)+' pendiente)</span>';
+    totalEl.innerHTML = totalEl.textContent;
+  }
   _editBkItem.total = total;
 
   if(!items.length){
@@ -7712,16 +8095,24 @@ function _renderEditBkItems(){
     return;
   }
   wrap.innerHTML = items.map(function(it,i){
-    return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border2)">'+
+    var pend = !!it.pendiente;
+    var rowBg = pend ? "background:#fff7ed;border-left:3px solid #f97316;" : "";
+    var textSt = pend ? "text-decoration:line-through;color:#9a3412;" : "";
+    var subSt  = pend ? "color:#9a3412;text-decoration:line-through;" : "font-weight:700;";
+    return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border2);'+rowBg+'">'+
       '<input type="number" min="0.01" step="any" value="'+it.c+'"'+
-        ' style="width:60px;text-align:center;border:1.5px solid var(--border);border-radius:7px;padding:8px 4px;font-family:inherit;font-size:14px;font-weight:700;-moz-appearance:textfield"'+
+        ' style="width:60px;text-align:center;border:1.5px solid var(--border);border-radius:7px;padding:8px 4px;font-family:inherit;font-size:14px;font-weight:700;-moz-appearance:textfield'+(pend?";opacity:.5":"")+';"'+
         ' onchange="editBkCant('+i+',this.value)"'+
         ' onblur="editBkCant('+i+',this.value)"'+
         ' onfocus="this.select()"'+
       '>'+
-      '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.n+'</span>'+
+      '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+textSt+'">'+it.n+(pend ? ' <span style="font-size:10px;background:#f97316;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700">PENDIENTE</span>' : '')+'</span>'+
       '<span style="font-size:12px;color:var(--muted);flex-shrink:0">×$'+fM(it.p)+'</span>'+
-      '<span id="edit-bk-sub-'+i+'" style="font-size:13px;font-weight:700;flex-shrink:0;min-width:72px;text-align:right">$'+fM((it.c||0)*(it.p||0))+'</span>'+
+      '<span id="edit-bk-sub-'+i+'" style="font-size:13px;flex-shrink:0;min-width:72px;text-align:right;'+subSt+'">$'+fM((it.c||0)*(it.p||0))+'</span>'+
+      '<button onclick="toggleBkPendiente('+i+')" title="'+(pend?"Quitar pendiente":"Marcar como pendiente")+'"'+
+        ' style="background:'+(pend?"#f97316":"#e5e7eb")+';color:'+(pend?"#fff":"#374151")+';border:none;border-radius:6px;font-size:11px;padding:4px 7px;cursor:pointer;touch-action:manipulation;font-family:inherit;font-weight:700;white-space:nowrap">'+
+        (pend ? '✓ Pend.' : '⏳')+
+      '</button>'+
       '<button onclick="editBkRemove('+i+')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:0 4px;touch-action:manipulation;line-height:1">✕</button>'+
     '</div>';
   }).join('');
@@ -7747,6 +8138,12 @@ function editBkCant(idx, val){
 function editBkRemove(idx){
   if(!_editBkItem) return;
   _editBkItem.items.splice(idx,1);
+  _renderEditBkItems();
+}
+
+function toggleBkPendiente(idx){
+  if(!_editBkItem || !_editBkItem.items[idx]) return;
+  _editBkItem.items[idx].pendiente = !_editBkItem.items[idx].pendiente;
   _renderEditBkItems();
 }
 
@@ -7805,8 +8202,15 @@ function guardarEdicionBackup(){
       items: _editBkItem.items, total: _editBkItem.total
     }).catch(function(){});
   }
+  // También actualizar en Supabase si tiene _sbId
+  if(_editBkItem._sbId && _sbEmpId){
+    sbPatch("backup_pedidos","id=eq."+_editBkItem._sbId+"&empresa_id=eq."+_sbEmpId,{
+      items: _editBkItem.items, total: _editBkItem.total
+    }).catch(function(){});
+  }
   cerrarModal("modal-editar-backup");
   renderBackup();
+  _checkPendientes();
   showNotif("✓ Pedido actualizado","ok");
 }
 
@@ -7828,7 +8232,7 @@ async function confirmarBackupComoRemito(bkParam){
   var venta = {
     fecha: ahora.toISOString(), mes: ahora.getMonth(), anio: ahora.getFullYear(),
     clienteId: bk.clienteId||"", clienteNom: nom, lista: bk.lista||"Clientes",
-    items: items.map(function(i){ return {id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub}; }),
+    items: items.filter(function(i){ return !i.pendiente; }).map(function(i){ return {id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub}; }),
     total: totalNum,
     usuario:    vendedorId,
     usuarioNom: vendedorNom,
@@ -9848,7 +10252,9 @@ var _compTarget = null; // {rk, ck}
 
 function renderComprobantes(wrap, rk, ck, compObj) {
   wrap.innerHTML = "";
-  var comps = Object.entries(compObj||{}).sort(function(a,b){ return a[0].localeCompare(b[0]); });
+  var comps = Array.isArray(compObj)
+    ? compObj.map(function(c,i){ return [c.id||String(c.ts||i), c]; })
+    : Object.entries(compObj||{}).sort(function(a,b){ return a[0].localeCompare(b[0]); });
 
   var title = document.createElement("div");
   title.className = "rc-comp-title";
@@ -9926,19 +10332,34 @@ function compHandleFile(e) {
 
 async function compGuardarEnFB(rk, ck, base64, loaderEl) {
   var ts   = Date.now();
-  var path = "empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck+"/comprobantes/"+ts;
-  var data = { url: base64, ts: ts };
+  var data = { url: base64, ts: ts, id: String(ts) };
   try {
-    await fbPatch(path, data);
-    // Actualizar local
-    if (!rutasData[rk].clientes[ck].comprobantes) rutasData[rk].clientes[ck].comprobantes = {};
-    rutasData[rk].clientes[ck].comprobantes[ts] = data;
-    // Re-render solo el wrap
+    // Guardar en Supabase directamente (ruta_clientes.comprobantes es un array JSONB)
+    var cliData = rutasData[rk] && rutasData[rk].clientes && rutasData[rk].clientes[ck];
+    var rcId = cliData && cliData._rcId;
+    if(rcId && _sbEmpId){
+      var compsActuales = Array.isArray(cliData.comprobantes) ? cliData.comprobantes : Object.values(cliData.comprobantes||{});
+      var nuevoArr = compsActuales.concat([data]);
+      await sbPatch("ruta_clientes","id=eq."+rcId+"&empresa_id=eq."+_sbEmpId,{comprobantes:nuevoArr});
+    } else {
+      // Fallback a Firebase si no hay ID de Supabase
+      var path = "empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck+"/comprobantes/"+ts;
+      await fbPatch(path, data);
+    }
+    // Actualizar memoria local
+    if(!rutasData[rk]) rutasData[rk]={};
+    if(!rutasData[rk].clientes) rutasData[rk].clientes={};
+    if(!rutasData[rk].clientes[ck]) rutasData[rk].clientes[ck]={};
+    if(!Array.isArray(rutasData[rk].clientes[ck].comprobantes))
+      rutasData[rk].clientes[ck].comprobantes = Object.values(rutasData[rk].clientes[ck].comprobantes||{});
+    rutasData[rk].clientes[ck].comprobantes.push(data);
+    // Re-render
     var wrap = document.getElementById("comp-wrap-"+rk+"-"+ck);
-    if (wrap) renderComprobantes(wrap, rk, ck, rutasData[rk].clientes[ck].comprobantes);
+    if(wrap) renderComprobantes(wrap, rk, ck, rutasData[rk].clientes[ck].comprobantes);
     showNotif("✓ Comprobante guardado","ok");
   } catch(err) {
-    if (loaderEl && loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
+    console.error("compGuardar error:", err);
+    if(loaderEl && loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
     showNotif("Error al subir comprobante","err");
   }
 }
@@ -10014,7 +10435,7 @@ document.addEventListener("DOMContentLoaded",function(){
   <img id="comp-lb-img" src="">
   <div id="comp-lb-info"></div>
 </div>
-<input type="file" id="comp-file-input" accept="image/*" style="display:none" onchange="compHandleFile(event)">
+<input type="file" id="comp-file-input" accept="image/*" capture="environment" style="display:none" onchange="compHandleFile(event)">
 
 <!-- ══════════════════════════════════════════
      CATÁLOGO DE PEDIDOS — Bottom Sheet
@@ -11516,13 +11937,46 @@ async function cargarVendedores(){
   body.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando vendedores…</div>';
   if(!_sbEmpId) return;
   try{
-    // Cargar ventas
-    var data = await _sbGetVentas();
-    _vndVentas = data ? Object.entries(data).map(function(e){ return Object.assign({},e[1],{fbKey:e[0]}); }) : [];
+    // Cargar ventas Y backup_pedidos en paralelo
+    var [ventasData, backupRows] = await Promise.all([
+      _sbGetVentas(),
+      sbGet("backup_pedidos",
+        "select=fecha,total,cliente_nom,usuario,usuario_nom,items,descuentos"+
+        "&empresa_id=eq."+_sbEmpId+"&order=fecha.desc")
+    ]);
+
+    _vndVentas = ventasData ? Object.entries(ventasData).map(function(e){ return Object.assign({},e[1],{fbKey:e[0],_src:"venta"}); }) : [];
+
+    // Agregar backup_pedidos de vendedores que NO tienen ventas confirmadas
+    var vendedoresEnVentas = new Set(_vndVentas.map(function(v){ return v.usuario; }));
+    (backupRows||[]).forEach(function(bk){
+      var vid = bk.usuario || "";
+      if(!vid) return;
+      if(vendedoresEnVentas.has(vid)) return;
+      var itemsParsed = [];
+      try { itemsParsed = typeof bk.items === "string" ? JSON.parse(bk.items) : (bk.items||[]); } catch(e){}
+      _vndVentas.push({
+        fecha:      bk.fecha,
+        mes:        new Date(bk.fecha).getMonth(),
+        anio:       new Date(bk.fecha).getFullYear(),
+        clienteId:  "",
+        clienteNom: bk.cliente_nom||"",
+        lista:      "",
+        items:      itemsParsed,
+        total:      bk.total||0,
+        usuario:    vid,
+        usuarioNom: bk.usuario_nom||vid,
+        descuentos: bk.descuentos||null,
+        _src:       "backup"
+      });
+    });
+
     _poblarFiltrosVnd(); renderVendedores();
-    // También cargar zonas
     await cargarZonas();
-  }catch(e){body.innerHTML='<div style="text-align:center;padding:40px;color:var(--red)">❌ Error al cargar</div>';}
+  }catch(e){
+    console.error("cargarVendedores:", e);
+    body.innerHTML='<div style="text-align:center;padding:40px;color:var(--red)">❌ Error al cargar</div>';
+  }
 }
 
 function _poblarFiltrosVnd(){
@@ -11572,7 +12026,12 @@ function renderVendedores(){
     (v.items||[]).forEach(function(it){if(!porVnd[uid].prodMap[it.n])porVnd[uid].prodMap[it.n]={n:it.n,u:0,t:0};porVnd[uid].prodMap[it.n].u+=it.c||0;porVnd[uid].prodMap[it.n].t+=it.sub||(it.p*it.c)||0;});
   });
   var usuariosDB=empresaData.usuarios||{};
-  Object.entries(porVnd).forEach(function(e){var uObj=Object.values(usuariosDB).find(function(u){return u.id===e[0];});e[1].nombre=uObj?(uObj.name||uObj.id):e[0];});
+  Object.entries(porVnd).forEach(function(e){
+    var uObj=Object.values(usuariosDB).find(function(u){return u.id===e[0];});
+    // Fallback: usar nombre del primer pedido si no está en usuarios
+    var nomFallback = e[1].ventas.length && e[1].ventas[0].usuarioNom ? e[1].ventas[0].usuarioNom : e[0];
+    e[1].nombre=uObj?(uObj.name||uObj.id):nomFallback;
+  });
   var sorted=Object.values(porVnd).sort(function(a,b){return b.total-a.total;});
   var totalGlobal=sorted.reduce(function(s,v){return s+v.total;},0);
   var comGlobal=totalGlobal*comPct/100;
