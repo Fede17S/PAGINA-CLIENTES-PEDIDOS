@@ -2048,14 +2048,6 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <div id="clientes" class="section">
 
-  <!-- Acciones -->
-  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-    <button class="btn btn-ghost btn-sm" onclick="_cliForceReload()">🔄</button>
-    <button onclick="abrirPanelZonas()" style="padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🗺️ Zonas</button>
-    <span style="flex:1"></span>
-    <span style="font-size:12px;color:var(--muted)"><b id="cli-count">0</b> clientes</span>
-  </div>
-
   <!-- Panel Zonas -->
   <div id="cli-zonas-panel" style="display:none;margin-bottom:12px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -2180,6 +2172,14 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
     <button class="bk-tab" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
     <button class="bk-tab" onclick="_setRolFilter('admin',this)" id="cli-filter-roles">👑 Admin</button>
+  </div>
+
+  <!-- Acciones -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+    <button onclick="_cliForceReload()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit;touch-action:manipulation;color:var(--text)">🔄 Recargar</button>
+    <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">🗺️ Zonas</button>
+    <button onclick="exportarClientesXLSX()" style="padding:7px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">📊 Excel</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:auto"><b id="cli-count">0</b> clientes</span>
   </div>
 
   <!-- Lista -->
@@ -9217,6 +9217,52 @@ function _cliForceReload(){
   _cliData    = {};
   _cliLoading = false;
   cargarClientesSection();
+}
+
+async function exportarClientesXLSX(){
+  if(!_sbEmpId){ showNotif("Sin empresa cargada","err"); return; }
+  if(typeof XLSX === "undefined"){ showNotif("Cargando librería Excel…","info"); return; }
+
+  showNotif("⏳ Generando Excel…","ok");
+  try {
+    var rows = await sbGet("usuarios",
+      "select=uid,name,direccion,telefono,cuit,zona,recepciona&empresa_id=eq."+_sbEmpId+
+      "&order=name.asc");
+
+    var data = [["ID","NOMBRE","DIRECCION","TELEFONO","CUIT","ZONA","RECEPCIONA"]];
+    (rows||[]).forEach(function(u){
+      data.push([
+        u.uid   || "",
+        u.name  || "",
+        u.direccion || "",
+        u.telefono  || "",
+        u.cuit      || "",
+        u.zona      || "",
+        u.recepciona|| ""
+      ]);
+    });
+
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:14},{wch:32},{wch:36},{wch:16},{wch:16},{wch:18},{wch:22}];
+
+    // Cabecera en negrita
+    for(var C = 0; C <= 6; C++){
+      var addr = XLSX.utils.encode_cell({r:0, c:C});
+      if(ws[addr]) ws[addr].s = {font:{bold:true}, fill:{fgColor:{rgb:"DBEAFE"}}, alignment:{horizontal:"center"}};
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+
+    var fecha  = new Date().toISOString().slice(0,10);
+    var empNom = (empresaData&&empresaData.emp_nombre ? empresaData.emp_nombre : empresaKey).replace(/[^a-zA-Z0-9]/g,"_");
+    XLSX.writeFile(wb, "Clientes_"+empNom+"_"+fecha+".xlsx");
+    showNotif("✅ Excel exportado ("+(data.length-1)+" clientes)","ok");
+
+  } catch(e){
+    console.error("Export clientes error:", e);
+    showNotif("Error al exportar: "+e.message,"err");
+  }
 }
 
 function cargarClientesSection(){
