@@ -1584,6 +1584,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <!-- OFFLINE BANNER -->
 <div id="pendientes-banner" style="display:none;background:#7f1d1d;color:#fef2f2;padding:10px 16px;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;cursor:pointer" onclick="abrirModalPendientes()">
+
+<!-- Banner de vencimiento de suscripción (solo admin) -->
+<div id="sub-vence-banner" style="display:none;padding:10px 16px;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:249;cursor:pointer;text-align:center" onclick="document.getElementById('sub-vence-banner').style.display='none'"></div>
   <span style="margin-right:8px">🔴</span>
   <span id="pendientes-banner-txt"></span>
   <span style="margin-left:8px;opacity:.7;font-size:11px">→ Ver detalle</span>
@@ -3449,24 +3452,31 @@ window.onload = function(){
     empresaData=s.empresaData;
     _sbEmpId = empresaKey;
     aplicarBranding();
-    if (!checkEmpresaAccess(s.empresaData||{})) { localStorage.removeItem("dm_session"); return; }
-    _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
-    aplicarRestricciones();
-    cargarListasPrecios();
-    // Intentar cargar _clientesDB desde Supabase cache para que los PDFs funcionen
-    var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
-    if(cachedUsers && cachedUsers.length){
-      cachedUsers.forEach(function(u){
-        _clientesDB[u.id] = {id:u.uid||u.id,_sbId:u.id,name:u.name,role:u.role,lista:u.lista,
-          direccion:u.direccion||"",tel:u.telefono||"",cuit:u.cuit||"",
-          zona:u.zona||"",zona_id:u.zona_id||"",rec:u.recepciona||"",nota:u.nota||""};
-      });
-    }
-    iniciarApp();
-    setTimeout(_checkNotifButton, 1000);
-    // Sincronizar pedidos pendientes al restaurar sesión
-    _bkPendingQueue = _bkQueueGet();
-    if(_bkPendingQueue.length) setTimeout(_syncPendingBackups, 4000);
+    // Re-verificar estado desde Supabase (puede haber cambiado desde el último login)
+    sbGet("empresas","select=id,estado,vence,plan&id=eq."+_sbEmpId).then(function(emps){
+      var empActual = (emps && emps[0]) ? emps[0] : (s.empresaData||{});
+      if(!checkEmpresaAccess(empActual)){ localStorage.removeItem("dm_session"); return; }
+      if(emps && emps[0]){ empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan; }
+      _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
+      aplicarRestricciones(); cargarListasPrecios();
+      var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
+      if(cachedUsers && cachedUsers.length){
+        cachedUsers.forEach(function(u){
+          _clientesDB[u.id]={id:u.uid||u.id,_sbId:u.id,name:u.name,role:u.role,lista:u.lista,
+            direccion:u.direccion||"",tel:u.telefono||"",cuit:u.cuit||"",
+            zona:u.zona||"",zona_id:u.zona_id||"",rec:u.recepciona||"",nota:u.nota||""};
+        });
+      }
+      iniciarApp(); setTimeout(_checkNotifButton,1000);
+      _bkPendingQueue=_bkQueueGet();
+      if(_bkPendingQueue.length) setTimeout(_syncPendingBackups,4000);
+    }).catch(function(){
+      // Sin red: usar datos guardados como fallback
+      if(!checkEmpresaAccess(s.empresaData||{})){ localStorage.removeItem("dm_session"); return; }
+      _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
+      aplicarRestricciones(); cargarListasPrecios(); iniciarApp();
+      setTimeout(_checkNotifButton,1000);
+    });
   }catch(e){ localStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
   // Pre-rellenar con credenciales guardadas si existen
@@ -3512,14 +3522,16 @@ function doLogin(){
     empresaKey = emp.id;
     _sbEmpId   = emp.id;
 
-    // Control de acceso
-    if(emp.estado==="inactiva"){
-      showSuspendedCli("Esta cuenta está suspendida. Contactá al administrador.");
+    // Control de acceso estricto
+    var _estadosBloq = ["inactiva","vencida","morosa","bloqueada","suspendida"];
+    if(_estadosBloq.indexOf(emp.estado) >= 0){
+      var _msgs = {inactiva:"Esta cuenta está suspendida.",vencida:"La suscripción venció. Contactá al administrador para renovar.",morosa:"Acceso suspendido por falta de pago. Contactá al administrador."};
+      showSuspendedCli(_msgs[emp.estado]||"Acceso denegado. Contactá al administrador.");
       err.textContent=""; return;
     }
     if(emp.vence){
       var vd=new Date(emp.vence); vd.setHours(23,59,59);
-      if(new Date()>vd){ showSuspendedCli("La suscripción venció el "+vd.toLocaleDateString("es-AR")+"."); err.textContent=""; return; }
+      if(new Date()>vd){ showSuspendedCli("La suscripción venció el "+vd.toLocaleDateString("es-AR")+". Contactá al administrador para renovar."); err.textContent=""; return; }
     }
 
     // 2. Buscar usuario en Supabase directamente (por uid o por id de fila)
@@ -3865,18 +3877,29 @@ function aplicarBranding(){
   if(d.color){ document.documentElement.style.setProperty("--emp-primary", d.color); }
   // WhatsApp (used by pedidos sharing)
   if(d.whatsapp) window._empWhatsapp = d.whatsapp;
-  // Plan check
+  // Plan + vencimiento
   window._empPlan = d.plan||"pro";
+  if(d.vence) empresaData.vence = d.vence;
 }
 function checkEmpresaAccess(emp) {
-  if (emp.estado && emp.estado !== 'activa') {
-    showSuspendedCli('Esta cuenta está suspendida. Contactá al administrador.');
+  // Bloquear explícitamente estados inválidos
+  var estadosBloqueados = ['inactiva','vencida','morosa','bloqueada','suspendida'];
+  if (emp.estado && estadosBloqueados.indexOf(emp.estado) >= 0) {
+    var msgs = {
+      inactiva:   'Esta cuenta está suspendida. Contactá al administrador.',
+      vencida:    'La suscripción venció. Contactá al administrador para renovar.',
+      morosa:     'Acceso suspendido por falta de pago. Contactá al administrador.',
+      bloqueada:  'Esta cuenta está bloqueada. Contactá al administrador.',
+      suspendida: 'Esta cuenta está suspendida. Contactá al administrador.'
+    };
+    showSuspendedCli(msgs[emp.estado] || 'Acceso denegado. Contactá al administrador.');
     return false;
   }
+  // Bloquear si venció la suscripción (independientemente del estado)
   if (emp.vence) {
     var vence = new Date(emp.vence); vence.setHours(23,59,59);
     if (new Date() > vence) {
-      showSuspendedCli('La suscripción venció el ' + vence.toLocaleDateString('es-AR') + '. Contactá al administrador.');
+      showSuspendedCli('La suscripción venció el ' + vence.toLocaleDateString('es-AR') + '. Contactá al administrador para renovar.');
       return false;
     }
   }
@@ -3942,7 +3965,44 @@ function doLogout(){
   localStorage.removeItem("dm_creds");
   location.reload();
 }
-function iniciarApp(){ document.getElementById("login-screen").style.display="none"; document.getElementById("app").classList.add("on"); document.getElementById("sb-username").textContent=currentUser.name||currentUser.id; aplicarRol(); cargarCatalogo(); setTimeout(_checkPendientes, 2500); }
+function iniciarApp(){
+  document.getElementById("login-screen").style.display="none";
+  document.getElementById("app").classList.add("on");
+  document.getElementById("sb-username").textContent=currentUser.name||currentUser.id;
+  aplicarRol();
+  cargarCatalogo();
+  setTimeout(_checkPendientes, 2500);
+  // Solo admin: chequear vencimiento de suscripción
+  if(currentUser && currentUser.role==="admin") setTimeout(_checkSubVencimiento, 3000);
+}
+
+function _checkSubVencimiento(){
+  var vence = empresaData && (empresaData.vence || (empresaData._config && empresaData._config.vence));
+  var banner = document.getElementById("sub-vence-banner");
+  if(!banner) return;
+  if(!vence){ banner.style.display="none"; return; }
+  var vd = new Date(vence); vd.setHours(23,59,59);
+  var ahora = new Date();
+  var diasRestantes = Math.ceil((vd - ahora) / (1000*60*60*24));
+  if(diasRestantes > 30){ banner.style.display="none"; return; }
+  var msg, bg, color;
+  if(diasRestantes < 0){
+    msg = "⛔ Tu suscripción venció hace "+Math.abs(diasRestantes)+" día"+(Math.abs(diasRestantes)!==1?"s":"")+". Contactá a CoreDistri para renovar. · Tocá para cerrar";
+    bg = "#450a0a"; color = "#fca5a5";
+  } else if(diasRestantes === 0){
+    msg = "⚠️ Tu suscripción vence HOY. Renová para evitar la suspensión del servicio. · Tocá para cerrar";
+    bg = "#451a03"; color = "#fdba74";
+  } else if(diasRestantes <= 7){
+    msg = "⏰ Tu suscripción vence en "+diasRestantes+" día"+(diasRestantes!==1?"s":"")+". Renová pronto para no perder el acceso. · Tocá para cerrar";
+    bg = "#451a03"; color = "#fcd34d";
+  } else {
+    msg = "📅 Tu suscripción vence el "+vd.toLocaleDateString("es-AR",{day:"numeric",month:"long"})+". Quedan "+diasRestantes+" días. · Tocá para cerrar";
+    bg = "#1e3a5f"; color = "#93c5fd";
+  }
+  banner.style.cssText="display:block;padding:10px 16px;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:249;cursor:pointer;text-align:center;background:"+bg+";color:"+color;
+  banner.textContent = msg;
+  banner.onclick = function(){ banner.style.display="none"; };
+}
 function aplicarRol(){
   var role = currentUser.role || "vendedor";
   var isAdmin      = role === "admin";
