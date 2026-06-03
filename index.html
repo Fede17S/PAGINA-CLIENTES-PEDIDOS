@@ -1509,10 +1509,19 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 </div>
 <div id="suspended-screen">
-  <div class="susp-icon">⏸</div>
+  <div class="susp-icon" id="susp-icon-cli">⏸</div>
   <div class="susp-title" id="susp-title-cli">Cuenta suspendida</div>
   <div class="susp-sub" id="susp-msg-cli">Esta cuenta no está activa. Contactá al administrador.</div>
-  <a href="https://wa.me/5492804213069?text=Hola%2C%20necesito%20reactivar%20mi%20acceso%20a%20la%20app" class="susp-wa" target="_blank">💬 Contactar por WhatsApp</a>
+  <div id="susp-btns" style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin-top:20px">
+    <a id="susp-mp-btn" href="#" target="_blank" rel="noopener noreferrer"
+      style="display:none;align-items:center;justify-content:center;gap:10px;padding:14px 20px;background:#009ee3;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12.002 2C6.477 2 2 6.477 2 12.002 2 17.525 6.477 22 12.002 22 17.525 22 22 17.525 22 12.002 22 6.477 17.525 2 12.002 2zM8.5 15.5c-.69 0-1.25-.56-1.25-1.25V9.75C7.25 9.06 7.81 8.5 8.5 8.5h7c.69 0 1.25.56 1.25 1.25v4.5c0 .69-.56 1.25-1.25 1.25H8.5z"/>
+      </svg>
+      Renovar suscripción con Mercado Pago
+    </a>
+    <a href="https://wa.me/5492804213069?text=Hola%2C%20necesito%20reactivar%20mi%20acceso%20a%20la%20app" class="susp-wa" target="_blank">💬 Contactar por WhatsApp</a>
+  </div>
 </div>
 
 <div id="app">
@@ -2806,6 +2815,13 @@ var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","p
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
+
+// Links de pago Mercado Pago por plan
+var MP_LINKS = {
+  base:     'https://mpago.li/2WM2Dfw',
+  estandar: 'https://mpago.li/1TreJ6d',
+  pro:      'https://mpago.li/2LDgyE2'
+};
 var stockData = {};
 var stockConfig = {}; // { [prodId]: { umbral: N } } — umbral de bajo stock por producto
 var dbStock = [], dbCli = [], ventas = [], rutasData = {};
@@ -3525,13 +3541,15 @@ function doLogin(){
     // Control de acceso estricto
     var _estadosBloq = ["inactiva","vencida","morosa","bloqueada","suspendida"];
     if(_estadosBloq.indexOf(emp.estado) >= 0){
-      var _msgs = {inactiva:"Esta cuenta está suspendida.",vencida:"La suscripción venció. Contactá al administrador para renovar.",morosa:"Acceso suspendido por falta de pago. Contactá al administrador."};
-      showSuspendedCli(_msgs[emp.estado]||"Acceso denegado. Contactá al administrador.");
+      var _msgs = {inactiva:"Esta cuenta está suspendida.",vencida:"La suscripción venció. Renovar para recuperar el acceso:",morosa:"Acceso suspendido por falta de pago. Renovar para recuperar el acceso:"};
+      var _showMP = (emp.estado==="vencida"||emp.estado==="morosa");
+      empresaData = Object.assign(empresaData||{}, emp);
+      showSuspendedCli(_msgs[emp.estado]||"Acceso denegado. Contactá al administrador.", _showMP);
       err.textContent=""; return;
     }
     if(emp.vence){
       var vd=new Date(emp.vence); vd.setHours(23,59,59);
-      if(new Date()>vd){ showSuspendedCli("La suscripción venció el "+vd.toLocaleDateString("es-AR")+". Contactá al administrador para renovar."); err.textContent=""; return; }
+      if(new Date()>vd){ empresaData=Object.assign(empresaData||{},emp); showSuspendedCli("La suscripción venció el "+vd.toLocaleDateString("es-AR")+". Renovar para recuperar el acceso:", true); err.textContent=""; return; }
     }
 
     // 2. Buscar usuario en Supabase directamente (por uid o por id de fila)
@@ -3887,30 +3905,45 @@ function checkEmpresaAccess(emp) {
   if (emp.estado && estadosBloqueados.indexOf(emp.estado) >= 0) {
     var msgs = {
       inactiva:   'Esta cuenta está suspendida. Contactá al administrador.',
-      vencida:    'La suscripción venció. Contactá al administrador para renovar.',
-      morosa:     'Acceso suspendido por falta de pago. Contactá al administrador.',
+      vencida:    'La suscripción venció. Renovar para recuperar el acceso:',
+      morosa:     'Acceso suspendido por falta de pago. Renovar para recuperar el acceso:',
       bloqueada:  'Esta cuenta está bloqueada. Contactá al administrador.',
       suspendida: 'Esta cuenta está suspendida. Contactá al administrador.'
     };
-    showSuspendedCli(msgs[emp.estado] || 'Acceso denegado. Contactá al administrador.');
+    var showMP = (emp.estado==='vencida' || emp.estado==='morosa');
+    if(showMP && emp.plan) empresaData = Object.assign(empresaData||{}, {plan: emp.plan});
+    showSuspendedCli(msgs[emp.estado] || 'Acceso denegado. Contactá al administrador.', showMP);
     return false;
   }
   // Bloquear si venció la suscripción (independientemente del estado)
   if (emp.vence) {
     var vence = new Date(emp.vence); vence.setHours(23,59,59);
     if (new Date() > vence) {
-      showSuspendedCli('La suscripción venció el ' + vence.toLocaleDateString('es-AR') + '. Contactá al administrador para renovar.');
+      showSuspendedCli('La suscripción venció el ' + vence.toLocaleDateString('es-AR') + '. Renovar para recuperar el acceso:', true);
       return false;
     }
   }
   return true;
 }
 
-function showSuspendedCli(msg) {
-  var el = document.getElementById('suspended-screen');
+function showSuspendedCli(msg, showMP) {
+  var el    = document.getElementById('suspended-screen');
   var msgEl = document.getElementById('susp-msg-cli');
-  if (msgEl) msgEl.textContent = msg;
-  if (el) el.classList.add('show');
+  var mpBtn = document.getElementById('susp-mp-btn');
+  var iconEl= document.getElementById('susp-icon-cli');
+  if(msgEl) msgEl.textContent = msg;
+  if(iconEl) iconEl.textContent = showMP ? '💳' : '⏸';
+  if(mpBtn){
+    if(showMP){
+      var plan = (empresaData && empresaData.plan) || 'estandar';
+      var mpLink = MP_LINKS[plan] || MP_LINKS['estandar'];
+      mpBtn.href = mpLink;
+      mpBtn.style.display = 'flex';
+    } else {
+      mpBtn.style.display = 'none';
+    }
+  }
+  if(el) el.classList.add('show');
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').classList.remove('on');
 }
