@@ -2495,17 +2495,41 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
 
     <!-- Foto -->
-    <div class="mprod-photo-area" id="mprod-photo-area" onclick="document.getElementById('mprod-foto-input').click()">
-      <span class="mprod-photo-icon">📷</span>
-      <span class="mprod-photo-lbl">Tocá para agregar foto del producto</span>
-      <img id="mprod-foto-preview" src="" alt="" style="display:none">
-    </div>
-    <input type="file" id="mprod-foto-input" accept="image/*" style="display:none" onchange="subirFotoProducto(this)">
-    <div style="display:flex;gap:6px;margin-bottom:14px">
-      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="document.getElementById('mprod-foto-input').click()">📷 Cambiar foto</button>
-      <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red)" onclick="quitarFotoProducto()">🗑 Quitar foto</button>
-      <div style="flex:1"></div>
-      <div id="mprod-foto-size" style="font-size:10.5px;color:var(--muted);align-self:center"></div>
+    <div style="margin-bottom:14px">
+      <!-- Preview -->
+      <div class="mprod-photo-area" id="mprod-photo-area" onclick="if(!_prodFotoB64)document.getElementById('mprod-foto-input').click()">
+        <span class="mprod-photo-icon" id="mprod-photo-icon">📷</span>
+        <span class="mprod-photo-lbl" id="mprod-photo-lbl">Tocá para agregar foto</span>
+        <img id="mprod-foto-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:8px">
+      </div>
+      <input type="file" id="mprod-foto-input" accept="image/*" style="display:none" onchange="subirFotoProducto(this)">
+      <!-- Tabs archivo / URL -->
+      <div style="display:flex;gap:0;margin-top:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <button id="tab-foto-archivo" onclick="setFotoTab('archivo')"
+          style="flex:1;padding:7px 10px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:inherit">
+          📁 Archivo
+        </button>
+        <button id="tab-foto-url" onclick="setFotoTab('url')"
+          style="flex:1;padding:7px 10px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--s2);color:var(--text2);font-family:inherit">
+          🔗 URL
+        </button>
+      </div>
+      <!-- Panel archivo -->
+      <div id="panel-foto-archivo" style="margin-top:6px;display:flex;gap:6px;align-items:center">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="document.getElementById('mprod-foto-input').click()">📷 Elegir archivo</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red)" onclick="quitarFotoProducto()">🗑 Quitar</button>
+        <span id="mprod-foto-size" style="font-size:10.5px;color:var(--muted);margin-left:4px"></span>
+      </div>
+      <!-- Panel URL -->
+      <div id="panel-foto-url" style="margin-top:6px;display:none">
+        <div style="display:flex;gap:6px">
+          <input type="url" id="mprod-foto-url-input" placeholder="https://ejemplo.com/imagen.jpg"
+            style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--s2);color:var(--text);font-family:inherit"
+            oninput="previewFotoUrl(this.value)">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red)" onclick="quitarFotoProducto()">🗑</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:4px">Pegá la URL de la imagen. Se guardará como URL (no como archivo).</div>
+      </div>
     </div>
 
     <div class="mprod-grid">
@@ -10930,6 +10954,9 @@ function abrirModalProducto(key) {
   document.getElementById("mprod-categoria").value = p.categoria || "";
   // Foto
   _prodFotoB64 = p.foto || "";
+  // Inicializar URL input si la foto es URL
+  var urlInp = document.getElementById("mprod-foto-url-input");
+  if(urlInp) urlInp.value = (_prodFotoB64 && !_prodFotoB64.startsWith("data:")) ? _prodFotoB64 : "";
   _actualizarPrevFoto();
   // Precios — detectar modo guardado o default listas
   var modo = p._precioModo || "listas";
@@ -10980,6 +11007,23 @@ function calcPrecioPct() {
     'Clientes: <b>' + _fmt(resCli) + '</b><br>Patagonia: <b>' + _fmt(resPat) + '</b>';
 }
 
+// ── Tab archivo / URL ──
+function setFotoTab(tab){
+  var isArchivo = tab === "archivo";
+  document.getElementById("tab-foto-archivo").style.background  = isArchivo ? "var(--accent)" : "var(--s2)";
+  document.getElementById("tab-foto-archivo").style.color       = isArchivo ? "#fff"          : "var(--text2)";
+  document.getElementById("tab-foto-url").style.background      = isArchivo ? "var(--s2)"     : "var(--accent)";
+  document.getElementById("tab-foto-url").style.color           = isArchivo ? "var(--text2)"  : "#fff";
+  document.getElementById("panel-foto-archivo").style.display   = isArchivo ? "flex" : "none";
+  document.getElementById("panel-foto-url").style.display       = isArchivo ? "none" : "block";
+}
+
+function previewFotoUrl(url){
+  url = (url||"").trim();
+  _prodFotoB64 = url;  // guardamos la URL en la misma variable
+  _actualizarPrevFoto();
+}
+
 function subirFotoProducto(input) {
   var file = input.files[0];
   if (!file) return;
@@ -10987,7 +11031,6 @@ function subirFotoProducto(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var b64 = e.target.result;
-    // Comprimir si es muy grande
     var sizeKB = Math.round(b64.length * 3 / 4 / 1024);
     if (sizeKB > maxMB * 1024) {
       _comprimirImagen(file, 800, 0.75, function(b64c) {
@@ -11000,6 +11043,8 @@ function subirFotoProducto(input) {
       _actualizarPrevFoto();
       document.getElementById("mprod-foto-size").textContent = sizeKB + " KB";
     }
+    // Cambiar al tab archivo para mostrar el nombre
+    setFotoTab("archivo");
   };
   reader.readAsDataURL(file);
   input.value = "";
@@ -11022,20 +11067,36 @@ function _comprimirImagen(file, maxW, quality, cb) {
 }
 
 function _actualizarPrevFoto() {
-  var prev = document.getElementById("mprod-foto-preview");
-  var area = document.getElementById("mprod-photo-area");
-  if (!prev || !area) return;
-  if (_prodFotoB64) {
-    prev.src = _prodFotoB64;
+  var prev   = document.getElementById("mprod-foto-preview");
+  var icon   = document.getElementById("mprod-photo-icon");
+  var lbl    = document.getElementById("mprod-photo-lbl");
+  var urlInp = document.getElementById("mprod-foto-url-input");
+  if (!prev) return;
+
+  var val = (_prodFotoB64 || "").trim();
+  var isUrl = val && !val.startsWith("data:");
+
+  if (val) {
+    prev.src = val;
     prev.style.display = "block";
-    area.querySelector(".mprod-photo-icon").style.display = "none";
-    area.querySelector(".mprod-photo-lbl").style.display = "none";
+    if(icon) icon.style.display = "none";
+    if(lbl)  lbl.style.display  = "none";
+    // Si es URL, mostrar el tab URL y llenar el input
+    if(isUrl){
+      setFotoTab("url");
+      if(urlInp) urlInp.value = val;
+    } else {
+      setFotoTab("archivo");
+    }
   } else {
     prev.style.display = "none";
     prev.src = "";
-    area.querySelector(".mprod-photo-icon").style.display = "";
-    area.querySelector(".mprod-photo-lbl").style.display = "";
-    document.getElementById("mprod-foto-size").textContent = "";
+    if(icon) icon.style.display = "";
+    if(lbl)  lbl.style.display  = "";
+    if(urlInp) urlInp.value = "";
+    var sizeEl = document.getElementById("mprod-foto-size");
+    if(sizeEl) sizeEl.textContent = "";
+    setFotoTab("archivo");
   }
 }
 
@@ -11544,8 +11605,9 @@ async function exportarProductosXLSX(){
     prodRows.forEach(function(p){
       var cod  = (p.codigo||"").trim();
       var foto = (p.foto||"");
-      if(foto.startsWith("data:")) foto = "";
-      if(foto.length > 32700) foto = foto.substring(0,32700);
+      if(foto.startsWith("data:")) foto = "";  // base64 no sirve en Excel
+      // URLs largas: no cortar, Excel las maneja bien hasta 32767 chars
+      if(foto.length > 32767) foto = foto.substring(0,32767);
       data.push([
         cod,
         p.nombre||"",
