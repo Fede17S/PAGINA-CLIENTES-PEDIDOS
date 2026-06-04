@@ -2345,7 +2345,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <div>
         <div style="font-size:13px;font-weight:700;color:var(--text)">📥 Importar productos desde CSV</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">Encabezados aceptados (en cualquier capitalización):<br>
-          <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">CODIGO, NOMBRE PRODUCTO, PRECIO VENTA, PORCENTAJE, STOCK, CATEGORIA, PRECIO COMPRA, URL IMAGEN</code>
+          <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">CODIGO, NOMBRE PRODUCTO, CATEGORIA, PRECIO BASE, PRECIO CLIENTE, PRECIO PATAGONIA, STOCK, URL IMAGEN &nbsp;·&nbsp; También acepta formato viejo: PRECIO VENTA, PORCENTAJE, PRECIO COMPRA</code>
           <span style="margin-left:6px;opacity:.7">· Separador: , o ;</span>
         </div>
       </div>
@@ -11375,13 +11375,14 @@ function _parsearProdCSV(text, filename){
 
   // ── Mapear columnas (en orden de prioridad) ──
   var iCod    = col(["codigo","id","cod","sku","referencia","codigoproducto"]);
-  var iNom    = col(["nombreproducto","nombre","name","descripcion","producto","articulo","artculo"]);
-  var iBase   = col(["preciobase","preciocompra","costo","base","compra","costounitario"]);
-  var iCli    = col(["preciocliente","precioclientes","listacli","precioventa","pvp","precio"]);
+  var iNom    = col(["nombreproducto","nombreproduct","nombre","name","descripcion","producto","articulo","artculo"]);
+  var iBase   = col(["preciobase","preciocompra","preciocompra","preciocosto","costo","base","compra","costounitario"]);
+  var iCli    = col(["preciocliente","precioclientes","listacli","precioventa","preciode","pvp","venta","precio"]);
   var iPat    = col(["preciopatagonia","patagonia","pat","mayorista","listapat"]);
+  var iPorcentaje = col(["porcentaje","margen","markup","pct"]);
   var iStock  = col(["stock","cantidad","cant","qty","existencia","inventario"]);
   var iCat    = col(["categoria","category","cat","rubro","familia","grupo"]);
-  var iFoto   = col(["urlimagen","urlfoto","imagen","imageurl","foto","photo","img","url"]);
+  var iFoto   = col(["urlimagen","urlfoto","imagenurl","imagen","imageurl","foto","photo","img","url"]);
 
   if(iNom < 0 && iCod < 0){
     showNotif("No se encontró columna de CODIGO o NOMBRE en el CSV","err");
@@ -11410,6 +11411,14 @@ function _parsearProdCSV(text, filename){
     var pBase  = iBase  >= 0 ? parseFloat((r[iBase] ||"0").replace(/[$,\s]/g,""))||0 : 0;
     var pCli   = iCli   >= 0 ? parseFloat((r[iCli]  ||"0").replace(/[$,\s]/g,""))||0 : null;
     var pPat   = iPat   >= 0 ? parseFloat((r[iPat]  ||"0").replace(/[$,\s]/g,""))||0 : null;
+    var pct    = iPorcentaje >= 0 ? parseFloat((r[iPorcentaje]||"0").replace(/[%,\s]/g,""))||0 : 0;
+    // Formato viejo: PRECIO COMPRA es la base, PRECIO VENTA es pCli
+    // Si pBase > 0 y pCli = 0, calcular pCli desde porcentaje
+    if(pBase > 0 && (pCli === null || pCli === 0) && pct > 0){
+      pCli = Math.round(pBase * (1 + pct/100));
+    }
+    // Si pCli tiene valor y es "precio venta", usarlo como precio clientes
+    // Si no hay pPat, dejar null (se guardará como 0)
     var stk    = iStock >= 0 ? parseInt((r[iStock]||"0").replace(/[.,\s]/g,""))||0    : 0;
     var cat    = iCat   >= 0 ? (r[iCat]||"Sin categoría").trim()                      : "Sin categoría";
     var foto   = iFoto  >= 0 ? (r[iFoto]||"").trim()                                  : "";
