@@ -3248,7 +3248,24 @@ async function _sbPatchStock(data){ return Promise.all(Object.entries(data).map(
 async function _sbPatchStockConfig(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],umbral:e[1].umbral}); })); }
 
 async function _sbGetListas(){ var rows=await sbGet("listas_precios","select=lista_key,nombre,pct,orden&empresa_id=eq."+_sbEmpId+"&order=orden.asc"); if(!rows||!rows.length)return null; var r={};rows.forEach(function(l){r[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});return r; }
-async function _sbPatchListas(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("listas_precios",{empresa_id:_sbEmpId,lista_key:e[0],nombre:e[1].nombre,pct:e[1].pct||0,orden:e[1].orden||0}); })); }
+async function _sbPatchListas(data){
+  // 1. Traer las que ya existen
+  var existing = await sbGet("listas_precios","select=lista_key&empresa_id=eq."+_sbEmpId) || [];
+  var existKeys = new Set(existing.map(function(r){ return r.lista_key; }));
+  // 2. Separar en update vs insert
+  var updates = [], inserts = [];
+  Object.entries(data).forEach(function(e){
+    var row = {empresa_id:_sbEmpId, lista_key:e[0], nombre:e[1].nombre, pct:e[1].pct||0, orden:e[1].orden||0};
+    if(existKeys.has(e[0])){ updates.push([e[0], row]); } else { inserts.push(row); }
+  });
+  // 3. Eliminar las que ya no están en data
+  var toDelete = existing.filter(function(r){ return !data[r.lista_key]; });
+  var promises = [];
+  updates.forEach(function(u){ promises.push(sbPatch("listas_precios","lista_key=eq."+u[0]+"&empresa_id=eq."+_sbEmpId,u[1])); });
+  if(inserts.length) promises.push(sbPost("listas_precios", inserts));
+  toDelete.forEach(function(r){ promises.push(sbDel("listas_precios","lista_key=eq."+r.lista_key+"&empresa_id=eq."+_sbEmpId)); });
+  return Promise.all(promises);
+}
 
 async function _sbGetProductos(){ var rows=await sbGet("productos","select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); if(!rows)return null; var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null};});return r; }
 async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||""}); return rows&&rows[0]?rows[0].id:null; }
@@ -11059,11 +11076,10 @@ function getListasOrdenadas(){
 }
 
 async function cargarListasPrecios(){
-  if(!empresaKey) return;
+  if(!_sbEmpId) return;
   try {
-    var data = await fbGetCached("empresas/"+empresaKey+"/listasPrecios");
+    var data = await _sbGetListas();
     _listasPrecios = data || Object.assign({}, DEFAULT_LISTAS);
-    // Asegurar que cli y pat siempre existen (backward compat)
     if(!_listasPrecios.cli) _listasPrecios.cli = { nombre:"Clientes",  pct:0,  orden:0 };
     if(!_listasPrecios.pat) _listasPrecios.pat = { nombre:"Patagonia", pct:15, orden:1 };
   } catch(e){ _listasPrecios = Object.assign({}, DEFAULT_LISTAS); }
@@ -11148,12 +11164,11 @@ async function guardarListasConfig(){
   // Reasignar orden
   Object.entries(_listasEdit).sort(function(a,b){return (a[1].orden||0)-(b[1].orden||0);}).forEach(function(e,i){ e[1].orden=i; });
   try {
-    await fbPatchQ("empresas/"+empresaKey+"/listasPrecios", _listasEdit, "Guardar listas");
+    await _sbPatchListas(_listasEdit);
     _listasPrecios = _listasEdit;
     _actualizarSelectsListas();
     cerrarGestorListas();
     showNotif("✅ Listas guardadas","ok");
-    // Rerender cards con nuevas listas
     renderProductos();
   } catch(e){ showNotif("Error al guardar listas: "+e.message,"err"); }
 }
@@ -11408,9 +11423,27 @@ function _parsearProdCSV(text, filename){
     if(!cod) cod = nom.substring(0,8).toUpperCase().replace(/\s/g,"");
     if(!nom) nom = cod;
 
-    var pBase  = iBase  >= 0 ? parseFloat((r[iBase] ||"0").replace(/[$,\s]/g,""))||0 : 0;
-    var pCli   = iCli   >= 0 ? parseFloat((r[iCli]  ||"0").replace(/[$,\s]/g,""))||0 : null;
-    var pPat   = iPat   >= 0 ? parseFloat((r[iPat]  ||"0").replace(/[$,\s]/g,""))||0 : null;
+    function parsePrecio(v){
+      if(!v) return 0;
+      // Eliminar $, espacios, y manejar formato argentino (. miles, , decimal)
+      var s = String(v).replace(/[$\s]/g,"").trim();
+      // Si tiene , → puede ser decimal argentino: "1.810,50" → "1810.50"
+      if(s.indexOf(",") > -1){
+        s = s.replace(/\./g,"").replace(",",".");
+      } else {
+        // Sin coma: "1.810" es miles → "1810"; "1810.50" es decimal anglosajón
+        var parts = s.split(".");
+        if(parts.length > 1 && parts[parts.length-1].length <= 2){
+          // último segmento tiene ≤2 dígitos → decimal anglosajón, no tocar
+        } else {
+          s = s.replace(/\./g,""); // quitar puntos de miles
+        }
+      }
+      return parseFloat(s)||0;
+    }
+    var pBase  = iBase  >= 0 ? parsePrecio(r[iBase])  : 0;
+    var pCli   = iCli   >= 0 ? parsePrecio(r[iCli])   : null;
+    var pPat   = iPat   >= 0 ? parsePrecio(r[iPat])   : null;
     var pct    = iPorcentaje >= 0 ? parseFloat((r[iPorcentaje]||"0").replace(/[%,\s]/g,""))||0 : 0;
     // Formato viejo: PRECIO COMPRA es la base, PRECIO VENTA es pCli
     // Si pBase > 0 y pCli = 0, calcular pCli desde porcentaje
@@ -11419,7 +11452,7 @@ function _parsearProdCSV(text, filename){
     }
     // Si pCli tiene valor y es "precio venta", usarlo como precio clientes
     // Si no hay pPat, dejar null (se guardará como 0)
-    var stk    = iStock >= 0 ? parseInt((r[iStock]||"0").replace(/[.,\s]/g,""))||0    : 0;
+    var stk    = iStock >= 0 ? (parseInt(String(r[iStock]||"0").replace(/[$.,\s]/g,""))||0) : 0;
     var cat    = iCat   >= 0 ? (r[iCat]||"Sin categoría").trim()                      : "Sin categoría";
     var foto   = iFoto  >= 0 ? (r[iFoto]||"").trim()                                  : "";
 
@@ -11450,11 +11483,16 @@ function _parsearProdCSV(text, filename){
   document.getElementById("prod-csv-opts").style.display = "block";
 
   var dups = _prodCsvRows.filter(function(r){ return r._dup; }).length;
+  var listas = getListas();
+  var listasInfo = Object.entries(listas).map(function(e){
+    return e[1].nombre + " (" + (e[1].pct>0?"+":"")+e[1].pct+"%)";
+  }).join(" · ");
   document.getElementById("prod-csv-preview-title").innerHTML =
     "<b>"+_prodCsvRows.length+" productos</b> en <i>"+filename+"</i>"+
     (dups
-      ? " · <span style='color:var(--amber)'>⚠ "+dups+" ya existen (se actualizarán si marcás ✓ Sobreescribir)</span>"
-      : " · <span style='color:var(--green)'>✓ Sin duplicados</span>");
+      ? " · <span style='color:var(--amber)'>⚠ "+dups+" ya existen</span>"
+      : " · <span style='color:var(--green)'>✓ Sin duplicados</span>") +
+    "<br><span style='font-size:11px;color:var(--muted);font-weight:400'>Precios se calcularán automáticamente según listas: "+listasInfo+"</span>";
 
   // ── Tabla preview ──
   var th = ["Código","Nombre","P. Base","P. Cliente","P. Patagonia","Stock","Categoría","Foto","Estado"]
@@ -11564,20 +11602,55 @@ async function importarProdCSV(){
 
     if(r._dup && !overwrite){ omitidos++; continue; }
 
-    // Precios: usar columnas específicas si existen, sino precio venta como fallback
-    var pBase = r.precioBase  || 0;
-    var pCli  = (r.pCli  != null) ? r.pCli  : (r.precioVenta || 0);
-    var pPat  = (r.pPat  != null) ? r.pPat  : 0;
+    // Precios: usar columnas específicas del CSV, o calcular desde listas de precios
+    var pBase = r.precioBase || 0;
+    var listas = getListas();
+
+    // precio_clientes: columna explícita > precio_venta del CSV > calcular desde lista cli
+    var pCli;
+    if(r.pCli != null && r.pCli > 0){
+      pCli = r.pCli;
+    } else if(r.precioVenta && r.precioVenta > 0){
+      pCli = r.precioVenta;
+    } else if(pBase > 0 && listas.cli){
+      pCli = Math.round(pBase * (1 + (listas.cli.pct||0)/100) * 100) / 100;
+    } else {
+      pCli = 0;
+    }
+
+    // precio_patagonia: columna explícita > calcular desde lista pat
+    var pPat;
+    if(r.pPat != null && r.pPat > 0){
+      pPat = r.pPat;
+    } else if(pBase > 0 && listas.pat){
+      pPat = Math.round(pBase * (1 + (listas.pat.pct||0)/100) * 100) / 100;
+    } else {
+      pPat = 0;
+    }
+
+    // Aplicar también cualquier lista extra definida por el usuario
+    var preciosExtra = {};
+    Object.entries(listas).forEach(function(e){
+      var lid = e[0], lista = e[1];
+      if(lid === 'cli' || lid === 'pat') return; // ya calculados
+      if(pBase > 0){
+        preciosExtra[lid] = Math.round(pBase * (1 + (lista.pct||0)/100) * 100) / 100;
+      }
+    });
+
+    // Mezclar precios extra en el campo precios JSONB
+    var preciosTodos = Object.assign({cli: pCli, pat: pPat}, preciosExtra);
 
     var prodObj = {
-      empresa_id:      _sbEmpId,
-      codigo:          r.id          || "",
-      nombre:          r.nombre      || "",
-      categoria:       r.categoria   || "Sin categoría",
-      precio_base:     pBase,
-      precio_clientes: pCli,
-      precio_patagonia:pPat,
-      foto:            r.foto        || ""
+      empresa_id:       _sbEmpId,
+      codigo:           r.id          || "",
+      nombre:           r.nombre      || "",
+      categoria:        r.categoria   || "Sin categoría",
+      precio_base:      pBase,
+      precio_clientes:  pCli,
+      precio_patagonia: pPat,
+      precios:          preciosTodos,
+      foto:             r.foto        || ""
     };
 
     try {
@@ -11592,7 +11665,7 @@ async function importarProdCSV(){
         if(_prodData[r._sbId]) Object.assign(_prodData[r._sbId], {
           nombre:r.nombre, codigo:r.id, categoria:prodObj.categoria,
           precioBase:pBase, precioClientes:pCli, precioPatagonia:pPat,
-          foto:prodObj.foto
+          precios:preciosTodos, foto:prodObj.foto
         });
         actualizados++;
       } else {
@@ -11602,7 +11675,8 @@ async function importarProdCSV(){
           _prodData[rows[0].id] = {
             id:rows[0].id, codigo:r.id, nombre:r.nombre,
             categoria:prodObj.categoria, precioBase:pBase,
-            precioClientes:pCli, precioPatagonia:pPat, foto:prodObj.foto
+            precioClientes:pCli, precioPatagonia:pPat,
+            precios:preciosTodos, foto:prodObj.foto
           };
         }
         nuevos++;
@@ -11626,6 +11700,11 @@ async function importarProdCSV(){
     } catch(ex){ console.warn("Error actualizando stock:", ex); }
   }
 
+  // Recargar desde Supabase para asegurar que los precios se ven actualizados
+  try {
+    var prodsActualizados = await _sbGetProductos();
+    if(prodsActualizados) _prodData = prodsActualizados;
+  } catch(e){ console.warn("No se pudo recargar productos:", e); }
   renderProductos();
 
   var msg = "✅ "+nuevos+" nuevo"+(nuevos!==1?"s":"")+
