@@ -1509,19 +1509,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 </div>
 <div id="suspended-screen">
-  <div class="susp-icon" id="susp-icon-cli">⏸</div>
+  <div class="susp-icon">⏸</div>
   <div class="susp-title" id="susp-title-cli">Cuenta suspendida</div>
   <div class="susp-sub" id="susp-msg-cli">Esta cuenta no está activa. Contactá al administrador.</div>
-  <div id="susp-btns" style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin-top:20px">
-    <a id="susp-mp-btn" href="#" target="_blank" rel="noopener noreferrer"
-      style="display:none;align-items:center;justify-content:center;gap:10px;padding:14px 20px;background:#009ee3;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12.002 2C6.477 2 2 6.477 2 12.002 2 17.525 6.477 22 12.002 22 17.525 22 22 17.525 22 12.002 22 6.477 17.525 2 12.002 2zM8.5 15.5c-.69 0-1.25-.56-1.25-1.25V9.75C7.25 9.06 7.81 8.5 8.5 8.5h7c.69 0 1.25.56 1.25 1.25v4.5c0 .69-.56 1.25-1.25 1.25H8.5z"/>
-      </svg>
-      Renovar suscripción con Mercado Pago
-    </a>
-    <a href="https://wa.me/5492804213069?text=Hola%2C%20necesito%20reactivar%20mi%20acceso%20a%20la%20app" class="susp-wa" target="_blank">💬 Contactar por WhatsApp</a>
-  </div>
+  <a href="https://wa.me/5492804213069?text=Hola%2C%20necesito%20reactivar%20mi%20acceso%20a%20la%20app" class="susp-wa" target="_blank">💬 Contactar por WhatsApp</a>
 </div>
 
 <div id="app">
@@ -2377,23 +2368,17 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
       <!-- Opciones de precio -->
       <div id="prod-csv-opts" style="display:none;margin-bottom:10px">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">¿Qué representa el PRECIO_BASE?</div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
-            <input type="radio" name="prod-csv-precio-modo" value="ambas" checked> Igual para ambas listas
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
-            <input type="radio" name="prod-csv-precio-modo" value="clientes"> Solo lista Clientes
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
-            <input type="radio" name="prod-csv-precio-modo" value="patagonia"> Solo lista Patagonia
-          </label>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Opciones de importación</div>
+        <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.7">
+          📋 <b>Columnas detectadas automáticamente:</b><br>
+          El CSV debe tener columnas: <code style="background:var(--s3);padding:1px 5px;border-radius:4px">PRECIO BASE</code>, <code style="background:var(--s3);padding:1px 5px;border-radius:4px">PRECIO CLIENTE</code>, <code style="background:var(--s3);padding:1px 5px;border-radius:4px">PRECIO PATAGONIA</code> y <code style="background:var(--s3);padding:1px 5px;border-radius:4px">URL IMAGEN</code>.<br>
+          Si faltan columnas, se usan los valores disponibles. Los nombres de columna son flexibles (sin tildes, sin mayúsculas).
         </div>
-        <div style="margin-top:8px;display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:500">
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;cursor:pointer">
             <input type="checkbox" id="prod-csv-update-stock" checked> Actualizar stock al importar
           </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;cursor:pointer">
             <input type="checkbox" id="prod-csv-overwrite"> Sobreescribir duplicados
           </label>
         </div>
@@ -2815,13 +2800,6 @@ var TITLES = {pedido:"Nuevo Pedido",remito:"Nuevo Remito",hoja:"Hoja de Ruta","p
 var MED = ["g","s","b"];
 
 var empresaKey = "", empresaData = {}, currentUser = null;
-
-// Links de pago Mercado Pago por plan
-var MP_LINKS = {
-  base:     'https://mpago.li/2WM2Dfw',
-  estandar: 'https://mpago.li/1TreJ6d',
-  pro:      'https://mpago.li/2LDgyE2'
-};
 var stockData = {};
 var stockConfig = {}; // { [prodId]: { umbral: N } } — umbral de bajo stock por producto
 var dbStock = [], dbCli = [], ventas = [], rutasData = {};
@@ -3541,15 +3519,13 @@ function doLogin(){
     // Control de acceso estricto
     var _estadosBloq = ["inactiva","vencida","morosa","bloqueada","suspendida"];
     if(_estadosBloq.indexOf(emp.estado) >= 0){
-      var _msgs = {inactiva:"Esta cuenta está suspendida.",vencida:"La suscripción venció. Renovar para recuperar el acceso:",morosa:"Acceso suspendido por falta de pago. Renovar para recuperar el acceso:"};
-      var _showMP = (emp.estado==="vencida"||emp.estado==="morosa");
-      empresaData = Object.assign(empresaData||{}, emp);
-      showSuspendedCli(_msgs[emp.estado]||"Acceso denegado. Contactá al administrador.", _showMP);
+      var _msgs = {inactiva:"Esta cuenta está suspendida.",vencida:"La suscripción venció. Contactá al administrador para renovar.",morosa:"Acceso suspendido por falta de pago. Contactá al administrador."};
+      showSuspendedCli(_msgs[emp.estado]||"Acceso denegado. Contactá al administrador.");
       err.textContent=""; return;
     }
     if(emp.vence){
       var vd=new Date(emp.vence); vd.setHours(23,59,59);
-      if(new Date()>vd){ empresaData=Object.assign(empresaData||{},emp); showSuspendedCli("La suscripción venció el "+vd.toLocaleDateString("es-AR")+". Renovar para recuperar el acceso:", true); err.textContent=""; return; }
+      if(new Date()>vd){ showSuspendedCli("La suscripción venció el "+vd.toLocaleDateString("es-AR")+". Contactá al administrador para renovar."); err.textContent=""; return; }
     }
 
     // 2. Buscar usuario en Supabase directamente (por uid o por id de fila)
@@ -3905,45 +3881,30 @@ function checkEmpresaAccess(emp) {
   if (emp.estado && estadosBloqueados.indexOf(emp.estado) >= 0) {
     var msgs = {
       inactiva:   'Esta cuenta está suspendida. Contactá al administrador.',
-      vencida:    'La suscripción venció. Renovar para recuperar el acceso:',
-      morosa:     'Acceso suspendido por falta de pago. Renovar para recuperar el acceso:',
+      vencida:    'La suscripción venció. Contactá al administrador para renovar.',
+      morosa:     'Acceso suspendido por falta de pago. Contactá al administrador.',
       bloqueada:  'Esta cuenta está bloqueada. Contactá al administrador.',
       suspendida: 'Esta cuenta está suspendida. Contactá al administrador.'
     };
-    var showMP = (emp.estado==='vencida' || emp.estado==='morosa');
-    if(showMP && emp.plan) empresaData = Object.assign(empresaData||{}, {plan: emp.plan});
-    showSuspendedCli(msgs[emp.estado] || 'Acceso denegado. Contactá al administrador.', showMP);
+    showSuspendedCli(msgs[emp.estado] || 'Acceso denegado. Contactá al administrador.');
     return false;
   }
   // Bloquear si venció la suscripción (independientemente del estado)
   if (emp.vence) {
     var vence = new Date(emp.vence); vence.setHours(23,59,59);
     if (new Date() > vence) {
-      showSuspendedCli('La suscripción venció el ' + vence.toLocaleDateString('es-AR') + '. Renovar para recuperar el acceso:', true);
+      showSuspendedCli('La suscripción venció el ' + vence.toLocaleDateString('es-AR') + '. Contactá al administrador para renovar.');
       return false;
     }
   }
   return true;
 }
 
-function showSuspendedCli(msg, showMP) {
-  var el    = document.getElementById('suspended-screen');
+function showSuspendedCli(msg) {
+  var el = document.getElementById('suspended-screen');
   var msgEl = document.getElementById('susp-msg-cli');
-  var mpBtn = document.getElementById('susp-mp-btn');
-  var iconEl= document.getElementById('susp-icon-cli');
-  if(msgEl) msgEl.textContent = msg;
-  if(iconEl) iconEl.textContent = showMP ? '💳' : '⏸';
-  if(mpBtn){
-    if(showMP){
-      var plan = (empresaData && empresaData.plan) || 'estandar';
-      var mpLink = MP_LINKS[plan] || MP_LINKS['estandar'];
-      mpBtn.href = mpLink;
-      mpBtn.style.display = 'flex';
-    } else {
-      mpBtn.style.display = 'none';
-    }
-  }
-  if(el) el.classList.add('show');
+  if (msgEl) msgEl.textContent = msg;
+  if (el) el.classList.add('show');
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').classList.remove('on');
 }
@@ -11379,9 +11340,9 @@ function procesarProdCSV(file){
 }
 
 function _parsearProdCSV(text, filename){
-  // Detectar separador
-  var first = (text.split(/\r?\n/)[0]||"");
-  var sep = (first.split(";").length >= first.split(",").length) ? ";" : ",";
+  // ── Detectar separador ──
+  var firstLine = (text.split(/\r?\n/)[0]||"");
+  var sep = (firstLine.split(";").length >= firstLine.split(",").length) ? ";" : ",";
 
   function parseLine(line){
     var res=[], cur="", inQ=false;
@@ -11395,169 +11356,176 @@ function _parsearProdCSV(text, filename){
     return res;
   }
 
-  var lines = text.split(/\r?\n/).filter(function(l){return l.trim();});
+  var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); });
   if(lines.length < 2){ showNotif("El CSV necesita al menos encabezado + 1 fila","err"); return; }
 
-  // Mapear encabezados flexibles
+  // ── Normalizar encabezados ──
   var hdrs = parseLine(lines[0]).map(function(h){
-    return h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+    return h.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-z0-9]/g,"");
   });
-  function col(kws){ for(var k=0;k<kws.length;k++){ var i=hdrs.findIndex(function(h){return h.includes(kws[k]);}); if(i>=0)return i; } return -1; }
+  function col(kws){
+    for(var k=0;k<kws.length;k++){
+      var idx = hdrs.findIndex(function(h){ return h===kws[k] || h.includes(kws[k]); });
+      if(idx>=0) return idx;
+    }
+    return -1;
+  }
 
-  var iId    = col(["codigo","id","cod","sku","referencia"]);
-  var iNom   = col(["nombreproducto","nombre","name","descripcion","producto","articulo"]);
-  var iPrecioVenta  = col(["precioventa","precioclientes","precio","price","pvp"]);
-  var iPrecioCompra = col(["preciocompra","preciobase","costo","base","compra"]);
-  var iPorcentaje   = col(["porcentaje","margen","markup","pct","descuento"]);
-  var iStock = col(["stock","cantidad","cant","qty","existencia","inventario"]);
-  var iCat   = col(["categoria","category","cat","rubro","familia","grupo"]);
-  var iFoto  = col(["urlimagen","imagen","foto","photo","img","url"]);
-  // backward compat
-  var iPrecioCli = (iPrecioVenta >= 0) ? iPrecioVenta : col(["precioclientes","listacli","cli"]);
-  var iPrecioPat = col(["preciopatagonia","pat","mayorista","patagonia"]);
+  // ── Mapear columnas (en orden de prioridad) ──
+  var iCod    = col(["codigo","id","cod","sku","referencia","codigoproducto"]);
+  var iNom    = col(["nombreproducto","nombre","name","descripcion","producto","articulo","artculo"]);
+  var iBase   = col(["preciobase","preciocompra","costo","base","compra","costounitario"]);
+  var iCli    = col(["preciocliente","precioclientes","listacli","precioventa","pvp","precio"]);
+  var iPat    = col(["preciopatagonia","patagonia","pat","mayorista","listapat"]);
+  var iStock  = col(["stock","cantidad","cant","qty","existencia","inventario"]);
+  var iCat    = col(["categoria","category","cat","rubro","familia","grupo"]);
+  var iFoto   = col(["urlimagen","urlfoto","imagen","imageurl","foto","photo","img","url"]);
 
-  if(iNom < 0 && iId < 0){ showNotif("No se encontró columna de ID o NOMBRE en el CSV","err"); return; }
+  if(iNom < 0 && iCod < 0){
+    showNotif("No se encontró columna de CODIGO o NOMBRE en el CSV","err");
+    return;
+  }
 
-  // Codigos existentes en _prodData
-  var existentes = {}; // codigo → fbKey
+  // ── Mapa de productos existentes (por código) ──
+  var existentes = {}; // codigo_upper → { sbId, fbKey }
   Object.entries(_prodData).forEach(function(e){
-    var cod = (e[1].codigo||"").trim().toUpperCase();
-    if(cod) existentes[cod] = e[0];
+    var p   = e[1];
+    var cod = (p.codigo||"").trim().toUpperCase();
+    if(cod) existentes[cod] = { sbId: p.id || p._sbId || e[0], fbKey: e[0] };
   });
 
   _prodCsvRows = [];
-  var errores = [];
-  for(var i=1;i<lines.length;i++){
-    var r = parseLine(lines[i]);
-    var id      = iId>=0       ? (r[iId]||"").trim().toUpperCase()                         : "";
-    var nom     = iNom>=0      ? (r[iNom]||"").trim()                                       : "";
-    var prVenta = iPrecioVenta>=0 ? parseFloat((r[iPrecioVenta]||"0").replace(/[,$\s]/g,""))||0 : 0;
-    var prCompra= iPrecioCompra>=0? parseFloat((r[iPrecioCompra]||"0").replace(/[,$\s]/g,""))||0: 0;
-    var pct     = iPorcentaje>=0  ? parseFloat((r[iPorcentaje]||"0").replace(/[,%\s]/g,""))||0  : null;
-    var stk     = iStock>=0    ? parseInt((r[iStock]||"0").replace(/[.,\s]/g,""))||0        : 0;
-    var cat     = iCat>=0      ? (r[iCat]||"").trim()                                       : "Sin categoría";
-    var foto    = iFoto>=0     ? (r[iFoto]||"").trim()                                       : "";
-    var pCli    = iPrecioCli>=0? parseFloat((r[iPrecioCli]||"0").replace(/[,$\s]/g,""))||0 : null;
-    var pPat    = iPrecioPat>=0? parseFloat((r[iPrecioPat]||"0").replace(/[,$\s]/g,""))||0 : null;
+  var errores  = [];
 
-    // Si hay porcentaje y precio compra, calcular precio venta
-    if(pct !== null && prCompra > 0 && prVenta === 0){
-      prVenta = Math.round(prCompra * (1 + pct / 100));
-    }
-    // Si hay precio venta pero no compra, usar precio venta como base
-    var prBase = prCompra > 0 ? prCompra : prVenta;
+  for(var i=1; i<lines.length; i++){
+    var r   = parseLine(lines[i]);
+    var cod = iCod >= 0 ? (r[iCod]||"").trim().toUpperCase() : "";
+    var nom = iNom >= 0 ? (r[iNom]||"").trim()               : "";
+    if(!nom && !cod){ errores.push("Fila "+(i+1)+": sin nombre ni código"); continue; }
+    if(!cod) cod = nom.substring(0,8).toUpperCase().replace(/\s/g,"");
+    if(!nom) nom = cod;
 
-    if(!nom && !id){ errores.push("Fila "+(i+1)+": sin nombre ni ID"); continue; }
-    if(!id) id = nom.substring(0,6).toUpperCase().replace(/\s/g,"");
-    if(!nom) nom = id;
-    if(!cat || cat==="") cat = "Sin categoría";
+    var pBase  = iBase  >= 0 ? parseFloat((r[iBase] ||"0").replace(/[$,\s]/g,""))||0 : 0;
+    var pCli   = iCli   >= 0 ? parseFloat((r[iCli]  ||"0").replace(/[$,\s]/g,""))||0 : null;
+    var pPat   = iPat   >= 0 ? parseFloat((r[iPat]  ||"0").replace(/[$,\s]/g,""))||0 : null;
+    var stk    = iStock >= 0 ? parseInt((r[iStock]||"0").replace(/[.,\s]/g,""))||0    : 0;
+    var cat    = iCat   >= 0 ? (r[iCat]||"Sin categoría").trim()                      : "Sin categoría";
+    var foto   = iFoto  >= 0 ? (r[iFoto]||"").trim()                                  : "";
 
-    _prodCsvRows.push({ id:id, nombre:nom, precioBase:prBase, precioVenta:prVenta, porcentaje:pct, stock:stk, categoria:cat, foto:foto, pCli:pCli, pPat:pPat, _dup: !!existentes[id], _fbKey: existentes[id]||null, _row:i+1 });
+    if(!cat) cat = "Sin categoría";
+
+    var dup    = existentes[cod] || null;
+    _prodCsvRows.push({
+      id:          cod,
+      nombre:      nom,
+      precioBase:  pBase,
+      pCli:        pCli,
+      pPat:        pPat,
+      stock:       stk,
+      categoria:   cat,
+      foto:        foto,
+      _dup:        !!dup,
+      _sbId:       dup ? dup.sbId  : null,
+      _fbKey:      dup ? dup.fbKey : null,
+      _row:        i+1
+    });
   }
 
-  if(!_prodCsvRows.length){ showNotif("No se encontraron filas válidas: "+errores.slice(0,3).join(", "),"err"); return; }
+  if(!_prodCsvRows.length){
+    showNotif("No se encontraron filas válidas. "+errores.slice(0,3).join(" | "),"err");
+    return;
+  }
 
-  document.getElementById("prod-csv-opts").style.display="block";
+  document.getElementById("prod-csv-opts").style.display = "block";
 
-  var dups = _prodCsvRows.filter(function(r){return r._dup;}).length;
+  var dups = _prodCsvRows.filter(function(r){ return r._dup; }).length;
   document.getElementById("prod-csv-preview-title").innerHTML =
-    '<b>'+_prodCsvRows.length+' productos</b> en <i>'+filename+'</i>' +
-    (dups ? ' · <span style="color:var(--amber)">⚠ '+dups+' ya existen</span>' : ' · <span style="color:var(--green)">✓ Sin duplicados</span>');
+    "<b>"+_prodCsvRows.length+" productos</b> en <i>"+filename+"</i>"+
+    (dups
+      ? " · <span style='color:var(--amber)'>⚠ "+dups+" ya existen (se actualizarán si marcás ✓ Sobreescribir)</span>"
+      : " · <span style='color:var(--green)'>✓ Sin duplicados</span>");
 
-  // Tabla preview
-  var cols = ['Código','Nombre','P. Compra','P. Venta','Stock','Categoría','Estado'];
-  var th = cols.map(function(c){return '<th style="padding:7px 10px;text-align:left;font-weight:700;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s3)">'+c+'</th>';}).join('');
+  // ── Tabla preview ──
+  var th = ["Código","Nombre","P. Base","P. Cliente","P. Patagonia","Stock","Categoría","Foto","Estado"]
+    .map(function(c){ return '<th style="padding:7px 10px;text-align:left;font-weight:700;font-size:11px;'+
+      'color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s3)">'+c+'</th>'; })
+    .join('');
+
   var rows = _prodCsvRows.map(function(r){
     var badge = r._dup
-      ? '<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:10px">Actualizar</span>'
-      : '<span style="font-size:10px;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 6px;border-radius:10px">Nuevo</span>';
-    var bg = r._dup ? "background:#fffbeb;" : "";
-    return '<tr style="border-bottom:1px solid var(--border2);'+bg+'">' +
-      '<td style="padding:6px 10px;font-family:monospace;font-size:11.5px">'+escHtml(r.id)+'</td>' +
-      '<td style="padding:6px 10px;font-weight:600;font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(r.nombre)+'</td>' +
-      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+( r.precioBase>0? '$'+_fmt(r.precioBase) : '—')+'</td>' +
-      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+( r.precioVenta>0? '$'+_fmt(r.precioVenta) : '—')+'</td>' +
-      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+r.stock+'</td>' +
-      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">'+escHtml(r.categoria)+'</td>' +
-      '<td style="padding:6px 10px">'+badge+'</td>' +
-    '</tr>';
+      ? "<span style='font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:10px'>Actualizar</span>"
+      : "<span style='font-size:10px;font-weight:700;color:#065f46;background:#d1fae5;padding:2px 6px;border-radius:10px'>Nuevo</span>";
+    var fotoIcon = r.foto
+      ? "<a href='"+r.foto+"' target='_blank' style='color:var(--accent);font-size:11px'>🔗 Ver</a>"
+      : "<span style='color:var(--muted);font-size:11px'>—</span>";
+    return "<tr style='border-bottom:1px solid var(--border2)"+(r._dup?";background:#fffbeb":"")+"'>"+
+      "<td style='padding:6px 10px;font-family:monospace;font-size:11.5px'>"+escHtml(r.id)+"</td>"+
+      "<td style='padding:6px 10px;font-weight:600;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+escHtml(r.nombre)+"</td>"+
+      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+(r.precioBase>0?"$"+_fmt(r.precioBase):"—")+"</td>"+
+      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+(r.pCli!=null&&r.pCli>0?"$"+_fmt(r.pCli):"—")+"</td>"+
+      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+(r.pPat!=null&&r.pPat>0?"$"+_fmt(r.pPat):"—")+"</td>"+
+      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+r.stock+"</td>"+
+      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+escHtml(r.categoria)+"</td>"+
+      "<td style='padding:6px 10px'>"+fotoIcon+"</td>"+
+      "<td style='padding:6px 10px'>"+badge+"</td>"+
+      "</tr>";
   }).join('');
 
   document.getElementById("prod-csv-table-wrap").innerHTML =
-    '<table style="width:100%;border-collapse:collapse"><thead><tr>'+th+'</tr></thead><tbody>'+rows+'</tbody></table>';
-  document.getElementById("prod-csv-result").style.display = "none";
+    "<table style='width:100%;border-collapse:collapse'><thead><tr>"+th+"</tr></thead><tbody>"+rows+"</tbody></table>";
+  document.getElementById("prod-csv-result").style.display  = "none";
   document.getElementById("prod-csv-preview").style.display = "block";
 }
+
 
 async function exportarProductosXLSX(){
   if(!_sbEmpId){ showNotif("Sin empresa cargada","err"); return; }
   if(typeof XLSX === "undefined"){ showNotif("Cargando librería Excel…","info"); return; }
-
   showNotif("⏳ Generando Excel…","ok");
-
   try {
-    // Cargar productos y stock en paralelo
-    var [prodRows, stockRows] = await Promise.all([
-      sbGet("productos","select=codigo,nombre,categoria,precio_base,precio_clientes,foto&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"),
+    var res = await Promise.all([
+      sbGet("productos","select=codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,foto&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"),
       sbGet("stock","select=codigo,cantidad&empresa_id=eq."+_sbEmpId)
     ]);
-
-    // Mapa de stock por código
+    var prodRows = res[0]||[], stockRows = res[1]||[];
     var stockMap = {};
-    (stockRows||[]).forEach(function(s){ if(s.codigo) stockMap[s.codigo.toUpperCase()] = s.cantidad||0; });
+    stockRows.forEach(function(s){ if(s.codigo) stockMap[s.codigo.toUpperCase()] = +s.cantidad||0; });
 
-    // Armar filas
-    var data = [["CODIGO","NOMBRE PRODUCTO","PRECIO VENTA","PORCENTAJE","STOCK","CATEGORIA","PRECIO COMPRA","URL IMAGEN"]];
-    (prodRows||[]).forEach(function(p){
-      var cod   = p.codigo || "";
-      var pComp = p.precio_base || 0;
-      var pVent = p.precio_clientes || 0;
-      var pct   = (pComp > 0 && pVent > 0) ? Math.round((pVent - pComp) / pComp * 100) : 0;
-      var stk   = stockMap[(cod+"").toUpperCase()] || 0;
-      var fotoVal = p.foto || "";
-      // Si es base64 (data:image/...), Excel no puede mostrarlo — omitir
-      if(fotoVal.startsWith("data:")) fotoVal = "";
-      // Truncar URLs muy largas al límite de Excel
-      if(fotoVal.length > 32700) fotoVal = fotoVal.substring(0, 32700);
+    var data = [["CODIGO","NOMBRE PRODUCTO","CATEGORIA","PRECIO BASE","PRECIO CLIENTE","PRECIO PATAGONIA","STOCK","URL IMAGEN"]];
+    prodRows.forEach(function(p){
+      var cod  = (p.codigo||"").trim();
+      var foto = (p.foto||"");
+      if(foto.startsWith("data:")) foto = "";
+      if(foto.length > 32700) foto = foto.substring(0,32700);
       data.push([
         cod,
-        p.nombre || "",
-        pVent,
-        pct,
-        stk,
-        (p.categoria || "Sin categoría").replace(/^"+|"+$/g,"").trim(),
-        pComp,
-        fotoVal
+        p.nombre||"",
+        (p.categoria||"Sin categoría").replace(/^"+|"+$/g,"").trim(),
+        +p.precio_base||0,
+        +p.precio_clientes||0,
+        +p.precio_patagonia||0,
+        stockMap[cod.toUpperCase()]||0,
+        foto
       ]);
     });
 
-    // Crear libro Excel
     var wb = XLSX.utils.book_new();
     var ws = XLSX.utils.aoa_to_sheet(data);
-
-    // Anchos de columna
-    ws['!cols'] = [
-      {wch:14},{wch:40},{wch:14},{wch:12},{wch:10},{wch:22},{wch:14},{wch:50}
-    ];
-
-    // Estilo cabecera (negrita)
+    ws['!cols'] = [{wch:14},{wch:40},{wch:22},{wch:14},{wch:15},{wch:17},{wch:8},{wch:55}];
     var range = XLSX.utils.decode_range(ws['!ref']);
     for(var C = range.s.c; C <= range.e.c; C++){
-      var addr = XLSX.utils.encode_cell({r:0, c:C});
-      if(!ws[addr]) continue;
-      ws[addr].s = { font:{bold:true}, fill:{fgColor:{rgb:"E2E8F0"}}, alignment:{horizontal:"center"} };
+      var addr = XLSX.utils.encode_cell({r:0,c:C});
+      if(ws[addr]) ws[addr].s = {font:{bold:true},fill:{fgColor:{rgb:"D1FAE5"}},alignment:{horizontal:"center"}};
     }
-
     XLSX.utils.book_append_sheet(wb, ws, "Productos");
-
-    // Nombre de archivo con fecha
-    var fecha = new Date().toISOString().slice(0,10);
-    var empNom = (empresaData&&empresaData.emp_nombre ? empresaData.emp_nombre : empresaKey).replace(/[^a-zA-Z0-9]/g,"_");
-    XLSX.writeFile(wb, "Productos_"+empNom+"_"+fecha+".xlsx");
-    showNotif("✅ Excel exportado ("+( data.length-1)+" productos)","ok");
-
+    var fecha  = new Date().toISOString().slice(0,10);
+    var nom    = (empresaData&&empresaData.emp_nombre?empresaData.emp_nombre:empresaKey).replace(/[^a-zA-Z0-9]/g,"_");
+    XLSX.writeFile(wb, "Productos_"+nom+"_"+fecha+".xlsx");
+    showNotif("✅ Excel exportado ("+(data.length-1)+" productos)","ok");
   } catch(e){
-    console.error("Export error:", e);
+    console.error("Export error:",e);
     showNotif("Error al exportar: "+e.message,"err");
   }
 }
@@ -11565,8 +11533,8 @@ async function exportarProductosXLSX(){
 function limpiarProdCSV(){
   _prodCsvRows = [];
   document.getElementById("prod-csv-preview").style.display = "none";
-  document.getElementById("prod-csv-opts").style.display = "none";
-  document.getElementById("prod-csv-result").style.display = "none";
+  document.getElementById("prod-csv-opts").style.display    = "none";
+  document.getElementById("prod-csv-result").style.display  = "none";
   document.getElementById("prod-csv-input").value = "";
 }
 
@@ -11575,80 +11543,86 @@ async function importarProdCSV(){
   var btn = document.getElementById("btn-importar-prod-csv");
   btn.disabled = true; btn.textContent = "Importando…";
 
-  // Leer opciones
-  var precioModo = document.querySelector('input[name="prod-csv-precio-modo"]:checked').value;
-  var updateStock = document.getElementById("prod-csv-update-stock").checked;
   var overwrite   = document.getElementById("prod-csv-overwrite").checked;
+  var updateStock = document.getElementById("prod-csv-update-stock").checked;
 
   var nuevos=0, actualizados=0, omitidos=0, errores=0;
-  var stockPatch = {};
+  var stockPatch = [];   // array para sbPost upsert
 
   for(var i=0;i<_prodCsvRows.length;i++){
     var r = _prodCsvRows[i];
     btn.textContent = "Importando "+(i+1)+"/"+_prodCsvRows.length+"…";
 
-    // Si es duplicado y no se quiere sobreescribir → omitir
     if(r._dup && !overwrite){ omitidos++; continue; }
 
-    // Calcular precios según modo
-    var pCli=0, pPat=0;
-    if(r.pCli!==null && r.pPat!==null){
-      pCli = r.pCli; pPat = r.pPat;
-    } else if(r.precioVenta > 0){
-      // Usar precio venta del CSV
-      if(precioModo==="ambas")     { pCli=r.precioVenta; pPat=r.precioVenta; }
-      else if(precioModo==="clientes")  { pCli=r.precioVenta; pPat=0; }
-      else if(precioModo==="patagonia") { pCli=0; pPat=r.precioVenta; }
-    } else {
-      if(precioModo==="ambas")     { pCli=r.precioBase; pPat=r.precioBase; }
-      else if(precioModo==="clientes")  { pCli=r.precioBase; pPat=0; }
-      else if(precioModo==="patagonia") { pCli=0; pPat=r.precioBase; }
-    }
+    // Precios: usar columnas específicas si existen, sino precio venta como fallback
+    var pBase = r.precioBase  || 0;
+    var pCli  = (r.pCli  != null) ? r.pCli  : (r.precioVenta || 0);
+    var pPat  = (r.pPat  != null) ? r.pPat  : 0;
 
     var prodObj = {
-      nombre: r.nombre,
-      codigo: r.id,
-      categoria: r.categoria || "Sin categoría",
-      precioBase:      r.precioBase || 0,
-      precioClientes:  pCli,
-      precioPatagonia: pPat,
-      foto: r.foto || ""
+      empresa_id:      _sbEmpId,
+      codigo:          r.id          || "",
+      nombre:          r.nombre      || "",
+      categoria:       r.categoria   || "Sin categoría",
+      precio_base:     pBase,
+      precio_clientes: pCli,
+      precio_patagonia:pPat,
+      foto:            r.foto        || ""
     };
 
     try {
-      if(r._dup && r._fbKey){
-        // Conservar foto existente
-        var existing = _prodData[r._fbKey];
-        if(existing && existing.foto) prodObj.foto = existing.foto;
-        await fbPatchQ("empresas/"+empresaKey+"/productos/"+r._fbKey, prodObj, "CSV prod update: "+r.id);
-        _prodData[r._fbKey] = Object.assign(_prodData[r._fbKey]||{}, prodObj);
+      if(r._dup && r._sbId){
+        // Actualizar en Supabase — conservar foto existente si no viene en CSV
+        if(!prodObj.foto && _prodData[r._sbId] && _prodData[r._sbId].foto){
+          prodObj.foto = _prodData[r._sbId].foto;
+        }
+        delete prodObj.empresa_id;  // no cambiar empresa
+        await sbPatch("productos","id=eq."+r._sbId+"&empresa_id=eq."+_sbEmpId, prodObj);
+        // Actualizar en memoria
+        if(_prodData[r._sbId]) Object.assign(_prodData[r._sbId], {
+          nombre:r.nombre, codigo:r.id, categoria:prodObj.categoria,
+          precioBase:pBase, precioClientes:pCli, precioPatagonia:pPat,
+          foto:prodObj.foto
+        });
         actualizados++;
       } else {
-        var newKey = await fbPushQ("empresas/"+empresaKey+"/productos", prodObj, "CSV prod nuevo: "+r.id);
-        if(newKey && !newKey.startsWith("op_")) _prodData[newKey] = prodObj;
+        // Insertar nuevo en Supabase
+        var rows = await sbPost("productos", prodObj);
+        if(rows && rows[0]){
+          _prodData[rows[0].id] = {
+            id:rows[0].id, codigo:r.id, nombre:r.nombre,
+            categoria:prodObj.categoria, precioBase:pBase,
+            precioClientes:pCli, precioPatagonia:pPat, foto:prodObj.foto
+          };
+        }
         nuevos++;
       }
-      // Preparar patch de stock
-      if(updateStock && r.stock !== 0){
-        stockPatch[r.id] = r.stock;
-        stockData[r.id] = r.stock;
+      // Acumular stock para upsert
+      if(updateStock && r.stock > 0){
+        stockPatch.push({empresa_id:_sbEmpId, codigo:r.id, cantidad:r.stock, updated_at:new Date().toISOString()});
       }
-    } catch(e){ errores++; console.warn("Error importando prod "+r.id, e); }
+    } catch(ex){ errores++; console.warn("Error importando prod "+r.id, ex); }
   }
 
-  // Subir stock de una vez
-  if(updateStock && Object.keys(stockPatch).length){
-    await fbPatchQ("empresas/"+empresaKey+"/stock", stockPatch, "CSV stock import");
+  // Upsert stock de una vez
+  if(updateStock && stockPatch.length){
+    try {
+      await fetch(SB_URL+"/rest/v1/stock", {
+        method:"POST",
+        headers: Object.assign({},SB_HDR,{"Prefer":"resolution=merge-duplicates,return=minimal"}),
+        body: JSON.stringify(stockPatch)
+      });
+      _sincronizarDbStock && _sincronizarDbStock();
+    } catch(ex){ console.warn("Error actualizando stock:", ex); }
   }
 
-  _sincronizarDbStock();
   renderProductos();
 
   var msg = "✅ "+nuevos+" nuevo"+(nuevos!==1?"s":"")+
     (actualizados>0 ? " · "+actualizados+" actualizado"+(actualizados!==1?"s":"") : "")+
     (omitidos>0     ? " · "+omitidos+" omitido"+(omitidos!==1?"s":"") : "")+
     (errores>0      ? " · ⚠ "+errores+" error"+(errores!==1?"es":"") : "");
-
   var res = document.getElementById("prod-csv-result");
   res.style.cssText = "display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:9px 12px;color:#065f46;font-weight:600;font-size:12.5px";
   res.textContent = msg;
@@ -11656,7 +11630,6 @@ async function importarProdCSV(){
   btn.disabled = false; btn.textContent = "⬆ Importar";
   _prodCsvRows = [];
 }
-
 // ══ MIS VENTAS (Vista del vendedor) ══
 // Asignar vendedor a un backup que no tenía uno
 async function _asignarVndBk(bkId, sel){
