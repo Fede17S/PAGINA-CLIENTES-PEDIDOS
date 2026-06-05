@@ -4312,10 +4312,17 @@ function _initCliPicker(t){
       if(q !== null){
         box.innerHTML = '<div class="cli-empty">⏳ Cargando clientes…</div>';
         box.style.display = "block";
-        fbGet("empresas/"+empresaKey+"/usuarios").then(function(data){
-          if(data && !Object.keys(_clientesGestion).length){ _clientesDB = Object.assign(_clientesDB||{}, data); }
+        // Cargar desde Supabase
+        _sbGetUsuarios().then(function(data){
+          if(data && Object.keys(data).length){ _clientesDB = Object.assign(_clientesDB||{}, data); }
           render(q);
-        }).catch(function(){});
+        }).catch(function(){
+          // fallback Firebase si Supabase falla
+          fbGet("empresas/"+empresaKey+"/usuarios").then(function(data){
+            if(data){ _clientesDB = Object.assign(_clientesDB||{}, data); }
+            render(q);
+          }).catch(function(){ box.innerHTML='<div class="cli-empty">Sin clientes disponibles</div>'; });
+        });
       } else { box.style.display="none"; }
       return;
     }
@@ -8124,46 +8131,99 @@ var _editBkSelProd = null;
 
 function abrirEditarBackup(bk){
   _editBkItem = JSON.parse(JSON.stringify(bk)); // copia profunda
-  var aprobado = bk.aprobado === true || bk.aprobado === false; // ya fue procesado
-  var info = document.getElementById("edit-bk-cli-info");
-  if(info) info.textContent = "👤 "+(bk.clienteNom||"Sin cliente")+" · Lista: "+(bk.lista||"Clientes")+" · "+new Date(bk.fecha).toLocaleDateString("es-AR");
-  // Mostrar cambio de cliente solo si NO está aprobado/rechazado
-  var cliWrap = document.getElementById("edit-bk-cambiar-cli-wrap");
-  if(cliWrap){
-    cliWrap.style.display = aprobado ? "none" : "block";
-    var cliBus = document.getElementById("edit-bk-cli-bus");
-    if(cliBus) cliBus.value = "";
-    var cliRes = document.getElementById("edit-bk-cli-res");
-    if(cliRes){ cliRes.style.display="none"; cliRes.innerHTML=""; }
+  // Cargar clientes y ESPERAR antes de mostrar el modal
+  var _doAbrir = function(){
+    var aprobado = _editBkItem.aprobado === true || _editBkItem.aprobado === false;
+    var info = document.getElementById("edit-bk-cli-info");
+    if(info) info.textContent = "👤 "+(_editBkItem.clienteNom||"Sin cliente")+" · Lista: "+(_editBkItem.lista||"Clientes")+" · "+new Date(_editBkItem.fecha).toLocaleDateString("es-AR");
+    var cliWrap = document.getElementById("edit-bk-cambiar-cli-wrap");
+    if(cliWrap){
+      cliWrap.style.display = aprobado ? "none" : "block";
+      var cliBus = document.getElementById("edit-bk-cli-bus");
+      if(cliBus){ cliBus.value=""; }
+      var cliRes = document.getElementById("edit-bk-cli-res");
+      if(cliRes){ cliRes.style.display="none"; cliRes.innerHTML=""; }
+    }
+    var bus=document.getElementById("edit-bk-bus"), res=document.getElementById("edit-bk-res");
+    if(bus) bus.value="";
+    if(res){ res.classList.remove("open"); res.innerHTML=""; }
+    var cantEl=document.getElementById("edit-bk-cant");
+    if(cantEl) cantEl.value="1";
+    _editBkSelProd=null;
+    _renderEditBkItems();
+    abrirModal("modal-editar-backup");
+  };
+  // Si ya hay clientes cargados, abrir directo; si no, cargar primero
+  var tieneClis = _clientesDB && Object.keys(_clientesDB).length > 0;
+  if(tieneClis){
+    _doAbrir();
+  } else if(typeof _sbGetUsuarios === "function" && _sbEmpId){
+    _sbGetUsuarios().then(function(data){
+      if(data && Object.keys(data).length) _clientesDB = data;
+      _doAbrir();
+    }).catch(function(){ _doAbrir(); });
+  } else {
+    _doAbrir();
   }
-  // Limpiar buscador
-  var bus = document.getElementById("edit-bk-bus");
-  var res = document.getElementById("edit-bk-res");
-  if(bus) bus.value="";
-  if(res){ res.classList.remove("open"); res.innerHTML=""; }
-  var cantEl = document.getElementById("edit-bk-cant");
-  if(cantEl) cantEl.value = "1";
-  _editBkSelProd = null;
-  _renderEditBkItems();
-  abrirModal("modal-editar-backup");
+  // El resto del setup original ya está en _doAbrir, return acá
 }
 
 function _filtrarEditBkCli(q){
   var res = document.getElementById("edit-bk-cli-res");
   if(!res) return;
   var term = (q||"").toLowerCase().trim();
-  if(!term){ res.style.display="none"; res.innerHTML=""; return; }
-  var src = Object.values(_cliData||_clientesDB||{});
-  var hits = src.filter(function(u){
-    return (u.name||"").toLowerCase().includes(term)||(u.id||"").toLowerCase().includes(term);
-  }).slice(0,8);
+
+  // Construir fuente unificada desde TODAS las posibles fuentes
+  var fuente = [];
+  var db = _clientesDB || _cliData || {};
+  if(Object.keys(db).length){
+    fuente = Object.values(db).map(function(u){
+      // Cubrir todas las estructuras posibles: Firebase, Supabase, etc.
+      var nombre = u.name || u.nombre || u.n || "";
+      var id     = u.id  || u.uid   || u._id || "";
+      var lista  = u.lista || "Clientes";
+      // Si name está vacío pero hay nombre en otra key
+      if(!nombre && typeof u === "string") nombre = u;
+      return { id: String(id), nombre: String(nombre), lista: String(lista) };
+    }).filter(function(u){ return u.nombre && u.nombre.length > 0; });
+  }
+
+  // También agregar dbCli si existe y tiene datos
+  if(typeof dbCli !== "undefined" && dbCli && dbCli.length){
+    var idsExist = new Set(fuente.map(function(u){ return u.id; }));
+    dbCli.forEach(function(c){
+      if(!idsExist.has(c.id||"")){
+        fuente.push({ id: c.id||"", nombre: c.nombre||c.name||"", lista: c.lista||"Clientes" });
+      }
+    });
+  }
+
+  if(!fuente.length){
+    res.innerHTML = '<div style="padding:8px 14px;font-size:12px;color:var(--muted)">⏳ Cargando clientes…</div>';
+    res.style.display = "block";
+    _sbGetUsuarios && _sbGetUsuarios().then(function(data){
+      if(data){ _clientesDB = Object.assign(_clientesDB||{}, data); _filtrarEditBkCli(q); }
+    }).catch(function(){});
+    return;
+  }
+
+  if(!term){
+    // Sin texto: mostrar todos (hasta 30)
+    var todos = fuente.slice(0,30);
+    res.innerHTML = todos.map(function(u){
+      return '<div onclick="_seleccionarEditBkCli(\''+ escHtml(u.id)+'\',\''+ escHtml(u.nombre)+'\',\''+ escHtml(u.lista)+'\')" style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)" onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'\'"><b>'+ escHtml(u.nombre)+'</b> <span style="color:var(--muted);font-size:11px">'+ escHtml(u.id)+'</span></div>';
+    }).join('');
+    res.style.display = todos.length ? "block" : "none";
+    return;
+  }
+
+  var hits = fuente.filter(function(u){
+    return (u.nombre||"").toLowerCase().includes(term)||(u.id||"").toLowerCase().includes(term);
+  }).slice(0,10);
+
   if(!hits.length){ res.style.display="none"; return; }
   res.innerHTML = hits.map(function(u){
-    return '<div onclick="_seleccionarEditBkCli(\''+escHtml(u.id||"")+'\',\''+escHtml(u.name||u.id||"")+'\',\''+escHtml(u.lista||"Clientes")+'\')" '+
-      'style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)"'+
-      ' onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'\'">'+
-      '<b>'+escHtml(u.name||u.id)+'</b> <span style="color:var(--muted);font-size:11px">'+escHtml(u.id)+'</span>'+
-    '</div>';
+    return '<div onclick="_seleccionarEditBkCli(\''+ escHtml(u.id)+'\',\''+ escHtml(u.nombre)+'\',\''+ escHtml(u.lista)+'\')" style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)" onmouseover="this.style.background=\'var(--s3)\'" onmouseout="this.style.background=\'\'"><b>'+ escHtml(u.nombre)+'</b> <span style="color:var(--muted);font-size:11px">'+ escHtml(u.id)+'</span></div>';
   }).join('');
   res.style.display = "block";
 }
@@ -8334,43 +8394,87 @@ async function confirmarBackupComoRemito(bkParam){
 
   console.log("[Backup→Remito] vendedor:", vendedorNom, "("+vendedorId+") | cliente:", nom, "| total:", totalNum);
 
-  // 1) Guardar venta acreditada al vendedor que hizo el pedido
-  var venta = {
-    fecha: ahora.toISOString(), mes: ahora.getMonth(), anio: ahora.getFullYear(),
-    clienteId: bk.clienteId||"", clienteNom: nom, lista: bk.lista||"Clientes",
-    items: items.filter(function(i){ return !i.pendiente; }).map(function(i){ return {id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub}; }),
-    total: totalNum,
-    usuario:    vendedorId,
-    usuarioNom: vendedorNom,
-    descuentos: bk.descuentos||null
-  };
-  try { await fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Remito desde backup: "+nom); }
-  catch(e){ console.warn("Error guardando venta:", e); }
+  // Los ítems del pedido original conservan sus precios (p = precio al momento del pedido)
+  // NO se recalculan precios — se usa lo que tenía el pedido
+  var itemsAprobados = items.filter(function(i){ return !i.pendiente; }).map(function(i){
+    return {id:i.id, n:i.n, c:i.c, p:i.p, sub:(i.c||0)*(i.p||0)};
+  });
 
-  // 2) Agregar a la ruta de hoy
+  // 1) Guardar venta en Supabase (acreditada al vendedor del pedido)
+  var ventaPayload = {
+    empresa_id:  _sbEmpId,
+    fecha:       ahora.toISOString(),
+    cliente_id:  bk.clienteId||"",
+    cliente_nom: nom,
+    lista:       bk.lista||"Clientes",
+    items:       itemsAprobados,
+    total:       totalNum,
+    usuario:     vendedorId,
+    usuario_nom: vendedorNom,
+    descuentos:  bk.descuentos||null,
+    tipo:        "remito",
+    aprobado:    true
+  };
+  try {
+    await sbPost("ventas", ventaPayload);
+  } catch(e){ console.warn("Error guardando venta en Supabase:", e); }
+
+  // 2) Agregar a hoja de ruta en Supabase
   var hoy = ahora.toLocaleDateString("es-AR");
-  var rutaKey2 = null;
-  var keys = Object.keys(rutasData||{});
-  var rutaHoy = keys.find(function(k){ return rutasData[k].fecha && new Date(rutasData[k].fecha).toLocaleDateString("es-AR")===hoy; });
-  if(rutaAbierta) rutaKey2 = rutaAbierta;
-  else if(rutaHoy) rutaKey2 = rutaHoy;
-  else {
-    var nn = "Ruta "+ahora.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+  var rutaId = null;
+
+  // Buscar ruta abierta del día en Supabase
+  try {
+    var rutasHoy = await sbGet("rutas",
+      "empresa_id=eq."+_sbEmpId+"&finalizada=eq.false&order=fecha.desc&limit=5");
+    if(rutasHoy && rutasHoy.length){
+      // Preferir la que tenga fecha de hoy
+      var rutaHoyRow = rutasHoy.find(function(r){
+        return r.fecha && new Date(r.fecha).toLocaleDateString("es-AR")===hoy;
+      });
+      rutaId = (rutaHoyRow || rutasHoy[0]).id;
+    }
+  } catch(e){ console.warn("Error buscando ruta:", e); }
+
+  // Si no hay ruta, crear una nueva
+  if(!rutaId){
     try {
-      var nk = await fbPushQ("empresas/"+empresaKey+"/rutas",{nombre:nn,fecha:ahora.toISOString()}, "Nueva ruta");
-      if(nk&&!nk.startsWith("op_")){ rutasData[nk]={nombre:nn,fecha:ahora.toISOString(),clientes:{}}; rutaKey2=nk; }
-    } catch(e){}
+      var nn = "Ruta "+ahora.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+      var nuevaRuta = await sbPost("rutas", {
+        empresa_id: _sbEmpId,
+        nombre: nn,
+        fecha: ahora.toISOString(),
+        repartidor_nom: "",
+        finalizada: false
+      });
+      if(nuevaRuta && nuevaRuta[0]) rutaId = nuevaRuta[0].id;
+    } catch(e){ console.warn("Error creando ruta:", e); }
   }
-  if(rutaKey2){
-    var cd = {nom:nom,id:bk.clienteId||"",importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:items,fecha:ahora.toISOString()};
+
+  // Agregar cliente a la ruta
+  if(rutaId){
+    var cd = {
+      ruta_id:      rutaId,
+      empresa_id:   _sbEmpId,
+      cliente_id:   bk.clienteId||"",
+      nom:          nom,
+      importe:      totalNum,
+      efectivo:     0,
+      transferencia:0,
+      modo:         "ninguno",
+      items:        itemsAprobados,
+      fecha:        ahora.toISOString(),
+      entregado:    false
+    };
     try {
-      var ck = await fbPushQ("empresas/"+empresaKey+"/rutas/"+rutaKey2+"/clientes", cd, "Cliente ruta: "+nom);
-      if(ck&&!ck.startsWith("op_")){
-        if(!rutasData[rutaKey2]) rutasData[rutaKey2]={clientes:{}};
-        if(!rutasData[rutaKey2].clientes) rutasData[rutaKey2].clientes={};
-        rutasData[rutaKey2].clientes[ck]=cd;
+      var rcRows = await sbPost("ruta_clientes", cd);
+      // Actualizar rutasData en memoria también
+      if(rcRows && rcRows[0]){
+        if(!rutasData[rutaId]) rutasData[rutaId] = {nombre:"Ruta",clientes:{}};
+        if(!rutasData[rutaId].clientes) rutasData[rutaId].clientes = {};
+        rutasData[rutaId].clientes[rcRows[0].id] = cd;
       }
-    } catch(e){ console.warn("Error agregando a ruta:", e); }
+    } catch(e){ console.warn("Error agregando cliente a ruta:", e); }
   }
 
   // 3) Marcar el backup como convertido — NO crear un nuevo registro
