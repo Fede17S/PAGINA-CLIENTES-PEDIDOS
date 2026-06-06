@@ -605,6 +605,25 @@ select option { background:#fff }
 .gps-capture-btn { width:100%; padding:11px; background:var(--text); color:#fff; border:none; border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:background .15s; margin-bottom:7px; touch-action:manipulation; }
 .gps-capture-btn:hover { background:#000; }
 .gps-capture-btn:disabled { background:var(--muted); cursor:not-allowed; }
+
+/* ── Autocompletado de dirección ── */
+.dir-autocomplete-wrap { position:relative; flex:1; }
+.dir-autocomplete-list {
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:999;
+  background:#fff; border:1px solid var(--border); border-radius:8px;
+  box-shadow:0 4px 16px rgba(0,0,0,.12); max-height:220px; overflow-y:auto;
+  display:none;
+}
+.dir-autocomplete-list.open { display:block; }
+.dir-ac-item {
+  padding:10px 13px; font-size:12.5px; cursor:pointer; border-bottom:1px solid var(--border2);
+  line-height:1.4; display:flex; gap:8px; align-items:flex-start;
+}
+.dir-ac-item:last-child { border-bottom:none; }
+.dir-ac-item:hover { background:var(--s2); }
+.dir-ac-icon { color:var(--muted); flex-shrink:0; margin-top:1px; }
+.dir-ac-main { font-weight:600; color:var(--text); }
+.dir-ac-sub  { font-size:11px; color:var(--muted); }
 .parada-card { background:#fff; border:1.5px solid var(--border); border-radius:11px; margin-bottom:8px; overflow:hidden; transition:border-color .15s, box-shadow .15s; }
 .parada-card.activa { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklch,var(--accent) 18%,transparent); }
 .parada-card.entregada { opacity:.65; border-color:var(--border2); }
@@ -1186,14 +1205,54 @@ select option { background:#fff }
 
 /* Toolbar sticky dentro de la sección */
 .prod-toolbar {
-  display:flex; gap:8px; align-items:center;
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
   position:sticky; top:0; z-index:10;
-  background:var(--bg); padding:0 0 10px; margin-bottom:2px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  padding:10px 16px 10px; margin-bottom:2px;
+  border-bottom: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 1px 20px rgba(0,0,0,0.06);
+  margin-left:-16px; margin-right:-16px;
+}
+@media (prefers-color-scheme: dark) {
+  .prod-toolbar {
+    background: rgba(22,28,36,0.78);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 1px 20px rgba(0,0,0,0.25);
+  }
 }
 .prod-toolbar input[type=text] {
-  flex:1; font-size:14px;
+  flex:1; min-width:0;
+  font-size:16px; /* 16px evita el zoom automático en iOS */
+  padding:10px 12px;
+  border-radius:10px;
+  border:1.5px solid var(--border);
+  background:var(--s2);
+  color:var(--text);
+  font-family:inherit;
+  outline:none;
+  box-sizing:border-box;
 }
-.prod-toolbar-btns { display:flex; gap:6px; flex-shrink:0 }
+.prod-toolbar input[type=text]:focus { border-color:var(--accent); }
+.prod-toolbar-btns {
+  display:flex; gap:6px; flex-shrink:0;
+  /* En mobile: el buscador ocupa toda la fila de arriba,
+     los botones bajan solos por el flex-wrap */
+}
+/* Mobile: buscador en fila completa, botones abajo */
+@media (max-width: 600px) {
+  .prod-toolbar input[type=text] {
+    width:100%;
+    flex-basis:100%; /* fuerza nueva línea para los botones */
+    order:-1;
+  }
+  .prod-toolbar-btns {
+    width:100%;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+  }
+}
 
 /* Stats */
 .prod-stats {
@@ -1201,6 +1260,11 @@ select option { background:#fff }
   gap:1px; background:var(--border);
   border:1px solid var(--border); border-radius:10px;
   overflow:hidden; margin-bottom:12px;
+  position:sticky; top:56px; z-index:9;
+  /* También frosted glass */
+  background: rgba(var(--s2-rgb,240,240,240),0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .prod-stat { background:var(--s2); padding:10px 6px; text-align:center }
 .prod-stat-val { font-size:17px; font-weight:700; color:var(--text) }
@@ -1257,12 +1321,17 @@ select option { background:#fff }
 
 /* Botón cargar más */
 .prod-load-more {
-  display:block; width:100%; margin-top:14px; padding:13px;
-  background:var(--s2); border:1px solid var(--border); border-radius:10px;
-  font-family:inherit; font-size:13px; font-weight:600; color:var(--text2);
+  display:block; width:calc(100% - 32px); margin:20px 16px 32px;
+  padding:16px 20px;
+  background:var(--accent); border:none; border-radius:12px;
+  font-family:inherit; font-size:14px; font-weight:700; color:#fff;
   cursor:pointer; text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.15);
+  letter-spacing:.2px;
+  transition: opacity .15s, transform .12s;
 }
-.prod-load-more:active { background:var(--s3) }
+.prod-load-more:hover  { opacity:.92; }
+.prod-load-more:active { transform:scale(.98); opacity:.85; }
 
 /* Modal agregar/editar — sin cambios */
 .mprod-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:600; align-items:flex-end; justify-content:center }
@@ -1605,6 +1674,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <div id="offline-banner" style="display:none;background:#1a0e00;color:#fbbf24;padding:10px 16px;text-align:center;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;display:flex;align-items:center;justify-content:center;gap:10px">
   <span>📵</span>
   <span id="offline-text">Sin conexión — Modo offline activo</span>
+  <span id="offline-cache-status" style="font-size:10px;opacity:.8;margin-left:6px"></span>
   <span id="offline-pending-badge" style="display:none;background:#dc2626;color:#fff;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:800"></span>
   <span id="offline-syncing" style="display:none;font-size:11px;opacity:.8;font-weight:400">↻ Sincronizando…</span>
 </div>
@@ -2138,8 +2208,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
             style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Dirección</label>
           <div style="display:flex;gap:6px;align-items:stretch">
-            <input type="text" id="nc-dir" autocomplete="off"
-              style="flex:1;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box">
+            <div class="dir-autocomplete-wrap">
+              <input type="text" id="nc-dir" autocomplete="off"
+                oninput="_dirAutoComplete('nc-dir','nc-dir-list')"
+                onblur="setTimeout(function(){var l=document.getElementById('nc-dir-list');if(l)l.style.display='none';},200)"
+                style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box">
+              <div id="nc-dir-list" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:999;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;"></div>
+            </div>
             <button onclick="_capturarGPSParaCliente('nc')" title="Capturar ubicación GPS"
               style="padding:9px 12px;background:var(--text);color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;touch-action:manipulation;flex-shrink:0">
               📍 GPS
@@ -2445,8 +2520,31 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         </label>
       </div>
       <div>
-        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px">Notas al pie (opcional)</label>
-        <textarea id="cat-notas" placeholder="Ej: Precios sin IVA · Mínimo de compra $50.000 · Validez: Diciembre 2025" rows="2" style="width:100%;resize:none"></textarea>
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px">Estilo visual</label>
+        <select id="cat-estilo" style="width:100%">
+          <option value="moderno">🎨 Moderno (tarjetas con sombra)</option>
+          <option value="minimalista">⬜ Minimalista (líneas limpias)</option>
+          <option value="oscuro">🌙 Oscuro (fondo negro elegante)</option>
+          <option value="degradado">🌈 Con degradado (colorido)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px">Leyenda de portada</label>
+        <input id="cat-leyenda" placeholder="Ej: PRECIOS MAYORISTAS · VÁLIDO JUNIO 2026" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px">Sección de ofertas/promos <span style="font-weight:400;color:var(--muted)">(página especial)</span></label>
+        <select id="cat-incluir-promos" style="width:100%;margin-bottom:6px">
+          <option value="no">Sin página de ofertas</option>
+          <option value="si">Incluir página de ofertas destacadas</option>
+          <option value="solo">Solo página de ofertas (sin catálogo completo)</option>
+        </select>
+        <input id="cat-promo-titulo" placeholder="Título oferta: ej. 🔥 OFERTAS DEL MES" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box;margin-bottom:6px">
+        <textarea id="cat-promo-texto" placeholder="Texto libre para la página de ofertas: ej. COMPRÁ 3 PAGÁ 2 · DESCUENTO 15% EN TODA LA LÍNEA · ENVÍO GRATIS" rows="2" style="width:100%;resize:none;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></textarea>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:5px">Notas al pie</label>
+        <textarea id="cat-notas" placeholder="Ej: Precios sin IVA · Mínimo de compra $50.000 · Consultar disponibilidad" rows="2" style="width:100%;resize:none;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></textarea>
       </div>
     </div>
   </div>
@@ -2870,37 +2968,110 @@ function _sbGetRaw(table, params){ return sbFetch("GET", "/rest/v1/"+table+"?"+(
 // ══ OFFLINE-AWARE sbGet ══
 var _sbOfflineCache = {};
 
-function _sbCacheKey(table, params){ return "dm_sb_"+_sbEmpId+"_"+table+"_"+(params||""); }
+// ── CACHE OFFLINE ROBUSTO ──────────────────────────────────────────
+// Guarda por tabla (no por query) para que offline siempre encuentre datos
+// Las tablas críticas se guardan completas y se filtran en memoria
+
+var _TABLAS_CRITICAS = ["usuarios","productos","backup_pedidos","listas_precios","stock","rutas","ruta_clientes"];
+
+function _sbCacheKey(table){ return "dm_sbv2_"+(_sbEmpId||"x")+"_"+table; }
+function _sbCacheKeyLegacy(table, params){ return "dm_sb_"+_sbEmpId+"_"+table+"_"+(params||""); }
 
 function _sbCacheSave(table, params, data){
-  var key = _sbCacheKey(table, params);
-  try{ localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data})); }catch(e){}
-  _sbOfflineCache[key] = data;
+  // Guardar siempre con key simple por tabla (ignora params para el cache)
+  var key = _sbCacheKey(table);
+  var es_critica = _TABLAS_CRITICAS.indexOf(table) >= 0;
+  // Para tablas críticas: si ya hay cache con más datos, no sobreescribir con subset
+  if(es_critica && Array.isArray(data)){
+    var existing = _sbOfflineCache[key];
+    if(existing && Array.isArray(existing) && existing.length > data.length){
+      // Solo actualizar si la nueva data tiene select=* (sin restrict de columnas)
+      var esCompleta = !params || params.includes("select=*") || !params.includes("select=");
+      if(!esCompleta) { _sbOfflineCache[_sbCacheKeyLegacy(table,params)] = data; return; }
+    }
+    _sbOfflineCache[key] = data;
+    try{ localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data})); }catch(e){
+      // localStorage lleno — limpiar caches viejos
+      _limpiarCacheViejo();
+      try{ localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data})); }catch(e2){}
+    }
+  } else {
+    _sbOfflineCache[_sbCacheKeyLegacy(table,params)] = data;
+    try{ localStorage.setItem(_sbCacheKeyLegacy(table,params), JSON.stringify({ts:Date.now(), data:data})); }catch(e){}
+  }
 }
 
 function _sbCacheLoad(table, params){
-  var key = _sbCacheKey(table, params);
-  if(_sbOfflineCache[key]) return _sbOfflineCache[key];
-  try{
-    var raw = localStorage.getItem(key);
-    if(raw){ var obj=JSON.parse(raw); _sbOfflineCache[key]=obj.data; return obj.data; }
-  }catch(e){}
+  // 1. Buscar por key simple (nuevo sistema)
+  var key = _sbCacheKey(table);
+  var data = _sbOfflineCache[key];
+  if(!data){
+    try{
+      var raw = localStorage.getItem(key);
+      if(raw){ var obj=JSON.parse(raw); data=obj.data; _sbOfflineCache[key]=data; }
+    }catch(e){}
+  }
+  if(data != null){ console.log("[Offline] ✓ Cache tabla:", table, "("+( Array.isArray(data)?data.length:"obj")+" registros)"); return data; }
+
+  // 2. Fallback al sistema viejo (por query)
+  var keyOld = _sbCacheKeyLegacy(table, params||"");
+  data = _sbOfflineCache[keyOld];
+  if(!data){
+    try{
+      var raw2 = localStorage.getItem(keyOld);
+      if(raw2){ var obj2=JSON.parse(raw2); data=obj2.data; }
+    }catch(e){}
+  }
+  if(data != null){ console.log("[Offline] ✓ Cache legacy:", table); return data; }
+
+  console.warn("[Offline] ✗ Sin cache para:", table);
   return null;
+}
+
+function _limpiarCacheViejo(){
+  // Eliminar caches con más de 7 días para liberar espacio
+  var limite = Date.now() - 7*24*60*60*1000;
+  Object.keys(localStorage).filter(function(k){ return k.startsWith("dm_sb"); }).forEach(function(k){
+    try{
+      var obj = JSON.parse(localStorage.getItem(k)||"{}");
+      if(obj.ts && obj.ts < limite) localStorage.removeItem(k);
+    }catch(e){}
+  });
 }
 
 function sbGet(table, params){
   if(!navigator.onLine){
     var cached = _sbCacheLoad(table, params||"");
-    if(cached != null){
-      console.log("[Offline] Caché:", table);
-      return Promise.resolve(cached);
-    }
+    if(cached != null) return Promise.resolve(cached);
+    console.warn("[Offline] Sin datos para:", table, "— el usuario verá tabla vacía");
     return Promise.resolve(null);
   }
   return _sbGetRaw(table, params||"").then(function(data){
     if(data != null) _sbCacheSave(table, params||"", data);
     return data;
   });
+}
+
+// Precalentar cache: guardar tablas críticas con select=* al iniciar
+async function _precalentarCacheOffline(){
+  if(!_sbEmpId || !navigator.onLine) return;
+  var tablas = [
+    ["usuarios",   "select=*&empresa_id=eq."+_sbEmpId+"&order=name.asc"],
+    ["productos",  "select=*&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"],
+    ["backup_pedidos","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=300"],
+    ["listas_precios","select=*&empresa_id=eq."+_sbEmpId],
+    ["stock",      "select=*&empresa_id=eq."+_sbEmpId],
+  ];
+  for(var i=0;i<tablas.length;i++){
+    var t=tablas[i];
+    try{
+      var data = await _sbGetRaw(t[0], t[1]);
+      if(data != null){ _sbCacheSave(t[0], t[1], data); }
+    }catch(e){ console.warn("[Cache] Error precalentando", t[0], e.message); }
+    // Pequeña pausa para no sobrecargar
+    await new Promise(function(r){ setTimeout(r, 300); });
+  }
+  console.log("[Cache] ✅ Cache offline precalentado");
 }
 // ── PUSH NOTIFICATIONS ──
 var VAPID_PUBLIC_KEY = 'BBPMEYmiwpVa5uYjOLoDFdv-yAcXmJbuNX7pGC1ng-oswP0LAYpOe0p-XYPJiZYdmRXUxNeIQHZ5ongUPwmrrEU';
@@ -3043,6 +3214,8 @@ function _tryInitPush(){
 
 // Banner de estado de conexión online/offline
 function _initConnectionBanner(){
+  // Actualizar cache cuando vuelve la conexión
+  window.addEventListener("online", function(){ setTimeout(_precalentarCacheOffline, 2000); });
   if(document.getElementById("conn-banner")) return;
   var banner = document.createElement("div");
   banner.id = "conn-banner";
@@ -3062,7 +3235,22 @@ function _initConnectionBanner(){
     }
   }
   window.addEventListener("online", update);
-  window.addEventListener("offline", update);
+  window.addEventListener("offline", function(){
+    update();
+    // Mostrar estado del cache
+    var statusEl = document.getElementById("offline-cache-status");
+    if(statusEl){
+      var tieneProds = !!localStorage.getItem(_sbCacheKey("productos"));
+      var tieneClis  = !!localStorage.getItem(_sbCacheKey("usuarios"));
+      if(tieneProds && tieneClis){
+        statusEl.textContent = "· Datos en caché disponibles";
+        statusEl.style.color = "#a7f3d0";
+      } else {
+        statusEl.textContent = "· Sin datos en caché — conectate para cargar";
+        statusEl.style.color = "#fca5a5";
+      }
+    }
+  });
   if(!navigator.onLine) update();
 }
 
@@ -3494,6 +3682,8 @@ window.onload = function(){
       if(emps && emps[0]){ empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan; }
       _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
       aplicarRestricciones(); cargarListasPrecios();
+      // Precalentar cache offline 8s después del login para no bloquear la UI
+      setTimeout(_precalentarCacheOffline, 8000);
       var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
       if(cachedUsers && cachedUsers.length){
         cachedUsers.forEach(function(u){
@@ -3554,8 +3744,11 @@ function doLogin(){
   .then(function(emps){
     if(!emps||!emps.length){ err.textContent="❌ Empresa '"+empCod+"' no encontrada"; return; }
     var emp = emps[0];
-    empresaKey = emp.id;
+    empresaKey = emp.id;      // UUID Supabase (para Supabase)
     _sbEmpId   = emp.id;
+    // Guardar el codigo para Firebase (las rutas de Firebase usan el codigo como key)
+    window._fbEmpKey = emp.codigo || emp.id;
+    console.log("[DistriMax] empresa UUID:", emp.id, "| codigo:", emp.codigo, "| fbKey:", window._fbEmpKey);
 
     // Control de acceso estricto
     var _estadosBloq = ["inactiva","vencida","morosa","bloqueada","suspendida"];
@@ -5609,7 +5802,7 @@ function calcRuta(ruta){
     var adicional=(c.pagosAdicionales||[]).reduce(function(sa,p){return sa+(p.monto||0);},0);
     return s+base+adicional;
   },0);
-  return{total:tot,cobrado:cob,saldo:tot-cob,clientes:cl.length,
+  return{total:Math.round(tot*100)/100,cobrado:Math.round(cob*100)/100,saldo:Math.round((tot-cob)*100)/100,clientes:cl.length,
     pagados:cl.filter(function(c){
       var base=(c.efectivo||0)+(c.transferencia||0);
       var adicional=(c.pagosAdicionales||[]).reduce(function(sa,p){return sa+(p.monto||0);},0);
@@ -6030,8 +6223,8 @@ function _getUnpaidList(){
   Object.values(rutasData||{}).forEach(function(ruta){
     Object.values(ruta.clientes||{}).forEach(function(cli){
       if(!cli.entregado) return; // solo entregados
-      var cobrado = (cli.efectivo||0)+(cli.transferencia||0)+(cli.pagosAdicionales||[]).reduce(function(s,p){ return s+( p.monto||0); },0);
-      var pendiente = (cli.importe||0) - cobrado;
+      var cobrado = Math.round(((cli.efectivo||0)+(cli.transferencia||0)+(cli.pagosAdicionales||[]).reduce(function(s,p){ return s+(p.monto||0); },0))*100)/100;
+      var pendiente = Math.round(((cli.importe||0) - cobrado)*100)/100;
       if(pendiente <= 0) return; // ya pagado
       var desde = cli.entregadoEn ? new Date(cli.entregadoEn) : new Date(ruta.fecha||ahora);
       var msDesde = ahora - desde.getTime();
@@ -6152,7 +6345,7 @@ function _buscarEnRutas(q){
         grupo.clientes.map(function(r){
           var ef=(r.cli.efectivo||0), tr=(r.cli.transferencia||0);
           var pagado=ef+tr;
-          var saldo=(r.cli.importe||0)-pagado;
+          var saldo=Math.round(((r.cli.importe||0)-pagado)*100)/100;
           var saldoHtml=saldo<=0
             ? '<span style="color:var(--green);font-size:11px;font-weight:600">✓ Cobrado</span>'
             : '<span style="color:var(--amber);font-size:11px;font-weight:600">$'+fM(saldo)+' pend.</span>';
@@ -6218,7 +6411,8 @@ async function _toggleFinalizarRuta(rk, finalizar){
 function buildClienteRow(rutaKey, cliKey, cli){
   var ef=cli.efectivo||0, tr=cli.transferencia||0, tot=cli.importe||0;
   var pagAd=(cli.pagosAdicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0);
-  var pagado=ef+tr+pagAd, saldo=tot-pagado;
+  var pagado=Math.round((ef+tr+pagAd)*100)/100;
+  var saldo=Math.round((tot-pagado)*100)/100;
   var modo=cli.modo||"ninguno";
   var isCO=clienteAbierto[rutaKey]===cliKey;
   var sc=saldo<=0?"ok":saldo<tot?"warn":"neg";
@@ -6777,7 +6971,7 @@ function renderPagosHist(wrap, rk, ck){
   var pagos=cli.pagosAdicionales||[];
   var efBase=cli.efectivo||0, trBase=cli.transferencia||0;
   var totalPagado=efBase+trBase+pagos.reduce(function(s,p){return s+(p.monto||0);},0);
-  var saldo=(cli.importe||0)-totalPagado;
+  var saldo=Math.round(((cli.importe||0)-totalPagado)*100)/100;
 
   wrap.innerHTML="";
   if(!efBase&&!trBase&&!pagos.length){
@@ -6935,7 +7129,7 @@ function _parseImporte(val){
     s = s.replace(",",".");
   }
   var n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+  return isNaN(n) ? 0 : Math.round(n * 100) / 100;
 }
 
 function guardarPago(rk,ck){
@@ -8357,23 +8551,35 @@ function agregarItemEditBk(){
 
 function guardarEdicionBackup(){
   if(!_editBkItem) return;
+  // Armar el objeto completo con todos los campos editados
+  var patch = {
+    items:       _editBkItem.items,
+    total:       _editBkItem.total,
+    // Incluir cliente actualizado
+    cliente_nom: _editBkItem.clienteNom || _editBkItem.cliente_nom || "",
+    cliente_id:  _editBkItem.clienteId  || _editBkItem.cliente_id  || "",
+    lista:       _editBkItem.lista      || "Clientes"
+  };
+
   // Actualizar en localStorage
   var arr = getBackups();
   var idx = arr.findIndex(function(x){ return x.id===_editBkItem.id; });
   if(idx>=0) arr[idx] = _editBkItem;
   saveBackups(arr);
-  // Actualizar en Supabase/Firebase
+
+  // Actualizar en Supabase (fuente de verdad)
+  if(_editBkItem._sbId && _sbEmpId){
+    sbPatch("backup_pedidos","id=eq."+_editBkItem._sbId+"&empresa_id=eq."+_sbEmpId, patch)
+    .catch(function(e){ console.warn("Error guardando backup:", e); });
+  }
+  // Fallback Firebase si tiene clave
   if(_editBkItem._fbKey && empresaKey){
     fbPatch("empresas/"+empresaKey+"/backupPedidos/"+_editBkItem._fbKey, {
-      items: _editBkItem.items, total: _editBkItem.total
+      items: patch.items, total: patch.total,
+      clienteNom: patch.cliente_nom, clienteId: patch.cliente_id, lista: patch.lista
     }).catch(function(){});
   }
-  // También actualizar en Supabase si tiene _sbId
-  if(_editBkItem._sbId && _sbEmpId){
-    sbPatch("backup_pedidos","id=eq."+_editBkItem._sbId+"&empresa_id=eq."+_sbEmpId,{
-      items: _editBkItem.items, total: _editBkItem.total
-    }).catch(function(){});
-  }
+
   cerrarModal("modal-editar-backup");
   renderBackup();
   _checkPendientes();
@@ -8927,7 +9133,77 @@ function descargarPDFDia(diaKey,fecha,prodList,obsItems,total){
   doc.save("Pedido_Proveedor_"+diaKey+".pdf");
 }
 
-function cargarVentasFirebase(f){ setStatus("fb-res-status","sync","☁️"); fbGet("empresas/"+empresaKey+"/ventas").then(function(d){ventas=d?Object.entries(d).map(function(e){return Object.assign({},e[1],{fbKey:e[0]});}):[];setStatus("fb-res-status","ok","✅");poblarFiltros();renderResumen();}).catch(function(){setStatus("fb-res-status","err","❌");}); }
+var _FB_RTDB = "https://distrimar-5e1a3-default-rtdb.firebaseio.com";
+
+async function _fbGetDirecto(path){
+  var url = _FB_RTDB + "/" + path + ".json";
+  var r = await fetch(url, {headers:{"Accept":"application/json"}});
+  if(!r.ok) throw new Error("Firebase HTTP "+r.status);
+  return r.json();
+}
+
+async function cargarVentasFirebase(f){
+  setStatus("fb-res-status","sync","☁️ Cargando…");
+  var ventasFb = [], ventasSb = [];
+
+  // 1) Firebase DIRECTO — ventas históricas reales
+  var fbKey = window._fbEmpKey || empresaKey;
+  if(fbKey){
+    try {
+      var d = await _fbGetDirecto("empresas/"+fbKey+"/ventas");
+      ventasFb = d ? Object.entries(d).map(function(e){
+        var v = Object.assign({}, e[1], {fbKey:e[0]});
+        if(v.fecha && (v.mes===undefined || v.anio===undefined)){
+          var dd = new Date(v.fecha);
+          if(!isNaN(dd)){ v.mes=dd.getMonth(); v.anio=dd.getFullYear(); }
+        }
+        return v;
+      }) : [];
+      console.log("[Resumen] Firebase ventas:", ventasFb.length);
+    } catch(e){ console.warn("Firebase directo error:", e.message); }
+  }
+
+  // 2) Supabase — ventas nuevas
+  if(_sbEmpId){
+    try {
+      var rows = await sbGet("ventas","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=2000");
+      ventasSb = (rows||[]).map(function(v){
+        var dd = new Date(v.fecha);
+        return {
+          fbKey: null, _sbId: v.id,
+          fecha:      v.fecha,
+          mes:        isNaN(dd)?0:dd.getMonth(),
+          anio:       isNaN(dd)?new Date().getFullYear():dd.getFullYear(),
+          clienteId:  v.cliente_id||"",
+          clienteNom: v.cliente_nom||"",
+          lista:      v.lista||"Clientes",
+          items:      v.items||[],
+          total:      v.total||0,
+          usuario:    v.usuario||"",
+          usuarioNom: v.usuario_nom||"",
+          descuentos: v.descuentos||null,
+          tipo:       v.tipo||"remito"
+        };
+      });
+      console.log("[Resumen] Supabase ventas:", ventasSb.length);
+    } catch(e){ console.warn("Supabase ventas error:", e.message); }
+  }
+
+  // 3) Combinar sin duplicados
+  var clavesFb = new Set(ventasFb.map(function(v){
+    return (v.clienteNom||"")+"_"+(v.fecha||"").slice(0,16)+"_"+(v.total||0);
+  }));
+  var sbNuevas = ventasSb.filter(function(v){
+    return !clavesFb.has((v.clienteNom||"")+"_"+(v.fecha||"").slice(0,16)+"_"+(v.total||0));
+  });
+
+  ventas = ventasFb.concat(sbNuevas);
+  ventas.sort(function(a,b){ return new Date(b.fecha)-new Date(a.fecha); });
+
+  setStatus("fb-res-status","ok","✅ "+ventas.length+" ventas");
+  poblarFiltros();
+  renderResumen();
+}
 function borrarVenta(fbKey){ if(!confirm("¿Borrar este remito del resumen?"))return; fbDel("empresas/"+empresaKey+"/ventas/"+fbKey).then(function(){ventas=ventas.filter(function(v){return v.fbKey!==fbKey;});renderResumen();}).catch(function(){alert("Error al borrar.");}); }
 function poblarFiltros(){ var now=new Date(),selA=document.getElementById("fil-anio"),anioAct=+selA.value||now.getFullYear(); var anioSet=new Set([now.getFullYear()]);ventas.forEach(function(v){anioSet.add(v.anio);}); selA.innerHTML=Array.from(anioSet).sort(function(a,b){return b-a;}).map(function(a){return'<option value="'+a+'"'+(a===anioAct?" selected":"")+'>'+a+'</option>';}).join(""); poblarMeses(); }
 function poblarMeses(){ var now=new Date(),anio=+document.getElementById("fil-anio").value||now.getFullYear(),selM=document.getElementById("fil-mes"),mesAct=selM.value!==""?+selM.value:now.getMonth(); var cd=new Set();ventas.filter(function(v){return v.anio===anio;}).forEach(function(v){cd.add(v.mes);});cd.add(now.getMonth()); selM.innerHTML=MESES.map(function(m,i){return'<option value="'+i+'"'+(i===mesAct?" selected":"")+'>'+m+(cd.has(i)?" ●":"")+'</option>';}).join(""); }
@@ -9213,15 +9489,54 @@ function iniciarMapaEntregas() {
   if (!Object.keys(rutasData).length) {
     document.getElementById("mapa-paradas").innerHTML =
       '<div class="geocoding-progress">☁️ Cargando hojas de ruta...</div>';
-    fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
-      rutasData = d||{};
-      poblarSelectorMapaRutas();
-      document.getElementById("mapa-paradas").innerHTML =
-        '<div class="me-empty">📍 Elegí una hoja de ruta y presioná <b>Optimizar ruta</b></div>';
-    }).catch(function(){
-      document.getElementById("mapa-paradas").innerHTML =
-        '<div class="geocoding-progress">❌ Error cargando rutas</div>';
-    });
+    // Cargar rutas desde Supabase primero, Firebase como fallback
+    (async function(){
+      try {
+        if(_sbEmpId){
+          var rutaRows = await sbGet("rutas","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=60");
+          if(rutaRows && rutaRows.length){
+            rutaRows.forEach(function(r){
+              if(!rutasData[r.id]){
+                rutasData[r.id] = {
+                  nombre: r.nombre, fecha: r.fecha,
+                  hrNum: r.hr_num||"", finalizada: r.finalizada||false,
+                  clientes: {}
+                };
+              }
+            });
+            // Cargar clientes de cada ruta
+            var ids = rutaRows.map(function(r){return "ruta_id=eq."+r.id;}).join(",");
+            var cliRows = await sbGet("ruta_clientes","select=*&ruta_id=in.("+rutaRows.map(function(r){return r.id;}).join(",")+")"+"&empresa_id=eq."+_sbEmpId);
+            (cliRows||[]).forEach(function(c){
+              if(rutasData[c.ruta_id]){
+                if(!rutasData[c.ruta_id].clientes) rutasData[c.ruta_id].clientes={};
+                rutasData[c.ruta_id].clientes[c.id] = {
+                  nom:c.nom, id:c.cliente_id, importe:c.importe,
+                  efectivo:c.efectivo||0, transferencia:c.transferencia||0,
+                  modo:c.modo||"ninguno", items:c.items||[],
+                  fecha:c.fecha, entregado:c.entregado||false,
+                  lat:c.lat, lng:c.lng
+                };
+              }
+            });
+            poblarSelectorMapaRutas();
+            document.getElementById("mapa-paradas").innerHTML =
+              '<div class="me-empty">📍 Elegí una hoja de ruta y presioná <b>Optimizar ruta</b></div>';
+            return;
+          }
+        }
+      } catch(e){ console.warn("Supabase rutas:", e); }
+      // Fallback Firebase
+      fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
+        rutasData = Object.assign(rutasData||{}, d||{});
+        poblarSelectorMapaRutas();
+        document.getElementById("mapa-paradas").innerHTML =
+          '<div class="me-empty">📍 Elegí una hoja de ruta y presioná <b>Optimizar ruta</b></div>';
+      }).catch(function(){
+        document.getElementById("mapa-paradas").innerHTML =
+          '<div class="geocoding-progress">❌ Error cargando rutas</div>';
+      });
+    })();
   } else {
     poblarSelectorMapaRutas();
     if(!document.getElementById("mapa-paradas").textContent.trim()){
@@ -9518,27 +9833,46 @@ async function optimizarYMostrar() {
   var gpsEl = document.getElementById("ms-gps-status");
   if(gpsEl) gpsEl.textContent = _mePosicion ? "✓ GPS" : "Sin GPS";
 
-  var usuariosMap = {};
+  // Mapa de clientes: nombre/id → {dir, lat, lng}
+  var usuariosMap  = {}; // → direccion string
+  var coordsMap    = {}; // → {lat, lng} ya guardadas
   try {
+    // Primero Supabase (tiene lat/lng guardadas)
+    if(_sbEmpId){
+      var uRows = await sbGet("usuarios","select=uid,name,direccion,lat,lng&empresa_id=eq."+_sbEmpId+"&not.is.null=direccion");
+      (uRows||[]).forEach(function(u){
+        var keys = [(u.name||"").toLowerCase(), (u.uid||"").toLowerCase()].filter(Boolean);
+        keys.forEach(function(k){
+          if(u.direccion) usuariosMap[k] = u.direccion;
+          if(u.lat && u.lng) coordsMap[k] = {lat:parseFloat(u.lat), lng:parseFloat(u.lng)};
+        });
+      });
+    }
+  } catch(e){ console.warn("Supabase usuarios mapa:", e); }
+  try {
+    // Fallback Firebase
     var empData = await fbGet("empresas/"+empresaKey);
     Object.values(empData.usuarios||{}).forEach(function(u){
-      if(u.direccion){
-        usuariosMap[(u.name||"").toLowerCase()] = u.direccion;
-        usuariosMap[(u.id||"").toLowerCase()]   = u.direccion;
-      }
+      var k1 = (u.name||"").toLowerCase(), k2 = (u.id||"").toLowerCase();
+      if(u.direccion){ if(!usuariosMap[k1]) usuariosMap[k1]=u.direccion; if(!usuariosMap[k2]) usuariosMap[k2]=u.direccion; }
+      if(u.lat && u.lng){ if(!coordsMap[k1]) coordsMap[k1]={lat:parseFloat(u.lat),lng:parseFloat(u.lng)}; }
     });
   } catch(e){}
 
   var puntos = [];
   for (var ci=0; ci<cliEntries.length; ci++) {
     var ck=cliEntries[ci][0], cli=cliEntries[ci][1];
-    var dir = usuariosMap[(cli.nom||"").toLowerCase()] || usuariosMap[(cli.id||"").toLowerCase()] || "";
+    var nomKey = (cli.nom||"").toLowerCase(), idKey = (cli.id||"").toLowerCase();
+    var dir = usuariosMap[nomKey] || usuariosMap[idKey] || "";
     document.getElementById("mapa-paradas").innerHTML =
       '<div class="geocoding-progress">📍 ' + (ci+1) + '/' + cliEntries.length + ' — <b>' + cli.nom + '</b></div>';
-    var coords = dir ? await geocodeAddress(dir) : null;
+    // Usar coords guardadas si existen, sino geocodificar
+    var savedCoords = coordsMap[nomKey] || coordsMap[idKey] || null;
+    var coords = savedCoords || (dir ? await geocodeAddress(dir) : null);
     puntos.push({cliKey:ck, cli:cli, dir:dir,
       lat:coords?coords.lat:null, lng:coords?coords.lng:null, hasCoords:!!coords});
-    if(dir && !_geocodeCache[dir.toLowerCase()]) await new Promise(function(r){setTimeout(r,1100);});
+    // Solo esperar si necesitó geocodificar por Nominatim (no si usó coords guardadas)
+    if(!savedCoords && dir && !_geocodeCache[dir.toLowerCase()]) await new Promise(function(r){setTimeout(r,1100);});
   }
 
   var conCoords = puntos.filter(function(p){return p.hasCoords;});
@@ -9589,7 +9923,7 @@ function initMapa(startLat, startLng, ordered) {
       iconSize:[28,28],iconAnchor:[14,14],className:""
     });
     var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
-    var saldo=(p.cli.importe||0)-ef-tr;
+    var saldo=Math.round(((p.cli.importe||0)-ef-tr)*100)/100;
     var popup = "<b>"+(i+1)+". "+p.cli.nom+"</b><br>"+
       (p.dir ? p.dir+"<br>" : "Sin dirección<br>")+
       "Total: $"+fM(p.cli.importe||0)+"<br>"+
@@ -9636,7 +9970,7 @@ function renderParadas(ordered) {
   ordered.forEach(function(p,i){
     var color = p.cli.entregado ? "#9ca3af" : COLORS[i%COLORS.length];
     var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
-    var saldo=(p.cli.importe||0)-ef-tr;
+    var saldo=Math.round(((p.cli.importe||0)-ef-tr)*100)/100;
     var card = document.createElement("div");
     card.className="parada-card"+(p.cli.entregado?" entregada":"");
     card.id="parada-"+i;
@@ -10099,7 +10433,21 @@ async function guardarNuevoCliente() {
   if (nota)   nuevo.nota = nota;
   if (lat && lng) { nuevo.lat = lat; nuevo.lng = lng; }
   try {
-    var pushKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
+    var pushKey = null;
+    // Guardar en Supabase primero
+    if(_sbEmpId){
+      try {
+        var sbId = await _sbInsertUsuario(nuevo);
+        if(sbId){ pushKey = sbId; nuevo._sbId = sbId; }
+      } catch(se){ console.warn("Supabase insert:", se); }
+    }
+    // Fallback Firebase
+    try {
+      var fbKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
+      if(!pushKey) pushKey = fbKey;
+      nuevo._fbKey = fbKey;
+    } catch(fe){ console.warn("Firebase insert:", fe); }
+    if(!pushKey) throw new Error("No se pudo guardar el cliente");
     _clientesDB[pushKey] = nuevo;
     ["nc-pass","nc-name","nc-dir","nc-tel","nc-cuit","nc-zona","nc-rec","nc-nota","nc-lat","nc-lng"].forEach(function(fid){
       var el=document.getElementById(fid); if(el)el.value="";
@@ -10133,11 +10481,21 @@ async function _eliminarCliente(pushKey) {
   if (!u) return;
   if (!confirm('¿Eliminar al cliente "'+(u.name||u.id)+'"?')) return;
   try {
-    await fbDel("empresas/"+empresaKey+"/usuarios/"+pushKey);
+    var uid = u.id || u.uid || "";
+    // Eliminar en Supabase
+    if(_sbEmpId && uid){
+      try { await sbDel("usuarios","uid=eq."+encodeURIComponent(uid)+"&empresa_id=eq."+_sbEmpId); } catch(se){}
+    }
+    // Eliminar en Firebase
+    var isFbKey = pushKey && !pushKey.includes("-") && pushKey.length < 25;
+    if(isFbKey){ try { await fbDel("empresas/"+empresaKey+"/usuarios/"+pushKey); } catch(fe){} }
     delete _clientesDB[pushKey];
+    // Remover de dbCli
+    var dci = dbCli.findIndex(function(c){ return c.id===uid; });
+    if(dci>=0) dbCli.splice(dci,1);
     _renderClientesList();
     showNotif("Cliente eliminado","ok");
-  } catch(e) { showNotif("Error al eliminar","err"); }
+  } catch(e) { showNotif("Error al eliminar: "+(e.message||e),"err"); }
 }
 
 /* ── EDICIÓN DE CLIENTE ── */
@@ -10200,11 +10558,87 @@ async function guardarEditCliente() {
   if (zonaId2){ updated.zona_id=zonaId2; updated.zona=zona2; }
   else { updated.zona_id=null; updated.zona=""; }
   if (rec)  updated.rec  = rec;
+  // Leer lat/lng si existen (campo oculto ec-lat/ec-lng)
+  var latEc = parseFloat((document.getElementById("ec-lat")||{value:""}).value)||null;
+  var lngEc = parseFloat((document.getElementById("ec-lng")||{value:""}).value)||null;
+  if(latEc && lngEc){ updated.lat=latEc; updated.lng=lngEc; }
+
   try {
-    await fbPatch("empresas/"+empresaKey+"/usuarios/"+pushKey, updated);
-    _clientesDB[pushKey] = Object.assign(_clientesDB[pushKey]||{}, updated);
+    var sbPayload = {
+      uid:updated.id, pass:updated.pass||updated.id, name:updated.name,
+      lista:updated.lista, role:updated.role, catalogo:true,
+      direccion:updated.direccion||"", telefono:updated.tel||"",
+      cuit:updated.cuit||"", zona:updated.zona||"",
+      zona_id:updated.zona_id||null, recepciona:updated.rec||"",
+      nota:updated.nota||""
+    };
+    if(updated.lat) sbPayload.lat = updated.lat;
+    if(updated.lng) sbPayload.lng = updated.lng;
+
+    var savedOk = false;
+
+    // pushKey es el UUID de Supabase cuando los clientes se cargaron desde SB
+    var sbId = (_clientesDB[pushKey] && _clientesDB[pushKey]._sbId) || pushKey;
+    var isUUID = sbId && sbId.includes("-") && sbId.length > 30;
+
+    // Limpiar campos que pueden causar error en Supabase
+    if(sbPayload.zona_id === "" || sbPayload.zona_id === null) delete sbPayload.zona_id;
+    if(sbPayload.zona === "") delete sbPayload.zona;
+
+    if(_sbEmpId && isUUID){
+      try {
+        await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, sbPayload);
+        savedOk = true;
+      } catch(sbErr){
+        console.error("Supabase PATCH error:", sbErr.message);
+        showNotif("Error Supabase: "+sbErr.message,"err");
+        return;
+      }
+    } else if(_sbEmpId){
+      // Buscar por uid
+      try {
+        var existRows = await sbGet("usuarios","select=id&uid=eq."+id+"&empresa_id=eq."+_sbEmpId);
+        if(existRows && existRows.length){
+          await sbPatch("usuarios","id=eq."+existRows[0].id+"&empresa_id=eq."+_sbEmpId, sbPayload);
+          savedOk = true;
+        }
+      } catch(sbErr2){
+        console.error("Supabase PATCH2 error:", sbErr2.message);
+        showNotif("Error Supabase: "+sbErr2.message,"err");
+        return;
+      }
+    }
+
+    // Fallback Firebase si no guardó en Supabase
+    if(!savedOk){
+      await fbPatch("empresas/"+empresaKey+"/usuarios/"+pushKey, updated);
+      savedOk = true;
+    }
+
+    // Actualizar en memoria inmediatamente
+    var entryActual = _clientesDB[pushKey] || {};
+    _clientesDB[pushKey] = Object.assign({}, entryActual, updated, {
+      _sbId: entryActual._sbId || pushKey,
+      _fbKey: entryActual._fbKey
+    });
+
+    // Actualizar dbCli para buscadores de pedidos/remitos
+    var dci = dbCli.findIndex(function(c){ return c.id===id; });
+    if(dci >= 0){
+      dbCli[dci].nombre    = name;
+      dbCli[dci].direccion = dir;
+      dbCli[dci].lista     = lista;
+      dbCli[dci].telefono  = tel;
+    } else {
+      dbCli.push({ id:id, nombre:name, lista:lista, direccion:dir, telefono:tel });
+    }
+    // Re-init pickers para que el buscador de clientes refleje cambios
+    _pickersInitialized = false;
+    iniciarCliPickers();
+
     cerrarModal("modal-edit-cli");
-    _renderClientesList();
+    // Pequeño delay para que el modal cierre antes de re-renderizar
+    setTimeout(function(){ _renderClientesList(); }, 80);
     showNotif('✓ "'+name+'" actualizado',"ok");
   } catch(e) {
     console.error("Error guardarEditCliente:", e);
@@ -12483,40 +12917,43 @@ function urlToBase64(url){
 }
 
 async function generarCatalogoPDF(){
-  if(!dbStock.length){
-    showNotif("Cargá los productos primero desde Mis Productos","err"); return;
-  }
+  if(!dbStock.length){ showNotif("Cargá los productos primero desde Mis Productos","err"); return; }
   var btn = document.getElementById("btn-gen-catalogo");
   var progress = document.getElementById("cat-progress");
-  btn.disabled = true;
-  progress.style.display = "block";
+  btn.disabled = true; progress.style.display = "block";
 
   try {
-    var lista     = document.getElementById("cat-lista").value;
-    var ppp       = parseInt(document.getElementById("cat-ppp").value)||6;
-    var filtro    = document.getElementById("cat-filtro-cat").value;
+    var lista        = document.getElementById("cat-lista").value;
+    var ppp          = parseInt(document.getElementById("cat-ppp").value)||6;
+    var filtro       = document.getElementById("cat-filtro-cat").value;
     var mostrarCod   = document.getElementById("cat-mostrar-cod").checked;
     var mostrarStock = document.getElementById("cat-mostrar-stock").checked;
     var soloStock    = document.getElementById("cat-solo-stock").checked;
     var notas        = document.getElementById("cat-notas").value.trim();
+    var estilo       = (document.getElementById("cat-estilo")||{value:"moderno"}).value || "moderno";
+    var leyenda      = (document.getElementById("cat-leyenda")||{value:""}).value.trim();
+    var inclPromos   = (document.getElementById("cat-incluir-promos")||{value:"no"}).value;
+    var promoTitulo  = (document.getElementById("cat-promo-titulo")||{value:""}).value.trim();
+    var promoTexto   = (document.getElementById("cat-promo-texto")||{value:""}).value.trim();
 
     var prods = dbStock.filter(function(p){
       if(filtro && p.cat !== filtro) return false;
       if(soloStock && (stockData[p.id]||0) <= 0) return false;
       return true;
     });
+    // Productos con promo (precio_promo definido)
+    var prodsPromo = dbStock.filter(function(p){ return p.precioPromo && p.precioPromo > 0; });
 
-    if(!prods.length){ showNotif("No hay productos con esos filtros","err"); btn.disabled=false; progress.style.display="none"; return; }
+    if(!prods.length && inclPromos !== "solo"){ showNotif("No hay productos con esos filtros","err"); btn.disabled=false; progress.style.display="none"; return; }
 
     progress.textContent = "🖼️ Cargando imágenes (0/"+prods.length+")…";
 
-    // Precargar imágenes en paralelo (máx 6 a la vez)
+    // Precargar imágenes
     var imagenes = {};
-    var conFoto = prods.filter(function(p){return p.foto&&p.foto.length>10;});
-    var batch = 6, done = 0;
-    for(var bi = 0; bi < conFoto.length; bi += batch){
-      var chunk = conFoto.slice(bi, bi+batch);
-      await Promise.all(chunk.map(async function(p){
+    var conFoto = (inclPromos==="solo" ? prodsPromo : prods).filter(function(p){return p.foto&&p.foto.length>10;});
+    var batch=6, done=0;
+    for(var bi=0;bi<conFoto.length;bi+=batch){
+      await Promise.all(conFoto.slice(bi,bi+batch).map(async function(p){
         imagenes[p.id] = await urlToBase64(p.foto);
         done++;
         progress.textContent = "🖼️ Cargando imágenes ("+done+"/"+conFoto.length+")…";
@@ -12527,160 +12964,298 @@ async function generarCatalogoPDF(){
 
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF({ unit:"mm", format:"a4" });
-    var W = 210, H = 297;
-    var MARGIN = 12;
-    var empNom = empresaData.nombre || "CATÁLOGO";
-    var empColor = empresaData.color || "#1a1a17";
-    // Convert hex to rgb
-    function hexRGB(hex){ var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return [r,g,b]; }
-    var col = hexRGB(empColor.length===7 ? empColor : "#1a1a17");
+    var W=210, H=297, MARGIN=12;
 
-    // ── PORTADA ──
-    // Fondo completo
-    doc.setFillColor(col[0],col[1],col[2]);
-    doc.rect(0, 0, W, H, "F");
-    // Logo empresa
+    var empNom   = empresaData.nombre || "CATÁLOGO";
+    var empColor = (empresaData.color||"#1a1a17").length===7 ? empresaData.color : "#1a1a17";
+    function hexRGB(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+    var col = hexRGB(empColor);
+
+    // ── Paletas por estilo ──
+    var TEMAS = {
+      moderno:     { bg:[248,247,244], card:[255,255,255], headerBg:col, accent:col, textDark:[30,30,25], textMid:[100,98,90], border:[220,218,212], shadow:true },
+      minimalista: { bg:[255,255,255], card:[250,250,250], headerBg:[30,30,25], accent:[30,30,25], textDark:[20,20,20], textMid:[120,118,110], border:[200,200,200], shadow:false },
+      oscuro:      { bg:[18,18,18],   card:[32,32,32],   headerBg:[10,10,10], accent:col, textDark:[240,240,235], textMid:[170,170,160], border:[60,58,55], shadow:true },
+      degradado:   { bg:[col[0]>200?240:248, col[1]>150?248:246, 255], card:[255,255,255], headerBg:col, accent:col, textDark:[30,30,25], textMid:[100,98,90], border:[215,210,235], shadow:true }
+    };
+    var T = TEMAS[estilo] || TEMAS.moderno;
+
+    function setFill(rgb){ doc.setFillColor(rgb[0],rgb[1],rgb[2]); }
+    function setDraw(rgb){ doc.setDrawColor(rgb[0],rgb[1],rgb[2]); }
+    function setTxt(rgb){ doc.setTextColor(rgb[0],rgb[1],rgb[2]); }
+
+    // ── PORTADA ──────────────────────────────────────────────────────
+    setFill(T.headerBg); doc.rect(0,0,W,H,"F");
+
+    // Patrón decorativo fondo (círculos grandes semitransparentes)
+    doc.setGState(new doc.GState({opacity:0.07}));
+    doc.setFillColor(255,255,255);
+    doc.circle(W*0.85, H*0.15, 80, "F");
+    doc.circle(W*0.1,  H*0.85, 60, "F");
+    doc.setGState(new doc.GState({opacity:1}));
+
+    // Línea superior decorativa
+    doc.setFillColor(255,255,255);
+    doc.setGState(new doc.GState({opacity:0.15}));
+    doc.rect(0, 0, W, 3, "F");
+    doc.rect(0, H-3, W, 3, "F");
+    doc.setGState(new doc.GState({opacity:1}));
+
+    // Logo
     if(empresaData.logo){
-      try{ doc.addImage(empresaData.logo,"PNG", W/2-30, H/2-70, 60, 30, undefined, "FAST"); }catch(e){}
+      try{ doc.addImage(empresaData.logo,"PNG",W/2-25,H/2-80,50,25,undefined,"FAST"); }catch(e){}
     }
+
     // Nombre empresa
     doc.setTextColor(255,255,255);
-    doc.setFont("helvetica","bold"); doc.setFontSize(32);
-    doc.text(empNom.toUpperCase(), W/2, H/2-25, {align:"center"});
-    // Subtítulo
-    doc.setFont("helvetica","normal"); doc.setFontSize(16); doc.setTextColor(255,255,255,180);
-    var subTitle = "CATÁLOGO"+(lista==="ambas"?" MAYORISTA":" — LISTA "+lista.toUpperCase());
-    doc.text(subTitle, W/2, H/2-10, {align:"center"});
-    // Línea divisoria
-    doc.setDrawColor(255,255,255); doc.setLineWidth(0.4); doc.setGState(new doc.GState({opacity:0.3}));
-    doc.line(MARGIN+20, H/2, W-MARGIN-20, H/2);
+    doc.setFont("helvetica","bold"); doc.setFontSize(36);
+    doc.text(empNom.toUpperCase(), W/2, H/2-30, {align:"center"});
+
+    // Separador con leyenda
+    doc.setGState(new doc.GState({opacity:0.4}));
+    doc.setDrawColor(255,255,255); doc.setLineWidth(0.5);
+    doc.line(MARGIN+30, H/2-18, W-MARGIN-30, H/2-18);
     doc.setGState(new doc.GState({opacity:1}));
-    // Fecha
-    doc.setFontSize(12); doc.setTextColor(255,255,255);
-    doc.text(new Date().toLocaleDateString("es-AR",{month:"long",year:"numeric"}).toUpperCase(), W/2, H/2+15, {align:"center"});
-    // Cantidad productos
-    doc.setFontSize(10);
-    doc.text(prods.length+" productos", W/2, H/2+25, {align:"center"});
+
+    var subLabel = leyenda || ("CATÁLOGO"+(lista==="ambas"?" MAYORISTA":" — LISTA "+lista.toUpperCase()));
+    doc.setFont("helvetica","bold"); doc.setFontSize(13);
+    doc.setTextColor(255,255,255);
+    doc.text(subLabel, W/2, H/2-8, {align:"center"});
+
+    // Chips info
+    var chipY = H/2+12;
+    var chips = [
+      new Date().toLocaleDateString("es-AR",{month:"long",year:"numeric"}).toUpperCase(),
+      prods.length+" PRODUCTOS",
+      filtro ? filtro.toUpperCase() : "TODAS LAS CATEGORÍAS"
+    ];
+    var chipX = W/2 - (chips.length*42)/2;
+    chips.forEach(function(chip,i){
+      doc.setGState(new doc.GState({opacity:0.2}));
+      doc.setFillColor(255,255,255);
+      doc.roundedRect(chipX+i*44, chipY-5.5, 42, 9, 4.5, 4.5, "F");
+      doc.setGState(new doc.GState({opacity:1}));
+      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(7);
+      doc.text(chip, chipX+i*44+21, chipY, {align:"center"});
+    });
+
     // Footer portada
-    doc.setFontSize(9); doc.setTextColor(255,255,255);
-    doc.setGState(new doc.GState({opacity:0.6}));
-    doc.text("Generado con DistriMax", W/2, H-15, {align:"center"});
+    doc.setGState(new doc.GState({opacity:0.5}));
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(255,255,255);
+    doc.text("Generado con DistriMax", W/2, H-10, {align:"center"});
     doc.setGState(new doc.GState({opacity:1}));
 
-    // ── PÁGINAS DE PRODUCTOS ──
-    // Calcular grilla según ppp
-    var cols = ppp <= 4 ? 2 : ppp <= 6 ? 2 : 3;
-    var rows = Math.ceil(ppp / cols);
-    var cellW = (W - MARGIN*2 - (cols-1)*6) / cols;
-    var headerH = 20; // espacio para encabezado de página
-    var footerH = notas ? 14 : 8;
-    var availH = H - MARGIN - headerH - footerH - MARGIN;
-    var cellH = (availH - (rows-1)*5) / rows;
-
-    var pages = Math.ceil(prods.length / ppp);
-    for(var pg = 0; pg < pages; pg++){
+    // ── PÁGINA DE OFERTAS/PROMOS ──────────────────────────────────
+    if(inclPromos==="si" || inclPromos==="solo"){
       doc.addPage();
-      progress.textContent = "📄 Página "+(pg+2)+" de "+(pages+1)+"…";
+      // Fondo del encabezado
+      var pColor = [220,30,50];
+      doc.setFillColor(pColor[0],pColor[1],pColor[2]);
+      doc.rect(0,0,W,50,"F");
+      // Decorativo
+      doc.setGState(new doc.GState({opacity:0.1}));
+      doc.setFillColor(255,255,255);
+      doc.circle(W-20,10,45,"F");
+      doc.setGState(new doc.GState({opacity:1}));
 
-      // Encabezado de página
-      doc.setFillColor(col[0],col[1],col[2]);
-      doc.rect(0, 0, W, headerH, "F");
-      doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11);
-      doc.text(empNom, MARGIN, 13);
-      var catLabel = filtro || "Todos los productos";
-      doc.setFont("helvetica","normal"); doc.setFontSize(9);
-      doc.text(catLabel+" · Pág "+(pg+1)+"/"+pages, W-MARGIN, 13, {align:"right"});
+      var pTit = promoTitulo || "🔥 OFERTAS DEL MES";
+      doc.setTextColor(255,255,255);
+      doc.setFont("helvetica","bold"); doc.setFontSize(22);
+      doc.text(pTit, W/2, 22, {align:"center"});
+      doc.setFont("helvetica","normal"); doc.setFontSize(10);
+      doc.text(empNom, W/2, 32, {align:"center"});
 
-      // Productos en esta página
-      var slice = prods.slice(pg*ppp, (pg+1)*ppp);
-      slice.forEach(function(prod, idx){
-        var col_i = idx % cols;
-        var row_i = Math.floor(idx / cols);
-        var x = MARGIN + col_i * (cellW + 6);
-        var y = MARGIN + headerH + row_i * (cellH + 5);
-
-        // Card fondo
-        doc.setFillColor(255,255,255);
-        doc.setDrawColor(220,220,215);
-        doc.setLineWidth(0.3);
-        doc.roundedRect(x, y, cellW, cellH, 3, 3, "FD");
-
-        // Imagen del producto
-        var imgH = cellH * 0.52;
-        var imgY = y + 3;
-        var imgX = x + 3;
-        var imgW = cellW - 6;
-        if(imagenes[prod.id]){
-          try{
-            // Dibujar fondo gris claro para la imagen
-            doc.setFillColor(245,244,240);
-            doc.roundedRect(imgX, imgY, imgW, imgH, 2, 2, "F");
-            doc.addImage(imagenes[prod.id],"JPEG", imgX+2, imgY+2, imgW-4, imgH-4, undefined, "FAST");
-          }catch(e){
-            doc.setFillColor(245,244,240);
-            doc.roundedRect(imgX, imgY, imgW, imgH, 2, 2, "F");
-            doc.setTextColor(180,180,175); doc.setFontSize(20);
-            doc.text("📦", x+cellW/2, imgY+imgH/2+4, {align:"center"});
-          }
-        } else {
-          doc.setFillColor(245,244,240);
-          doc.roundedRect(imgX, imgY, imgW, imgH, 2, 2, "F");
-          doc.setTextColor(180,180,175); doc.setFontSize(18);
-          doc.text("📦", x+cellW/2, imgY+imgH/2+4, {align:"center"});
-        }
-
-        // Texto del producto
-        var textY = imgY + imgH + 4;
-        var textMaxW = cellW - 4;
-
-        // Código
-        if(mostrarCod){
-          doc.setFontSize(7); doc.setTextColor(150,148,142); doc.setFont("helvetica","normal");
-          doc.text("#"+prod.id, x+cellW/2, textY, {align:"center"});
-          textY += 4;
-        }
-
-        // Nombre
-        doc.setFontSize(8); doc.setTextColor(26,26,23); doc.setFont("helvetica","bold");
-        var nombreLines = doc.splitTextToSize(prod.n, textMaxW);
-        nombreLines = nombreLines.slice(0,2); // máx 2 líneas
-        doc.text(nombreLines, x+cellW/2, textY, {align:"center", lineHeightFactor:1.3});
-        textY += nombreLines.length * 4 + 3;
-
-        // Stock (si aplica)
-        if(mostrarStock && stockData[prod.id]!==undefined){
-          var qty = stockData[prod.id];
-          var sColor = qty>0 ? [10,112,72] : [180,30,30];
-          doc.setTextColor(sColor[0],sColor[1],sColor[2]); doc.setFontSize(7); doc.setFont("helvetica","bold");
-          doc.text(qty>0?"Stock: "+qty+" u.":"Sin stock", x+cellW/2, textY, {align:"center"});
-          textY += 4.5;
-        }
-
-        // Precios
-        doc.setFont("helvetica","bold"); doc.setFontSize(10);
-        doc.setTextColor(col[0],col[1],col[2]);
-        if(lista==="ambas"){
-          doc.setFontSize(8);
-          doc.text("Cli: $"+fM(prod.pCli), x+cellW/2-1, textY, {align:"center"});
-          textY += 5;
-          doc.setTextColor(100,100,100);
-          doc.text("Pat: $"+fM(prod.pPat), x+cellW/2-1, textY, {align:"center"});
-        } else {
-          var precio = lista==="Patagonia" ? prod.pPat : prod.pCli;
-          doc.text("$"+fM(precio), x+cellW/2, textY, {align:"center"});
-        }
-      });
-
-      // Footer de página
-      var fyBase = H - footerH - 2;
-      doc.setDrawColor(220,220,215); doc.setLineWidth(0.3);
-      doc.line(MARGIN, fyBase, W-MARGIN, fyBase);
-      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(150,148,142);
-      if(notas){
-        var notaLines = doc.splitTextToSize(notas, W-MARGIN*2-30);
-        doc.text(notaLines[0], MARGIN, fyBase+4.5);
+      // Texto de promo libre
+      if(promoTexto){
+        var promoY = 62;
+        setFill([255,248,240]); setDraw([255,200,150]);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(MARGIN, promoY-6, W-MARGIN*2, 24, 4, 4, "FD");
+        doc.setTextColor(180,60,0); doc.setFont("helvetica","bold"); doc.setFontSize(9);
+        var pLines = doc.splitTextToSize(promoTexto, W-MARGIN*2-10);
+        doc.text(pLines.slice(0,3), W/2, promoY+2, {align:"center", lineHeightFactor:1.5});
+        promoY += 32;
       }
-      doc.text(new Date().toLocaleDateString("es-AR"), W-MARGIN, fyBase+4.5, {align:"right"});
+
+      // Grid de productos en promo
+      if(prodsPromo.length){
+        var pY = promoTexto ? 100 : 62;
+        var pCols = 3, pRows = 2;
+        var pCellW = (W-MARGIN*2-(pCols-1)*6)/pCols;
+        var pCellH = (H-pY-MARGIN-(pRows-1)*5)/pRows;
+
+        progress.textContent = "🔥 Generando página de ofertas…";
+        prodsPromo.slice(0,pCols*pRows).forEach(function(prod,idx){
+          var ci=idx%pCols, ri=Math.floor(idx/pCols);
+          var px=MARGIN+ci*(pCellW+6), py=pY+ri*(pCellH+5);
+
+          // Card con borde rojo
+          doc.setFillColor(255,255,255);
+          doc.setDrawColor(220,30,50); doc.setLineWidth(0.8);
+          doc.roundedRect(px,py,pCellW,pCellH,3,3,"FD");
+
+          // Badge OFERTA
+          doc.setFillColor(220,30,50);
+          doc.roundedRect(px+2,py+2,16,6,3,3,"F");
+          doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(5.5);
+          doc.text("OFERTA",px+10,py+5.8,{align:"center"});
+
+          // Imagen
+          var imgH=pCellH*0.50, imgY=py+3, imgX=px+3, imgW=pCellW-6;
+          if(imagenes[prod.id]){
+            try{
+              doc.setFillColor(245,244,240);
+              doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F");
+              doc.addImage(imagenes[prod.id],"JPEG",imgX+2,imgY+2,imgW-4,imgH-4,undefined,"FAST");
+            }catch(e){}
+          } else {
+            doc.setFillColor(255,240,242);
+            doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F");
+          }
+
+          // Nombre
+          var ty=imgY+imgH+4;
+          doc.setTextColor(30,30,25); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
+          var nl=doc.splitTextToSize(prod.n,pCellW-4).slice(0,2);
+          doc.text(nl,px+pCellW/2,ty,{align:"center",lineHeightFactor:1.3});
+          ty+=nl.length*4+3;
+
+          // Precio tachado y precio promo
+          var pBase = lista==="Patagonia"?prod.pPat:prod.pCli;
+          doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(7);
+          doc.text("Antes: $"+fM(pBase),px+pCellW/2,ty,{align:"center"});
+          // Línea tachado
+          var tw=doc.getTextWidth("Antes: $"+fM(pBase));
+          doc.setDrawColor(150,148,140); doc.setLineWidth(0.3);
+          doc.line(px+pCellW/2-tw/2,ty-1,px+pCellW/2+tw/2,ty-1);
+          ty+=5;
+          doc.setTextColor(220,30,50); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+          doc.text("$"+fM(prod.precioPromo),px+pCellW/2,ty,{align:"center"});
+        });
+      } else if(inclPromos==="si"){
+        var noY=100;
+        doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(11);
+        doc.text("Configurá precios promo en Mis Productos para ver ofertas acá.",W/2,noY,{align:"center"});
+      }
+
+      // Pie de página ofertas
+      doc.setDrawColor(220,220,215); doc.setLineWidth(0.3);
+      doc.line(MARGIN,H-10,W-MARGIN,H-10);
+      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(150,148,142);
+      doc.text(notas||empNom,MARGIN,H-6);
+      doc.text(new Date().toLocaleDateString("es-AR"),W-MARGIN,H-6,{align:"right"});
+    }
+
+    // ── PÁGINAS DE PRODUCTOS ──────────────────────────────────────
+    if(inclPromos !== "solo"){
+      var cols = ppp<=4?2:ppp<=6?2:3;
+      var rows = Math.ceil(ppp/cols);
+      var headerH=18, footerH=notas?14:8;
+      var availH=H-MARGIN-headerH-footerH-MARGIN;
+      var cellW=(W-MARGIN*2-(cols-1)*6)/cols;
+      var cellH=(availH-(rows-1)*5)/rows;
+      var pages=Math.ceil(prods.length/ppp);
+
+      for(var pg=0;pg<pages;pg++){
+        doc.addPage();
+        progress.textContent = "📄 Página "+(pg+2)+" de "+(pages+1)+"…";
+
+        // Fondo de página
+        if(estilo==="oscuro"){
+          setFill(T.bg); doc.rect(0,0,W,H,"F");
+        } else if(estilo==="degradado"){
+          setFill([245,243,255]); doc.rect(0,0,W,H,"F");
+          doc.setGState(new doc.GState({opacity:0.06}));
+          setFill(T.accent); doc.rect(0,0,W,30,"F");
+          doc.setGState(new doc.GState({opacity:1}));
+        }
+
+        // Encabezado
+        setFill(T.headerBg); doc.rect(0,0,W,headerH,"F");
+        doc.setTextColor(255,255,255);
+        doc.setFont("helvetica","bold"); doc.setFontSize(10);
+        doc.text(empNom, MARGIN, 12);
+        doc.setFont("helvetica","normal"); doc.setFontSize(8);
+        var catLbl=(filtro||"Todos los productos")+" · Pág "+(pg+1)+"/"+pages;
+        doc.text(catLbl, W-MARGIN, 12, {align:"right"});
+
+        // Productos
+        prods.slice(pg*ppp,(pg+1)*ppp).forEach(function(prod,idx){
+          var ci=idx%cols, ri=Math.floor(idx/cols);
+          var x=MARGIN+ci*(cellW+6), y=MARGIN+headerH+ri*(cellH+5);
+
+          // Card
+          setFill(T.card);
+          if(T.shadow){ doc.setGState(new doc.GState({opacity:0.12})); setFill([0,0,0]); doc.roundedRect(x+1,y+1,cellW,cellH,3,3,"F"); doc.setGState(new doc.GState({opacity:1})); }
+          setFill(T.card); setDraw(T.border); doc.setLineWidth(0.25);
+          doc.roundedRect(x,y,cellW,cellH,3,3,"FD");
+
+          // Badge PROMO si tiene precio especial
+          if(prod.precioPromo && prod.precioPromo>0){
+            doc.setFillColor(220,30,50);
+            doc.roundedRect(x+cellW-18,y+2,16,6,3,3,"F");
+            doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(5);
+            doc.text("PROMO",x+cellW-10,y+5.8,{align:"center"});
+          }
+
+          // Imagen
+          var imgH=cellH*0.50, imgY=y+3, imgX=x+3, imgW=cellW-6;
+          if(imagenes[prod.id]){
+            try{
+              setFill(estilo==="oscuro"?[45,45,45]:[245,244,240]);
+              doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F");
+              doc.addImage(imagenes[prod.id],"JPEG",imgX+2,imgY+2,imgW-4,imgH-4,undefined,"FAST");
+            }catch(e){ setFill(estilo==="oscuro"?[45,45,45]:[245,244,240]); doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F"); }
+          } else {
+            setFill(estilo==="oscuro"?[45,45,45]:[245,244,240]);
+            doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F");
+            setTxt(T.textMid); doc.setFontSize(16);
+            doc.text("📦",x+cellW/2,imgY+imgH/2+4,{align:"center"});
+          }
+
+          // Texto
+          var textY=imgY+imgH+4;
+          if(mostrarCod){ doc.setFontSize(6); setTxt(T.textMid); doc.setFont("helvetica","normal"); doc.text("#"+prod.id,x+cellW/2,textY,{align:"center"}); textY+=3.5; }
+          doc.setFontSize(7.5); setTxt(T.textDark); doc.setFont("helvetica","bold");
+          var nl=doc.splitTextToSize(prod.n,cellW-4).slice(0,2);
+          doc.text(nl,x+cellW/2,textY,{align:"center",lineHeightFactor:1.3});
+          textY+=nl.length*3.8+3;
+
+          if(mostrarStock && stockData[prod.id]!==undefined){
+            var qty=stockData[prod.id];
+            doc.setTextColor(qty>0?30:180,qty>0?130:30,qty>0?80:30); doc.setFontSize(6.5);
+            doc.text(qty>0?"✓ Stock: "+qty+" u.":"✗ Sin stock",x+cellW/2,textY,{align:"center"}); textY+=4;
+          }
+
+          // Precio
+          doc.setFont("helvetica","bold"); doc.setFontSize(9.5); setTxt(T.accent);
+          if(lista==="ambas"){
+            doc.setFontSize(7.5);
+            doc.text("CLI: $"+fM(prod.pCli),x+cellW/2,textY,{align:"center"}); textY+=4.5;
+            setTxt(T.textMid); doc.text("PAT: $"+fM(prod.pPat),x+cellW/2,textY,{align:"center"});
+          } else {
+            var precio=lista==="Patagonia"?prod.pPat:prod.pCli;
+            doc.text("$"+fM(precio),x+cellW/2,textY,{align:"center"});
+            // Si tiene promo, mostrar precio tachado arriba
+            if(prod.precioPromo && prod.precioPromo>0){
+              doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(6);
+              var tw2=doc.getTextWidth("$"+fM(precio));
+              doc.line(x+cellW/2-tw2/2-1,textY-2.5,x+cellW/2+tw2/2+1,textY-2.5);
+              doc.text("$"+fM(prod.precioPromo),x+cellW/2,textY+4.5,{align:"center"});
+              doc.setTextColor(220,30,50); doc.setFontSize(7);
+              doc.text("PRECIO PROMO",x+cellW/2,textY+9,{align:"center"});
+            }
+          }
+        });
+
+        // Footer
+        var fy=H-footerH-2;
+        setDraw(T.border); doc.setLineWidth(0.25);
+        doc.line(MARGIN,fy,W-MARGIN,fy);
+        doc.setFont("helvetica","normal"); doc.setFontSize(6.5); setTxt(T.textMid);
+        if(notas){ var nL=doc.splitTextToSize(notas,W-MARGIN*2-30); doc.text(nL[0],MARGIN,fy+4.5); }
+        doc.text(new Date().toLocaleDateString("es-AR"),W-MARGIN,fy+4.5,{align:"right"});
+      }
     }
 
     progress.textContent = "✅ ¡Listo! Guardando PDF…";
@@ -12689,7 +13264,7 @@ async function generarCatalogoPDF(){
     var file = new File([blob], nomArchivo, {type:"application/pdf"});
     if(navigator.share){ navigator.share({files:[file]}).catch(function(){ doc.save(nomArchivo); }); }
     else { doc.save(nomArchivo); }
-    showNotif("📄 Catálogo generado — "+prods.length+" productos en "+(pages+1)+" páginas","ok");
+    showNotif("📄 Catálogo generado — "+prods.length+" productos en "+doc.getNumberOfPages()+" páginas","ok");
 
   } catch(err){
     console.error("generarCatalogoPDF:", err);
