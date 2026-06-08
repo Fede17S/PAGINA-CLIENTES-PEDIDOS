@@ -5321,7 +5321,7 @@ async function generarPDF(m){
       }
       return rkPromise.then(function(rk){
         if(!rk||rk.startsWith("op_"))return;
-        var cd={nom:nom,id:cliIdRem,importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:itemsCopy,fecha:ahora.toISOString()};
+        var cd={nom:nom,id:cliIdRem,importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:itemsCopy,fecha:ahora.toISOString(),tipoComprobante:null};
         return fbPushQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes",cd,"Cliente ruta: "+nom).then(function(ck){if(ck&&!ck.startsWith("op_")){if(!rutasData[rk])rutasData[rk]={clientes:{}};if(!rutasData[rk].clientes)rutasData[rk].clientes={};rutasData[rk].clientes[ck]=cd;}});
       });
     }).catch(function(e){console.warn("Firebase:",e);});
@@ -6452,7 +6452,14 @@ function buildClienteRow(rutaKey, cliKey, cli){
           return badges;
         })()+
       '</div>'+
-      '<div class="rc-sub">$'+fM(tot)+'</div>'+
+      '<div class="rc-sub">'+
+        (cli.tipoComprobante === "factura_a"
+          ? '<span style="font-size:10px;font-weight:800;background:#1e2a4a;color:#fff;padding:1px 7px;border-radius:20px;margin-right:5px;vertical-align:middle">🟦 FACTURA A</span>'
+          : cli.tipoComprobante === "remito"
+            ? '<span style="font-size:10px;font-weight:600;background:var(--s3);color:var(--muted);padding:1px 7px;border-radius:20px;margin-right:5px;vertical-align:middle">📄 remito</span>'
+            : '') +
+        '$'+fM(tot)+
+      '</div>'+
     '</div>'+
     estadoHtml+
     '<button class="rc-print-btn" title="Imprimir remito">🖨️</button>'+
@@ -7984,8 +7991,12 @@ function renderBackup(){
     var vndBadge = (bk.usuarioNom || bk.usuario)
       ? '<span style="font-size:10px;color:var(--muted);margin-left:4px">👤 '+(bk.usuarioNom||bk.usuario)+'</span>'
       : '';
-    var ivaLine = bk.tipoComprobante === "factura_a" && bk.totalConIVA
-      ? '<div style="font-size:11.5px;color:#1e2a4a;font-weight:700;margin-top:2px">c/IVA: $'+fM(bk.totalConIVA)+'</div>'
+    // Para Factura A: calcular totalConIVA si no está guardado (pedidos viejos)
+    var _totalConIVA = bk.tipoComprobante === "factura_a"
+      ? (bk.totalConIVA || Math.round((bk.total||0)*1.21*100)/100)
+      : 0;
+    var ivaLine = _totalConIVA > 0
+      ? '<div style="font-size:11.5px;color:#1e2a4a;font-weight:700;margin-top:2px">c/IVA: $'+fM(_totalConIVA)+'</div>'
       : '';
 
     var card = document.createElement("div");
@@ -8095,7 +8106,11 @@ function renderBackup(){
       var totRow = document.createElement("div");
       totRow.className = "bk-card-total-row";
       totRow.style.fontWeight = "700";
-      totRow.innerHTML = '<span>Total</span><span>$'+fM(bk.total||0)+'</span>';
+      // Para Factura A mostrar total con IVA
+      var _bkTotal = bk.tipoComprobante === "factura_a"
+        ? (bk.totalConIVA || Math.round((bk.total||0)*1.21*100)/100)
+        : (bk.total||0);
+      totRow.innerHTML = '<span>Total'+(bk.tipoComprobante==="factura_a"?' (c/IVA)':'')+'</span><span>$'+fM(_bkTotal)+'</span>';
       itemsDiv.appendChild(totRow);
       detail.appendChild(itemsDiv);
     } // end if items
@@ -8300,6 +8315,52 @@ function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   _bkItemPendiente = null;
   bk.tipoComprobante = tipo;
   if(fechaEntrega){ bk.fechaEntrega = fechaEntrega; bk.diaEntrega = diaEntrega; }
+
+  // Actualizar tipoComprobante en la hoja de ruta siempre
+  if(rutaAbierta && rutasData[rutaAbierta] && rutasData[rutaAbierta].clientes){
+    var _clientes = rutasData[rutaAbierta].clientes;
+    var _nomLow2 = (bk.clienteNom||"").toLowerCase();
+    var _cliKeys2 = Object.keys(_clientes);
+    for(var _ci2 = _cliKeys2.length-1; _ci2 >= 0; _ci2--){
+      var _ck2 = _cliKeys2[_ci2];
+      if((_clientes[_ck2].nom||"").toLowerCase() === _nomLow2){
+        _clientes[_ck2].tipoComprobante = tipo;
+        fbPatch("empresas/"+empresaKey+"/rutas/"+rutaAbierta+"/clientes/"+_ck2,
+          {tipoComprobante: tipo}).catch(function(){});
+        break;
+      }
+    }
+  }
+
+  // Si elige Factura A, actualizar el total con IVA en el backup y en la hoja de ruta
+  if(tipo === "factura_a"){
+    var totalSinIVA = bk.total || 0;
+    var totalConIVA = Math.round(totalSinIVA * 1.21 * 100) / 100;
+    bk.totalConIVA = totalConIVA;
+    // Actualizar el importe en la hoja de ruta (el cliente de ruta recién guardado)
+    // Buscar la ruta abierta y el cliente recién agregado
+    if(rutaAbierta && rutasData[rutaAbierta] && rutasData[rutaAbierta].clientes){
+      var clientes = rutasData[rutaAbierta].clientes;
+      var nomLow = (bk.clienteNom||"").toLowerCase();
+      // Buscar el último cliente agregado que coincida por nombre
+      var cliKeys = Object.keys(clientes);
+      for(var ci = cliKeys.length-1; ci >= 0; ci--){
+        var cliKey = cliKeys[ci];
+        var cliRuta = clientes[cliKey];
+        if((cliRuta.nom||"").toLowerCase() === nomLow && cliRuta.importe === totalSinIVA){
+          // Actualizar en memoria
+          clientes[cliKey].importe = totalConIVA;
+          // Actualizar en Firebase
+          fbPatch("empresas/"+empresaKey+"/rutas/"+rutaAbierta+"/clientes/"+cliKey,
+            {importe: totalConIVA, tipoComprobante: "factura_a"}).catch(function(){});
+          // También actualizar tipoComprobante en la copia en memoria
+          clientes[cliKey].tipoComprobante = "factura_a";
+          break;
+        }
+      }
+    }
+  }
+
   // Ahora sí limpiar el formulario — el usuario ya confirmó
   if(bk._tPDF) limpiarFormulario(bk._tPDF);
 
@@ -8556,10 +8617,11 @@ function guardarEdicionBackup(){
   var patch = {
     items:       _editBkItem.items,
     total:       _editBkItem.total,
-    // Incluir cliente actualizado
     cliente_nom: _editBkItem.clienteNom || _editBkItem.cliente_nom || "",
     cliente_id:  _editBkItem.clienteId  || _editBkItem.cliente_id  || "",
-    lista:       _editBkItem.lista      || "Clientes"
+    lista:       _editBkItem.lista      || "Clientes",
+    obs:         _editBkItem.obs        || "",
+    descuentos:  _editBkItem.descuentos || null
   };
 
   // Actualizar en localStorage
@@ -8592,7 +8654,11 @@ async function confirmarBackupComoRemito(bkParam){
   if(!bk) return;
   var ahora = new Date();
   var nom = bk.clienteNom||"Mostrador";
-  var totalNum = bk.total||0;
+  // Si es Factura A, el total a cobrar incluye IVA
+  var esFacturaA = (bk.tipoComprobante === "factura_a");
+  var totalNum = esFacturaA
+    ? (bk.totalConIVA || Math.round((bk.total||0)*1.21*100)/100)
+    : (bk.total||0);
   var items = bk.items||[];
 
   // SIEMPRE usar el vendedor del pedido original, nunca al admin logueado
@@ -8604,7 +8670,15 @@ async function confirmarBackupComoRemito(bkParam){
   // Los ítems del pedido original conservan sus precios (p = precio al momento del pedido)
   // NO se recalculan precios — se usa lo que tenía el pedido
   var itemsAprobados = items.filter(function(i){ return !i.pendiente; }).map(function(i){
-    return {id:i.id, n:i.n, c:i.c, p:i.p, sub:(i.c||0)*(i.p||0)};
+    // Conservar sub original (ya tiene descuentos aplicados), dsc y todos los campos
+    return {
+      id:  i.id,
+      n:   i.n,
+      c:   i.c,
+      p:   i.p,
+      sub: i.sub || (i.c||0)*(i.p||0),  // sub original con descuentos
+      dsc: i.dsc || null                  // descuento por ítem
+    };
   });
 
   // 1) Guardar venta en Supabase (acreditada al vendedor del pedido)
@@ -8661,17 +8735,24 @@ async function confirmarBackupComoRemito(bkParam){
   // Agregar cliente a la ruta
   if(rutaId){
     var cd = {
-      ruta_id:      rutaId,
-      empresa_id:   _sbEmpId,
-      cliente_id:   bk.clienteId||"",
-      nom:          nom,
-      importe:      totalNum,
-      efectivo:     0,
-      transferencia:0,
-      modo:         "ninguno",
-      items:        itemsAprobados,
-      fecha:        ahora.toISOString(),
-      entregado:    false
+      ruta_id:         rutaId,
+      empresa_id:      _sbEmpId,
+      cliente_id:      bk.clienteId||"",
+      nom:             nom,
+      importe:         totalNum,
+      efectivo:        0,
+      transferencia:   0,
+      modo:            "ninguno",
+      items:           itemsAprobados,
+      fecha:           ahora.toISOString(),
+      entregado:       false,
+      tipoComprobante: bk.tipoComprobante || "remito",
+      descuentos:      bk.descuentos      || null,
+      dscGeneral:      bk.dscGeneral      || null,
+      obs:             bk.obs             || "",
+      lista:           bk.lista           || "Clientes",
+      usuario:         vendedorId,
+      usuario_nom:     vendedorNom
     };
     try {
       var rcRows = await sbPost("ruta_clientes", cd);
@@ -8687,7 +8768,11 @@ async function confirmarBackupComoRemito(bkParam){
   // 3) Marcar el backup como convertido — NO crear un nuevo registro
   var sbId = bk._sbId || bk._fbKey || bk.id;
   if(sbId && _sbEmpId){
-    sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {tipo:"remito", tipoComprobante:"remito"}).catch(function(){});
+    sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {
+      tipo:            "remito",
+      tipoComprobante: bk.tipoComprobante || "remito",
+      aprobado:        true
+    }).catch(function(){});
   }
   var arr2 = getBackups();
   var idx2 = arr2.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId; });
