@@ -7992,8 +7992,22 @@ function renderBackup(){
       ? '<span style="font-size:10px;color:var(--muted);margin-left:4px">👤 '+(bk.usuarioNom||bk.usuario)+'</span>'
       : '';
     // Para Factura A: calcular totalConIVA si no está guardado (pedidos viejos)
+    // Recalcular total con descuentos para mostrar en tarjeta
+    var _dscBkCard = bk.descuentos||{};
+    var _subtotCard = (bk.items||[]).reduce(function(s,i){
+      return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1));
+    },0);
+    var _dscGenCard = _dscBkCard.montoDscGen||0;
+    if(!_dscGenCard && _dscBkCard.dscGenTipo && _dscBkCard.dscGenValor>0){
+      _dscGenCard = _dscBkCard.dscGenTipo==="%"
+        ? Math.round(_subtotCard*_dscBkCard.dscGenValor/100*100)/100
+        : Math.min(_dscBkCard.dscGenValor,_subtotCard);
+    }
+    var _totalCard = Math.round((_subtotCard-_dscGenCard)*100)/100;
+    var _hayDscCard = (_dscBkCard.subtotalLista && _dscBkCard.subtotalLista > _totalCard) || _dscGenCard>0;
+    var _totalMostrar = _hayDscCard ? _totalCard : (bk.total||_totalCard);
     var _totalConIVA = bk.tipoComprobante === "factura_a"
-      ? (bk.totalConIVA || Math.round((bk.total||0)*1.21*100)/100)
+      ? Math.round(_totalMostrar*1.21*100)/100
       : 0;
     var ivaLine = _totalConIVA > 0
       ? '<div style="font-size:11.5px;color:#1e2a4a;font-weight:700;margin-top:2px">c/IVA: $'+fM(_totalConIVA)+'</div>'
@@ -8107,9 +8121,19 @@ function renderBackup(){
       totRow.className = "bk-card-total-row";
       totRow.style.fontWeight = "700";
       // Para Factura A mostrar total con IVA
+      // Recalcular total con descuentos para el detalle
+      var _dscDet = bk.descuentos||{};
+      var _subDet = (bk.items||[]).reduce(function(s,i){return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1));},0);
+      var _gdDet  = _dscDet.montoDscGen||0;
+      if(!_gdDet && _dscDet.dscGenTipo && _dscDet.dscGenValor>0){
+        _gdDet = _dscDet.dscGenTipo==="%"?Math.round(_subDet*_dscDet.dscGenValor/100*100)/100:Math.min(_dscDet.dscGenValor,_subDet);
+      }
+      var _totDet = Math.round((_subDet-_gdDet)*100)/100;
+      var _hayDscDet = (_dscDet.subtotalLista&&_dscDet.subtotalLista>_totDet)||_gdDet>0;
+      var _totalDet = _hayDscDet ? _totDet : (bk.total||_totDet);
       var _bkTotal = bk.tipoComprobante === "factura_a"
-        ? (bk.totalConIVA || Math.round((bk.total||0)*1.21*100)/100)
-        : (bk.total||0);
+        ? Math.round(_totalDet*1.21*100)/100
+        : _totalDet;
       totRow.innerHTML = '<span>Total'+(bk.tipoComprobante==="factura_a"?' (c/IVA)':'')+'</span><span>$'+fM(_bkTotal)+'</span>';
       itemsDiv.appendChild(totRow);
       detail.appendChild(itemsDiv);
@@ -8654,12 +8678,26 @@ async function confirmarBackupComoRemito(bkParam){
   if(!bk) return;
   var ahora = new Date();
   var nom = bk.clienteNom||"Mostrador";
+  var items = bk.items||[];
+  var dscBk = bk.descuentos||{};
+
+  // Calcular total con descuentos
+  var _subtotItems = items.filter(function(i){return !i.pendiente;}).reduce(function(s,i){
+    return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1));
+  },0);
+  var _montoDscGen = dscBk.montoDscGen||0;
+  if(!_montoDscGen && dscBk.dscGenTipo && dscBk.dscGenValor>0){
+    _montoDscGen = dscBk.dscGenTipo==="%"
+      ? Math.round(_subtotItems*dscBk.dscGenValor/100*100)/100
+      : Math.min(dscBk.dscGenValor,_subtotItems);
+  }
+  var _totalBase = (_montoDscGen>0 || dscBk.subtotalLista)
+    ? Math.round((_subtotItems-_montoDscGen)*100)/100
+    : (bk.total || Math.round((_subtotItems-_montoDscGen)*100)/100);
+
   // Si es Factura A, el total a cobrar incluye IVA
   var esFacturaA = (bk.tipoComprobante === "factura_a");
-  var totalNum = esFacturaA
-    ? (bk.totalConIVA || Math.round((bk.total||0)*1.21*100)/100)
-    : (bk.total||0);
-  var items = bk.items||[];
+  var totalNum = esFacturaA ? Math.round(_totalBase*1.21*100)/100 : _totalBase;
 
   // SIEMPRE usar el vendedor del pedido original, nunca al admin logueado
   var vendedorId  = (bk.usuario    && bk.usuario.trim())    ? bk.usuario.trim()    : (currentUser?currentUser.id:"");
@@ -8913,20 +8951,24 @@ function generarPDFDesdeBackup(bk, compartir){
 
   // Calcular todos los descuentos correctamente
   // items[].sub ya tiene el precio con descuento por ítem aplicado
-  var subtotItems  = items.reduce(function(s,i){ return s+(i.sub||(i.p||0)*(i.c||1)); },0);
-  var subtotLista  = dsc.subtotalLista || items.reduce(function(s,i){ return s+(i.p||0)*(i.c||1); },0);
-  var ahorroItems  = dsc.ahorroItems  || Math.max(0, subtotLista - subtotItems);
-  // Descuento general (aplicado sobre el subtotal ya con descuento de ítems)
-  var montoDscGen  = dsc.montoDscGen  || 0;
-  // Si no está guardado pero hay dscGenTipo, recalcular
+  // Calcular totales desde items y descuentos
+  var subtotLista = dsc.subtotalLista || items.reduce(function(s,i){ return s+(i.p||0)*(i.c||1); },0);
+  var subtotItems = items.reduce(function(s,i){ return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1)); },0);
+  var ahorroItems = dsc.ahorroItems!==undefined ? dsc.ahorroItems : Math.max(0,Math.round((subtotLista-subtotItems)*100)/100);
+  var montoDscGen = dsc.montoDscGen || 0;
   if(!montoDscGen && dsc.dscGenTipo && dsc.dscGenValor>0){
-    montoDscGen = dsc.dscGenTipo==="%" ? Math.round(subtotItems*dsc.dscGenValor/100*100)/100
-                                       : Math.min(dsc.dscGenValor, subtotItems);
+    montoDscGen = dsc.dscGenTipo==="%"
+      ? Math.round(subtotItems*dsc.dscGenValor/100*100)/100
+      : Math.min(dsc.dscGenValor, subtotItems);
   }
-  var totalDsc     = ahorroItems + montoDscGen;
-  var total        = bk.total || (subtotLista - totalDsc);
-  var ivaAmt       = Math.round(total*0.21*100)/100;
-  var totalFinal   = esFactura ? Math.round(total*1.21*100)/100 : total;
+  montoDscGen = Math.round(montoDscGen*100)/100;
+  var totalDsc = ahorroItems + montoDscGen;
+  // Si hay descuentos guardados, calcular desde items; si no, usar bk.total
+  var total = (totalDsc > 0 || dsc.subtotalLista)
+    ? Math.round((subtotItems - montoDscGen)*100)/100
+    : (bk.total || Math.round((subtotItems - montoDscGen)*100)/100);
+  var ivaAmt    = Math.round(total*0.21*100)/100;
+  var totalFinal = esFactura ? Math.round(total*1.21*100)/100 : total;
 
   // Layout: obs ocupa más, totales más compactos
   var obsH   = showObs ? 38 : 0;  // altura caja obs — más grande
