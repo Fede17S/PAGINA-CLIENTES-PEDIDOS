@@ -4383,6 +4383,10 @@ function verTab(id,btn){
     sincronizarPendientesBackup();
     cargarBackupFirebase();
     _bkStartAutoRefresh();
+    // Precargar hojas de ruta en segundo plano (para "Reasignar a Ruta")
+    if(!Object.keys(rutasData||{}).length){
+      fbGet("empresas/"+empresaKey+"/rutas").then(function(d){ rutasData = d || {}; }).catch(function(){});
+    }
     // Mostrar aviso si hay pendientes
     setTimeout(_bkShowPendingWarning, 500);
   } else {
@@ -7803,6 +7807,15 @@ function _bkSelAll(){
 async function _bkReasignar(){
   if(!_bkSelected.size){ showNotif("Seleccioná al menos un pedido","err"); return; }
 
+  // Si rutasData está vacío (no se entró a Hoja de Ruta en esta sesión), cargarlo ahora
+  if(!Object.keys(rutasData||{}).length){
+    showNotif("⏳ Cargando hojas de ruta…","ok");
+    try {
+      var d = await fbGet("empresas/"+empresaKey+"/rutas");
+      rutasData = d || {};
+    } catch(e){ console.warn("[Reasignar] Error cargando rutas:", e); }
+  }
+
   // Construir lista de rutas disponibles para elegir
   var rutas = Object.entries(rutasData||{});
   if(!rutas.length){ showNotif("No hay hojas de ruta disponibles","err"); return; }
@@ -8143,21 +8156,7 @@ function renderBackup(){
       card.style.outline = "2.5px solid var(--accent)";
     }
 
-    /* Checkbox de selección (visible en modo select) */
-    if(_bkSelectMode){
-      var chk = document.createElement("div");
-      chk.style.cssText="display:flex;align-items:center;gap:10px;padding:10px 16px 0;cursor:pointer";
-      chk.innerHTML = '<div style="width:22px;height:22px;border-radius:6px;border:2px solid var(--accent);background:'+(_bkSelected.has(bk.id)?"var(--accent)":"#fff")+';display:grid;place-items:center;flex-shrink:0;font-size:14px">'+(_bkSelected.has(bk.id)?"✓":"")+'</div><span style="font-size:13px;font-weight:600">'+(bk.clienteNom||"Sin cliente")+'</span><span style="margin-left:auto;font-weight:700;font-size:14px">$'+fM(bk.total||0)+'</span>';
-      chk.onclick = function(e){ e.stopPropagation(); _bkToggleItem(bk.id); renderBackup(); };
-      card.appendChild(chk);
-      card.style.cursor="pointer";
-      card.onclick=function(){ _bkToggleItem(bk.id); renderBackup(); };
-      wrap.appendChild(card);
-    } else {
-
-    /* Header */
-    var header = document.createElement("div");
-    header.className = "bk-card-head";
+    // ── Badges (calculados SIEMPRE — se usan en modo normal y en modo selección) ──
     var pendCantidad = (bk.items||[]).filter(function(i){ return i.pendiente; }).length;
     var pendBadgeHeader = pendCantidad > 0
       ? '<span style="font-size:10px;background:#f97316;color:#fff;border-radius:5px;padding:2px 7px;font-weight:700;margin-left:6px">⏳ '+pendCantidad+' pendiente'+(pendCantidad!==1?'s':'')+'</span>'
@@ -8183,6 +8182,36 @@ function renderBackup(){
     } else if(_tieneDescItem){
       dscBadge = '<span style="font-size:10px;background:#fce7f3;color:#9d174d;border-radius:5px;padding:2px 7px;font-weight:600;margin-left:4px">🏷️ dsc. items</span>';
     }
+
+    /* Checkbox de selección (visible en modo select) — con los mismos badges */
+    if(_bkSelectMode){
+      var chk = document.createElement("div");
+      chk.style.cssText="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;cursor:pointer";
+      chk.innerHTML =
+        '<div style="width:22px;height:22px;border-radius:6px;border:2px solid var(--accent);background:'+(_bkSelected.has(bk.id)?"var(--accent)":"#fff")+';display:grid;place-items:center;flex-shrink:0;font-size:14px;margin-top:1px">'+(_bkSelected.has(bk.id)?"✓":"")+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+'</div>'+
+          '<div class="bk-card-meta">'+
+            tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
+            listaBadge+vndBadge+obsBadge+dscBadge+
+          '</div>'+
+        '</div>'+
+        '<div style="text-align:right;flex-shrink:0">'+
+          (_totalConIVA > 0
+            ? '<div style="font-weight:700;font-size:14px">$'+fM(_totalConIVA)+'</div>'+
+              '<div style="font-size:9.5px;color:#1e2a4a;font-weight:700">🟦 c/Fact. A</div>'
+            : '<div style="font-weight:700;font-size:14px">$'+fM(bk.total||0)+'</div>')+
+        '</div>';
+      chk.onclick = function(e){ e.stopPropagation(); _bkToggleItem(bk.id); renderBackup(); };
+      card.appendChild(chk);
+      card.style.cursor="pointer";
+      card.onclick=function(){ _bkToggleItem(bk.id); renderBackup(); };
+      wrap.appendChild(card);
+    } else {
+
+    /* Header */
+    var header = document.createElement("div");
+    header.className = "bk-card-head";
 
     header.innerHTML =
       '<div class="bk-card-left">'+
