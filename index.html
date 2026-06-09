@@ -7364,18 +7364,18 @@ function descargarPDFRuta(rk){
   doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(80,80,80);
   doc.text(ed.nombre||(empresaData&&empresaData.nombre)||"",10,22);
 
-  // HR número + Fecha arriba derecha
-  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(13,27,42);
-  if(hrNum) doc.text(hrNum,200,11,{align:"right"});
-  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(80,80,80);
-  doc.text("Fecha: "+fechaStr,200,18,{align:"right"});
-  if(ruta.repartidorNom) doc.text("Repartidor: "+ruta.repartidorNom,200,24,{align:"right"});
+  // HR número GRANDE y claro arriba derecha
+  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(13,27,42);
+  if(hrNum) doc.text(hrNum,200,13,{align:"right"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(80,80,80);
+  doc.text("Fecha: "+fechaStr,200,20,{align:"right"});
+  if(ruta.repartidorNom) doc.text("Repartidor: "+ruta.repartidorNom,200,26,{align:"right"});
 
   // Nombre de ruta centrado grande
   doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(13,27,42);
-  doc.text(rutaNom,105,30,{align:"center"});
+  doc.text(rutaNom,105,32,{align:"center"});
 
-  doc.setDrawColor(13,27,42); doc.setLineWidth(0.5); doc.line(10,33,200,33);
+  doc.setDrawColor(13,27,42); doc.setLineWidth(0.5); doc.line(10,35,200,35);
 
   // ── Tabla principal ──
   var body=[];
@@ -7401,7 +7401,7 @@ function descargarPDFRuta(rk){
   });
 
   doc.autoTable({
-    startY:35, margin:{left:10, right:10},
+    startY:37, margin:{left:10, right:10},
     head:[[
       {content:"NB",   styles:{halign:"center"}},
       {content:"ID CL",styles:{halign:"center"}},
@@ -7417,22 +7417,22 @@ function descargarPDFRuta(rk){
       fontStyle:"bold", fontSize:8, textColor:[13,27,42],
       fillColor:[255,255,255],
       lineWidth:{bottom:0.6}, lineColor:[13,27,42],
-      cellPadding:{top:2,bottom:2,left:2,right:2}
+      cellPadding:{top:2,bottom:2,left:1.5,right:1.5}
     },
     bodyStyles:{
       fontSize:8.5, fillColor:[255,255,255], textColor:[20,20,20],
       lineWidth:{bottom:0.15}, lineColor:[200,205,215],
-      cellPadding:{top:2.5,bottom:2.5,left:2,right:2}
+      cellPadding:{top:2.5,bottom:2.5,left:1.5,right:1.5}
     },
     alternateRowStyles:{fillColor:[249,250,252]},
     columnStyles:{
-      0:{cellWidth:14, halign:"center"},
-      1:{cellWidth:18, halign:"center"},
-      2:{cellWidth:68},
-      3:{cellWidth:28, halign:"right"},
-      4:{cellWidth:20, halign:"center"},
-      5:{cellWidth:22, halign:"right"},
-      6:{cellWidth:20, halign:"right"}
+      0:{cellWidth:11, halign:"center"},   // NB
+      1:{cellWidth:16, halign:"center"},   // ID CL
+      2:{cellWidth:49},                    // CLIENTE (más angosta)
+      3:{cellWidth:26, halign:"right"},    // IMPORTE
+      4:{cellWidth:22, halign:"center"},   // T. D. PAGO
+      5:{cellWidth:24, halign:"right"},    // PAGO
+      6:{cellWidth:32, halign:"right"}     // DEBE (más ancha, sin centavos colgando)
     },
     didParseCell:function(d){
       if(d.section==="body"&&d.column.index===6&&d.cell.raw&&d.cell.raw.toString().indexOf("$")===0){
@@ -7443,6 +7443,29 @@ function descargarPDFRuta(rk){
 
   // ── Bloque de totales ──
   var yF=doc.lastAutoTable.finalY+4;
+  // Helper: si no entra el alto pedido antes del pie (~280mm), pasa a página nueva
+  var PAGE_BOTTOM = 280;
+  function _ensureSpace(altoNecesario){
+    if(yF + altoNecesario > PAGE_BOTTOM){
+      // Pie de la página actual
+      doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
+      doc.text((ed.nombre||(empresaData&&empresaData.nombre)||"")+"  ·  "+(hrNum||rutaNom)+"  ·  "+fechaStr,105,289,{align:"center"});
+      doc.addPage();
+      yF = 20;
+      // Mini encabezado de continuación
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(13,27,42);
+      doc.text((hrNum||rutaNom)+" — continuación",10,yF);
+      doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(80,80,80);
+      doc.text("Fecha: "+fechaStr,200,yF,{align:"right"});
+      yF+=8;
+      doc.setDrawColor(13,27,42); doc.setLineWidth(0.4); doc.line(10,yF,200,yF); yF+=6;
+      return true;
+    }
+    return false;
+  }
+
+  // El bloque completo (totales + notas + firma) ocupa ~95mm. Si no entra, página nueva.
+  _ensureSpace(95);
   doc.setDrawColor(13,27,42); doc.setLineWidth(0.5); doc.line(10,yF,200,yF); yF+=5;
 
   doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(13,27,42);
@@ -7459,18 +7482,31 @@ function descargarPDFRuta(rk){
   doc.text("$"+fM(totalEf),80,yF);
 
   yF+=8;
-  doc.setDrawColor(13,27,42); doc.setLineWidth(0.4); doc.line(10,yF,200,yF); yF+=5;
-  doc.setFont("helvetica","bold"); doc.setFontSize(10.5);
+  doc.setDrawColor(13,27,42); doc.setLineWidth(0.4); doc.line(10,yF,200,yF); yF+=6;
+  doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(13,27,42);
   doc.text("Total Hoja Ruta",10,yF);
   doc.text("$ "+fM(calc.total),200,yF,{align:"right"});
 
   // ── Firma y notas ──
+  // El bloque notas+firma ocupa ~62mm. Si no entra, página nueva.
   yF+=10;
+  _ensureSpace(62);
   doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
   doc.text("HOJA DE RUTA  ____/____/____",10,yF);
-  yF+=10;
-  doc.text("NOTA: _______________________________________________________",10,yF);
-  yF+=10;
+
+  // Renglones para notas / aclaraciones
+  yF+=9;
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(13,27,42);
+  doc.text("Notas / aclaraciones:",10,yF);
+  yF+=6;
+  doc.setDrawColor(170,175,185); doc.setLineWidth(0.25);
+  for(var ln=0; ln<3; ln++){
+    doc.line(10,yF,200,yF);
+    yF+=7;
+  }
+
+  yF+=2;
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
   doc.text("REPARTIDOR: "+(ruta.repartidorNom||"_________________________"),10,yF);
   // Línea firma
   yF+=14;
@@ -7480,7 +7516,7 @@ function descargarPDFRuta(rk){
   doc.text("Firma del repartidor",10,yF+5);
   doc.text("Firma de conformidad",110,yF+5);
 
-  // ── Pie ──
+  // ── Pie (en la última página) ──
   doc.setFontSize(7); doc.setTextColor(190,195,205);
   doc.text((ed.nombre||(empresaData&&empresaData.nombre)||"")+"  ·  "+(hrNum||rutaNom)+"  ·  "+fechaStr,105,289,{align:"center"});
 
@@ -9048,7 +9084,11 @@ function generarPDFDesdeBackup(bk, compartir){
   var esFactura= (bk.tipoComprobante==="factura_a");
   var iva      = esFactura ? 1.21 : 1;
   var tipoLabel= esFactura ? "FACTURA A" : "Remito";
-  var remitoNum = bk._remitoNum || (bk.id?String(bk.id).slice(-5):"00000");
+  // Número de remito SOLO numérico (sin letras). Si el _remitoNum o id traen
+  // letras (ej. "bk_1736..."), nos quedamos solo con los dígitos.
+  var _remRaw = bk._remitoNum || bk.id || "";
+  var _remDigits = String(_remRaw).replace(/\D/g,"");
+  var remitoNum = _remDigits ? _remDigits.slice(-5).padStart(5,"0") : "00000";
   var hrNum     = bk._hrNum || "";
   var fechaStr  = new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
 
@@ -9114,19 +9154,20 @@ function generarPDFDesdeBackup(bk, compartir){
 
   // ── Datos del cliente ──
   var CY=SEP1+5;
-  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text("Datos del cliente",10,CY);
+  doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.text("Datos del cliente",10,CY);
   doc.setLineWidth(0.3); doc.line(10,CY+1,80,CY+1); CY+=7;
+  doc.setFontSize(10);
 
   // Fila 1: Nombre + Dirección
   doc.setFont("helvetica","bold"); doc.text("Nombre:",10,CY);
   doc.setFont("helvetica","normal"); doc.text(nom,35,CY);
   if(cliDir){doc.setFont("helvetica","bold");doc.text("Dirección:",118,CY);doc.setFont("helvetica","normal");doc.text(doc.splitTextToSize(cliDir,72),145,CY);}
-  CY+=6;
+  CY+=6.5;
   // Fila 2: Encargado + CUIT (SIEMPRE mostrar CUIT)
   if(cliRec){doc.setFont("helvetica","bold");doc.text("Encargado:",10,CY);doc.setFont("helvetica","normal");doc.text(cliRec,38,CY);}
   doc.setFont("helvetica","bold"); doc.text("CUIT:",118,CY);
   doc.setFont("helvetica","normal"); doc.text(cliCuit||"—",133,CY);
-  CY+=6;
+  CY+=6.5;
   // Fila 3: Tel + Zona (ZONA SIEMPRE — muestra "—" si no tiene)
   if(cliTel){doc.setFont("helvetica","bold");doc.text("Teléfono:",10,CY);doc.setFont("helvetica","normal");doc.text(cliTel,35,CY);}
   doc.setFont("helvetica","bold"); doc.text("Zona:",118,CY);
@@ -9135,7 +9176,7 @@ function generarPDFDesdeBackup(bk, compartir){
   doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.5); doc.line(10,CY,200,CY);
 
   // ── Productos — SIEMPRE con columna Descuento ──
-  CY+=4; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Productos",10,CY); CY+=2;
+  CY+=4; doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.text("Productos",10,CY); CY+=2;
 
   var items=bk.items||[];
   var head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
@@ -9151,8 +9192,8 @@ function generarPDFDesdeBackup(bk, compartir){
   });
   while(body.length<pdfMinRows) body.push(["","","","","",""]);
   doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
-    headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
-    bodyStyles:{fontSize:8.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:2,left:2,right:2},minCellHeight:7},
+    headStyles:{fontStyle:"bold",fontSize:9.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
+    bodyStyles:{fontSize:10,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3.2,bottom:2.6,left:2,right:2},minCellHeight:8},
     alternateRowStyles:{fillColor:[255,255,255]},
     columnStyles:{0:{cellWidth:76},1:{halign:"center",cellWidth:14},2:{halign:"right",cellWidth:24},3:{halign:"center",cellWidth:18},4:{halign:"right",cellWidth:22},5:{halign:"right",cellWidth:26}},
     didParseCell:function(d){
@@ -9189,40 +9230,40 @@ function generarPDFDesdeBackup(bk, compartir){
 
   // Layout: obs ocupa más, totales más compactos
   var obsH   = showObs ? 38 : 0;  // altura caja obs — más grande
-  var rowH   = 6;                  // altura filas totales — más compactas
-  var totalH = 10;                 // altura fila TOTAL
+  var rowH   = 7;                  // altura filas totales
+  var totalH = 14;                 // altura fila TOTAL — más grande
   var obsW   = 96;                 // ancho caja obs
   var tX     = obsW+14;            // columna totales empieza a la derecha de obs
   var tW     = 200-tX-10;         // ancho columna totales (llega al margen derecho)
 
   // Caja observaciones — más grande
   if(showObs){
-    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor.apply(doc,INK);
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
     doc.text("Observaciones:",10,yP+5);
     doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.rect(10,yP+7,obsW,obsH);
     if(bk.obs&&bk.obs.trim()){
-      doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+      doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
       doc.text(doc.splitTextToSize(bk.obs,obsW-4),12,yP+13);
     }
   }
 
-  // Columna totales — filas compactas
+  // Columna totales — filas
   var ty=yP+7;
-  doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor.apply(doc,INK);
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor.apply(doc,INK);
   doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3);
 
   // Subtotal lista (precio sin ningún descuento)
   doc.rect(tX,ty,tW,rowH);
-  doc.text("Subtotal lista:",tX+2,ty+4);
-  doc.setFont("helvetica","normal"); doc.setFontSize(8);
-  doc.text("$"+fM(subtotLista),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
+  doc.text("Subtotal lista:",tX+2,ty+4.7);
+  doc.setFont("helvetica","normal"); doc.setFontSize(9);
+  doc.text("$"+fM(subtotLista),tX+tW-2,ty+4.7,{align:"right"}); ty+=rowH;
 
   // Dscto. por ítems (si hay)
   if(ahorroItems>0){
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-    doc.text("Dscto. productos:",tX+2,ty+4);
+    doc.text("Dscto. productos:",tX+2,ty+4.7);
     doc.setFont("helvetica","normal");
-    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4.7,{align:"right"}); doc.setTextColor.apply(doc,INK);
     ty+=rowH;
   }
 
@@ -9230,40 +9271,41 @@ function generarPDFDesdeBackup(bk, compartir){
   if(montoDscGen>0){
     var dscGenLbl = dsc.dscGenTipo==="%" ? "Dscto. gral. ("+dsc.dscGenValor+"%)" : "Dscto. general";
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-    doc.text(dscGenLbl+":",tX+2,ty+4);
+    doc.text(dscGenLbl+":",tX+2,ty+4.7);
     doc.setFont("helvetica","normal");
-    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(montoDscGen),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(montoDscGen),tX+tW-2,ty+4.7,{align:"right"}); doc.setTextColor.apply(doc,INK);
     ty+=rowH;
   }
 
   // Si no hay ningún descuento, mostrar fila de Dscto. total en cero
   if(totalDsc===0){
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-    doc.text("Dscto. total:",tX+2,ty+4);
-    doc.setFont("helvetica","normal"); doc.text("$0,00",tX+tW-2,ty+4,{align:"right"});
+    doc.text("Dscto. total:",tX+2,ty+4.7);
+    doc.setFont("helvetica","normal"); doc.text("$0,00",tX+tW-2,ty+4.7,{align:"right"});
     ty+=rowH;
   }
 
   // Subtotal con descuentos (si hubo algún descuento)
   if(totalDsc>0){
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-    doc.text("Subtotal final:",tX+2,ty+4);
-    doc.setFont("helvetica","normal"); doc.text("$"+fM(total),tX+tW-2,ty+4,{align:"right"});
+    doc.text("Subtotal final:",tX+2,ty+4.7);
+    doc.setFont("helvetica","normal"); doc.text("$"+fM(total),tX+tW-2,ty+4.7,{align:"right"});
     ty+=rowH;
   }
 
   // IVA 21%
   doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-  doc.text("IVA 21%:",tX+2,ty+4);
+  doc.text("IVA 21%:",tX+2,ty+4.7);
   doc.setFont("helvetica","normal");
-  if(esFactura){ doc.text("+$"+fM(ivaAmt),tX+tW-2,ty+4,{align:"right"}); }
-  else { doc.setTextColor(150,150,150); doc.text("No aplica",tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); }
+  if(esFactura){ doc.text("+$"+fM(ivaAmt),tX+tW-2,ty+4.7,{align:"right"}); }
+  else { doc.setTextColor(150,150,150); doc.text("No aplica",tX+tW-2,ty+4.7,{align:"right"}); doc.setTextColor.apply(doc,INK); }
   ty+=rowH;
 
-  // TOTAL FINAL — caja más pequeña pero visible
-  doc.setDrawColor.apply(doc,INK); doc.setLineWidth(0.5); doc.rect(tX,ty,tW,totalH);
-  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor.apply(doc,INK);
-  doc.text("TOTAL: $"+fM(totalFinal),tX+tW-3,ty+7,{align:"right"});
+  // TOTAL FINAL — grande y en negrita, con fondo
+  doc.setFillColor(245,245,245);
+  doc.setDrawColor.apply(doc,INK); doc.setLineWidth(0.7); doc.rect(tX,ty,tW,totalH,"FD");
+  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor.apply(doc,INK);
+  doc.text("TOTAL: $"+fM(totalFinal),tX+tW-3,ty+9.3,{align:"right"});
 
   // Pie de página
   var pieParts=[empNom,tipoLabel+" N°"+remitoNum,hrNum?"Ruta "+hrNum:"",fechaStr].filter(Boolean);
