@@ -1059,6 +1059,8 @@ select option { background:#fff }
 .stk-umbral-inp::-webkit-inner-spin-button { -webkit-appearance:none }
 .stk-umbral-btn { height:26px; padding:0 8px; border:1px solid var(--border); border-radius:6px; background:#fff; font-size:11px; font-weight:600; cursor:pointer; color:var(--muted); transition:all .15s; font-family:inherit }
 .stk-umbral-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent) }
+.stk-hist-btn { height:26px; padding:0 8px; border:1px solid var(--border); border-radius:6px; background:var(--s3); font-size:13px; cursor:pointer; color:var(--muted); transition:all .15s; flex-shrink:0 }
+.stk-hist-btn:hover { background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
 .item-stk-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:20px; white-space:nowrap; border:1px solid; flex-shrink:0 }
 .item-stk-ok  { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
 .item-stk-low { background:var(--amber-bg); color:#88571f; border-color:oklch(88% 0.05 75) }
@@ -2001,6 +2003,20 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div id="stk-list"><div class="empty-box"><div class="empty-icon">📦</div>Cargando…</div></div>
 </div>
 
+<!-- MODAL HISTORIAL STOCK -->
+<div class="modal-bg" id="modal-stk-hist" onclick="if(event.target===this)cerrarModal('modal-stk-hist')">
+  <div class="modal-box" style="max-width:480px;max-height:82vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <div>
+        <div class="modal-ttl" id="stk-hist-titulo">📋 Historial</div>
+        <div id="stk-hist-subtitulo" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <button class="modal-cls" onclick="cerrarModal('modal-stk-hist')">✕</button>
+    </div>
+    <div id="stk-hist-body" style="flex:1;overflow-y:auto;padding:0"></div>
+  </div>
+</div>
+
 <div id="resumen" class="section">
   <div class="res-toolbar">
     <select id="fil-mes" onchange="renderResumen()"></select>
@@ -2185,7 +2201,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- Nuevo cliente -->
-  <div style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
+  <div id="cli-nuevo-panel" style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('nc-form-body');var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('span:last-child').textContent=open?'tocá para abrir ▼':'tocá para cerrar ▲'"
       style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
       <span style="font-size:13px;font-weight:600;color:#1a1a17" id="cli-form-title">➕ Agregar nuevo cliente</span>
@@ -2244,6 +2260,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
             <option value="cliente">👤 Cliente</option>
             <option value="vendedor">📝 Vendedor</option>
             <option value="repartidor">🚚 Repartidor</option>
+            <option value="armador">📦 Armador</option>
             <option value="admin">👑 Admin</option>
           </select></div>
         <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Nota</label>
@@ -2258,7 +2275,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- CSV -->
-  <div style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
+  <div id="cli-csv-panel" style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'"
       style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
       <span style="font-size:13px;font-weight:600;color:#1a1a17">📥 Importar CSV</span>
@@ -2300,11 +2317,12 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
     <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
     <button class="bk-tab" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
+    <button class="bk-tab" onclick="_setRolFilter('armador',this)">📦 Armadores</button>
     <button class="bk-tab" onclick="_setRolFilter('admin',this)" id="cli-filter-roles">👑 Admin</button>
   </div>
 
   <!-- Acciones -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <div id="cli-acciones-bar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
     <button onclick="_cliForceReload()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit;touch-action:manipulation;color:var(--text)">🔄 Recargar</button>
     <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">🗺️ Zonas</button>
     <button onclick="exportarClientesXLSX()" style="padding:7px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">📊 Excel</button>
@@ -2346,6 +2364,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <option value="cliente">👤 Cliente</option>
           <option value="vendedor">📝 Vendedor</option>
           <option value="repartidor">🚚 Repartidor</option>
+          <option value="armador">📦 Armador</option>
           <option value="admin">👑 Admin</option>
         </select>
       </div>
@@ -2419,10 +2438,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div id="prod-csv-panel" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--s3)">
       <div>
-        <div style="font-size:13px;font-weight:700;color:var(--text)">📥 Importar productos desde CSV</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">📥 Importar productos desde CSV / Excel</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">Encabezados aceptados (en cualquier capitalización):<br>
           <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">CODIGO, NOMBRE PRODUCTO, CATEGORIA, PRECIO BASE, PRECIO CLIENTE, PRECIO PATAGONIA, STOCK, URL IMAGEN &nbsp;·&nbsp; También acepta formato viejo: PRECIO VENTA, PORCENTAJE, PRECIO COMPRA</code>
-          <span style="margin-left:6px;opacity:.7">· Separador: , o ;</span>
+          <span style="margin-left:6px;opacity:.7">· Formatos: .csv o .xlsx (el Excel exportado por esta app)</span>
         </div>
       </div>
       <button onclick="toggleProdCsvImporter()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px 8px;line-height:1">✕</button>
@@ -2437,10 +2456,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         ondrop="event.preventDefault();this.classList.remove('prod-csv-drag');procesarProdCSV(event.dataTransfer.files[0])"
         style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px">
         <div style="font-size:26px;margin-bottom:5px">📂</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text2)">Arrastrá el CSV acá</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">o tocá para elegir archivo</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2)">Arrastrá el CSV o Excel acá</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">o tocá para elegir archivo (.csv o .xlsx)</div>
       </div>
-      <input type="file" id="prod-csv-input" accept=".csv,text/csv" style="display:none" onchange="procesarProdCSV(this.files[0])">
+      <input type="file" id="prod-csv-input" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="procesarProdCSV(this.files[0])">
 
       <!-- Opciones de precio -->
       <div id="prod-csv-opts" style="display:none;margin-bottom:10px">
@@ -3460,6 +3479,37 @@ async function _sbGetStockConfig(){ var rows=await sbGet("stock","select=codigo,
 async function _sbPatchStock(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],cantidad:e[1],updated_at:new Date().toISOString()}); })); }
 async function _sbPatchStockConfig(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],umbral:e[1].umbral}); })); }
 
+// ── Stock Movimientos ──
+async function _stkRegistrarMovimiento(codigo, anterior, nuevo, motivo){
+  if(!_sbEmpId) return;
+  var delta = nuevo - anterior;
+  var usuario = currentUser ? (currentUser.name||currentUser.id||"sistema") : "sistema";
+  try {
+    await sbPost("stock_movimientos",{
+      empresa_id:  _sbEmpId,
+      codigo:      codigo,
+      delta:       delta,
+      anterior:    anterior,
+      nuevo:       nuevo,
+      motivo:      motivo||"Ajuste manual",
+      usuario:     usuario,
+      fecha:       new Date().toISOString()
+    });
+  } catch(e){ console.warn("[Stock] No se pudo registrar movimiento:",e.message); }
+}
+
+async function _stkGetMovimientos(codigo){
+  if(!_sbEmpId) return [];
+  try {
+    var rows = await sbGet("stock_movimientos",
+      "select=fecha,delta,anterior,nuevo,motivo,usuario&empresa_id=eq."+_sbEmpId+
+      "&codigo=eq."+encodeURIComponent(codigo)+
+      "&order=fecha.desc&limit=50"
+    );
+    return rows||[];
+  } catch(e){ return []; }
+}
+
 async function _sbGetListas(){ var rows=await sbGet("listas_precios","select=lista_key,nombre,pct,orden&empresa_id=eq."+_sbEmpId+"&order=orden.asc"); if(!rows||!rows.length)return null; var r={};rows.forEach(function(l){r[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});return r; }
 async function _sbPatchListas(data){
   // 1. Traer las que ya existen
@@ -4237,6 +4287,7 @@ function aplicarRol(){
   var isAdmin      = role === "admin";
   var isVendedor   = role === "vendedor" || (!currentUser.role);
   var isRepartidor = role === "repartidor";
+  var isArmador    = role === "armador";
   var isCliente    = role === "cliente";
 
   var allNav = ["nav-pedido","nav-remito","nav-hoja","nav-mapa-entregas",
@@ -4253,6 +4304,8 @@ function aplicarRol(){
       show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup");
     } else if (isRepartidor) {
       show = (id === "nav-hoja" || id === "nav-mapa-entregas");
+    } else if (isArmador) {
+      show = (id === "nav-backup");
     } else {
       show = (id === "nav-pedido");
     }
@@ -4277,6 +4330,10 @@ function aplicarRol(){
   if (isRepartidor) {
     verTab("hoja", document.getElementById("nav-hoja"));
   }
+  // Armador: navegar a backup al iniciar
+  if (isArmador) {
+    verTab("backup", document.getElementById("nav-backup"));
+  }
 }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
 function closeSidebar(){ document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); }
@@ -4288,8 +4345,10 @@ function verTab(id,btn){
   var isAdmin      = role === "admin";
   var isVendedor   = role === "vendedor" || !currentUser.role;
   var isRepartidor = role === "repartidor";
+  var isArmador    = role === "armador";
   if (isVendedor    && id !== "pedido" && id !== "mis-ventas" && id !== "clientes" && id !== "backup") return;
   if (isRepartidor  && id !== "hoja"   && id !== "mapa-entregas") return;
+  if (isArmador     && id !== "backup") return;
   if (!isAdmin      && id === "vendedores") return;
   if (!isAdmin      && id === "datos-empresa") return;
 
@@ -5478,11 +5537,13 @@ function renderStock(){
           '<input type="number" class="stk-qty-input" id="stk-qty-'+p.id+'" value="'+qty+'" data-pid="'+p.id+'">'+
           '<button class="stk-btn-plus" data-pid="'+p.id+'" data-d="1">+</button>'+
         '</div>'+
+        '<button class="stk-hist-btn" data-pid="'+p.id+'" data-nom="'+p.n.replace(/"/g,'&quot;')+'" title="Ver historial de movimientos">📋</button>'+
       '</div>';
     card.querySelector(".stk-btn-minus").onclick=function(){ cambiarStock(this.dataset.pid, -1); };
     card.querySelector(".stk-btn-plus").onclick=function(){  cambiarStock(this.dataset.pid,  1); };
     card.querySelector(".stk-qty-input").onchange=function(){ setStock(this.dataset.pid, this.value); };
     card.querySelector(".stk-umbral-btn").onclick=function(){ guardarUmbral(this.dataset.pid); };
+    card.querySelector(".stk-hist-btn").onclick=function(){ abrirHistorialStock(this.dataset.pid, this.dataset.nom); };
     list.appendChild(card);
   });
 }
@@ -5490,23 +5551,27 @@ function renderStock(){
 function cambiarStock(pid, delta){
   var inp=document.getElementById("stk-qty-"+pid);
   var actual=parseInt((inp?inp.value:0)||0);
-  var nuevo=actual+delta; // sin límite inferior — puede ser negativo
+  var nuevo=actual+delta;
   if(inp)inp.value=nuevo;
-  _guardarStockProd(pid, nuevo);
+  _guardarStockProd(pid, nuevo, delta>0 ? "Entrada manual (+"+delta+")" : "Salida manual ("+delta+")");
 }
 
 function setStock(pid, val){
   var nuevo=parseInt(val); if(isNaN(nuevo))nuevo=0;
   var inp=document.getElementById("stk-qty-"+pid);
   if(inp)inp.value=nuevo;
-  _guardarStockProd(pid, nuevo);
+  _guardarStockProd(pid, nuevo, "Ajuste directo → "+nuevo+" u.");
 }
 
-function _guardarStockProd(pid, qty){
+function _guardarStockProd(pid, qty, motivo){
+  var anterior = stockData[pid]!==undefined ? stockData[pid] : 0;
   stockData[pid]=qty;
   var patch={}; patch[pid]=qty;
   fbPatchQ("empresas/"+empresaKey+"/stock", patch, "Stock: "+pid+" = "+qty)
-    .then(function(){ renderStock(); });
+    .then(function(){
+      renderStock();
+      if(_sbEmpId) _stkRegistrarMovimiento(pid, anterior, qty, motivo||"Ajuste manual");
+    });
 }
 
 function guardarUmbral(pid){
@@ -5519,19 +5584,74 @@ function guardarUmbral(pid){
     .then(function(){ renderStock(); showNotif("Umbral actualizado"+(navigator.onLine?"":" (offline, se sincronizará)"), "ok"); });
 }
 
-function descontarStock(items){
+async function abrirHistorialStock(pid, nom){
+  var titulo   = document.getElementById("stk-hist-titulo");
+  var subtit   = document.getElementById("stk-hist-subtitulo");
+  var body     = document.getElementById("stk-hist-body");
+  if(!titulo||!body) return;
+  titulo.textContent = "📋 Historial — "+pid;
+  if(subtit) subtit.textContent = nom||"";
+  body.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 10px"></div>Cargando…</div>';
+  abrirModal("modal-stk-hist");
+
+  var movs = await _stkGetMovimientos(pid);
+  if(!movs.length){
+    body.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">Sin movimientos registrados aún.<br><span style="font-size:11.5px">Los movimientos se empiezan a guardar desde ahora.</span></div>';
+    return;
+  }
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">';
+  html += '<thead><tr style="background:var(--s3);border-bottom:1px solid var(--border)">';
+  html += '<th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Fecha</th>';
+  html += '<th style="padding:9px 8px;text-align:center;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Δ</th>';
+  html += '<th style="padding:9px 8px;text-align:center;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Antes→Después</th>';
+  html += '<th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Motivo · Usuario</th>';
+  html += '</tr></thead><tbody>';
+
+  movs.forEach(function(m, i){
+    var d = new Date(m.fecha);
+    var fechaStr = d.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"2-digit"});
+    var horaStr  = d.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+    var delta    = m.delta||0;
+    var signo    = delta > 0 ? "+" : "";
+    var deltaColor = delta > 0 ? "#0a7048" : delta < 0 ? "var(--red)" : "var(--muted)";
+    var bg = i%2===0 ? "" : "background:var(--s3)";
+    html += '<tr style="border-bottom:1px solid var(--border2);'+bg+'">';
+    html += '<td style="padding:8px 14px;color:var(--text2);white-space:nowrap">'+fechaStr+'<br><span style="font-size:10.5px;color:var(--muted)">'+horaStr+'</span></td>';
+    html += '<td style="padding:8px 8px;text-align:center;font-weight:700;font-size:13px;color:'+deltaColor+'">'+signo+delta+'</td>';
+    html += '<td style="padding:8px 8px;text-align:center;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums">'+
+              (m.anterior!=null?m.anterior:"?")+'<span style="opacity:.4;margin:0 3px">→</span>'+
+              '<b style="color:var(--text)">'+m.nuevo+'</b></td>';
+    html += '<td style="padding:8px 14px;line-height:1.4">'+
+              '<div style="color:var(--text2);font-size:12px">'+escHtml(m.motivo||"—")+'</div>'+
+              '<div style="color:var(--muted);font-size:11px">👤 '+(m.usuario||"sistema")+'</div></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+function descontarStock(items, motivo){
   if(!items||!items.length||!empresaKey)return;
   var patch={}, changed=false;
+  var movs = [];
   items.forEach(function(it){
     var actual=stockData[it.id]!==undefined ? stockData[it.id] : null;
     if(actual!==null){
       var nuevo=actual-it.c;
       patch[it.id]=nuevo;
+      movs.push({pid:it.id, anterior:actual, nuevo:nuevo});
       stockData[it.id]=nuevo;
       changed=true;
     }
   });
-  if(changed) fbPatchQ("empresas/"+empresaKey+"/stock", patch, "Descuento stock remito");
+  if(changed){
+    fbPatchQ("empresas/"+empresaKey+"/stock", patch, motivo||"Descuento stock");
+    if(_sbEmpId){
+      var mot = motivo||"Descuento stock";
+      movs.forEach(function(m){ _stkRegistrarMovimiento(m.pid, m.anterior, m.nuevo, mot); });
+    }
+  }
 }
 
 
@@ -7923,10 +8043,10 @@ function renderBackup(){
   var wrap = document.getElementById("backup-list");
   if(!wrap) return;
   var all = getBackups();
-  var isAdminBk = currentUser && currentUser.role === "admin";
+  var isAdminBk = currentUser && (currentUser.role === "admin" || currentUser.role === "armador");
   var isVendedorBk = currentUser && (currentUser.role === "vendedor" || !currentUser.role);
 
-  // Vendedor solo ve sus propios pedidos
+  // Vendedor solo ve sus propios pedidos; armador y admin ven todos
   if(!isAdminBk && currentUser){
     all = all.filter(function(bk){ return (bk.usuario===currentUser.id)||(bk.usuarioNom===currentUser.id); });
   }
@@ -8009,9 +8129,6 @@ function renderBackup(){
     var _totalConIVA = bk.tipoComprobante === "factura_a"
       ? Math.round(_totalMostrar*1.21*100)/100
       : 0;
-    var ivaLine = _totalConIVA > 0
-      ? '<div style="font-size:11.5px;color:#1e2a4a;font-weight:700;margin-top:2px">c/IVA: $'+fM(_totalConIVA)+'</div>'
-      : '';
 
     var card = document.createElement("div");
     var estadoClass = bk.aprobado===true ? " estado-aprobado" : bk.aprobado===false ? " estado-rechazado" : " estado-espera";
@@ -8076,8 +8193,11 @@ function renderBackup(){
         '</div>'+
       '</div>'+
       '<div class="bk-card-right">'+
-        '<div class="bk-card-total">$'+fM(bk.total||0)+'</div>'+
-        ivaLine+
+        (_totalConIVA > 0
+          ? '<div class="bk-card-total">$'+fM(_totalConIVA)+'</div>'+
+            '<div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">sin fact.: $'+fM(_totalMostrar)+'</div>'+
+            '<div style="font-size:9.5px;color:#1e2a4a;font-weight:700;margin-top:1px">🟦 c/Factura A</div>'
+          : '<div class="bk-card-total">$'+fM(bk.total||0)+'</div>')+
         '<span class="bk-card-caret">'+(isOpen?"▲":"▼")+'</span>'+
       '</div>';
     header.onclick = function(){ backupAbierto = isOpen ? null : bk.id; renderBackup(); };
@@ -8135,11 +8255,6 @@ function renderBackup(){
         }
       }
       /* Total row */
-      var totRow = document.createElement("div");
-      totRow.className = "bk-card-total-row";
-      totRow.style.fontWeight = "700";
-      // Para Factura A mostrar total con IVA
-      // Recalcular total con descuentos para el detalle
       var _dscDet = bk.descuentos||{};
       var _subDet = (bk.items||[]).reduce(function(s,i){return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1));},0);
       var _gdDet  = _dscDet.montoDscGen||0;
@@ -8149,11 +8264,32 @@ function renderBackup(){
       var _totDet = Math.round((_subDet-_gdDet)*100)/100;
       var _hayDscDet = (_dscDet.subtotalLista&&_dscDet.subtotalLista>_totDet)||_gdDet>0;
       var _totalDet = _hayDscDet ? _totDet : (bk.total||_totDet);
-      var _bkTotal = bk.tipoComprobante === "factura_a"
-        ? Math.round(_totalDet*1.21*100)/100
-        : _totalDet;
-      totRow.innerHTML = '<span>Total'+(bk.tipoComprobante==="factura_a"?' (c/IVA)':'')+'</span><span>$'+fM(_bkTotal)+'</span>';
-      itemsDiv.appendChild(totRow);
+      if(bk.tipoComprobante === "factura_a"){
+        // Factura A → mostrar subtotal sin IVA, IVA, y total con factura
+        var _ivaDet = Math.round(_totalDet*0.21*100)/100;
+        var _totalConFact = Math.round(_totalDet*1.21*100)/100;
+        var subFactRow = document.createElement("div");
+        subFactRow.className = "bk-card-total-row";
+        subFactRow.style.cssText = "color:var(--muted);font-size:11.5px";
+        subFactRow.innerHTML = '<span>Subtotal (sin factura)</span><span>$'+fM(_totalDet)+'</span>';
+        itemsDiv.appendChild(subFactRow);
+        var ivaDetRow = document.createElement("div");
+        ivaDetRow.className = "bk-card-total-row";
+        ivaDetRow.style.cssText = "color:#1e2a4a;font-size:11.5px;font-weight:600";
+        ivaDetRow.innerHTML = '<span>IVA 21%</span><span>+$'+fM(_ivaDet)+'</span>';
+        itemsDiv.appendChild(ivaDetRow);
+        var totRow = document.createElement("div");
+        totRow.className = "bk-card-total-row";
+        totRow.style.cssText = "font-weight:700;color:#1e2a4a";
+        totRow.innerHTML = '<span>🟦 Total c/Factura A</span><span>$'+fM(_totalConFact)+'</span>';
+        itemsDiv.appendChild(totRow);
+      } else {
+        var totRow = document.createElement("div");
+        totRow.className = "bk-card-total-row";
+        totRow.style.fontWeight = "700";
+        totRow.innerHTML = '<span>Total</span><span>$'+fM(_totalDet)+'</span>';
+        itemsDiv.appendChild(totRow);
+      }
       detail.appendChild(itemsDiv);
     } // end if items
 
@@ -8944,11 +9080,11 @@ function generarPDFDesdeBackup(bk, compartir){
     var pL  = Math.round((i.p||0)*100)/100;
     var hasDsc = i.dsc && i.dsc.valor>0;
     var dscLbl = hasDsc ? (i.dsc.tipo==="%"?"-"+i.dsc.valor+"%":"-$"+fM(i.dsc.valor)) : "—";
-    var subSin = i.sub||(i.p||0)*(i.c||1);
-    var subCon = esFactura?Math.round(subSin*iva*100)/100:subSin;
-    var pLcon  = esFactura?Math.round(pL*iva*100)/100:pL;
-    var pF     = hasDsc?Math.round(subCon/(i.c||1)*100)/100:pLcon;
-    return[i.n||"", i.c||1, "$"+fM(pLcon), dscLbl, "$"+fM(pF), "$"+fM(subCon)];
+    // La tabla SIEMPRE muestra precios sin IVA (precio de lista real).
+    // El IVA se suma una sola vez en el cuadro de totales de abajo.
+    var subSin = i.sub!==undefined ? i.sub : (i.p||0)*(i.c||1);
+    var pF     = hasDsc ? Math.round(subSin/(i.c||1)*100)/100 : pL;
+    return[i.n||"", i.c||1, "$"+fM(pL), dscLbl, "$"+fM(pF), "$"+fM(subSin)];
   });
   while(body.length<pdfMinRows) body.push(["","","","","",""]);
   doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
@@ -8967,12 +9103,15 @@ function generarPDFDesdeBackup(bk, compartir){
   var yP=doc.lastAutoTable.finalY+4;
   var dsc=bk.descuentos||{};
 
-  // Calcular todos los descuentos correctamente
-  // items[].sub ya tiene el precio con descuento por ítem aplicado
-  // Calcular totales desde items y descuentos
-  var subtotLista = dsc.subtotalLista || items.reduce(function(s,i){ return s+(i.p||0)*(i.c||1); },0);
+  // Calcular todo SIEMPRE desde los items reales (no usar dsc.subtotalLista
+  // guardado, que puede estar desactualizado y no coincidir con la tabla).
+  //   i.p   = precio de lista (P. Lista)
+  //   i.sub = subtotal con descuento por ítem aplicado
+  var subtotLista = items.reduce(function(s,i){ return s+(i.p||0)*(i.c||1); },0);
   var subtotItems = items.reduce(function(s,i){ return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1)); },0);
-  var ahorroItems = dsc.ahorroItems!==undefined ? dsc.ahorroItems : Math.max(0,Math.round((subtotLista-subtotItems)*100)/100);
+  subtotLista = Math.round(subtotLista*100)/100;
+  subtotItems = Math.round(subtotItems*100)/100;
+  var ahorroItems = Math.max(0, Math.round((subtotLista-subtotItems)*100)/100);
   var montoDscGen = dsc.montoDscGen || 0;
   if(!montoDscGen && dsc.dscGenTipo && dsc.dscGenValor>0){
     montoDscGen = dsc.dscGenTipo==="%"
@@ -8981,10 +9120,7 @@ function generarPDFDesdeBackup(bk, compartir){
   }
   montoDscGen = Math.round(montoDscGen*100)/100;
   var totalDsc = ahorroItems + montoDscGen;
-  // Si hay descuentos guardados, calcular desde items; si no, usar bk.total
-  var total = (totalDsc > 0 || dsc.subtotalLista)
-    ? Math.round((subtotItems - montoDscGen)*100)/100
-    : (bk.total || Math.round((subtotItems - montoDscGen)*100)/100);
+  var total = Math.round((subtotItems - montoDscGen)*100)/100;
   var ivaAmt    = Math.round(total*0.21*100)/100;
   var totalFinal = esFactura ? Math.round(total*1.21*100)/100 : total;
 
@@ -10452,8 +10588,9 @@ function _renderClientesList(){
     return;
   }
 
-  var RC = {cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",admin:"#7c3aed"};
-  var RL = {cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",admin:"Admin"};
+  var RC = {cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",armador:"#ea580c",admin:"#7c3aed"};
+  var RL = {cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",armador:"Armador",admin:"Admin"};
+  var isArmadorCli = currentUser && currentUser.role === "armador";
 
   body.innerHTML = entries.map(function(e){
     var pk=e[0], u=e[1];
@@ -10467,6 +10604,9 @@ function _renderClientesList(){
       u.cuit ? "CUIT: "+escHtml(u.cuit)             : null,
       (u.rec||u.recepciona) ? "👤 "+escHtml(u.rec||u.recepciona) : null
     ].filter(Boolean).join(" · ");
+    var editDeleteBtns = isArmadorCli ? "" :
+      '<button onclick="abrirEditCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">✏️</button>'+
+      '<button onclick="_eliminarCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">🗑</button>';
     return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:#ffffff;border:1px solid #e3e1da;border-left:4px solid '+col+';border-radius:10px;margin-bottom:8px">'+
       '<div style="width:38px;height:38px;border-radius:50%;background:'+col+'22;color:'+col+';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0">'+ini+'</div>'+
       '<div style="flex:1;min-width:0">'+
@@ -10479,8 +10619,7 @@ function _renderClientesList(){
       '</div>'+
       '<div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:#e8f0fe;color:#1f4ea8;border:1px solid #c7d7f5;white-space:nowrap;flex-shrink:0;align-self:flex-start">'+(u.lista||'Clientes')+'</div>'+
       '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
-        '<button onclick="abrirEditCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">✏️</button>'+
-        '<button onclick="_eliminarCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">🗑</button>'+
+        editDeleteBtns+
       '</div>'+
     '</div>';
   }).join("");
@@ -12132,10 +12271,34 @@ function toggleProdCsvImporter(){
 
 function procesarProdCSV(file){
   if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e){ _parsearProdCSV(e.target.result, file.name); };
-  reader.readAsText(file, "UTF-8");
+  var nombre = file.name.toLowerCase();
   document.getElementById("prod-csv-input").value = "";
+
+  // ── XLSX ──
+  if(nombre.endsWith(".xlsx") || nombre.endsWith(".xls")){
+    if(typeof XLSX === "undefined"){
+      showNotif("Cargando librería Excel, reintentá en 2 segundos…","err"); return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var wb = XLSX.read(e.target.result, {type:"array"});
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        // Convertir a CSV para reutilizar el mismo parser
+        var csv = XLSX.utils.sheet_to_csv(ws, {FS:";", RS:"\n"});
+        _parsearProdCSV(csv, file.name);
+      } catch(ex){
+        showNotif("Error leyendo Excel: "+ex.message,"err");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+
+  // ── CSV ──
+  var reader2 = new FileReader();
+  reader2.onload = function(e){ _parsearProdCSV(e.target.result, file.name); };
+  reader2.readAsText(file, "UTF-8");
 }
 
 function _parsearProdCSV(text, filename){
@@ -12440,9 +12603,16 @@ async function importarProdCSV(){
 
     try {
       if(r._dup && r._sbId){
-        // Actualizar en Supabase — conservar foto existente si no viene en CSV
-        if(!prodObj.foto && _prodData[r._sbId] && _prodData[r._sbId].foto){
-          prodObj.foto = _prodData[r._sbId].foto;
+        // Foto: si viene URL válida en el CSV → aplicar siempre (reemplaza base64 o URL vieja)
+        //       si viene vacío → conservar la foto existente
+        var fotoExistente = (_prodData[r._sbId] && _prodData[r._sbId].foto) || "";
+        var fotoNueva = r.foto || "";
+        var esUrlValida = fotoNueva.startsWith("http://") || fotoNueva.startsWith("https://");
+        if(esUrlValida){
+          prodObj.foto = fotoNueva;  // aplicar la URL del CSV
+        } else {
+          // CSV trae vacío o algo inválido → conservar lo que tiene en la BD
+          prodObj.foto = fotoExistente;
         }
         delete prodObj.empresa_id;  // no cambiar empresa
         await sbPatch("productos","id=eq."+r._sbId+"&empresa_id=eq."+_sbEmpId, prodObj);
@@ -12539,15 +12709,34 @@ async function _cambiarAprobacion(bk, aprobado){
   bk.aprobado = aprobado;
   backupAbierto = bk.id;
 
-  // 3. Si APROBADO → enviar a Hoja de Ruta
+  // 3. Si APROBADO → descontar stock + enviar a Hoja de Ruta
   if(aprobado === true){
+    // Descuento automático de stock por cada producto del pedido
+    var items = bk.items||[];
+    if(items.length && empresaKey){
+      var cliente  = bk.clienteNom||"cliente";
+      var usuario  = bk.usuarioNom||bk.usuario||"vendedor";
+      var motivo   = "Pedido aprobado — "+cliente+" ("+usuario+")";
+      // Asegurar que stockData esté cargado antes de descontar
+      if(!Object.keys(stockData).length){
+        try {
+          var stkRows = await sbGet("stock","select=codigo,cantidad&empresa_id=eq."+_sbEmpId);
+          (stkRows||[]).forEach(function(s){ stockData[s.codigo]=s.cantidad; });
+        } catch(e){ console.warn("[Stock] No se pudo cargar stock previo a descuento:", e); }
+      }
+      // Mapear items del backup al formato {id, c} que espera descontarStock
+      var itemsMapeados = items
+        .filter(function(it){ return !it.pendiente; }) // no descontar pendientes
+        .map(function(it){ return { id: it.id||it.cod||"", c: it.c||1 }; })
+        .filter(function(it){ return it.id; });
+      if(itemsMapeados.length) descontarStock(itemsMapeados, motivo);
+    }
     try{ await confirmarBackupComoRemito(bk); }
     catch(e){ console.warn("Error al enviar a ruta:", e); }
   }
 
   renderBackup();
-  showNotif(aprobado===true ? "✅ Pedido aprobado — agregado a Hoja de Ruta" : "❌ Pedido rechazado", aprobado?"ok":"err");
-  // Queda en Backup Pedidos — sin redirección
+  showNotif(aprobado===true ? "✅ Pedido aprobado — stock descontado y agregado a Hoja de Ruta" : "❌ Pedido rechazado", aprobado?"ok":"err");
 }
 
 var META_VENTAS = 20000000;
