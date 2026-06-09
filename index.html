@@ -6112,6 +6112,7 @@ function renderRutas(){
       '<span id="ruta-sel-count-'+rutaKey+'" style="color:#fff;font-weight:700;font-size:13px;flex:1">0 seleccionados</span>'+
       '<button onclick="_rutaSelAll(\''+rutaKey+'\')" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☑ Todos</button>'+
       '<button onclick="_rutaReasignar(\''+rutaKey+'\')" style="background:#fff;color:var(--accent);border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar</button>'+
+      '<button onclick="_rutaEliminarSeleccionados(\''+rutaKey+'\')" style="background:#b91c1c;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Eliminar</button>'+
       '<button onclick="_rutaToggleSelect(\''+rutaKey+'\')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>';
     detail.appendChild(selToolbar);
 
@@ -6183,6 +6184,39 @@ function _rutaSelAll(rk){
   var countEl = document.getElementById("ruta-sel-count-"+rk);
   if(countEl) countEl.textContent = _rutaSelected[rk].size+" seleccionado"+(_rutaSelected[rk].size!==1?"s":"");
   _rutaRenderCliRows(rk);
+}
+
+async function _rutaEliminarSeleccionados(rk){
+  var sel = _rutaSelected[rk];
+  if(!sel || !sel.size){ showNotif("Seleccioná al menos un pedido","err"); return; }
+  var ruta = rutasData[rk]; if(!ruta) return;
+  var cant = sel.size;
+  if(!confirm("¿Eliminar "+cant+" pedido"+(cant!==1?"s":"")+" de esta ruta?\n\nEsta acción no se puede deshacer.")) return;
+
+  var ids = Array.from(sel);
+  var errores = 0;
+  showNotif("⏳ Eliminando "+cant+" pedido"+(cant!==1?"s":"")+"…","ok");
+
+  for(var i=0;i<ids.length;i++){
+    var ck = ids[i];
+    try {
+      await fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck);
+      if(rutasData[rk] && rutasData[rk].clientes) delete rutasData[rk].clientes[ck];
+      if(clienteAbierto[rk]===ck) delete clienteAbierto[rk];
+    } catch(e){ errores++; console.warn("[Ruta] Error eliminando cliente "+ck, e); }
+  }
+
+  // Salir del modo selección y refrescar
+  _rutaSelectMode[rk] = false;
+  _rutaSelected[rk]   = new Set();
+  renderRutas();
+
+  var ok = cant - errores;
+  showNotif(
+    "🗑 "+ok+" pedido"+(ok!==1?"s":"")+" eliminado"+(ok!==1?"s":"")+
+    (errores>0 ? " · ⚠ "+errores+" con error" : ""),
+    errores>0 ? "warn" : "ok"
+  );
 }
 
 async function _rutaReasignar(rkOrigen){
