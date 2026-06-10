@@ -264,47 +264,59 @@ body {
     display:flex;
     position:fixed; left:0; right:0; bottom:0;
     z-index:280;
-    align-items:center; justify-content:center; gap:5px;
-    padding:7px 8px calc(7px + var(--safe-bottom));
-    background:rgba(255,255,255,0.86);
-    backdrop-filter:blur(18px) saturate(1.6);
-    -webkit-backdrop-filter:blur(18px) saturate(1.6);
+    align-items:center;
+    gap:5px;
+    padding:7px 10px calc(7px + var(--safe-bottom));
+    background:rgba(255,255,255,0.92);
+    backdrop-filter:blur(16px) saturate(1.5);
+    -webkit-backdrop-filter:blur(16px) saturate(1.5);
     border-top:1px solid var(--border);
     box-shadow:0 -2px 18px rgba(0,0,0,0.06);
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+    scroll-snap-type:x proximity;
   }
+  #bottom-nav::-webkit-scrollbar { display:none; }
   /* Dar espacio al final del contenido para que la barra no tape */
   .main { padding-bottom:calc(72px + var(--safe-bottom)) !important; }
   .main > .section { padding-bottom:80px; }
 
   .bn-item {
     display:flex; align-items:center; justify-content:center;
-    height:42px; min-width:42px;
-    padding:0 .5rem; gap:0;
+    height:42px; flex-shrink:0;
+    padding:0 .7rem;
     border:none; border-radius:13px;
     background:transparent; color:var(--muted);
     font-family:inherit; font-size:13px; font-weight:600;
-    cursor:pointer; overflow:hidden; white-space:nowrap;
-    transition:gap .35s cubic-bezier(.4,0,.2,1),
-               padding .35s cubic-bezier(.4,0,.2,1),
-               background .2s, color .2s;
+    cursor:pointer; white-space:nowrap;
+    scroll-snap-align:center;
     -webkit-tap-highlight-color:transparent;
+    transition:background .25s ease, color .25s ease;
+    will-change:background, color;
   }
   .bn-item .bn-ico { font-size:20px; line-height:1; flex-shrink:0; }
   .bn-item .bn-lbl {
-    max-width:0; opacity:0;
-    transition:max-width .35s cubic-bezier(.4,0,.2,1), opacity .25s ease;
+    display:inline-grid;
+    grid-template-columns:0fr;
+    margin-left:0;
+    transition:grid-template-columns .3s ease, margin-left .3s ease;
   }
+  .bn-item .bn-lbl > span { overflow:hidden; }
   .bn-item.active {
     background:var(--text); color:#fff;
-    gap:.5rem; padding:0 .9rem;
   }
-  .bn-item.active .bn-lbl { max-width:120px; opacity:1; }
-  .bn-item:active { transform:scale(.94); }
+  .bn-item.active .bn-lbl {
+    grid-template-columns:1fr;
+    margin-left:.45rem;
+  }
+  .bn-item:active { opacity:.7; }
   .bn-sep { width:1.2px; height:22px; background:var(--border); flex-shrink:0; }
 }
 @media (prefers-color-scheme:dark){
   @media (max-width:900px){
-    #bottom-nav { background:rgba(22,28,36,0.9); border-top:1px solid rgba(255,255,255,0.08); }
+    #bottom-nav { background:rgba(22,28,36,0.92); border-top:1px solid rgba(255,255,255,0.08); }
   }
 }
 
@@ -4460,12 +4472,23 @@ function _buildBottomNav(role){
 
   var TABS_POR_ROL = {
     admin:      [
-      {id:"pedido",  ico:"📝", lbl:"Pedido"},
-      {id:"hoja",    ico:"📋", lbl:"Ruta"},
-      {id:"backup",  ico:"💾", lbl:"Backup"},
+      {id:"pedido",       ico:"📝", lbl:"Pedido"},
+      {id:"remito",       ico:"🚚", lbl:"Remito"},
+      {id:"hoja",         ico:"📋", lbl:"Ruta"},
+      {id:"mapa-entregas",ico:"🗺️", lbl:"Mapa"},
       {sep:true},
-      {id:"stock",   ico:"📦", lbl:"Stock"},
-      {id:"clientes",ico:"👥", lbl:"Clientes"}
+      {id:"resumen",      ico:"📊", lbl:"Resumen"},
+      {id:"vendedores",   ico:"🏆", lbl:"Vendedores"},
+      {sep:true},
+      {id:"stock",        ico:"📦", lbl:"Stock"},
+      {id:"productos",    ico:"🏪", lbl:"Productos"},
+      {sep:true},
+      {id:"backup",       ico:"💾", lbl:"Backup"},
+      {id:"pedidos-acum", ico:"🛒", lbl:"Proveedor"},
+      {id:"clientes",     ico:"👥", lbl:"Clientes"},
+      {id:"catalogo",     ico:"📒", lbl:"Catálogo"},
+      {sep:true},
+      {id:"datos-empresa",ico:"⚙️", lbl:"Config"}
     ],
     vendedor:   [
       {id:"pedido",    ico:"📝", lbl:"Pedido"},
@@ -4495,11 +4518,13 @@ function _buildBottomNav(role){
     if(t.sep) return '<div class="bn-sep" aria-hidden="true"></div>';
     return '<button class="bn-item" data-tab="'+t.id+'" onclick="_bnGo(\''+t.id+'\')" aria-label="'+t.lbl+'">'+
              '<span class="bn-ico" aria-hidden="true">'+t.ico+'</span>'+
-             '<span class="bn-lbl">'+t.lbl+'</span>'+
+             '<span class="bn-lbl"><span>'+t.lbl+'</span></span>'+
            '</button>';
   }).join("");
 
   _bnSyncActive();
+  // Centrar el tab activo en la vista al construir
+  setTimeout(_bnScrollToActive, 50);
 }
 
 // Navegar desde el bottom-nav reutilizando verTab + resaltar el sidebar item correcto
@@ -4516,6 +4541,17 @@ function _bnSyncActive(){
   document.querySelectorAll("#bottom-nav .bn-item").forEach(function(b){
     b.classList.toggle("active", b.dataset.tab===activeId);
   });
+  _bnScrollToActive();
+}
+
+// Centrar el tab activo dentro de la barra (cuando hay scroll horizontal)
+function _bnScrollToActive(){
+  var nav = document.getElementById("bottom-nav");
+  if(!nav || nav.scrollWidth<=nav.clientWidth) return;
+  var active = nav.querySelector(".bn-item.active");
+  if(!active) return;
+  var target = active.offsetLeft - (nav.clientWidth/2) + (active.offsetWidth/2);
+  nav.scrollTo({ left:Math.max(0,target), behavior:"smooth" });
 }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
 function closeSidebar(){ document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); }
