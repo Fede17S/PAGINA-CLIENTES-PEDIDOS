@@ -894,8 +894,39 @@ select option { background:var(--s2); color:var(--text) }
 .cs-var.sel .cs-step-m { color:var(--red) }
 .cs-var.sel .cs-step-p { color:#059669 }
 .cs-solo { background:var(--s2); border-radius:14px; margin-bottom:10px; padding:10px 14px; display:flex; gap:12px; align-items:flex-start }
-.cs-solo-foto { width:60px; height:60px; border-radius:10px; object-fit:contain; background:#fff; flex-shrink:0; padding:4px }
+.cs-solo-foto { width:60px; height:60px; border-radius:10px; object-fit:contain; background:#fff; flex-shrink:0; padding:4px; cursor:zoom-in }
 .cs-solo-foto-ph { width:60px; height:60px; border-radius:10px; background:var(--s3); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0 }
+
+/* ── Lightbox vista previa de producto ── */
+#prod-lightbox {
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,0.88);
+  align-items:center; justify-content:center;
+  padding:24px; flex-direction:column; gap:16px;
+  animation:plbFade .18s ease;
+}
+#prod-lightbox.open { display:flex }
+@keyframes plbFade { from{opacity:0} to{opacity:1} }
+#prod-lightbox img {
+  max-width:92vw; max-height:74vh;
+  object-fit:contain; border-radius:14px;
+  background:#fff; padding:10px;
+  box-shadow:0 12px 50px rgba(0,0,0,0.5);
+}
+#prod-lightbox .plb-cap {
+  color:#fff; text-align:center; max-width:92vw;
+}
+#prod-lightbox .plb-nom { font-size:16px; font-weight:700; line-height:1.3 }
+#prod-lightbox .plb-sub { font-size:13px; opacity:.75; margin-top:3px }
+#prod-lightbox .plb-cls {
+  position:absolute; top:16px; right:18px;
+  width:42px; height:42px; border-radius:50%;
+  background:rgba(255,255,255,0.15); color:#fff;
+  border:none; font-size:22px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+#prod-lightbox .plb-hint { color:rgba(255,255,255,0.5); font-size:11.5px }
 .cs-solo-info { flex:1; min-width:0 }
 .cs-solo-nom { font-size:13.5px; font-weight:700; color:var(--text); line-height:1.35; word-break:break-word }
 .cs-solo-cod { font-size:11px; color:var(--muted); margin-top:2px }
@@ -3185,6 +3216,17 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <!-- BOTTOM NAV MÓVIL (estilo expandable tabs) — se llena por JS según el rol -->
 <nav id="bottom-nav" aria-label="Navegación principal"></nav>
+
+<!-- LIGHTBOX VISTA PREVIA DE PRODUCTO -->
+<div id="prod-lightbox" onclick="cerrarProdLightbox()">
+  <button class="plb-cls" onclick="cerrarProdLightbox()" aria-label="Cerrar">✕</button>
+  <img id="plb-img" src="" alt="" onclick="event.stopPropagation()">
+  <div class="plb-cap">
+    <div class="plb-nom" id="plb-nom"></div>
+    <div class="plb-sub" id="plb-sub"></div>
+  </div>
+  <div class="plb-hint">Tocá fuera de la imagen para cerrar</div>
+</div>
 <script>
 
 
@@ -12384,7 +12426,7 @@ function csRenderProds() {
       stk<=0  ? '<div class="cs-var-stk cs-stk-0">Sin stock</div>' :
       stk<=5  ? '<div class="cs-var-stk cs-stk-low">'+stk+' u.</div>' : "";
     var fotoEl = p.foto
-      ? '<img class="cs-solo-foto" src="'+p.foto+'" onerror="this.outerHTML=\'<div class=cs-solo-foto-ph>📦</div>\'" loading="lazy">'
+      ? '<img class="cs-solo-foto" src="'+p.foto+'" onclick="abrirProdLightbox(&quot;'+p.id+'&quot;,event)" onerror="this.outerHTML=\'<div class=cs-solo-foto-ph>📦</div>\'" loading="lazy">'
       : '<div class="cs-solo-foto-ph">📦</div>';
     var el = document.createElement("div");
     el.className = "cs-solo" + (qty>0 ? " sel" : "");
@@ -12400,6 +12442,31 @@ function csRenderProds() {
       '<div class="cs-solo-step">'+csStepHtml(p.id, qty)+'</div>';
     body.appendChild(el);
   });
+}
+
+function abrirProdLightbox(pid, ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  // Buscar el producto en los grupos del selector
+  var p = (_csGroups||[]).find(function(x){ return x.id===pid; });
+  if(!p || !p.foto) return;
+  var lb  = document.getElementById("prod-lightbox");
+  var img = document.getElementById("plb-img");
+  var nom = document.getElementById("plb-nom");
+  var sub = document.getElementById("plb-sub");
+  if(!lb||!img) return;
+  img.src = p.foto;
+  img.alt = p.n||"";
+  if(nom) nom.textContent = p.n||"";
+  if(sub){
+    var lista = (typeof tipoLista!=="undefined" && typeof _csT!=="undefined") ? (tipoLista[_csT]||"Clientes") : "Clientes";
+    var pre = lista==="Patagonia" ? p.pPat : p.pCli;
+    sub.textContent = "Cód: "+p.id + (pre!=null ? "  ·  $"+fM(pre) : "");
+  }
+  lb.classList.add("open");
+}
+function cerrarProdLightbox(){
+  var lb = document.getElementById("prod-lightbox");
+  if(lb) lb.classList.remove("open");
 }
 
 function csStepHtml(pid, qty) {
