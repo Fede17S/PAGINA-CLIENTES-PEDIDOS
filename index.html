@@ -76,6 +76,73 @@
   --header-h: 56px;
 }
 
+/* ══════════════════════════════════════
+   MODO NOCHE — activado manualmente con
+   html[data-theme="dark"] (toggle sol/luna)
+══════════════════════════════════════ */
+html[data-theme="dark"] {
+  --bg:        #12161c;
+  --s1:        #1a1f27;   /* sidebar / header */
+  --s2:        #1e242d;   /* tarjetas */
+  --s3:        #262d38;   /* inputs / hover suave */
+  --s4:        #2e3742;   /* hover fuerte */
+  --border:    #2c333d;
+  --border2:   #252b34;
+
+  --text:      #e8e6e1;
+  --text2:     #c4c2bb;
+  --muted:     #8f8d86;
+  --muted2:    #6a6862;
+
+  --accent:    oklch(66% 0.13 35);
+  --accent-h:  oklch(72% 0.13 35);
+  --accent-bg: oklch(28% 0.04 35);
+  --green:     oklch(68% 0.14 155);
+  --green-bg:  oklch(26% 0.05 155);
+  --red:       oklch(66% 0.18 25);
+  --red-bg:    oklch(28% 0.06 25);
+  --amber:     oklch(76% 0.14 75);
+  --amber-bg:  oklch(30% 0.06 75);
+  --blue:      oklch(68% 0.13 245);
+  --blue-bg:   oklch(28% 0.05 245);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow:    0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
+}
+/* Permitir forzar modo claro aunque el sistema esté en oscuro */
+html[data-theme="light"] { color-scheme:light; }
+html[data-theme="dark"]  { color-scheme:dark; }
+
+/* ── Modo noche: botones/pills que usan var(--text) como fondo oscuro
+   se vuelven ilegibles (texto blanco sobre fondo claro). Los pasamos
+   a usar el acento, que contrasta bien en oscuro. ── */
+html[data-theme="dark"] .nueva-ruta-btn,
+html[data-theme="dark"] .mbtn-primary,
+html[data-theme="dark"] .gps-capture-btn,
+html[data-theme="dark"] .cs-foot-btn,
+html[data-theme="dark"] .cs-hd-badge,
+html[data-theme="dark"] .ruta-action-btns .btn-pdf,
+html[data-theme="dark"] .bk-act-dl,
+html[data-theme="dark"] .rem-item-dsc-ok,
+html[data-theme="dark"] .rc-dsc-apply,
+html[data-theme="dark"] .rc-edit-dsc-ok {
+  background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important;
+}
+html[data-theme="dark"] .nueva-ruta-btn:hover { background:var(--accent-h) !important; }
+/* Pills/tabs seleccionadas que usan var(--text) de fondo */
+html[data-theme="dark"] .cs-pill.active,
+html[data-theme="dark"] .rc-dsc-tab.sel,
+html[data-theme="dark"] .rc-dsc-tipo button.sel,
+html[data-theme="dark"] .rc-edit-dsc-tipo button.sel,
+html[data-theme="dark"] .rem-item-dsc-tipo button.sel {
+  background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important;
+}
+/* sb-item activo: en noche el fondo var(--text) es claro, invertir a acento */
+html[data-theme="dark"] .sb-item.active { background:var(--accent); color:#fff; }
+/* bn-item activo (barra inferior): mismo caso */
+html[data-theme="dark"] .bn-item.active { background:var(--accent); color:#fff; }
+
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent }
 html, body { height:100% }
 body {
@@ -108,7 +175,7 @@ body {
 }
 .login-box {
   width:100%; max-width:380px;
-  background:#fff;
+  background:var(--s2);
   border-radius:16px; padding:36px 32px 30px;
   box-shadow: 0 20px 50px rgba(20,18,12,.08), 0 0 0 1px var(--border);
 }
@@ -135,7 +202,7 @@ body {
 .l-input {
   width:100%; padding:11px 14px; margin-bottom:14px;
   border:1px solid var(--border); border-radius:9px;
-  background:#fff; color:var(--text); font-size:14.5px;
+  background:var(--s2); color:var(--text); font-size:14.5px;
   font-family:inherit; outline:none;
   transition:border-color .15s, box-shadow .15s; -webkit-appearance:none;
 }
@@ -247,6 +314,33 @@ body {
 .hbtn { background:none; border:none; cursor:pointer; padding:8px; display:flex; flex-direction:column; gap:4px; flex-shrink:0; border-radius:8px; transition:background .12s }
 .hbtn:hover { background:var(--s3) }
 .hbtn span { display:block; width:18px; height:2px; background:var(--text2); border-radius:2px }
+#hdr-cuenta-btn { display:none; background:var(--s3); border:1px solid var(--border); cursor:pointer; font-size:16px; width:36px; height:36px; border-radius:50%; align-items:center; justify-content:center; flex-shrink:0; padding:0; transition:background .12s; -webkit-tap-highlight-color:transparent }
+#hdr-cuenta-btn:active { background:var(--border) }
+
+/* ── Toggle Modo Noche/Claro (switch sol/luna) ── */
+.theme-toggle {
+  display:flex; align-items:center;
+  width:58px; height:30px; padding:3px;
+  border-radius:999px; cursor:pointer; flex-shrink:0;
+  border:1px solid var(--border); background:var(--s3);
+  transition:background .3s, border-color .3s;
+  -webkit-tap-highlight-color:transparent;
+}
+.theme-toggle-track { display:flex; justify-content:space-between; align-items:center; width:100%; position:relative }
+.theme-toggle-thumb {
+  width:24px; height:24px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--s2); color:#b8860b;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+  transition:transform .32s cubic-bezier(.4,0,.2,1), background .3s, color .3s;
+  transform:translateX(0); will-change:transform;
+}
+.theme-toggle-thumb svg { width:15px; height:15px }
+html[data-theme="dark"] .theme-toggle { background:#0b0e13; border-color:#2c333d }
+html[data-theme="dark"] .theme-toggle-thumb {
+  transform:translateX(28px);
+  background:#2a3240; color:#e8e6e1;
+}
 .htitle { flex:1; font-size:15px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-0.01em }
 #sync-msg { font-size:11.5px; font-weight:500; white-space:nowrap; color:var(--muted); padding:5px 10px; background:var(--s3); border-radius:20px }
 #sync-msg.ok { color:#0a7048; background:var(--green-bg) }
@@ -314,10 +408,8 @@ body {
   .bn-item:active { opacity:.7; }
   .bn-sep { width:1.2px; height:22px; background:var(--border); flex-shrink:0; }
 }
-@media (prefers-color-scheme:dark){
-  @media (max-width:900px){
-    #bottom-nav { background:rgba(22,28,36,0.92); border-top:1px solid rgba(255,255,255,0.08); }
-  }
+@media (max-width:900px){
+  html[data-theme="dark"] #bottom-nav { background:rgba(22,28,36,0.92); border-top:1px solid rgba(255,255,255,0.08); }
 }
 
 /* ══════════════
@@ -365,7 +457,7 @@ body {
 input, select, textarea {
   width:100%; padding:11px 13px;
   border:1px solid var(--border); border-radius:9px;
-  background:#fff; color:var(--text); font-size:14.5px;
+  background:var(--s2); color:var(--text); font-size:14.5px;
   font-family:inherit; outline:none;
   transition:border-color .15s, box-shadow .15s; -webkit-appearance:none;
 }
@@ -379,7 +471,7 @@ textarea { resize:none; font-size:14px; line-height:1.5 }
 select { cursor:pointer; padding-right:32px;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M3 4.5L6 7.5L9 4.5' stroke='%2375726a' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   background-repeat:no-repeat; background-position:right 12px center; }
-select option { background:#fff }
+select option { background:var(--s2); color:var(--text) }
 
 /* ── AUTOCOMPLETE ── */
 .lista-pill {
@@ -392,7 +484,7 @@ select option { background:#fff }
 .search-wrap { position:relative }
 .dropdown {
   position:absolute; top:calc(100% + 4px); left:0; right:0;
-  background:#fff; border:1px solid var(--border);
+  background:var(--s2); border:1px solid var(--border);
   border-radius:var(--radius); box-shadow:var(--shadow-lg);
   z-index:999; display:none; max-height:280px; overflow-y:auto;
 }
@@ -445,7 +537,7 @@ select option { background:#fff }
 .btn-primary:hover { background:var(--accent-h); box-shadow:0 4px 14px oklch(58% 0.13 35 / 0.25) }
 .btn-green { background:#0a7048; color:#fff }
 .btn-green:hover { background:#085c3b }
-.btn-ghost { background:#fff; color:var(--text); border:1px solid var(--border) }
+.btn-ghost { background:var(--s2); color:var(--text); border:1px solid var(--border) }
 .btn-ghost:hover { border-color:var(--muted); background:var(--s3) }
 .btn-sm { padding:9px 13px; font-size:12.5px; width:auto; border-radius:8px }
 .btn-icon { padding:9px; width:auto; border-radius:8px }
@@ -485,9 +577,9 @@ select option { background:#fff }
 .ruta-resumen { font-size:11.5px; color:var(--muted); margin-top:3px }
 .ruta-chips { display:flex; gap:7px; align-items:center; flex-shrink:0; margin-left:10px }
 .chip { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; border:1px solid transparent }
-.chip-ok   { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
-.chip-warn { background:var(--amber-bg); color:#88571f; border-color:oklch(88% 0.05 75) }
-.chip-red  { background:var(--red-bg);   color:#a31a1a; border-color:oklch(88% 0.05 25) }
+.chip-ok   { background:var(--green-bg); color:var(--green); border-color:var(--green) }
+.chip-warn { background:var(--amber-bg); color:var(--amber); border-color:var(--amber) }
+.chip-red  { background:var(--red-bg);   color:var(--red); border-color:var(--red) }
 .ruta-detail { display:none; margin-bottom:12px }
 .ruta-detail.open { display:block }
 .ruta-detail-card { background:var(--s2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-sm) }
@@ -496,7 +588,7 @@ select option { background:#fff }
   flex:1; min-width:90px; padding:10px 8px; border-radius:8px;
   font-family:inherit; font-size:12.5px; font-weight:600;
   cursor:pointer; border:1px solid var(--border);
-  background:#fff; color:var(--text2); transition:all .15s;
+  background:var(--s2); color:var(--text2); transition:all .15s;
 }
 .ruta-action-btns button:hover { background:var(--s3) }
 .ruta-action-btns button:active { filter:brightness(.95) }
@@ -516,7 +608,7 @@ select option { background:#fff }
 .pago-section { background:var(--s3); border-radius:9px; padding:13px; margin-top:10px; border:1px solid var(--border2) }
 .pago-section-title { font-size:10.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:11px }
 .pago-modo-row { display:flex; gap:6px; margin-bottom:11px }
-.modo-btn { flex:1; padding:10px 6px; border:1px solid var(--border); border-radius:8px; background:#fff; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; text-align:center; transition:all .15s }
+.modo-btn { flex:1; padding:10px 6px; border:1px solid var(--border); border-radius:8px; background:var(--s2); font-family:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; text-align:center; transition:all .15s }
 .modo-btn:hover { border-color:var(--muted2); color:var(--text2) }
 .modo-btn.sel { border-color:var(--accent); background:var(--accent-bg); color:var(--accent) }
 .pago-inputs { display:flex; gap:8px }
@@ -638,7 +730,7 @@ select option { background:#fff }
 .modal-input {
   width:100%; padding:11px 13px;
   border:1px solid var(--border); border-radius:9px;
-  background:#fff; color:var(--text); font-size:14.5px;
+  background:var(--s2); color:var(--text); font-size:14.5px;
   font-family:inherit; outline:none;
   margin-bottom:4px; -webkit-appearance:none;
 }
@@ -648,7 +740,7 @@ select option { background:#fff }
 .mbtn:active { filter:brightness(.95) }
 .mbtn-primary { background:var(--text); color:#fff }
 .mbtn-primary:hover { background:#000 }
-.mbtn-ghost { background:#fff; color:var(--text2); border:1px solid var(--border) }
+.mbtn-ghost { background:var(--s2); color:var(--text2); border:1px solid var(--border) }
 .mbtn-ghost:hover { background:var(--s3) }
 
 /* ── FIRMA ── */
@@ -677,7 +769,7 @@ select option { background:#fff }
 .dir-autocomplete-wrap { position:relative; flex:1; }
 .dir-autocomplete-list {
   position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:999;
-  background:#fff; border:1px solid var(--border); border-radius:8px;
+  background:var(--s2); border:1px solid var(--border); border-radius:8px;
   box-shadow:0 4px 16px rgba(0,0,0,.12); max-height:220px; overflow-y:auto;
   display:none;
 }
@@ -691,7 +783,7 @@ select option { background:#fff }
 .dir-ac-icon { color:var(--muted); flex-shrink:0; margin-top:1px; }
 .dir-ac-main { font-weight:600; color:var(--text); }
 .dir-ac-sub  { font-size:11px; color:var(--muted); }
-.parada-card { background:#fff; border:1.5px solid var(--border); border-radius:11px; margin-bottom:8px; overflow:hidden; transition:border-color .15s, box-shadow .15s; }
+.parada-card { background:var(--s2); border:1.5px solid var(--border); border-radius:11px; margin-bottom:8px; overflow:hidden; transition:border-color .15s, box-shadow .15s; }
 .parada-card.activa { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklch,var(--accent) 18%,transparent); }
 .parada-card.entregada { opacity:.65; border-color:var(--border2); }
 .parada-head { display:flex; align-items:center; gap:10px; padding:11px 13px; cursor:pointer; }
@@ -751,7 +843,7 @@ select option { background:#fff }
 .nav-btn { flex:1; min-width:80px; padding:7px 8px; border-radius:7px; font-family:inherit; font-size:11.5px; font-weight:600; text-decoration:none; text-align:center; transition:all .15s; border:1px solid }
 .nav-gmaps { background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
 .nav-waze  { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
-.nav-apple { background:#fff; color:var(--text2); border-color:var(--border) }
+.nav-apple { background:var(--s2); color:var(--text2); border-color:var(--border) }
 .me-empty { padding:40px 20px; text-align:center; color:var(--muted); font-size:13px; line-height:1.7 }
 .geocoding-progress { padding:20px 14px; text-align:center; color:var(--muted); font-size:12.5px; line-height:1.6 }
 .me-warn-box { background:#fffbeb; border-bottom:1px solid #fcd34d; padding:10px 13px; font-size:11.5px; color:#92400e }
@@ -826,7 +918,7 @@ select option { background:#fff }
 .rem-item-dsc-tipo { display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden }
 .rem-item-dsc-tipo button { padding:3px 7px; font-size:11px; font-weight:700; font-family:inherit; border:none; background:var(--s2); color:var(--muted); cursor:pointer; transition:all .15s }
 .rem-item-dsc-tipo button.sel { background:var(--text); color:#fff }
-.rem-item-dsc-inp { width:60px; padding:4px 7px; font-size:12px; font-weight:600; border:1px solid var(--border); border-radius:5px; background:#fff; color:var(--text); font-family:inherit; outline:none }
+.rem-item-dsc-inp { width:60px; padding:4px 7px; font-size:12px; font-weight:600; border:1px solid var(--border); border-radius:5px; background:var(--s2); color:var(--text); font-family:inherit; outline:none }
 .rem-item-dsc-ok { padding:3px 8px; background:var(--text); color:#fff; border:none; border-radius:5px; font-size:11px; font-weight:700; font-family:inherit; cursor:pointer }
 .rem-item-dsc-rm { padding:3px 7px; background:var(--red-bg); color:var(--red); border:none; border-radius:5px; font-size:11px; font-weight:700; font-family:inherit; cursor:pointer }
 .rem-item-precio-orig { font-size:10px; color:var(--muted); text-decoration:line-through; margin-left:2px }
@@ -895,7 +987,7 @@ select option { background:#fff }
 .bk-act-share { flex:1; background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
 .bk-act-dl { flex:1; background:var(--text); color:#fff; border-color:var(--text) }
 .bk-act-dl:hover { background:#000 }
-.bk-act-del { background:#fff; border-color:oklch(88% 0.05 25); color:var(--red); padding:9px 12px }
+.bk-act-del { background:var(--s2); border-color:oklch(88% 0.05 25); color:var(--red); padding:9px 12px }
 .bk-act-del:hover { background:var(--red-bg) }
 
 /* ── SCROLLBARS ── */
@@ -918,15 +1010,25 @@ select option { background:#fff }
   }
   .hbtn { display:none }
   #overlay { display:none !important }
+  #hdr-cuenta-btn { display:none !important }
   /* Header y main se corren a la derecha del sidebar */
   .app-header { left:264px }
   .main { left:264px; padding:24px 24px calc(20px + var(--safe-bottom)) }
   .main > .section { max-width:640px }
 }
 @media (max-width:899px) {
-  #sidebar { position:fixed; top:0; left:0; height:100%; width:280px; z-index:300 }
-  .hbtn { display:flex }
+  /* En móvil la navegación es SOLO la barra inferior:
+     ocultar completamente sidebar, overlay y hamburguesa. */
+  #sidebar { display:none !important; }
+  #overlay { display:none !important; }
+  .hbtn { display:none !important; }
+  /* Header ocupa todo el ancho y muestra el botón de cuenta */
+  .app-header { left:0; gap:8px; padding:0 12px; }
+  #hdr-cuenta-btn { display:flex; }
   .main { padding-bottom:calc(16px + var(--safe-bottom)) }
+}
+@media (min-width:900px){
+  #sb-mobile-hint { display:none; }
 }
 @media (max-width:380px) {
   .login-box { padding:30px 22px 26px }
@@ -963,7 +1065,7 @@ select option { background:#fff }
 .rc-firma-wrap { margin-bottom:12px; padding:12px; background:var(--green-bg); border:1px solid oklch(88% 0.04 155); border-radius:10px }
 .rc-firma-lbl { font-size:11.5px; font-weight:600; color:#0a7048; margin-bottom:8px }
 .rc-firma-img { max-width:100%; border-radius:7px; border:1px solid oklch(88% 0.04 155); background:#fff; display:block }
-.rc-firma-del { margin-top:9px; width:100%; padding:8px; background:#fff; border:1px solid oklch(88% 0.05 25); border-radius:8px; color:var(--red); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s }
+.rc-firma-del { margin-top:9px; width:100%; padding:8px; background:var(--s2); border:1px solid oklch(88% 0.05 25); border-radius:8px; color:var(--red); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s }
 .rc-firma-del:hover { background:var(--red-bg) }
 
 /* Items list (read-only) */
@@ -975,11 +1077,11 @@ select option { background:#fff }
 
 /* Edit items */
 .rc-edit-wrap { margin:8px 0 4px }
-.rc-edit-toggle { display:flex; align-items:center; justify-content:space-between; padding:10px 13px; background:#fff; border:1px solid var(--border); border-radius:9px; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text2); transition:all .15s; user-select:none }
+.rc-edit-toggle { display:flex; align-items:center; justify-content:space-between; padding:10px 13px; background:var(--s2); border:1px solid var(--border); border-radius:9px; cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text2); transition:all .15s; user-select:none }
 .rc-edit-toggle:hover { border-color:var(--muted2) }
 .rc-edit-toggle.open { border-color:var(--accent); color:var(--accent); background:var(--accent-bg) }
 .rc-edit-count { background:var(--s3); border-radius:20px; padding:2px 9px; font-size:11px; color:var(--muted); font-weight:600 }
-.rc-edit-toggle.open .rc-edit-count { background:#fff }
+.rc-edit-toggle.open .rc-edit-count { background:var(--s2) }
 .rc-edit-body { padding:8px 0 4px }
 .rc-edit-item { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--border2) }
 .rc-edit-item:last-of-type { border-bottom:none }
@@ -995,7 +1097,7 @@ select option { background:#fff }
 .rc-cobro-head { margin-bottom:11px }
 .rc-cobro-title { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px }
 .rc-modo-row { display:flex; gap:6px; margin-bottom:11px }
-.rc-modo-btn { flex:1; padding:10px 4px; border:1px solid var(--border); border-radius:8px; background:#fff; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; text-align:center; transition:all .15s }
+.rc-modo-btn { flex:1; padding:10px 4px; border:1px solid var(--border); border-radius:8px; background:var(--s2); font-family:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; text-align:center; transition:all .15s }
 .rc-modo-btn:hover { border-color:var(--muted2); color:var(--text2) }
 .rc-modo-btn.sel { border-color:var(--accent); background:var(--accent-bg); color:var(--accent) }
 .rc-cobro-hint { font-size:13px; color:var(--muted2); text-align:center; padding:8px 0 4px; font-style:italic }
@@ -1015,7 +1117,7 @@ select option { background:#fff }
 
 /* Historial pagos */
 .rc-hist-wrap { margin-top:11px }
-.rc-hist-card { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:8px }
+.rc-hist-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:8px }
 .rc-hist-title { display:flex; justify-content:space-between; align-items:center; padding:10px 13px; border-bottom:1px solid var(--border2); font-size:12px; font-weight:600; color:var(--muted); background:var(--s3) }
 .rc-hist-ok   { color:#0a7048 }
 .rc-hist-warn { color:#88571f }
@@ -1026,9 +1128,9 @@ select option { background:#fff }
 .rc-hist-monto { font-size:13px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; white-space:nowrap }
 .rc-hist-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:13px; padding:3px 6px; border-radius:5px; flex-shrink:0; transition:all .15s }
 .rc-hist-del:hover { color:var(--red); background:var(--red-bg) }
-.rc-add-pago-btn { width:100%; padding:10px; background:#fff; border:1px dashed var(--border); border-radius:9px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s }
+.rc-add-pago-btn { width:100%; padding:10px; background:var(--s2); border:1px dashed var(--border); border-radius:9px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s }
 .rc-add-pago-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-bg) }
-.rc-add-pago-form { display:none; background:#fff; border:1px solid var(--border); border-radius:10px; padding:13px; margin-top:8px }
+.rc-add-pago-form { display:none; background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:13px; margin-top:8px }
 .rc-add-pago-row { display:flex; gap:8px; margin-bottom:8px }
 .rc-add-input { flex:1; padding:10px 11px !important; font-size:14px !important; font-weight:700 !important; font-variant-numeric:tabular-nums }
 .rc-add-select { flex:1; padding:10px 28px 10px 11px !important; font-size:13px !important }
@@ -1109,7 +1211,7 @@ select option { background:#fff }
 .pa-act-btn:active { filter:brightness(.95); transform:scale(.98) }
 .pa-act-pdf { background:var(--text); color:#fff; border-color:var(--text) }
 .pa-act-pdf:hover { background:#000 }
-.pa-act-del { background:#fff; color:var(--red); border-color:oklch(88% 0.05 25) }
+.pa-act-del { background:var(--s2); color:var(--red); border-color:oklch(88% 0.05 25) }
 .pa-act-del:hover { background:var(--red-bg) }
 
 .stk-badge-neg { background:#fff0f0; color:#b91c1c; border-color:#fca5a5 }
@@ -1120,11 +1222,11 @@ select option { background:#fff }
 .stk-umbral-inp {
   width:42px; height:26px; border:1px solid var(--border); border-radius:6px;
   text-align:center; font-size:12px; font-weight:600; font-family:inherit;
-  background:#fff; color:var(--text); padding:0;
+  background:var(--s2); color:var(--text); padding:0;
   -moz-appearance:textfield;
 }
 .stk-umbral-inp::-webkit-inner-spin-button { -webkit-appearance:none }
-.stk-umbral-btn { height:26px; padding:0 8px; border:1px solid var(--border); border-radius:6px; background:#fff; font-size:11px; font-weight:600; cursor:pointer; color:var(--muted); transition:all .15s; font-family:inherit }
+.stk-umbral-btn { height:26px; padding:0 8px; border:1px solid var(--border); border-radius:6px; background:var(--s2); font-size:11px; font-weight:600; cursor:pointer; color:var(--muted); transition:all .15s; font-family:inherit }
 .stk-umbral-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent) }
 .stk-hist-btn { height:26px; padding:0 8px; border:1px solid var(--border); border-radius:6px; background:var(--s3); font-size:13px; cursor:pointer; color:var(--muted); transition:all .15s; flex-shrink:0 }
 .stk-hist-btn:hover { background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
@@ -1153,7 +1255,7 @@ select option { background:#fff }
 .stk-qty-wrap { display:flex; align-items:center }
 .stk-btn-minus, .stk-btn-plus {
   width:32px; height:32px;
-  border:1px solid var(--border); background:#fff; color:var(--text);
+  border:1px solid var(--border); background:var(--s2); color:var(--text);
   font-size:16px; font-weight:600; cursor:pointer; transition:all .15s;
   display:flex; align-items:center; justify-content:center; font-family:inherit;
 }
@@ -1165,7 +1267,7 @@ select option { background:#fff }
   width:54px !important; height:32px;
   border:1px solid var(--border) !important; border-radius:0 !important;
   text-align:center; font-size:13px !important; font-weight:700 !important;
-  padding:0 !important; -moz-appearance:textfield; background:#fff !important;
+  padding:0 !important; -moz-appearance:textfield; background:var(--s2) !important;
 }
 .stk-qty-input::-webkit-inner-spin-button, .stk-qty-input::-webkit-outer-spin-button { -webkit-appearance:none }
 .dd-stk { font-size:10px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; border:1px solid }
@@ -1222,7 +1324,7 @@ select option { background:#fff }
 .cli-check-list input[type=checkbox] {
   width:16px !important; height:16px !important;
   padding:0 !important; border:1px solid var(--border) !important;
-  border-radius:3px !important; background:#fff !important;
+  border-radius:3px !important; background:var(--s2) !important;
   box-shadow:none !important; outline:none !important;
   -webkit-appearance:checkbox !important; appearance:checkbox !important;
   accent-color:var(--text); cursor:pointer; flex-shrink:0; margin-top:2px;
@@ -1284,12 +1386,10 @@ select option { background:#fff }
   box-shadow: 0 1px 20px rgba(0,0,0,0.06);
   margin-left:-16px; margin-right:-16px;
 }
-@media (prefers-color-scheme: dark) {
-  .prod-toolbar {
-    background: rgba(22,28,36,0.78);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 1px 20px rgba(0,0,0,0.25);
-  }
+html[data-theme="dark"] .prod-toolbar {
+  background: rgba(22,28,36,0.78);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 1px 20px rgba(0,0,0,0.25);
 }
 .prod-toolbar input[type=text] {
   flex:1; min-width:0;
@@ -1405,7 +1505,7 @@ select option { background:#fff }
 /* Modal agregar/editar — sin cambios */
 .mprod-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:600; align-items:flex-end; justify-content:center }
 .mprod-overlay.open { display:flex }
-.mprod-box { background:#fff; border-radius:20px 20px 0 0; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; padding:24px 20px calc(20px + var(--safe-bottom)) }
+.mprod-box { background:var(--s2); border-radius:20px 20px 0 0; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; padding:24px 20px calc(20px + var(--safe-bottom)) }
 .mprod-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px }
 .mprod-title { font-size:17px; font-weight:700; color:var(--text) }
 .mprod-cls { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); padding:4px 6px; border-radius:6px; line-height:1 }
@@ -1417,7 +1517,7 @@ select option { background:#fff }
 .mprod-field { display:flex; flex-direction:column; gap:5px }
 .mprod-field.full { grid-column:1/-1 }
 .mprod-field label { font-size:11px; font-weight:600; color:var(--text2) }
-.mprod-field input, .mprod-field select, .mprod-field textarea { padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; color:var(--text); font-size:13.5px; font-family:inherit; outline:none }
+.mprod-field input, .mprod-field select, .mprod-field textarea { padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:var(--s2); color:var(--text); font-size:13.5px; font-family:inherit; outline:none }
 .mprod-field input:focus, .mprod-field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg) }
 .mprod-precio-mode { display:flex; gap:6px; margin-bottom:10px }
 .mprod-modo-btn { flex:1; padding:7px; border:1px solid var(--border); background:var(--s3); border-radius:8px; font-size:11.5px; font-weight:600; cursor:pointer; color:var(--muted); text-align:center }
@@ -1506,13 +1606,13 @@ select option { background:#fff }
 .mprod-lista-pct-wrap input { width:48px; border:none; background:transparent; font-size:13px; font-weight:700; font-family:inherit; color:var(--text); outline:none; -moz-appearance:textfield }
 .mprod-lista-pct-wrap input::-webkit-inner-spin-button { -webkit-appearance:none }
 .mprod-lista-pct-wrap span { font-size:12px; color:var(--muted); font-weight:600 }
-.mprod-lista-price-inp { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; font-weight:700; font-family:inherit; color:var(--text); background:#fff; outline:none; -moz-appearance:textfield }
+.mprod-lista-price-inp { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-size:14px; font-weight:700; font-family:inherit; color:var(--text); background:var(--s2); outline:none; -moz-appearance:textfield }
 .mprod-lista-price-inp::-webkit-inner-spin-button { -webkit-appearance:none }
 .mprod-lista-price-inp:focus { border-color:var(--accent) }
 .mprod-lista-price-inp.manual { border-color:var(--amber); background:#fffbeb }
 /* ── Gestor de listas ── */
 .lista-mgr-row { display:grid; grid-template-columns:1fr 90px 80px auto; gap:8px; align-items:center; padding:10px 12px; background:var(--s2); border:1px solid var(--border); border-radius:9px; margin-bottom:6px }
-.lista-mgr-inp { padding:7px 10px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); background:#fff; outline:none; width:100% }
+.lista-mgr-inp { padding:7px 10px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); background:var(--s2); outline:none; width:100% }
 .lista-mgr-inp:focus { border-color:var(--accent) }
 .lista-mgr-del { padding:6px 10px; background:var(--red-bg); color:var(--red); border:1px solid oklch(88% 0.05 25); border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap }
 .lista-mgr-default { padding:6px 10px; font-size:11px; font-weight:700; color:var(--muted); background:var(--s3); border:1px solid var(--border); border-radius:7px; white-space:nowrap; cursor:default }
@@ -1538,7 +1638,7 @@ select option { background:#fff }
 #catalogo.active #cat-preview-wrap,
 #catalogo.active #btn-gen-catalogo,
 #catalogo.active #cat-progress { max-width:560px; margin-left:auto; margin-right:auto; }
-.cat-pdf-page { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:12px; box-shadow:var(--shadow-sm) }
+.cat-pdf-page { background:var(--s2); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:12px; box-shadow:var(--shadow-sm) }
 .cat-pdf-page-head { background:var(--s3); padding:8px 14px; font-size:10.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border) }
 .cat-prod-grid-prev { display:grid; gap:8px; padding:12px }
 .cat-prod-card-prev { background:var(--bg); border:1px solid var(--border2); border-radius:8px; padding:8px; display:flex; flex-direction:column; align-items:center; gap:5px; min-height:80px }
@@ -1548,10 +1648,10 @@ select option { background:#fff }
 .cat-prod-price-prev { font-size:11px; font-weight:700; color:var(--accent) }
 
 /* ── BACKUP TABS ── */
-.bk-tab { flex:1;padding:8px 4px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;text-align:center;white-space:nowrap; }
-.bk-tab.active { border-color:var(--accent);background:oklch(96% 0.03 250);color:var(--accent); }
-.bk-tab.green.active { border-color:#0f8a4a;background:#e8f5ee;color:#0f8a4a; }
-.bk-tab.red.active { border-color:#b91c1c;background:#fff0f0;color:#b91c1c; }
+.bk-tab { flex:1;padding:8px 4px;border-radius:9px;border:1.5px solid var(--border);background:var(--s2);font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;text-align:center;white-space:nowrap; }
+.bk-tab.active { border-color:var(--accent);background:var(--accent-bg);color:var(--accent); }
+.bk-tab.green.active { border-color:#0f8a4a;background:var(--green-bg);color:var(--green); }
+.bk-tab.red.active { border-color:#b91c1c;background:var(--red-bg);color:var(--red); }
 .bk-tab-cnt { font-size:10px;background:currentColor;color:#fff;border-radius:20px;padding:1px 6px;margin-left:3px;opacity:.85; }
 /* Estado en card */
 .bk-card-estado { display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;font-weight:700;border-top:1px solid var(--border2); }
@@ -1579,7 +1679,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   display:block; width:100%; padding:12px 14px;
   border:2px solid var(--border); border-radius:10px;
   font-size:16px; font-family:inherit;
-  background:#fff; color:var(--text);
+  background:var(--s2); color:var(--text);
   outline:none; box-sizing:border-box; -webkit-appearance:none; appearance:none;
   transition:border-color .15s;
 }
@@ -1594,7 +1694,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 .cli-clear-btn { background:none; border:none; font-size:18px; cursor:pointer; color:var(--muted); padding:4px 8px; border-radius:6px; flex-shrink:0; touch-action:manipulation; line-height:1; }
 .cli-results {
   position:absolute; left:0; right:0; top:calc(100% + 4px);
-  background:#fff; border:1.5px solid var(--accent);
+  background:var(--s2); border:1.5px solid var(--accent);
   border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.18);
   z-index:9999; overflow:hidden; max-height:340px; overflow-y:auto;
   -webkit-overflow-scrolling:touch; display:none;
@@ -1612,7 +1712,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 .cli-result-nom { font-size:14px; font-weight:600; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cli-result-lista { font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0; }
 .cli-empty { padding:16px; text-align:center; font-size:13px; color:var(--muted); }
-.dia-ent-btn { display:flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;background:#fff;transition:all .15s }
+.dia-ent-btn { display:flex;align-items:center;gap:6px;padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;background:var(--s2);color:var(--text);transition:all .15s }
 .dia-ent-btn:has(input:checked) { border-color:var(--accent);background:var(--blue-bg);color:var(--accent);font-weight:700 }
 .dia-ent-btn input { display:none }
 
@@ -1710,6 +1810,11 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
+  <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
+    <div style="font-size:30px;margin-bottom:8px">👇</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
+    <div style="font-size:11.5px;line-height:1.5">Usá la barra inferior para moverte entre las secciones.</div>
+  </div>
   <div class="sb-foot">
     <div class="sb-user">Vendedor<span id="sb-username"></span></div>
     <button id="btn-activar-notif" onclick="activarNotificaciones()" style="display:none;width:calc(100% - 24px);margin:0 12px 6px;padding:9px 12px;background:oklch(22% 0.06 240);color:oklch(85% 0.08 240);border:1px solid oklch(35% 0.08 240);border-radius:9px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-align:center;touch-action:manipulation">
@@ -1752,7 +1857,30 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <button class="hbtn" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
   <div class="htitle" id="header-title">Nuevo Pedido</div>
   <span id="sync-msg">🔄</span>
+  <div class="theme-toggle" id="theme-toggle" onclick="toggleTema()" role="button" tabindex="0" aria-label="Cambiar modo claro/oscuro">
+    <div class="theme-toggle-track">
+      <div class="theme-toggle-thumb" id="theme-thumb"></div>
+    </div>
+  </div>
+  <button id="hdr-cuenta-btn" onclick="_abrirMenuCuenta()" aria-label="Cuenta" title="Cuenta">👤</button>
 </header>
+
+<!-- MENÚ DE CUENTA (móvil) -->
+<div class="modal-bg" id="modal-cuenta" onclick="if(event.target===this)cerrarModal('modal-cuenta')">
+  <div class="modal-box" style="max-width:340px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-ttl">👤 Mi cuenta</div>
+        <div id="cuenta-user-lbl" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <button class="modal-cls" onclick="cerrarModal('modal-cuenta')">✕</button>
+    </div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+      <button id="cuenta-notif-btn" onclick="activarNotificaciones()" style="display:none;width:100%;padding:11px 12px;background:oklch(22% 0.06 240);color:oklch(85% 0.08 240);border:1px solid oklch(35% 0.08 240);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center">🔔 Activar notificaciones</button>
+      <button onclick="doLogout()" style="width:100%;padding:11px 12px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center">🚪 Cerrar sesión</button>
+    </div>
+  </div>
+</div>
 
 <div class="main">
 
@@ -1886,7 +2014,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <!-- Atribución de vendedor (solo admin) -->
   <div id="rem-vendedor-wrap" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;display:none">
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👤 Atribuir remito a vendedor</div>
-    <select id="rem-vendedor-uid" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
+    <select id="rem-vendedor-uid" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s2)">
       <option value="">— Sin atribución (admin) —</option>
     </select>
     <div style="font-size:11px;color:var(--muted);margin-top:5px">Este remito contará en las ventas y comisión del vendedor seleccionado.</div>
@@ -1902,21 +2030,21 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <div style="position:relative;flex:1;min-width:160px;max-width:260px">
         <input type="text" id="ruta-buscar-cli" placeholder="🔍 Buscar cliente…"
           autocomplete="off" autocorrect="off" oninput="_buscarEnRutas(this.value)"
-          style="width:100%;padding:7px 10px 7px 32px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fff">
+          style="width:100%;padding:7px 10px 7px 32px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--s2)">
         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none">🔍</span>
         <button id="ruta-buscar-clear" onclick="document.getElementById('ruta-buscar-cli').value='';_buscarEnRutas('')"
           style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:13px;cursor:pointer;color:var(--muted);padding:2px">✕</button>
       </div>
       <!-- Filtros -->
-      <select id="ruta-fil-estado" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff">
+      <select id="ruta-fil-estado" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
         <option value="">📋 Todas</option>
         <option value="en-curso">🔄 En curso</option>
         <option value="terminadas">✅ Terminadas</option>
       </select>
-      <select id="ruta-fil-mes" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff">
+      <select id="ruta-fil-mes" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
         <option value="">Todos los meses</option>
       </select>
-      <select id="ruta-fil-zona" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff">
+      <select id="ruta-fil-zona" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
         <option value="">Todas las zonas</option>
       </select>
       <button class="btn btn-ghost btn-sm" onclick="cargarRutasFirebase()">🔄</button>
@@ -1924,7 +2052,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
   </div>
   <!-- Resultado de búsqueda global -->
-  <div id="ruta-search-result" style="display:none;background:#fff;border:1.5px solid var(--accent);border-radius:12px;overflow:hidden;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.07)"></div>
+  <div id="ruta-search-result" style="display:none;background:var(--s2);border:1.5px solid var(--accent);border-radius:12px;overflow:hidden;margin-bottom:10px;box-shadow:0 4px 16px rgba(0,0,0,.07)"></div>
   <!-- Banner pedidos sin pagar (admin) -->
   <div id="ruta-unpaid-banner" style="display:none;background:#7c2d12;color:#fef2f2;border-radius:10px;padding:12px 16px;margin-bottom:12px;cursor:pointer" onclick="abrirModalSinPagar()">
     <div style="font-weight:700;font-size:13px;margin-bottom:4px">💰 <span id="ruta-unpaid-titulo"></span></div>
@@ -1965,7 +2093,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div id="bk-select-toolbar" style="display:none;background:var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
     <span id="bk-sel-count" style="color:#fff;font-weight:700;font-size:13px;flex:1">0 seleccionados</span>
     <button onclick="_bkSelAll()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☑ Todos</button>
-    <button onclick="_bkReasignar()" style="background:#fff;color:var(--accent);border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar a Ruta</button>
+    <button onclick="_bkReasignar()" style="background:var(--s2);color:var(--accent);border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar a Ruta</button>
     <button onclick="_bkToggleSelect()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>
   </div>
 
@@ -2101,8 +2229,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">
     <div id="mv-greeting" style="font-size:15px;font-weight:700;color:var(--text)">Mis Ventas</div>
     <div style="display:flex;gap:6px;align-items:center">
-      <select id="mv-fil-mes" onchange="cargarMisVentas()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:#fff;font-family:inherit"></select>
-      <select id="mv-fil-anio" onchange="cargarMisVentas()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:#fff;font-family:inherit"></select>
+      <select id="mv-fil-mes" onchange="cargarMisVentas()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:var(--s2);font-family:inherit"></select>
+      <select id="mv-fil-anio" onchange="cargarMisVentas()" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:var(--s2);font-family:inherit"></select>
       <button class="btn btn-ghost btn-sm" onclick="cargarMisVentas()">🔄</button>
     </div>
   </div>
@@ -2242,7 +2370,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <!-- Preview del remito -->
         <div style="flex:1;min-width:280px">
           <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Vista previa</div>
-          <div id="pdf-preview-wrap" style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+          <div id="pdf-preview-wrap" style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:var(--s2);box-shadow:0 2px 12px rgba(0,0,0,.08)">
             <iframe id="pdf-preview-frame" style="width:100%;height:500px;border:none;display:block"></iframe>
           </div>
         </div>
@@ -2269,10 +2397,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- Nuevo cliente -->
-  <div id="cli-nuevo-panel" style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
+  <div id="cli-nuevo-panel" style="margin-bottom:10px;background:var(--s2);border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('nc-form-body');var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('span:last-child').textContent=open?'tocá para abrir ▼':'tocá para cerrar ▲'"
       style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
-      <span style="font-size:13px;font-weight:600;color:#1a1a17" id="cli-form-title">➕ Agregar nuevo cliente</span>
+      <span style="font-size:13px;font-weight:600;color:var(--text)" id="cli-form-title">➕ Agregar nuevo cliente</span>
       <span style="font-size:11px;color:#75726a">tocá para cerrar ▲</span>
     </div>
     <div id="nc-form-body" style="display:block;padding:14px;border-top:1px solid #e3e1da">
@@ -2297,7 +2425,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
                 oninput="_dirAutoComplete('nc-dir','nc-dir-list')"
                 onblur="setTimeout(function(){var l=document.getElementById('nc-dir-list');if(l)l.style.display='none';},200)"
                 style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box">
-              <div id="nc-dir-list" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:999;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;"></div>
+              <div id="nc-dir-list" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:999;background:var(--s2);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;"></div>
             </div>
             <button onclick="_capturarGPSParaCliente('nc')" title="Capturar ubicación GPS"
               style="padding:9px 12px;background:var(--text);color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;touch-action:manipulation;flex-shrink:0">
@@ -2318,13 +2446,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <input type="text" id="nc-zona" autocomplete="off"
             style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
         <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Lista</label>
-          <select id="nc-lista" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
+          <select id="nc-lista" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s2)">
             <option value="Clientes">Clientes</option>
             <option value="Patagonia">Patagonia</option>
             <option value="Distribuidores">Distribuidores</option>
           </select></div>
         <div id="nc-rol-wrap" style="display:none"><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Rol</label>
-          <select id="nc-rol" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:#fff">
+          <select id="nc-rol" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s2)">
             <option value="cliente">👤 Cliente</option>
             <option value="vendedor">📝 Vendedor</option>
             <option value="repartidor">🚚 Repartidor</option>
@@ -2343,10 +2471,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- CSV -->
-  <div id="cli-csv-panel" style="margin-bottom:10px;background:#ffffff;border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
+  <div id="cli-csv-panel" style="margin-bottom:10px;background:var(--s2);border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'"
       style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
-      <span style="font-size:13px;font-weight:600;color:#1a1a17">📥 Importar CSV</span>
+      <span style="font-size:13px;font-weight:600;color:var(--text)">📥 Importar CSV</span>
       <span style="font-size:11px;color:#75726a">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA ▼</span>
     </div>
     <div id="cli-csv-body" style="display:none;padding:14px;border-top:1px solid #e3e1da">
@@ -2377,7 +2505,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <input type="text" id="cli-search-input"
     placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
     oninput="_filtrarClientes(this.value)" autocomplete="off"
-    style="width:100%;padding:11px 14px;border:1.5px solid #e3e1da;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:#ffffff;box-sizing:border-box;margin-bottom:10px;display:block;color:#1a1a17">
+    style="width:100%;padding:11px 14px;border:1.5px solid #e3e1da;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:var(--s2);box-sizing:border-box;margin-bottom:10px;display:block;color:var(--text)">
 
   <!-- Filtros -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
@@ -2454,7 +2582,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
             📍 GPS
           </button>
         </div>
-        <div id="ec-dir-suggestions" style="display:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.1);margin-bottom:4px;max-height:200px;overflow-y:auto;z-index:50;position:relative"></div>
+        <div id="ec-dir-suggestions" style="display:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--s2);box-shadow:0 6px 20px rgba(0,0,0,.1);margin-bottom:4px;max-height:200px;overflow-y:auto;z-index:50;position:relative"></div>
         <div id="ec-dir-result" style="display:none;margin-top:4px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
         <input type="hidden" id="ec-lat">
         <input type="hidden" id="ec-lng">
@@ -2507,8 +2635,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
       <!-- Registrar pago rápido -->
       <div id="cc-pago-box" style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s2)">
-        <input type="text" id="cc-pago-monto" inputmode="decimal" placeholder="Monto a registrar" style="flex:1;min-width:120px;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:#fff">
-        <select id="cc-pago-forma" style="font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:#fff">
+        <input type="text" id="cc-pago-monto" inputmode="decimal" placeholder="Monto a registrar" style="flex:1;min-width:120px;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
+        <select id="cc-pago-forma" style="font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
           <option value="efectivo">💵 Efectivo</option>
           <option value="transferencia">🏦 Transfer.</option>
           <option value="otro">Otro</option>
@@ -2778,7 +2906,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <div style="flex:1;min-width:120px">
           <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">PRECIO BASE / COSTO ($)</label>
           <input type="number" id="mprod-precio-base" placeholder="0.00" min="0" step="0.01"
-            style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;font-family:inherit;outline:none;background:#fff;color:var(--text)"
+            style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;font-family:inherit;outline:none;background:var(--s2);color:var(--text)"
             oninput="recalcularPrecios()">
         </div>
         <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--muted);padding-top:20px">
@@ -2798,12 +2926,12 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <div style="flex:1;min-width:120px">
           <label style="font-size:10.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Precio promo ($)</label>
           <input type="number" id="mprod-precio-promo" placeholder="0.00" min="0" step="0.01"
-            style="width:100%;padding:9px 12px;border:1px solid oklch(85% 0.06 35);border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;outline:none;background:#fff">
+            style="width:100%;padding:9px 12px;border:1px solid oklch(85% 0.06 35);border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;outline:none;background:var(--s2)">
         </div>
         <div style="flex:1;min-width:120px">
           <label style="font-size:10.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Cantidad mínima</label>
           <input type="number" id="mprod-cant-promo" placeholder="ej: 3" min="1" step="1"
-            style="width:100%;padding:9px 12px;border:1px solid oklch(85% 0.06 35);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff">
+            style="width:100%;padding:9px 12px;border:1px solid oklch(85% 0.06 35);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--s2)">
         </div>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">Ej: $X llevando 3 o más unidades. El vendedor puede elegirlo al hacer el pedido.</div>
@@ -2852,7 +2980,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
     <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">El repartidor asignado verá esta hoja de ruta en su cuenta. Solo puede ver sus rutas asignadas.</div>
     <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Repartidor</label>
-    <select id="sel-repartidor" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;background:#fff;margin-bottom:16px">
+    <select id="sel-repartidor" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;background:var(--s2);margin-bottom:16px">
       <option value="">— Sin asignar —</option>
     </select>
     <input type="hidden" id="asig-ruta-key">
@@ -2876,13 +3004,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         Elegí el tipo antes de descargar el PDF
       </div>
       <button onclick="elegirTipoComprobante('remito')"
-        style="width:100%;padding:14px;background:#fff;border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .15s">
+        style="width:100%;padding:14px;background:var(--s2);border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .15s">
         <span style="font-size:22px">📄</span>
         <span>Remito</span>
         <span id="tc-precio-remito" style="font-size:12px;color:var(--muted);font-weight:400">$0</span>
       </button>
       <button onclick="elegirTipoComprobante('factura_a')"
-        style="width:100%;padding:14px;background:#fff;border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .15s">
+        style="width:100%;padding:14px;background:var(--s2);border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .15s">
         <span style="font-size:22px">🧾</span>
         <span>Factura A <span style="font-size:12px;color:var(--muted);font-weight:400">(+IVA 21%)</span></span>
         <span id="tc-precio-iva" style="font-size:12px;color:var(--muted);font-weight:400">$0</span>
@@ -2974,7 +3102,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <input type="text" id="edit-bk-cli-bus" placeholder="🔍 Buscar cliente…"
             oninput="_filtrarEditBkCli(this.value)" autocomplete="off"
             style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
-          <div id="edit-bk-cli-res" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--accent);border-radius:0 0 8px 8px;z-index:50;max-height:140px;overflow-y:auto"></div>
+          <div id="edit-bk-cli-res" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--s2);border:1.5px solid var(--accent);border-radius:0 0 8px 8px;z-index:50;max-height:140px;overflow-y:auto"></div>
         </div>
       </div>
     </div>
@@ -4143,7 +4271,7 @@ function previsualizarRemito(){
     +'.section-title{font-weight:bold;font-size:'+(fTbl+1)+'pt;border-bottom:1px solid #ccc;margin-bottom:4px;padding-bottom:2px}'
     +'.cli-block{font-size:'+fTbl+'pt;line-height:1.8;margin-bottom:6px}'
     +'table{width:100%;border-collapse:collapse;margin-top:4px}'
-    +'th{border:1px solid #aaa;padding:4px 6px;background:#fff;font-size:'+fTbl+'pt;font-weight:bold;text-align:left}'
+    +'th{border:1px solid #aaa;padding:4px 6px;background:var(--s2);font-size:'+fTbl+'pt;font-weight:bold;text-align:left}'
     +'td{border:1px solid #ccc;padding:3px 6px;font-size:'+fTbl+'pt}'
     +'td:nth-child(2),th:nth-child(2){text-align:center;width:40px}'
     +'td:nth-child(3),th:nth-child(3),td:nth-child(4),th:nth-child(4){text-align:right;width:80px}'
@@ -4555,6 +4683,63 @@ function _bnScrollToActive(){
 }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
 function closeSidebar(){ document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); }
+
+// ── Modo Noche / Claro ──
+var _SVG_SOL  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>';
+var _SVG_LUNA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+
+function _aplicarTema(tema){
+  var html = document.documentElement;
+  if(tema==="dark"){ html.setAttribute("data-theme","dark"); }
+  else { html.setAttribute("data-theme","light"); }
+  // Actualizar ícono del thumb
+  var thumb = document.getElementById("theme-thumb");
+  if(thumb) thumb.innerHTML = (tema==="dark") ? _SVG_LUNA : _SVG_SOL;
+  // Actualizar meta theme-color para la barra del navegador móvil
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute("content", tema==="dark" ? "#1a1f27" : "#ffffff");
+}
+
+function toggleTema(){
+  var actual = document.documentElement.getAttribute("data-theme");
+  // Si no hay tema seteado, deducir del sistema
+  if(!actual){
+    actual = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  var nuevo = actual==="dark" ? "light" : "dark";
+  _aplicarTema(nuevo);
+  try { localStorage.setItem("tema", nuevo); } catch(e){}
+}
+
+function _initTema(){
+  var guardado = null;
+  try { guardado = localStorage.getItem("tema"); } catch(e){}
+  if(guardado==="dark" || guardado==="light"){
+    _aplicarTema(guardado);
+  } else {
+    // Sin preferencia guardada: seguir el sistema
+    var sysDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    _aplicarTema(sysDark ? "dark" : "light");
+  }
+}
+// Aplicar tema lo antes posible
+_initTema();
+
+// Menú de cuenta para móvil (logout + notificaciones), ya que la sidebar está oculta
+function _abrirMenuCuenta(){
+  var lbl = document.getElementById("cuenta-user-lbl");
+  if(lbl && currentUser){
+    var rolNom = {admin:"Admin",vendedor:"Vendedor",repartidor:"Repartidor",armador:"Armador",cliente:"Cliente"}[currentUser.role||"vendedor"]||"Usuario";
+    lbl.textContent = rolNom+" · "+(currentUser.name||currentUser.id||"");
+  }
+  // Replicar visibilidad del botón de notificaciones de la sidebar
+  var origNotif = document.getElementById("btn-activar-notif");
+  var menuNotif = document.getElementById("cuenta-notif-btn");
+  if(origNotif && menuNotif){
+    menuNotif.style.display = (origNotif.style.display!=="none") ? "block" : "none";
+  }
+  abrirModal("modal-cuenta");
+}
 function verTab(id,btn){
   // Cerrar cualquier modal abierto al cambiar de sección
   document.querySelectorAll(".modal-bg.open").forEach(function(m){ m.classList.remove("open"); });
@@ -5151,7 +5336,7 @@ function renderItems(t){
         'data-t="'+t+'" data-i="'+i+'" '+
         'oninput="editarCantItem(this)" '+
         'onfocus="this.select()" '+
-        'style="width:48px;text-align:center;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:7px;padding:4px 6px;background:#fff;font-family:inherit;-moz-appearance:textfield">'+
+        'style="width:48px;text-align:center;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:7px;padding:4px 6px;background:var(--s2);font-family:inherit;-moz-appearance:textfield">'+
       '<span class="item-name">'+it.n+'</span>'+
       stkBadge+
       '<span class="item-sub">'+
@@ -5924,7 +6109,7 @@ async function _ccRender(cliNom){
       '<div style="display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border2)">'+
         '<div style="font-size:17px;flex-shrink:0">'+icon+'</div>'+
         '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:12.5px;color:#1a1a17;line-height:1.4">'+escHtml(m.concepto||(esPago?"Pago":"Deuda"))+'</div>'+
+          '<div style="font-size:12.5px;color:var(--text);line-height:1.4">'+escHtml(m.concepto||(esPago?"Pago":"Deuda"))+'</div>'+
           '<div style="font-size:10.5px;color:var(--muted);margin-top:1px">'+fechaStr+' '+horaStr+(m.usuario?' · 👤 '+escHtml(m.usuario):'')+'</div>'+
         '</div>'+
         '<div style="font-weight:700;font-size:13.5px;color:'+color+';flex-shrink:0;font-variant-numeric:tabular-nums">'+signo+'$'+fM(monto)+'</div>'+
@@ -6342,7 +6527,7 @@ function renderRutas(){
         (zonaRuta ? ' · <span style="color:'+zonaRuta.color+';font-weight:600">🗺️ '+escHtml(zonaRuta.nombre)+'</span>' : '')+
       '</div></div>'+
       '<div class="ruta-chips">'+
-        (todasEntregadas?'<span class="chip chip-ok">✅ Terminada</span>':'<span class="chip chip-warn" style="background:#e8f0ff;color:#2563eb">🔄 En curso</span>')+
+        (todasEntregadas?'<span class="chip chip-ok">✅ Terminada</span>':'<span class="chip chip-warn" style="background:var(--blue-bg);color:var(--blue)">🔄 En curso</span>')+
         (calc.saldo<=0?'<span class="chip chip-ok">✓ Cobrado</span>':'<span class="chip chip-warn">$'+fM(calc.saldo)+' pend.</span>')+
         '<span style="color:var(--muted2);font-size:15px">'+(isOpen?"▲":"▼")+'</span>'+
       '</div>';
@@ -6461,7 +6646,7 @@ function renderRutas(){
     selToolbar.innerHTML=
       '<span id="ruta-sel-count-'+rutaKey+'" style="color:#fff;font-weight:700;font-size:13px;flex:1">0 seleccionados</span>'+
       '<button onclick="_rutaSelAll(\''+rutaKey+'\')" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☑ Todos</button>'+
-      '<button onclick="_rutaReasignar(\''+rutaKey+'\')" style="background:#fff;color:var(--accent);border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar</button>'+
+      '<button onclick="_rutaReasignar(\''+rutaKey+'\')" style="background:var(--s2);color:var(--accent);border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar</button>'+
       '<button onclick="_rutaEliminarSeleccionados(\''+rutaKey+'\')" style="background:#b91c1c;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Eliminar</button>'+
       '<button onclick="_rutaToggleSelect(\''+rutaKey+'\')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>';
     detail.appendChild(selToolbar);
@@ -7063,7 +7248,7 @@ function abrirCierreCaja(rk){
       '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Clientes con saldo pendiente</div>';
     c.pendientes.forEach(function(p){
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border2)">'+
-        '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600;color:#1a1a17">'+escHtml(p.nom)+'</div>'+
+        '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">'+escHtml(p.nom)+'</div>'+
         '<div style="font-size:10.5px;color:var(--muted)">pagó $'+fM(p.pagado)+' de $'+fM(p.importe)+'</div></div>'+
         '<div style="font-size:14px;font-weight:700;color:var(--red);flex-shrink:0">$'+fM(p.saldo)+'</div>'+
       '</div>';
@@ -9169,7 +9354,7 @@ function _generarOpcionesFecha(dias){
     var fStr = op.fecha.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
     var iso = op.fecha.toISOString().slice(0,10);
     return '<button onclick="_confirmarTipoYFecha(this.dataset.t,this.dataset.f,this.dataset.d)" data-t="'+_tcTipoElegido+'" data-f="'+iso+'" data-d="'+op.dia+'" '+
-      'style="width:100%;padding:13px;background:#fff;border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;transition:border-color .15s">'+
+      'style="width:100%;padding:13px;background:var(--s2);border:2px solid var(--border);border-radius:12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;transition:border-color .15s">'+
       '<span style="font-size:18px;margin-right:8px">📅</span>'+
       '<span style="text-transform:capitalize">'+fStr+'</span>'+
     '</button>';
@@ -11118,7 +11303,7 @@ function _renderZonasEnClientes(){
   wrap.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">'+
     zonas.map(function(z){
       var miembros = Object.values(_clientesDB||{}).filter(function(u){ return u.zona_id===z.id; });
-      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1.5px solid '+z.color+'33;border-left:4px solid '+z.color+';border-radius:9px;background:#fff">'+
+      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1.5px solid '+z.color+'33;border-left:4px solid '+z.color+';border-radius:9px;background:var(--s2)">'+
         '<div style="width:10px;height:10px;border-radius:50%;background:'+z.color+';flex-shrink:0"></div>'+
         '<div style="flex:1">'+
           '<div style="font-weight:700;font-size:13.5px">'+escHtml(z.nombre)+'</div>'+
@@ -11310,10 +11495,10 @@ function _renderClientesList(){
     var ccBtn = (rol==="cliente")
       ? '<button onclick="abrirCuentaCorriente(&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Cuenta corriente" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">💰</button>'
       : '';
-    return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:#ffffff;border:1px solid #e3e1da;border-left:4px solid '+col+';border-radius:10px;margin-bottom:8px">'+
+    return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--s2);border:1px solid #e3e1da;border-left:4px solid '+col+';border-radius:10px;margin-bottom:8px">'+
       '<div style="width:38px;height:38px;border-radius:50%;background:'+col+'22;color:'+col+';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0">'+ini+'</div>'+
       '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:13.5px;font-weight:600;color:#1a1a17;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+escHtml(nom)+
+        '<div style="font-size:13.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+escHtml(nom)+
           '<span style="font-size:10px;background:'+col+'22;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+RL[rol]+'</span>'+
           (u.zona ? '<span style="font-size:10.5px;color:#75726a">🗺 '+escHtml(u.zona)+'</span>' : '')+
         '</div>'+
