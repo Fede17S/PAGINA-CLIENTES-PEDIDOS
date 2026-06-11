@@ -5604,9 +5604,29 @@ function _vozDisponible(){
 // inputId: id del campo · eventoBusqueda: nombre de la función oninput a disparar (opcional)
 function dictarEn(inputId, btnEl, onResult){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ showNotif("Tu navegador no soporta dictado por voz. Probá con Chrome.","err"); return; }
   var inp = document.getElementById(inputId);
   if(!inp) return;
+
+  // iPhone/iPad: la Web Speech API NO funciona de forma confiable en ningún
+  // navegador (todos usan WebKit/Safari por obligación de Apple). En su lugar,
+  // enfocamos el campo para que el usuario use el 🎤 nativo del teclado del iPhone.
+  var ua = navigator.userAgent || "";
+  var esIOS = /iPad|iPhone|iPod/.test(ua) ||
+              (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1) ||
+              (/Macintosh/.test(ua) && navigator.maxTouchPoints>1) ||
+              // Chrome/Edge/Firefox en iOS exponen estos tokens:
+              /CriOS|FxiOS|EdgiOS/.test(ua);
+  if(esIOS){
+    // Mostrar el campo si estaba oculto y enfocarlo para abrir el teclado
+    if(inp.style.display==="none") inp.style.display="block";
+    inp.focus();
+    inp.click();
+    showNotif("📱 En iPhone usá el micrófono 🎤 del teclado para dictar","ok");
+    if(btnEl){ btnEl.classList.remove("escuchando"); }
+    return;
+  }
+
+  if(!SR){ showNotif("Tu navegador no soporta dictado por voz. Probá con Chrome en Android.","err"); return; }
 
   // Si ya hay uno activo, cortarlo (toggle: segundo toque = detener)
   if(_vozActiva){ try{ _vozActiva.stop(); }catch(e){} _vozActiva=null; if(btnEl)btnEl.classList.remove("escuchando"); return; }
