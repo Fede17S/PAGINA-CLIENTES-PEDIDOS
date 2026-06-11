@@ -520,6 +520,53 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 @keyframes savedCircle { to{stroke-dashoffset:0} }
 @keyframes savedTick   { to{stroke-dashoffset:0} }
 
+/* ── Animación pedido completado ── */
+#pedido-ok-overlay {
+  display:none; position:fixed; inset:0; z-index:10000;
+  align-items:center; justify-content:center;
+  background:rgba(10,12,16,0.55);
+  backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+}
+#pedido-ok-overlay.show { display:flex; animation:savedFade .25s ease; }
+#pedido-ok-card {
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:22px; padding:32px 30px 26px;
+  width:min(330px, calc(100% - 48px));
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  box-shadow:0 18px 50px rgba(0,0,0,0.35);
+  animation:pokPop .4s cubic-bezier(.2,1.25,.45,1);
+}
+@keyframes pokPop { from{transform:scale(.82);opacity:0} to{transform:scale(1);opacity:1} }
+#pok-ring { stroke:var(--border); stroke-width:4; }
+#pok-fill {
+  stroke:var(--green); stroke-width:4; stroke-linecap:round;
+  stroke-dasharray:226; stroke-dashoffset:226;
+  transform:rotate(-90deg); transform-origin:40px 40px;
+  animation:pokFill .55s ease forwards;
+}
+#pok-tick {
+  stroke:var(--green); stroke-width:5; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:60; stroke-dashoffset:60;
+  animation:pokTick .35s .5s ease forwards;
+}
+@keyframes pokFill { to{stroke-dashoffset:0} }
+@keyframes pokTick { to{stroke-dashoffset:0} }
+#pedido-ok-title { font-size:19px; font-weight:800; color:var(--text); margin-top:8px; opacity:0; animation:pokText .3s .55s ease forwards; }
+#pedido-ok-sub { font-size:13px; color:var(--muted); opacity:0; animation:pokText .3s .7s ease forwards; }
+@keyframes pokText { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+#pedido-ok-actions { display:flex; flex-direction:column; gap:9px; width:100%; margin-top:18px; opacity:0; animation:pokText .3s .85s ease forwards; }
+#pedido-ok-share {
+  width:100%; padding:13px; background:var(--green); color:#fff;
+  border:none; border-radius:12px; font-family:inherit; font-size:14.5px; font-weight:700;
+  cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .1s;
+}
+#pedido-ok-share:active { transform:scale(.97); }
+#pedido-ok-close {
+  width:100%; padding:11px; background:transparent; color:var(--muted);
+  border:none; border-radius:12px; font-family:inherit; font-size:13.5px; font-weight:600;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+
 /* ══════════════
    MAIN
 ══════════════ */
@@ -3313,6 +3360,24 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
     </div>
     <div id="edit-bk-items" style="flex:1;overflow-y:auto;margin-bottom:12px"></div>
+
+    <!-- Descuento general del pedido -->
+    <div style="margin-bottom:10px">
+      <button type="button" id="edit-bk-dsc-toggle" onclick="_editBkToggleDsc()" style="width:100%;padding:9px 12px;background:var(--s2);border:1px dashed var(--border);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;text-align:left">🏷️ Agregar descuento</button>
+      <div id="edit-bk-dsc-panel" style="display:none;margin-top:8px;padding:12px;background:var(--s3);border-radius:9px">
+        <div style="font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Descuento general</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <button type="button" id="edit-bk-dsc-tipo-pct" onclick="_editBkSetDscTipo('%')" style="padding:8px 12px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">%</button>
+            <button type="button" id="edit-bk-dsc-tipo-mon" onclick="_editBkSetDscTipo('$')" style="padding:8px 12px;border:none;background:var(--s2);color:var(--text);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">$</button>
+          </div>
+          <input type="number" id="edit-bk-dsc-valor" min="0" step="any" placeholder="0" oninput="_editBkAplicarDsc()" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;text-align:center">
+          <button type="button" onclick="_editBkQuitarDsc()" title="Quitar descuento" style="padding:8px 11px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">✕</button>
+        </div>
+        <div id="edit-bk-dsc-preview" style="font-size:12px;color:var(--green);font-weight:600;margin-top:8px;display:none"></div>
+      </div>
+    </div>
+
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s2);border-radius:9px;margin-bottom:14px;font-size:15px;font-weight:700">
       <span>Total</span><span id="edit-bk-total">$0,00</span>
     </div>
@@ -3407,6 +3472,23 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <path id="saved-tick" fill="none" d="M14 27l8 8 16-16"/>
     </svg>
     <div id="saved-msg">Guardado</div>
+  </div>
+</div>
+
+<!-- ANIMACIÓN PEDIDO COMPLETADO -->
+<div id="pedido-ok-overlay">
+  <div id="pedido-ok-card">
+    <svg id="pedido-ok-check" viewBox="0 0 80 80" width="92" height="92" aria-hidden="true">
+      <circle id="pok-ring" cx="40" cy="40" r="36" fill="none"/>
+      <circle id="pok-fill" cx="40" cy="40" r="36" fill="none"/>
+      <path id="pok-tick" fill="none" d="M24 41l11 11 22-24"/>
+    </svg>
+    <div id="pedido-ok-title">¡Pedido enviado!</div>
+    <div id="pedido-ok-sub">Se guardó correctamente</div>
+    <div id="pedido-ok-actions">
+      <button id="pedido-ok-share" onclick="_pedidoOkCompartir()">📤 Compartir PDF</button>
+      <button id="pedido-ok-close" onclick="_pedidoOkCerrar()">Listo</button>
+    </div>
   </div>
 </div>
 
@@ -10129,8 +10211,42 @@ function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
 
   guardarBackup(bk);
 
-  // Generar PDF unificado
-  generarPDFDesdeBackup(bk, true); // true = compartir (Web Share API)
+  // Mostrar animación de pedido completado; el PDF se comparte al tocar el botón
+  _mostrarPedidoOk(bk);
+}
+
+// ══════════════ ANIMACIÓN PEDIDO COMPLETADO ══════════════
+var _pedidoOkBk = null;
+function _mostrarPedidoOk(bk){
+  _pedidoOkBk = bk;
+  var ov = document.getElementById("pedido-ok-overlay");
+  if(!ov){
+    // Fallback: compartir directo si no existe el overlay
+    generarPDFDesdeBackup(bk, true);
+    return;
+  }
+  // Reiniciar animaciones (forzar reflow)
+  ["pok-fill","pok-tick","pok-ring","pedido-ok-card","pedido-ok-title","pedido-ok-sub","pedido-ok-actions"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){ el.style.animation="none"; void el.offsetWidth; el.style.animation=""; }
+  });
+  // Subtítulo según tipo
+  var sub = document.getElementById("pedido-ok-sub");
+  if(sub) sub.textContent = (bk.clienteNom ? bk.clienteNom+" · " : "") + "$"+fM(bk.total||0);
+  ov.classList.add("show");
+}
+
+function _pedidoOkCompartir(){
+  if(_pedidoOkBk){
+    generarPDFDesdeBackup(_pedidoOkBk, true); // compartir vía Web Share / descarga
+  }
+  _pedidoOkCerrar();
+}
+
+function _pedidoOkCerrar(){
+  var ov = document.getElementById("pedido-ok-overlay");
+  if(ov) ov.classList.remove("show");
+  _pedidoOkBk = null;
 }
 
 // ══ EDITAR BACKUP PEDIDO ══
@@ -10159,6 +10275,7 @@ function abrirEditarBackup(bk){
     if(cantEl) cantEl.value="1";
     _editBkSelProd=null;
     _renderEditBkItems();
+    _editBkCargarDsc();
     abrirModal("modal-editar-backup");
   };
   // Si ya hay clientes cargados, abrir directo; si no, cargar primero
@@ -10255,14 +10372,29 @@ function _renderEditBkItems(){
   var totalEl = document.getElementById("edit-bk-total");
   if(!wrap || !_editBkItem) return;
   var items = _editBkItem.items || [];
-  var total = items.reduce(function(s,i){ return !i.pendiente ? s+(i.c||0)*(i.p||0) : s; }, 0);
-  var totalPend = items.reduce(function(s,i){ return i.pendiente ? s+(i.c||0)*(i.p||0) : s; }, 0);
+  // Subtotal de cada ítem: usa i.sub (con dscto por ítem) si existe, sino c*p
+  function _subDe(it){
+    if(it.dsc && it.dsc.valor>0){
+      var base = (it.c||0)*(it.p||0);
+      return it.dsc.tipo==="%" ? Math.max(0, base*(1-it.dsc.valor/100)) : Math.max(0, base-it.dsc.valor);
+    }
+    return (it.c||0)*(it.p||0);
+  }
+  var total = items.reduce(function(s,i){ return !i.pendiente ? s+_subDe(i) : s; }, 0);
+  var totalPend = items.reduce(function(s,i){ return i.pendiente ? s+_subDe(i) : s; }, 0);
   if(totalEl){
     totalEl.textContent = "$"+fM(total);
     if(totalPend>0) totalEl.textContent += ' <span style="font-size:11px;color:#f97316;font-weight:600">(−$'+fM(totalPend)+' pendiente)</span>';
     totalEl.innerHTML = totalEl.textContent;
   }
   _editBkItem.total = total;
+
+  // Reaplicar descuento general si existe (después de recalcular el total base)
+  if(_editBkItem.descuentos && _editBkItem.descuentos.dscGenValor>0){
+    var _valEl = document.getElementById("edit-bk-dsc-valor");
+    if(_valEl && !_valEl.value) _valEl.value = _editBkItem.descuentos.dscGenValor;
+    _editBkAplicarDsc();
+  }
 
   if(!items.length){
     wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Sin productos. Agregá uno arriba.</div>';
@@ -10273,23 +10405,129 @@ function _renderEditBkItems(){
     var rowBg = pend ? "background:#fff7ed;border-left:3px solid #f97316;" : "";
     var textSt = pend ? "text-decoration:line-through;color:#9a3412;" : "";
     var subSt  = pend ? "color:#9a3412;text-decoration:line-through;" : "font-weight:700;";
-    return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border2);'+rowBg+'">'+
+    var hasDsc = it.dsc && it.dsc.valor>0;
+    var abierto = (_editBkDscItemOpen===i);
+    var subConDsc = _subDe(it);
+    var dscLbl = hasDsc ? (it.dsc.tipo==="%"?"−"+it.dsc.valor+"%":"−$"+fM(it.dsc.valor)) : "";
+
+    var fila = '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border2);'+rowBg+'">'+
       '<input type="number" min="0.01" step="any" value="'+it.c+'"'+
-        ' style="width:60px;text-align:center;border:1.5px solid var(--border);border-radius:7px;padding:8px 4px;font-family:inherit;font-size:14px;font-weight:700;-moz-appearance:textfield'+(pend?";opacity:.5":"")+';"'+
+        ' style="width:54px;text-align:center;border:1.5px solid var(--border);border-radius:7px;padding:8px 4px;font-family:inherit;font-size:14px;font-weight:700;-moz-appearance:textfield'+(pend?";opacity:.5":"")+';"'+
         ' onchange="editBkCant('+i+',this.value)"'+
         ' onblur="editBkCant('+i+',this.value)"'+
         ' onfocus="this.select()"'+
       '>'+
-      '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+textSt+'">'+it.n+(pend ? ' <span style="font-size:10px;background:#f97316;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700">PENDIENTE</span>' : '')+'</span>'+
-      '<span style="font-size:12px;color:var(--muted);flex-shrink:0">×$'+fM(it.p)+'</span>'+
-      '<span id="edit-bk-sub-'+i+'" style="font-size:13px;flex-shrink:0;min-width:72px;text-align:right;'+subSt+'">$'+fM((it.c||0)*(it.p||0))+'</span>'+
+      '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+textSt+'">'+it.n+
+        (pend ? ' <span style="font-size:10px;background:#f97316;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700">PENDIENTE</span>' : '')+
+        (hasDsc ? ' <span style="font-size:10px;background:var(--accent-bg);color:var(--accent);border-radius:4px;padding:1px 5px;font-weight:700">'+dscLbl+'</span>' : '')+
+      '</span>'+
+      '<span id="edit-bk-sub-'+i+'" style="font-size:13px;flex-shrink:0;min-width:68px;text-align:right;'+subSt+'">$'+fM(subConDsc)+'</span>'+
+      '<button onclick="_editBkToggleDscItem('+i+')" title="Descuento del producto"'+
+        ' style="background:'+(hasDsc||abierto?"var(--accent)":"var(--s3)")+';color:'+(hasDsc||abierto?"#fff":"var(--muted)")+';border:none;border-radius:6px;font-size:12px;padding:5px 7px;cursor:pointer;font-family:inherit;font-weight:700">🏷️</button>'+
       '<button onclick="toggleBkPendiente('+i+')" title="'+(pend?"Quitar pendiente":"Marcar como pendiente")+'"'+
         ' style="background:'+(pend?"#f97316":"#e5e7eb")+';color:'+(pend?"#fff":"#374151")+';border:none;border-radius:6px;font-size:11px;padding:4px 7px;cursor:pointer;touch-action:manipulation;font-family:inherit;font-weight:700;white-space:nowrap">'+
         (pend ? '✓ Pend.' : '⏳')+
       '</button>'+
       '<button onclick="editBkRemove('+i+')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:0 4px;touch-action:manipulation;line-height:1">✕</button>'+
     '</div>';
+
+    // Panel de descuento por ítem (desplegable)
+    if(abierto){
+      fila += '<div style="display:flex;gap:8px;align-items:center;padding:8px 0 12px;border-bottom:1px solid var(--border2)">'+
+        '<span style="font-size:12px;color:var(--muted);font-weight:600">Dscto:</span>'+
+        '<div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden">'+
+          '<button type="button" onclick="_editBkSetDscItemTipo('+i+',\'%\')" style="padding:6px 11px;border:none;background:'+((!hasDsc||it.dsc.tipo==="%")?"var(--accent)":"var(--s2)")+';color:'+((!hasDsc||it.dsc.tipo==="%")?"#fff":"var(--text)")+';font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">%</button>'+
+          '<button type="button" onclick="_editBkSetDscItemTipo('+i+',\'$\')" style="padding:6px 11px;border:none;background:'+((hasDsc&&it.dsc.tipo==="$")?"var(--accent)":"var(--s2)")+';color:'+((hasDsc&&it.dsc.tipo==="$")?"#fff":"var(--text)")+';font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">$</button>'+
+        '</div>'+
+        '<input type="number" min="0" step="any" id="edit-bk-dscitem-'+i+'" placeholder="0" value="'+(hasDsc?it.dsc.valor:"")+'" oninput="_editBkAplicarDscItem('+i+',this.value)" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center">'+
+        (hasDsc ? '<button type="button" onclick="_editBkQuitarDscItem('+i+')" style="padding:6px 10px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:6px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">Quitar</button>' : '')+
+      '</div>';
+    }
+    return fila;
   }).join('');
+}
+
+// ── Descuento por producto individual ──
+var _editBkDscItemOpen = -1;
+var _editBkDscItemTipo = {}; // idx -> "%" o "$" (mientras se elige sin valor aún)
+
+function _editBkToggleDscItem(idx){
+  _editBkDscItemOpen = (_editBkDscItemOpen===idx) ? -1 : idx;
+  _renderEditBkItems();
+}
+
+function _editBkSetDscItemTipo(idx, tipo){
+  var it = _editBkItem.items[idx];
+  if(!it) return;
+  if(it.dsc && it.dsc.valor>0){
+    it.dsc.tipo = tipo;
+    _recalcSubItem(it);
+  } else {
+    _editBkDscItemTipo[idx] = tipo;
+  }
+  _renderEditBkItems();
+  // Reabrir el panel (el render lo cierra si cambia)
+  _editBkDscItemOpen = idx;
+}
+
+function _editBkAplicarDscItem(idx, val){
+  var it = _editBkItem.items[idx];
+  if(!it) return;
+  var valor = parseFloat(val)||0;
+  var tipo = (it.dsc && it.dsc.tipo) || _editBkDscItemTipo[idx] || "%";
+  if(valor<=0){
+    delete it.dsc;
+    it.sub = (it.c||0)*(it.p||0);
+  } else {
+    it.dsc = { tipo:tipo, valor:valor };
+    _recalcSubItem(it);
+  }
+  // Actualizar subtotal de la fila y total sin re-render (para no perder foco del input)
+  var subEl = document.getElementById("edit-bk-sub-"+idx);
+  if(subEl){
+    var base = (it.c||0)*(it.p||0);
+    var sub = it.dsc ? (it.dsc.tipo==="%"?base*(1-it.dsc.valor/100):Math.max(0,base-it.dsc.valor)) : base;
+    subEl.textContent = "$"+fM(sub);
+  }
+  _editBkRecalcTotal();
+}
+
+function _recalcSubItem(it){
+  var base = (it.c||0)*(it.p||0);
+  it.sub = it.dsc && it.dsc.valor>0
+    ? (it.dsc.tipo==="%" ? Math.max(0,base*(1-it.dsc.valor/100)) : Math.max(0,base-it.dsc.valor))
+    : base;
+}
+
+function _editBkQuitarDscItem(idx){
+  var it = _editBkItem.items[idx];
+  if(!it) return;
+  delete it.dsc;
+  it.sub = (it.c||0)*(it.p||0);
+  delete _editBkDscItemTipo[idx];
+  _renderEditBkItems();
+  _editBkDscItemOpen = idx;
+}
+
+function _editBkRecalcTotal(){
+  if(!_editBkItem) return;
+  var items = _editBkItem.items||[];
+  function _sd(it){
+    if(it.dsc && it.dsc.valor>0){
+      var b=(it.c||0)*(it.p||0);
+      return it.dsc.tipo==="%"?Math.max(0,b*(1-it.dsc.valor/100)):Math.max(0,b-it.dsc.valor);
+    }
+    return (it.c||0)*(it.p||0);
+  }
+  var total = items.reduce(function(s,i){ return !i.pendiente ? s+_sd(i) : s; }, 0);
+  _editBkItem.total = total;
+  // Si hay descuento general, reaplicarlo sobre el nuevo subtotal
+  if(_editBkItem.descuentos && _editBkItem.descuentos.dscGenValor>0){
+    _editBkAplicarDsc();
+  } else {
+    var totalEl = document.getElementById("edit-bk-total");
+    if(totalEl) totalEl.textContent = "$"+fM(total);
+  }
 }
 
 function editBkCant(idx, val){
@@ -10297,22 +10535,123 @@ function editBkCant(idx, val){
   var v = parseFloat(val);
   if(isNaN(v) || val === "" || val === null) return; // no procesar si está vacío
   if(v <= 0) return;
-  _editBkItem.items[idx].c   = v;
-  _editBkItem.items[idx].sub = v * _editBkItem.items[idx].p;
-  // Solo actualizar el total y el subtotal de esa fila — NO re-renderizar
-  var totalEl = document.getElementById("edit-bk-total");
-  var total = _editBkItem.items.reduce(function(s,i){ return s+(i.c||0)*(i.p||0); }, 0);
-  _editBkItem.total = total;
-  if(totalEl) totalEl.textContent = "$"+fM(total);
+  var it = _editBkItem.items[idx];
+  it.c = v;
+  // Recalcular subtotal respetando el descuento por ítem si lo tiene
+  var base = v * (it.p||0);
+  it.sub = (it.dsc && it.dsc.valor>0)
+    ? (it.dsc.tipo==="%" ? Math.max(0, base*(1-it.dsc.valor/100)) : Math.max(0, base-it.dsc.valor))
+    : base;
   // Actualizar subtotal de la fila
   var subEl = document.getElementById("edit-bk-sub-"+idx);
-  if(subEl) subEl.textContent = "$"+fM(v * _editBkItem.items[idx].p);
+  if(subEl) subEl.textContent = "$"+fM(it.sub);
+  // Recalcular total (respeta descuento general si hay)
+  _editBkRecalcTotal();
 }
 
 function editBkRemove(idx){
   if(!_editBkItem) return;
   _editBkItem.items.splice(idx,1);
   _renderEditBkItems();
+}
+
+// ══════════════ DESCUENTO EN EDICIÓN DE BACKUP ══════════════
+var _editBkDscTipo = "%"; // "%" o "$"
+
+function _editBkToggleDsc(){
+  var panel = document.getElementById("edit-bk-dsc-panel");
+  if(!panel) return;
+  panel.style.display = panel.style.display==="none" ? "block" : "none";
+}
+
+function _editBkSetDscTipo(tipo){
+  _editBkDscTipo = tipo;
+  var bp = document.getElementById("edit-bk-dsc-tipo-pct");
+  var bm = document.getElementById("edit-bk-dsc-tipo-mon");
+  if(bp){ bp.style.background = tipo==="%"?"var(--accent)":"var(--s2)"; bp.style.color = tipo==="%"?"#fff":"var(--text)"; }
+  if(bm){ bm.style.background = tipo==="$"?"var(--accent)":"var(--s2)"; bm.style.color = tipo==="$"?"#fff":"var(--text)"; }
+  _editBkAplicarDsc();
+}
+
+function _editBkAplicarDsc(){
+  if(!_editBkItem) return;
+  var valEl = document.getElementById("edit-bk-dsc-valor");
+  var prevEl = document.getElementById("edit-bk-dsc-preview");
+  var valor = parseFloat((valEl||{}).value) || 0;
+
+  // Subtotal de items NO pendientes, respetando descuentos por ítem (base del dscto general)
+  var subtotItems = (_editBkItem.items||[]).filter(function(i){ return !i.pendiente; })
+    .reduce(function(s,i){
+      var base = (i.c||0)*(i.p||0);
+      var sub = (i.dsc && i.dsc.valor>0)
+        ? (i.dsc.tipo==="%" ? Math.max(0,base*(1-i.dsc.valor/100)) : Math.max(0,base-i.dsc.valor))
+        : base;
+      return s + sub;
+    }, 0);
+
+  if(valor<=0){
+    _editBkItem.descuentos = null;
+    if(prevEl) prevEl.style.display = "none";
+    _editBkActualizarTotal(subtotItems, 0);
+    return;
+  }
+
+  var montoDsc = _editBkDscTipo==="%"
+    ? Math.round(subtotItems*valor/100*100)/100
+    : Math.min(valor, subtotItems);
+
+  // Guardar en el formato que el PDF y la tarjeta ya entienden
+  _editBkItem.descuentos = {
+    ahorroItems:   0,
+    montoDscGen:   montoDsc,
+    ahorroTotal:   montoDsc,
+    subtotalLista: subtotItems,
+    dscGenTipo:    _editBkDscTipo,
+    dscGenValor:   valor
+  };
+
+  if(prevEl){
+    prevEl.style.display = "block";
+    prevEl.textContent = "Descuento: −$"+fM(montoDsc)+(_editBkDscTipo==="%"?" ("+valor+"%)":"");
+  }
+  _editBkActualizarTotal(subtotItems, montoDsc);
+}
+
+function _editBkActualizarTotal(subtotItems, montoDsc){
+  var total = Math.round((subtotItems - (montoDsc||0))*100)/100;
+  _editBkItem.total = total;
+  var totalEl = document.getElementById("edit-bk-total");
+  if(totalEl){
+    if(montoDsc>0){
+      totalEl.innerHTML = '<span style="text-decoration:line-through;color:var(--muted);font-size:12px;font-weight:500">$'+fM(subtotItems)+'</span> $'+fM(total);
+    } else {
+      totalEl.textContent = "$"+fM(total);
+    }
+  }
+}
+
+function _editBkQuitarDsc(){
+  var valEl = document.getElementById("edit-bk-dsc-valor");
+  if(valEl) valEl.value = "";
+  _editBkItem.descuentos = null;
+  _editBkAplicarDsc();
+}
+
+// Cargar el descuento existente al abrir la edición
+function _editBkCargarDsc(){
+  var dsc = _editBkItem && _editBkItem.descuentos;
+  var valEl = document.getElementById("edit-bk-dsc-valor");
+  var panel = document.getElementById("edit-bk-dsc-panel");
+  if(dsc && dsc.dscGenValor>0){
+    _editBkDscTipo = dsc.dscGenTipo || "%";
+    if(valEl) valEl.value = dsc.dscGenValor;
+    _editBkSetDscTipo(_editBkDscTipo);
+    if(panel) panel.style.display = "block";
+  } else {
+    if(valEl) valEl.value = "";
+    _editBkDscTipo = "%";
+    if(panel) panel.style.display = "none";
+  }
 }
 
 function toggleBkPendiente(idx){
@@ -10391,7 +10730,8 @@ function guardarEdicionBackup(){
   if(_editBkItem._fbKey && empresaKey){
     fbPatch("empresas/"+empresaKey+"/backupPedidos/"+_editBkItem._fbKey, {
       items: patch.items, total: patch.total,
-      clienteNom: patch.cliente_nom, clienteId: patch.cliente_id, lista: patch.lista
+      clienteNom: patch.cliente_nom, clienteId: patch.cliente_id, lista: patch.lista,
+      descuentos: patch.descuentos
     }).catch(function(){});
   }
 
