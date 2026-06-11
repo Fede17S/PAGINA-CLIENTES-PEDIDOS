@@ -375,7 +375,7 @@ html[data-theme="dark"] .theme-toggle-thumb {
   #bottom-nav::-webkit-scrollbar { display:none; }
   /* Dar espacio al final del contenido para que la barra no tape */
   .main { padding-bottom:calc(72px + var(--safe-bottom)) !important; }
-  .main > .section { padding-bottom:80px; }
+  .main > .section { padding-bottom:calc(96px + var(--safe-bottom)); }
 
   .bn-item {
     display:flex; align-items:center; justify-content:center;
@@ -412,6 +412,114 @@ html[data-theme="dark"] .theme-toggle-thumb {
   html[data-theme="dark"] #bottom-nav { background:rgba(22,28,36,0.92); border-top:1px solid rgba(255,255,255,0.08); }
 }
 
+/* ── Resumen flotante del pedido ── */
+#ped-float-summary {
+  display:none;
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(16px + var(--safe-bottom));
+  z-index:260;
+  width:min(560px, calc(100% - 28px));
+  align-items:center; gap:12px;
+  padding:10px 12px 10px 18px;
+  background:var(--text); color:#fff;
+  border-radius:16px;
+  box-shadow:0 8px 28px rgba(0,0,0,0.28);
+  cursor:pointer;
+  animation:pfsUp .25s cubic-bezier(.4,0,.2,1);
+}
+#ped-float-summary.show { display:flex; }
+@keyframes pfsUp { from{opacity:0;transform:translate(-50%,16px)} to{opacity:1;transform:translate(-50%,0)} }
+.pfs-info { flex:1; display:flex; flex-direction:column; line-height:1.25; min-width:0; }
+.pfs-count { font-size:11.5px; font-weight:600; opacity:.7; }
+.pfs-total { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
+.pfs-send {
+  flex-shrink:0; background:var(--green); color:#fff;
+  border:none; border-radius:11px; padding:11px 18px;
+  font-family:inherit; font-size:14px; font-weight:700;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+  transition:filter .12s, transform .1s;
+}
+.pfs-send:active { transform:scale(.96); }
+@media (max-width:900px){
+  #ped-float-summary { bottom:calc(72px + var(--safe-bottom)); }
+}
+html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px solid var(--border); }
+
+/* ── Toast Deshacer ── */
+#undo-toast {
+  display:none;
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(16px + var(--safe-bottom));
+  z-index:9998;
+  align-items:center; gap:14px;
+  padding:11px 12px 11px 18px;
+  background:#1f2430; color:#fff;
+  border-radius:13px;
+  box-shadow:0 8px 28px rgba(0,0,0,0.35);
+  max-width:calc(100% - 28px);
+  animation:undoUp .22s cubic-bezier(.4,0,.2,1);
+}
+#undo-toast.show { display:flex; }
+@keyframes undoUp { from{opacity:0;transform:translate(-50%,16px)} to{opacity:1;transform:translate(-50%,0)} }
+#undo-toast-msg { font-size:13.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#undo-toast-btn {
+  flex-shrink:0; background:var(--accent); color:#fff;
+  border:none; border-radius:9px; padding:8px 14px;
+  font-family:inherit; font-size:13px; font-weight:700;
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+  transition:filter .12s, transform .1s;
+}
+#undo-toast-btn:active { transform:scale(.95); }
+@media (max-width:900px){
+  #undo-toast { bottom:calc(80px + var(--safe-bottom)); }
+}
+
+/* ── Botón volver arriba ── */
+#scroll-top-btn {
+  display:none;
+  position:fixed; right:16px;
+  bottom:calc(20px + var(--safe-bottom));
+  z-index:255;
+  width:46px; height:46px; border-radius:50%;
+  background:var(--accent); color:#fff;
+  border:none; font-size:22px; font-weight:700; line-height:1;
+  cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.25);
+  -webkit-tap-highlight-color:transparent;
+  align-items:center; justify-content:center;
+  animation:stbFade .2s ease;
+  transition:transform .12s, background .15s;
+}
+#scroll-top-btn.show { display:flex; }
+#scroll-top-btn:active { transform:scale(.9); }
+@keyframes stbFade { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+/* En móvil sube por encima de la barra de navegación */
+@media (max-width:900px){
+  #scroll-top-btn { bottom:calc(80px + var(--safe-bottom)); }
+}
+
+/* ── Confirmación visual de guardado (✓ animado) ── */
+#saved-overlay {
+  display:none; position:fixed; inset:0; z-index:9999;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.18);
+  pointer-events:none;
+}
+#saved-overlay.show { display:flex; animation:savedFade .2s ease; }
+@keyframes savedFade { from{opacity:0} to{opacity:1} }
+#saved-card {
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:18px; padding:24px 30px;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  box-shadow:0 12px 40px rgba(0,0,0,0.25);
+  animation:savedPop .3s cubic-bezier(.2,1.3,.5,1);
+}
+@keyframes savedPop { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+#saved-msg { font-size:14px; font-weight:700; color:var(--text); }
+#saved-circle { stroke:var(--green); stroke-width:3; stroke-dasharray:151; stroke-dashoffset:151; animation:savedCircle .4s ease forwards; }
+#saved-tick   { stroke:var(--green); stroke-width:4; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:40; stroke-dashoffset:40; animation:savedTick .3s .25s ease forwards; }
+@keyframes savedCircle { to{stroke-dashoffset:0} }
+@keyframes savedTick   { to{stroke-dashoffset:0} }
+
 /* ══════════════
    MAIN
 ══════════════ */
@@ -439,6 +547,27 @@ html[data-theme="dark"] .theme-toggle-thumb {
 .section.me-root.active { display:flex }
 @keyframes spinner-spin { to { transform:rotate(360deg) } }
 .spinner-ring { width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spinner-spin .7s linear infinite }
+
+/* ── Skeletons de carga ── */
+@keyframes skShimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.sk-card {
+  display:flex; align-items:center; gap:12px;
+  padding:13px 14px; margin-bottom:8px;
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:10px;
+}
+.sk-line, .sk-circle, .sk-pill {
+  background:linear-gradient(90deg, var(--s3) 25%, var(--s4) 37%, var(--s3) 63%);
+  background-size:200% 100%;
+  animation:skShimmer 1.3s ease-in-out infinite;
+  border-radius:6px;
+}
+.sk-circle { width:40px; height:40px; border-radius:50%; flex-shrink:0; }
+.sk-pill   { width:70px; height:22px; border-radius:20px; flex-shrink:0; }
+.sk-body   { flex:1; min-width:0; display:flex; flex-direction:column; gap:7px; }
+.sk-line.lg { height:13px; width:62%; }
+.sk-line.md { height:11px; width:42%; }
+.sk-line.sm { height:10px; width:30%; }
 
 
 /* ── CARDS ── */
@@ -1715,6 +1844,26 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   transition:border-color .15s;
 }
 .cli-search-inp:focus { border-color:var(--accent); }
+
+/* ── Botón de dictado por voz ── */
+.voz-btn {
+  flex-shrink:0; width:42px; height:42px;
+  border:1px solid var(--border); border-radius:10px;
+  background:var(--s2); color:var(--text2);
+  font-size:18px; cursor:pointer; font-family:inherit;
+  display:flex; align-items:center; justify-content:center;
+  transition:background .15s, border-color .15s, color .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.voz-btn:active { transform:scale(.94); }
+.voz-btn.escuchando {
+  background:var(--red); color:#fff; border-color:var(--red);
+  animation:vozPulse 1.1s ease-in-out infinite;
+}
+@keyframes vozPulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(220,40,40,.45) }
+  50%     { box-shadow:0 0 0 7px rgba(220,40,40,0) }
+}
 .cli-selected {
   display:none; align-items:center; justify-content:space-between;
   padding:11px 14px; background:var(--green-bg);
@@ -1920,27 +2069,39 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="card-head"><span class="card-title">Cliente</span></div>
     <div class="card-body" style="overflow:visible">
       <div id="cli-picker-ped" class="cli-picker">
-        <input type="text" id="cli-search-ped" class="cli-search-inp" placeholder="🔍 Escribí nombre o ID del cliente…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+        <div style="display:flex;gap:7px;align-items:center">
+          <input type="text" id="cli-search-ped" class="cli-search-inp" placeholder="🔍 Escribí nombre o ID del cliente…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" style="flex:1">
+          <button type="button" class="voz-btn" onclick="dictarEn('cli-search-ped',this)" aria-label="Dictar por voz" title="Dictar por voz">🎤</button>
+        </div>
         <div id="cli-selected-ped" class="cli-selected">
           <span id="cli-selected-nom-ped" class="cli-selected-nom"></span>
           <button class="cli-clear-btn" type="button" onclick="limpiarCliente('ped')">✕</button>
         </div>
         <div id="cli-results-ped" class="cli-results"></div>
       </div>
+      <button type="button" id="btn-cli-cerca" onclick="detectarClienteCercano('ped',this)"
+        style="width:100%;margin-top:8px;padding:10px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
+        📍 Detectar cliente por mi ubicación
+      </button>
       <input type="hidden" id="idCli-ped">
       <input type="hidden" id="nomCli-ped">
       <div id="badge-ped" class="lista-pill">📋 Clientes</div>
+      <!-- Productos frecuentes del cliente — se llena al elegir cliente -->
+      <div id="frec-prods-ped" style="display:none;margin-top:10px"></div>
     </div>
   </div>
   <div class="card">
     <div class="card-head"><span class="card-title">Productos</span></div>
     <div class="card-body">
       <div class="search-wrap">
-        <div class="search-wrap" style="position:relative">
-          <input type="text" id="bus-ped" placeholder="🔍 Buscar producto…"
-            oninput="filtrar('ped')" onchange="filtrar('ped')" onkeyup="filtrar('ped')"
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search">
-          <div id="res-ped" class="dropdown"></div>
+        <div style="display:flex;gap:7px;align-items:center;position:relative">
+          <div style="flex:1;position:relative">
+            <input type="text" id="bus-ped" placeholder="🔍 Buscar producto…"
+              oninput="filtrar('ped')" onchange="filtrar('ped')" onkeyup="filtrar('ped')"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" style="width:100%">
+            <div id="res-ped" class="dropdown"></div>
+          </div>
+          <button type="button" class="voz-btn" onclick="dictarEn('bus-ped',this)" aria-label="Dictar por voz" title="Dictar por voz">🎤</button>
         </div>
       </div>
       <button class="btn-elegir-prods" onclick="abrirCatalogSheet('ped')">
@@ -1985,7 +2146,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="card-head"><span class="card-title">Cliente</span></div>
     <div class="card-body" style="overflow:visible">
       <div id="cli-picker-rem" class="cli-picker">
-        <input type="text" id="cli-search-rem" class="cli-search-inp" placeholder="🔍 Escribí nombre o ID del cliente…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+        <div style="display:flex;gap:7px;align-items:center">
+          <input type="text" id="cli-search-rem" class="cli-search-inp" placeholder="🔍 Escribí nombre o ID del cliente…" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" style="flex:1">
+          <button type="button" class="voz-btn" onclick="dictarEn('cli-search-rem',this)" aria-label="Dictar por voz" title="Dictar por voz">🎤</button>
+        </div>
         <div id="cli-selected-rem" class="cli-selected">
           <span id="cli-selected-nom-rem" class="cli-selected-nom"></span>
           <button class="cli-clear-btn" type="button" onclick="limpiarCliente('rem')">✕</button>
@@ -2557,7 +2721,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- Lista -->
-  <div id="cli-list-body"></div>
+  <div id="cli-list-body" style="padding-bottom:90px"></div>
 
 </div>
 <!-- MODAL EDITAR CLIENTE -->
@@ -3216,6 +3380,35 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
 <!-- BOTTOM NAV MÓVIL (estilo expandable tabs) — se llena por JS según el rol -->
 <nav id="bottom-nav" aria-label="Navegación principal"></nav>
+
+<!-- RESUMEN FLOTANTE DEL PEDIDO -->
+<div id="ped-float-summary" onclick="_scrollAItems('ped')">
+  <div class="pfs-info">
+    <span class="pfs-count" id="pfs-count">0 ítems</span>
+    <span class="pfs-total" id="pfs-total">$0,00</span>
+  </div>
+  <button class="pfs-send" onclick="event.stopPropagation();generarPDF('pedido')">🟢 Enviar</button>
+</div>
+
+<!-- TOAST DESHACER -->
+<div id="undo-toast">
+  <span id="undo-toast-msg">Elemento eliminado</span>
+  <button id="undo-toast-btn" onclick="_undoRestore()">↩ Deshacer</button>
+</div>
+
+<!-- BOTÓN VOLVER ARRIBA -->
+<button id="scroll-top-btn" onclick="_scrollTopActivo()" aria-label="Volver arriba" title="Volver arriba">↑</button>
+
+<!-- CONFIRMACIÓN VISUAL DE GUARDADO -->
+<div id="saved-overlay">
+  <div id="saved-card">
+    <svg id="saved-check" viewBox="0 0 52 52" width="56" height="56" aria-hidden="true">
+      <circle id="saved-circle" cx="26" cy="26" r="24" fill="none"/>
+      <path id="saved-tick" fill="none" d="M14 27l8 8 16-16"/>
+    </svg>
+    <div id="saved-msg">Guardado</div>
+  </div>
+</div>
 
 <!-- LIGHTBOX VISTA PREVIA DE PRODUCTO -->
 <div id="prod-lightbox" onclick="cerrarProdLightbox()">
@@ -3998,6 +4191,37 @@ function fbGetCached(p){
     });
 }
 function fM(n){ return Number(n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// Genera el HTML de N tarjetas skeleton de carga
+// variante: "cliente" (círculo+líneas+pill) | "pedido" (líneas+pill) | "producto" (cuadro+líneas)
+function _skeletonCards(n, variante){
+  n = n || 5;
+  var card = "";
+  for(var i=0;i<n;i++){
+    if(variante==="producto"){
+      card +=
+        '<div class="sk-card">'+
+          '<div class="sk-circle" style="border-radius:9px"></div>'+
+          '<div class="sk-body"><div class="sk-line lg"></div><div class="sk-line sm"></div></div>'+
+          '<div class="sk-pill" style="width:54px"></div>'+
+        '</div>';
+    } else if(variante==="pedido"){
+      card +=
+        '<div class="sk-card">'+
+          '<div class="sk-body"><div class="sk-line lg"></div><div class="sk-line md"></div></div>'+
+          '<div class="sk-pill"></div>'+
+        '</div>';
+    } else { // cliente (default)
+      card +=
+        '<div class="sk-card">'+
+          '<div class="sk-circle"></div>'+
+          '<div class="sk-body"><div class="sk-line lg"></div><div class="sk-line sm"></div></div>'+
+          '<div class="sk-pill"></div>'+
+        '</div>';
+    }
+  }
+  return card;
+}
 function parseLocalFloat(v){ if(!v)return 0; var s=v.toString().trim().replace(/"/g,""); if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",","."); else if(s.includes(","))s=s.replace(",","."); return parseFloat(s)||0; }
 function splitCSV(row,sep){ var res=[],w="",q=false; for(var i=0;i<row.length;i++){var c=row[i];if(c==='"')q=!q;else if(c===sep&&!q){res.push(w);w="";}else w+=c;} res.push(w); return res.map(function(v){return v.trim().replace(/"/g,"");}); }
 function setStatus(id,cls,txt){ var el=document.getElementById(id); if(el){el.className="fb-pill "+cls;el.textContent=txt;} }
@@ -4399,7 +4623,7 @@ async function guardarDatosEmpresa(){
     if(!empresaData._config)empresaData._config={};
     Object.assign(empresaData._config,body);
     empresaData.diasEntrega = dias; // cache global
-    showNotif("✅ Datos guardados","ok");
+    showSaved("Datos guardados");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 async function _nextHojaRutaNum(){
@@ -4545,6 +4769,12 @@ function iniciarApp(){
   aplicarRol();
   cargarCatalogo();
   setTimeout(_checkPendientes, 2500);
+  // Precargar pedidos en segundo plano (para "Suele pedir" en Nuevo Pedido)
+  setTimeout(function(){
+    if((!_backupCache || !_backupCache.length) && typeof cargarBackupFirebase==="function"){
+      cargarBackupFirebase().catch(function(){});
+    }
+  }, 1500);
   // Solo admin: chequear vencimiento de suscripción
   if(currentUser && currentUser.role==="admin") setTimeout(_checkSubVencimiento, 3000);
 }
@@ -4726,6 +4956,34 @@ function _bnScrollToActive(){
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
 function closeSidebar(){ document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); }
 
+// ══════════════ BOTÓN VOLVER ARRIBA ══════════════
+// Secciones donde tiene sentido (listas largas)
+var _SCROLL_TOP_SECCIONES = ["clientes","productos","backup","catalogo","resumen","pedidos-acum"];
+
+function _scrollTopActivo(){
+  var sec = document.querySelector(".section.active");
+  if(sec) sec.scrollTo({ top:0, behavior:"smooth" });
+}
+
+function _checkScrollTopBtn(){
+  var btn = document.getElementById("scroll-top-btn");
+  if(!btn) return;
+  var sec = document.querySelector(".section.active");
+  if(!sec || _SCROLL_TOP_SECCIONES.indexOf(sec.id)===-1){
+    btn.classList.remove("show");
+    return;
+  }
+  if(sec.scrollTop > 400) btn.classList.add("show");
+  else btn.classList.remove("show");
+}
+
+// Escuchar scroll de cualquier sección (captura, porque el scroll no burbujea)
+document.addEventListener("scroll", function(e){
+  if(e.target && e.target.classList && e.target.classList.contains("section")){
+    _checkScrollTopBtn();
+  }
+}, true);
+
 // ── Modo Noche / Claro ──
 var _SVG_SOL  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>';
 var _SVG_LUNA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
@@ -4804,6 +5062,17 @@ function verTab(id,btn){
   document.getElementById("header-title").textContent=TITLES[id]||id;
   // Sincronizar barra inferior móvil
   if(typeof _bnSyncActive==="function") _bnSyncActive();
+  // Ocultar toast de deshacer al cambiar de sección
+  if(typeof _undoHide==="function") _undoHide();
+  // Resetear botón volver arriba
+  var _stb = document.getElementById("scroll-top-btn");
+  if(_stb) _stb.classList.remove("show");
+  // Mostrar/ocultar resumen flotante del pedido según la sección
+  if(id==="pedido"){
+    if(typeof ordenes!=="undefined" && ordenes.ped && ordenes.ped.length) renderItems("ped");
+  } else {
+    if(typeof _hidePedFloatSummary==="function") _hidePedFloatSummary();
+  }
   // Resetear scroll al cambiar de sección (el scroll vive en .section.active)
   var prevSec = document.querySelector(".section.active");
   if(prevSec) prevSec.scrollTop = 0;
@@ -5094,6 +5363,98 @@ function _initCliPicker(t){
   });
 }
 
+// ══════════════ DETECTAR CLIENTE POR UBICACIÓN ══════════════
+// Distancia entre dos coordenadas en metros (fórmula Haversine)
+function _distanciaMetros(lat1, lng1, lat2, lng2){
+  var R = 6371000; // radio de la Tierra en metros
+  var toRad = function(d){ return d*Math.PI/180; };
+  var dLat = toRad(lat2-lat1);
+  var dLng = toRad(lng2-lng1);
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+          Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+var _RADIO_DETECCION = 50; // metros — radio para considerar que estás "en" el negocio
+
+function detectarClienteCercano(t, btn){
+  if(!navigator.geolocation){ showNotif("Tu dispositivo no tiene GPS disponible","err"); return; }
+
+  // Clientes con coordenadas cargadas
+  var conCoords = Object.values(_clientesDB||{}).filter(function(c){
+    return c.lat && c.lng && (c.role==="cliente" || !c.role);
+  });
+  if(!conCoords.length){
+    showNotif("Ningún cliente tiene ubicación GPS guardada todavía","err");
+    return;
+  }
+
+  var lblOrig = btn ? btn.innerHTML : "";
+  if(btn){ btn.disabled=true; btn.innerHTML="📡 Buscando tu ubicación…"; }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      var miLat = pos.coords.latitude, miLng = pos.coords.longitude;
+      // Calcular distancia a cada cliente
+      var conDist = conCoords.map(function(c){
+        return { c:c, dist:_distanciaMetros(miLat, miLng, parseFloat(c.lat), parseFloat(c.lng)) };
+      }).sort(function(a,b){ return a.dist - b.dist; });
+
+      if(btn){ btn.disabled=false; btn.innerHTML=lblOrig; }
+
+      // Clientes dentro del radio
+      var cercanos = conDist.filter(function(x){ return x.dist <= _RADIO_DETECCION; });
+
+      if(!cercanos.length){
+        var masCerca = conDist[0];
+        showNotif("📍 No hay clientes acá. El más cercano está a "+Math.round(masCerca.dist)+"m","err");
+        return;
+      }
+
+      if(cercanos.length===1){
+        // Auto-seleccionar directamente
+        var c = cercanos[0].c;
+        _elegirCliente(t, { id:c.id||"", nombre:c.name||"", lista:c.lista||"Clientes" });
+        showSaved("Cliente detectado");
+        showNotif("✓ "+(c.name||"Cliente")+" — a "+Math.round(cercanos[0].dist)+"m","ok");
+      } else {
+        // Varios candidatos: mostrar para elegir
+        _mostrarCandidatosCercanos(t, cercanos);
+      }
+    },
+    function(err){
+      if(btn){ btn.disabled=false; btn.innerHTML=lblOrig; }
+      if(err.code===1) showNotif("Activá el permiso de ubicación para usar esta función","err");
+      else showNotif("No se pudo obtener tu ubicación, probá de nuevo","err");
+    },
+    { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+  );
+}
+
+// Si hay varios clientes cerca, mostrar lista para elegir
+function _mostrarCandidatosCercanos(t, cercanos){
+  var box = document.getElementById("cli-results-"+t);
+  if(!box) return;
+  var inp = document.getElementById("cli-search-"+t);
+  if(inp) inp.style.display = "block";
+  box.style.display = "block";
+  box.innerHTML = '<div style="padding:8px 12px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">📍 Clientes cerca tuyo</div>' +
+    cercanos.map(function(x){
+      var c = x.c;
+      return '<div class="cli-result-item" onclick="_elegirClienteDesdeCercano(\''+t+'\',\''+(c.id||"").replace(/'/g,"")+'\')" style="cursor:pointer">'+
+        '<div style="font-weight:600">'+escHtml(c.name||"Sin nombre")+'</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+(c.id?("ID: "+c.id+" · "):"")+'a '+Math.round(x.dist)+'m</div>'+
+      '</div>';
+    }).join("");
+}
+
+function _elegirClienteDesdeCercano(t, cliId){
+  var c = _clientesDB[Object.keys(_clientesDB).find(function(k){ return _clientesDB[k].id===cliId; })];
+  if(!c){ showNotif("No se encontró el cliente","err"); return; }
+  _elegirCliente(t, { id:c.id||"", nombre:c.name||"", lista:c.lista||"Clientes" });
+  showSaved("Cliente detectado");
+}
+
 function _elegirCliente(t, c){
   var inp      = document.getElementById("cli-search-"+t);
   var selBox   = document.getElementById("cli-selected-"+t);
@@ -5114,6 +5475,89 @@ function _elegirCliente(t, c){
   tipoLista[t] = (c.lista||"").toLowerCase().indexOf("patagonia")!==-1?"Patagonia":"Clientes";
   var badge = document.getElementById("badge-"+t);
   if(badge) badge.textContent = "📋 "+tipoLista[t];
+
+  // Mostrar productos frecuentes del cliente (solo en pedido)
+  if(t==="ped") _mostrarFrecuentes(c.nombre, c.id);
+}
+
+// Calcula los productos más comprados por un cliente desde el historial de backups
+function _calcFrecuentes(cliNom, cliId){
+  var backups = (typeof _backupCache!=="undefined" && _backupCache && _backupCache.length) ? _backupCache : getBackups();
+  if(!backups || !backups.length) return [];
+  var nomNorm = (cliNom||"").trim().toLowerCase();
+  var idNorm  = (cliId||"").toString().trim().toLowerCase();
+  var cont = {};  // id -> {n, veces, totalCant}
+  backups.forEach(function(bk){
+    var bkNom = (bk.clienteNom||"").trim().toLowerCase();
+    var bkId  = (bk.clienteId||"").toString().trim().toLowerCase();
+    var coincide = (nomNorm && bkNom===nomNorm) || (idNorm && bkId===idNorm);
+    if(!coincide) return;
+    (bk.items||[]).forEach(function(it){
+      if(!it.id) return;
+      if(!cont[it.id]) cont[it.id] = { id:it.id, n:it.n||it.id, veces:0, totalCant:0 };
+      cont[it.id].veces += 1;
+      cont[it.id].totalCant += (it.c||1);
+    });
+  });
+  // Ordenar por veces que apareció (más recurrente primero), luego por cantidad total
+  return Object.values(cont).sort(function(a,b){
+    return (b.veces - a.veces) || (b.totalCant - a.totalCant);
+  }).slice(0, 8);
+}
+
+async function _mostrarFrecuentes(cliNom, cliId){
+  var wrap = document.getElementById("frec-prods-ped");
+  if(!wrap) return;
+
+  var frec = _calcFrecuentes(cliNom, cliId);
+
+  // Si no hay backups en memoria/local, intentar cargarlos desde Supabase y reintentar
+  var sinBackups = !((_backupCache && _backupCache.length) || getBackups().length);
+  if(!frec.length && sinBackups && typeof cargarBackupFirebase==="function"){
+    wrap.style.display = "block";
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:2px 0">⏳ Buscando productos habituales…</div>';
+    try {
+      await cargarBackupFirebase();
+      frec = _calcFrecuentes(cliNom, cliId);
+    } catch(e){ /* seguir sin frecuentes */ }
+  }
+
+  if(!frec.length){ wrap.style.display="none"; wrap.innerHTML=""; return; }
+
+  var chips = frec.map(function(f){
+    var nomCorto = f.n.length>26 ? f.n.slice(0,24)+"…" : f.n;
+    return '<button type="button" onclick="_agregarFrecuente(&quot;'+f.id+'&quot;,this)" '+
+      'style="display:inline-flex;align-items:center;gap:5px;padding:7px 11px;background:var(--s2);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .12s" '+
+      'title="Comprado '+f.veces+' vez'+(f.veces!==1?'es':'')+'">'+
+      '<span style="font-size:13px">➕</span>'+escHtml(nomCorto)+
+      '<span style="font-size:10px;color:var(--muted);background:var(--s3);border-radius:10px;padding:1px 6px">'+f.veces+'</span>'+
+    '</button>';
+  }).join("");
+
+  wrap.innerHTML =
+    '<div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">⭐ Suele pedir</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px">'+chips+'</div>';
+  wrap.style.display = "block";
+}
+
+// Agrega un producto frecuente al pedido (cantidad 1)
+function _agregarFrecuente(pid, btn){
+  var prod = dbStock.find(function(p){ return p.id===pid; });
+  if(!prod){ showNotif("Producto no disponible","err"); return; }
+  var lista = tipoLista["ped"]||"Clientes";
+  var pre = lista==="Patagonia" ? prod.pPat : prod.pCli;
+  var exist = ordenes["ped"].find(function(x){ return x.id===prod.id && x.p===pre; });
+  if(exist){ exist.c += 1; exist.sub = exist.p*exist.c; }
+  else ordenes["ped"].push({ id:prod.id, n:prod.n, p:pre, c:1, sub:pre });
+  renderItems("ped");
+  // Feedback visual en el chip
+  if(btn){
+    var orig = btn.style.background;
+    btn.style.background = "var(--green-bg)";
+    btn.style.borderColor = "var(--green)";
+    btn.style.color = "var(--green)";
+    setTimeout(function(){ btn.style.background=orig; btn.style.borderColor="var(--border)"; btn.style.color="var(--text2)"; }, 400);
+  }
 }
 
 function limpiarCliente(t){
@@ -5133,6 +5577,12 @@ function limpiarCliente(t){
   var badge = document.getElementById("badge-"+t);
   if(badge) badge.textContent = "📋 Clientes";
 
+  // Ocultar productos frecuentes
+  if(t==="ped"){
+    var fp = document.getElementById("frec-prods-ped");
+    if(fp){ fp.style.display="none"; fp.innerHTML=""; }
+  }
+
   setTimeout(function(){ inp.focus(); }, 50);
 }
 
@@ -5142,6 +5592,58 @@ function iniciarCliPickers(){
   _pickersInitialized = true;
   _initCliPicker("ped");
   _initCliPicker("rem");
+}
+
+// ══════════════ DICTADO POR VOZ ══════════════
+var _vozActiva = null; // referencia al reconocimiento en curso
+function _vozDisponible(){
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+// Inicia el dictado y vuelca el texto reconocido en el input indicado.
+// inputId: id del campo · eventoBusqueda: nombre de la función oninput a disparar (opcional)
+function dictarEn(inputId, btnEl, onResult){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ showNotif("Tu navegador no soporta dictado por voz","err"); return; }
+  var inp = document.getElementById(inputId);
+  if(!inp) return;
+
+  // Si ya hay uno activo, cortarlo
+  if(_vozActiva){ try{ _vozActiva.stop(); }catch(e){} _vozActiva=null; }
+
+  var rec = new SR();
+  rec.lang = "es-AR";
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.maxAlternatives = 1;
+  _vozActiva = rec;
+
+  if(btnEl) btnEl.classList.add("escuchando");
+
+  rec.onresult = function(ev){
+    var txt = "";
+    for(var i=0;i<ev.results.length;i++){ txt += ev.results[i][0].transcript; }
+    inp.value = txt;
+    // Disparar la búsqueda en vivo
+    inp.dispatchEvent(new Event("input", {bubbles:true}));
+    if(typeof onResult==="function" && ev.results[ev.results.length-1].isFinal){
+      onResult(txt);
+    }
+  };
+  rec.onerror = function(ev){
+    if(ev.error==="not-allowed" || ev.error==="service-not-allowed"){
+      showNotif("Activá el permiso de micrófono para dictar","err");
+    } else if(ev.error!=="aborted" && ev.error!=="no-speech"){
+      showNotif("No se pudo escuchar, probá de nuevo","err");
+    }
+  };
+  rec.onend = function(){
+    if(btnEl) btnEl.classList.remove("escuchando");
+    _vozActiva = null;
+  };
+
+  try { rec.start(); }
+  catch(e){ if(btnEl) btnEl.classList.remove("escuchando"); }
 }
 
 
@@ -5324,6 +5826,37 @@ var dscGenRem = null; // legacy alias — usar dscGen.rem
 var dscGen = { ped: null, rem: null };
 var _itemDscOpen = { ped: -1, rem: -1 };
 
+// Resumen flotante del pedido: muestra cantidad de ítems y total
+function _updatePedFloatSummary(items, total){
+  var bar = document.getElementById("ped-float-summary");
+  if(!bar) return;
+  var nItems = (items||[]).length;
+  var nUnidades = (items||[]).reduce(function(s,i){ return s+(i.c||0); },0);
+  // Solo mostrar si estamos en la sección pedido y hay productos
+  var pedActiva = document.getElementById("pedido") && document.getElementById("pedido").classList.contains("active");
+  if(nItems>0 && pedActiva){
+    var cnt = document.getElementById("pfs-count");
+    var tot = document.getElementById("pfs-total");
+    if(cnt) cnt.textContent = nItems+" producto"+(nItems!==1?"s":"")+" · "+nUnidades+" u.";
+    if(tot) tot.textContent = "$"+fM(total);
+    bar.classList.add("show");
+  } else {
+    bar.classList.remove("show");
+  }
+}
+
+// Ocultar la barra flotante (al cambiar de sección o vaciar)
+function _hidePedFloatSummary(){
+  var bar = document.getElementById("ped-float-summary");
+  if(bar) bar.classList.remove("show");
+}
+
+// Scroll hasta la lista de items del pedido
+function _scrollAItems(t){
+  var el = document.getElementById("items-"+t);
+  if(el) el.scrollIntoView({ behavior:"smooth", block:"center" });
+}
+
 function renderItems(t){
   var wrap=document.getElementById("items-"+t);
   var subtotalBase = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
@@ -5339,6 +5872,9 @@ function renderItems(t){
   }
 
   document.getElementById("total-"+t).textContent = fM(totalFinal);
+
+  // Actualizar resumen flotante (solo en pedido)
+  if(t==="ped") _updatePedFloatSummary(ordenes[t], totalFinal);
 
   // Preview descuento general
   var preview  = document.getElementById("dsc-"+t+"-preview");
@@ -5449,7 +5985,55 @@ function editarCantItem(inp){
   }
 }
 
-function quitarItem(t,i){ ordenes[t].splice(i,1); _itemDscOpen[t]=-1; renderItems(t); }
+// ══════════════ SISTEMA DESHACER ══════════════
+var _undoTimer = null;
+var _undoFn    = null;
+
+function _undoShow(mensaje, restoreFn){
+  var toast = document.getElementById("undo-toast");
+  var msg   = document.getElementById("undo-toast-msg");
+  if(!toast) return;
+  _undoFn = restoreFn;
+  if(msg) msg.textContent = mensaje;
+  toast.classList.add("show");
+  if(_undoTimer) clearTimeout(_undoTimer);
+  _undoTimer = setTimeout(function(){
+    toast.classList.remove("show");
+    _undoFn = null;
+  }, 6000);
+}
+
+function _undoRestore(){
+  if(_undoTimer) clearTimeout(_undoTimer);
+  var fn = _undoFn;
+  _undoFn = null;
+  var toast = document.getElementById("undo-toast");
+  if(toast) toast.classList.remove("show");
+  if(typeof fn==="function"){
+    try { fn(); } catch(e){ console.warn("[Undo] Error al restaurar:", e); }
+  }
+}
+
+function _undoHide(){
+  if(_undoTimer) clearTimeout(_undoTimer);
+  _undoFn = null;
+  var toast = document.getElementById("undo-toast");
+  if(toast) toast.classList.remove("show");
+}
+
+function quitarItem(t,i){
+  var eliminado = ordenes[t][i];
+  ordenes[t].splice(i,1);
+  _itemDscOpen[t]=-1;
+  renderItems(t);
+  // Ofrecer deshacer
+  if(eliminado){
+    _undoShow("🗑 "+(eliminado.n||"Producto")+" quitado", function(){
+      ordenes[t].splice(i, 0, eliminado);
+      renderItems(t);
+    });
+  }
+}
 
 function toggleDscPanel(t){
   var panel=document.getElementById("dsc-panel-"+t);
@@ -5917,7 +6501,7 @@ function itemStkClass(pid, qty){
 
 function cargarStock(){
   var list=document.getElementById("stk-list");
-  if(list)list.innerHTML='<div class="empty-box"><div class="empty-icon">⏳</div>Cargando…</div>';
+  if(list)list.innerHTML = _skeletonCards(4, "pedido");
   if(!empresaKey)return;
   _loadReadCache();
   Promise.all([
@@ -6527,8 +7111,9 @@ function renderRutas(){
     if(filEstado){
       var clientes = Object.values(ruta.clientes||{});
       var todasEntregadas = clientes.length>0 && clientes.every(function(c){ return c.entregado; });
-      if(filEstado==="terminadas" && !todasEntregadas) return false;
-      if(filEstado==="en-curso"   &&  todasEntregadas) return false;
+      var rutaTerminada = ruta.finalizada===true || todasEntregadas;
+      if(filEstado==="terminadas" && !rutaTerminada) return false;
+      if(filEstado==="en-curso"   &&  rutaTerminada) return false;
     }
     return true;
   });
@@ -6569,7 +7154,9 @@ function renderRutas(){
         (zonaRuta ? ' · <span style="color:'+zonaRuta.color+';font-weight:600">🗺️ '+escHtml(zonaRuta.nombre)+'</span>' : '')+
       '</div></div>'+
       '<div class="ruta-chips">'+
-        (todasEntregadas?'<span class="chip chip-ok">✅ Terminada</span>':'<span class="chip chip-warn" style="background:var(--blue-bg);color:var(--blue)">🔄 En curso</span>')+
+        (ruta.finalizada===true
+          ? '<span class="chip chip-ok">✅ Finalizada</span>'
+          : (todasEntregadas?'<span class="chip chip-ok">✅ Terminada</span>':'<span class="chip chip-warn" style="background:var(--blue-bg);color:var(--blue)">🔄 En curso</span>'))+
         (calc.saldo<=0?'<span class="chip chip-ok">✓ Cobrado</span>':'<span class="chip chip-warn">$'+fM(calc.saldo)+' pend.</span>')+
         '<span style="color:var(--muted2);font-size:15px">'+(isOpen?"▲":"▼")+'</span>'+
       '</div>';
@@ -8621,7 +9208,7 @@ function sincronizarPendientesBackup(){ _syncPendingBackups(); }
 async function cargarBackupFirebase(){
   if(!_sbEmpId && !empresaKey) return;
   var wrap=document.getElementById("backup-list");
-  if(wrap) wrap.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando pedidos…</div>';
+  if(wrap) wrap.innerHTML = _skeletonCards(6, "pedido");
 
   // Mostrar caché local inmediatamente mientras carga Supabase
   var cached = getBackups();
@@ -9241,12 +9828,31 @@ function renderBackup(){
     btnDel.onclick = function(e){
       e.stopPropagation();
       if(!confirm("¿Borrar este pedido del backup?")) return;
+      var bkBackup = Object.assign({}, bk);
       var arr2 = getBackups().filter(function(x){return x.id!==bk.id;});
       saveBackups(arr2);
       if(backupAbierto===bk.id) backupAbierto=null;
-      if(bk._fbKey && empresaKey)
-        fbDel("empresas/"+empresaKey+"/backupPedidos/"+bk._fbKey).catch(function(){});
+      var fbKeyDel = bk._fbKey;
+      var sbIdDel  = bk._sbId;
+      if(fbKeyDel && empresaKey)
+        fbDel("empresas/"+empresaKey+"/backupPedidos/"+fbKeyDel).catch(function(){});
+      if(sbIdDel && _sbEmpId)
+        sbDel("backup_pedidos","id=eq."+sbIdDel+"&empresa_id=eq."+_sbEmpId).catch(function(){});
       renderBackup();
+      // Ofrecer deshacer
+      _undoShow("🗑 Pedido de "+(bkBackup.clienteNom||"cliente")+" eliminado", function(){
+        var actual = getBackups();
+        actual.unshift(bkBackup);
+        saveBackups(actual);
+        // Re-subir a la base
+        if(_sbEmpId && typeof _sbInsertBackup==="function"){
+          try { _sbInsertBackup(bkBackup); } catch(er){ console.warn("[Undo backup] Supabase:", er); }
+        } else if(empresaKey){
+          fbPush("empresas/"+empresaKey+"/backupPedidos", bkBackup).catch(function(){});
+        }
+        renderBackup();
+        showNotif("↩ Pedido restaurado","ok");
+      });
     };
     acts.appendChild(btnShare);
     acts.appendChild(btnDl);
@@ -11440,7 +12046,7 @@ function cargarClientesSection(){
   if(Object.keys(_cliData).length){
     _renderClientesList();
   } else if(body){
-    body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">Cargando clientes…</div>';
+    body.innerHTML = _skeletonCards(7, "cliente");
   }
 
   // Cargar desde Firebase/Supabase (usa fbGet que ya tiene el adaptador correcto)
@@ -11677,7 +12283,7 @@ async function guardarNuevoCliente() {
     _renderClientesList();
     if(empresaData){ var usuarios=empresaData.usuarios||{}; usuarios[pushKey]=nuevo; empresaData.usuarios=usuarios; }
     _agregarCliAlDatalist(nuevo);
-    showNotif('✓ Cliente "'+name+'" guardado',"ok");
+    showSaved('Cliente guardado');
   } catch(e) { showNotif("Error al guardar: "+e.message,"err"); }
 }
 
@@ -11710,8 +12316,34 @@ async function _eliminarCliente(pushKey) {
     var dci = dbCli.findIndex(function(c){ return c.id===uid; });
     if(dci>=0) dbCli.splice(dci,1);
     _renderClientesList();
-    showNotif("Cliente eliminado","ok");
+
+    // Ofrecer deshacer — re-crea el cliente en la base
+    var _uBackup = Object.assign({}, u);
+    var _pkBackup = pushKey;
+    _undoShow('🗑 Cliente "'+(u.name||u.id)+'" eliminado', function(){
+      _restaurarCliente(_pkBackup, _uBackup);
+    });
   } catch(e) { showNotif("Error al eliminar: "+(e.message||e),"err"); }
+}
+
+// Restaura un cliente eliminado (deshacer)
+async function _restaurarCliente(pushKey, u){
+  if(!u) return;
+  try {
+    var uid = u.id || u.uid || "";
+    if(_sbEmpId && uid){
+      try {
+        var limpio = Object.assign({}, u);
+        delete limpio._fbKey; delete limpio._doc;
+        await sbUpsert("usuarios", Object.assign(limpio, { empresa_id:_sbEmpId, uid:uid }));
+      } catch(se){ console.warn("[Undo cliente] Supabase:", se); }
+    }
+    try { await fbPush("empresas/"+empresaKey+"/usuarios", u); } catch(fe){}
+    _clientesDB[pushKey] = u;
+    _agregarCliAlDatalist(u);
+    _renderClientesList();
+    showNotif("↩ Cliente restaurado","ok");
+  } catch(e){ showNotif("No se pudo restaurar: "+(e.message||e),"err"); }
 }
 
 /* ── EDICIÓN DE CLIENTE ── */
@@ -11855,7 +12487,7 @@ async function guardarEditCliente() {
     cerrarModal("modal-edit-cli");
     // Pequeño delay para que el modal cierre antes de re-renderizar
     setTimeout(function(){ _renderClientesList(); }, 80);
-    showNotif('✓ "'+name+'" actualizado',"ok");
+    showSaved('Cliente actualizado');
   } catch(e) {
     console.error("Error guardarEditCliente:", e);
     showNotif("Error al guardar: "+(e.message||e),"err");
@@ -12105,6 +12737,28 @@ function showNotif(msg, cls) {
   setTimeout(function(){ setStatus("sync-msg","sync","☁️"); }, 3000);
 }
 
+// Confirmación visual destacada de guardado (✓ animado en el centro)
+var _savedTimer = null;
+function showSaved(msg){
+  var ov  = document.getElementById("saved-overlay");
+  var txt = document.getElementById("saved-msg");
+  if(!ov) { showNotif("✓ "+(msg||"Guardado"),"ok"); return; }
+  if(txt) txt.textContent = msg || "Guardado";
+  // Reiniciar las animaciones del SVG (forzar reflow)
+  var circle = document.getElementById("saved-circle");
+  var tick   = document.getElementById("saved-tick");
+  var card   = document.getElementById("saved-card");
+  [circle, tick, card].forEach(function(el){
+    if(!el) return;
+    el.style.animation = "none";
+    void el.offsetWidth; // reflow
+    el.style.animation = "";
+  });
+  ov.classList.add("show");
+  if(_savedTimer) clearTimeout(_savedTimer);
+  _savedTimer = setTimeout(function(){ ov.classList.remove("show"); }, 1400);
+}
+
 /* ══════════════════════════════════════════════════════
    COMPROBANTES DE PAGO
 ══════════════════════════════════════════════════════ */
@@ -12310,7 +12964,10 @@ document.addEventListener("DOMContentLoaded",function(){
     <button class="cs-hd-close" onclick="csCerrar()">✕</button>
   </div>
   <div class="cs-search" id="cs-search-wrap" style="display:none">
-    <input class="cs-search-inp" id="cs-search-inp" type="text" placeholder="Buscar producto…" oninput="csBuscar()">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="cs-search-inp" id="cs-search-inp" type="text" placeholder="Buscar producto…" oninput="csBuscar()" style="flex:1">
+      <button type="button" class="voz-btn" onclick="dictarEn('cs-search-inp',this)" aria-label="Dictar por voz" title="Dictar por voz" style="height:48px;width:48px">🎤</button>
+    </div>
   </div>
   <div class="cs-pills" id="cs-pills" style="display:none"></div>
   <div class="cs-body" id="cs-body"></div>
@@ -13207,7 +13864,7 @@ function guardarProducto() {
     _sincronizarDbStock();
     renderProductos();
     cerrarModalProducto();
-    showNotif(key?"✅ Producto actualizado":"✅ Producto agregado","ok");
+    showSaved(key?"Producto actualizado":"Producto agregado");
   }).catch(function(e){
     showNotif("Error al guardar: "+(e.message||"Error desconocido"),"err");
   }).finally(function(){
@@ -13712,7 +14369,7 @@ function _poblarFiltrosMV(){
 async function cargarMisVentas(){
   var body=document.getElementById("mv-body");
   if(!body) return;
-  body.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando tus ventas…</div>';
+  body.innerHTML = _skeletonCards(5, "pedido");
   if(!empresaKey||!currentUser) return;
   var gr=document.getElementById("mv-greeting");
   if(gr){var h=new Date().getHours();gr.innerHTML='<span>'+(h<12?"☀️ Buenos días":(h<18?"🌤 Buenas tardes":"🌙 Buenas noches"))+'</span>, <b style="color:var(--accent)">'+(currentUser.name||currentUser.id)+'</b>';}
@@ -13913,7 +14570,7 @@ async function guardarZona(){
     _renderZonasEnClientes();
     _poblarSelectoresZona();
     _renderClientesList();
-    showNotif("✅ Zona guardada","ok");
+    showSaved("Zona guardada");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 
@@ -14029,7 +14686,7 @@ function _poblarFiltrosMesRuta(){
 
 async function cargarVendedores(){
   var body=document.getElementById("vnd-body"); if(!body) return;
-  body.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando vendedores…</div>';
+  body.innerHTML = _skeletonCards(4, "cliente");
   if(!_sbEmpId) return;
   try{
     // Cargar ventas Y backup_pedidos en paralelo
