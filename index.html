@@ -5604,46 +5604,74 @@ function _vozDisponible(){
 // inputId: id del campo · eventoBusqueda: nombre de la función oninput a disparar (opcional)
 function dictarEn(inputId, btnEl, onResult){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ showNotif("Tu navegador no soporta dictado por voz","err"); return; }
+  if(!SR){ showNotif("Tu navegador no soporta dictado por voz. Probá con Chrome.","err"); return; }
   var inp = document.getElementById(inputId);
   if(!inp) return;
 
-  // Si ya hay uno activo, cortarlo
-  if(_vozActiva){ try{ _vozActiva.stop(); }catch(e){} _vozActiva=null; }
+  // Si ya hay uno activo, cortarlo (toggle: segundo toque = detener)
+  if(_vozActiva){ try{ _vozActiva.stop(); }catch(e){} _vozActiva=null; if(btnEl)btnEl.classList.remove("escuchando"); return; }
 
-  var rec = new SR();
-  rec.lang = "es-AR";
-  rec.interimResults = true;
-  rec.continuous = false;
-  rec.maxAlternatives = 1;
-  _vozActiva = rec;
+  function _arrancarReconocimiento(){
+    var rec = new SR();
+    rec.lang = "es-AR";
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    _vozActiva = rec;
 
-  if(btnEl) btnEl.classList.add("escuchando");
+    if(btnEl) btnEl.classList.add("escuchando");
 
-  rec.onresult = function(ev){
-    var txt = "";
-    for(var i=0;i<ev.results.length;i++){ txt += ev.results[i][0].transcript; }
-    inp.value = txt;
-    // Disparar la búsqueda en vivo
-    inp.dispatchEvent(new Event("input", {bubbles:true}));
-    if(typeof onResult==="function" && ev.results[ev.results.length-1].isFinal){
-      onResult(txt);
-    }
-  };
-  rec.onerror = function(ev){
-    if(ev.error==="not-allowed" || ev.error==="service-not-allowed"){
-      showNotif("Activá el permiso de micrófono para dictar","err");
-    } else if(ev.error!=="aborted" && ev.error!=="no-speech"){
-      showNotif("No se pudo escuchar, probá de nuevo","err");
-    }
-  };
-  rec.onend = function(){
-    if(btnEl) btnEl.classList.remove("escuchando");
-    _vozActiva = null;
-  };
+    rec.onresult = function(ev){
+      var txt = "";
+      for(var i=0;i<ev.results.length;i++){ txt += ev.results[i][0].transcript; }
+      inp.value = txt;
+      inp.dispatchEvent(new Event("input", {bubbles:true}));
+      if(typeof onResult==="function" && ev.results[ev.results.length-1].isFinal){
+        onResult(txt);
+      }
+    };
+    rec.onerror = function(ev){
+      if(btnEl) btnEl.classList.remove("escuchando");
+      _vozActiva = null;
+      if(ev.error==="not-allowed" || ev.error==="service-not-allowed"){
+        showNotif("Permiso de micrófono bloqueado. Tocá el candado 🔒 en la barra del navegador → Permisos → Micrófono → Permitir","err");
+      } else if(ev.error==="no-speech"){
+        showNotif("No se escuchó nada, probá de nuevo","err");
+      } else if(ev.error==="network"){
+        showNotif("El dictado necesita conexión a internet","err");
+      } else if(ev.error!=="aborted"){
+        showNotif("No se pudo escuchar: "+ev.error,"err");
+      }
+    };
+    rec.onend = function(){
+      if(btnEl) btnEl.classList.remove("escuchando");
+      _vozActiva = null;
+    };
 
-  try { rec.start(); }
-  catch(e){ if(btnEl) btnEl.classList.remove("escuchando"); }
+    try { rec.start(); }
+    catch(e){ if(btnEl) btnEl.classList.remove("escuchando"); _vozActiva=null; }
+  }
+
+  // Pedir primero el permiso real de micrófono (getUserMedia) y después arrancar.
+  // Esto resuelve el "not-allowed" en Android aunque el permiso parezca otorgado.
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      // Cerrar el stream — solo lo usamos para disparar/confirmar el permiso
+      try { stream.getTracks().forEach(function(tr){ tr.stop(); }); } catch(e){}
+      _arrancarReconocimiento();
+    }).catch(function(err){
+      if(err && (err.name==="NotAllowedError" || err.name==="SecurityError")){
+        showNotif("Permiso de micrófono denegado. Tocá el candado 🔒 en la barra del navegador y permití el micrófono","err");
+      } else if(err && err.name==="NotFoundError"){
+        showNotif("No se encontró micrófono en el dispositivo","err");
+      } else {
+        // Si getUserMedia falla por otra razón, intentar reconocimiento igual
+        _arrancarReconocimiento();
+      }
+    });
+  } else {
+    _arrancarReconocimiento();
+  }
 }
 
 
