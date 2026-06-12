@@ -1171,7 +1171,7 @@ select option { background:var(--s2); color:var(--text) }
 .bk-card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; cursor:pointer; transition:background .12s }
 .bk-card-head:hover { background:var(--s3) }
 .bk-card-left { flex:1; min-width:0 }
-.bk-card-nom { font-size:14px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:4px; letter-spacing:-0.01em }
+.bk-card-nom { font-size:14px; font-weight:600; color:var(--text); display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:4px; letter-spacing:-0.01em; min-width:0 }
 .bk-card-meta { font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap }
 .bk-lista { display:inline-flex; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; border:1px solid }
 .bk-lista-cli { background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
@@ -2763,6 +2763,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div id="cli-acciones-bar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
     <button onclick="_cliForceReload()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit;touch-action:manipulation;color:var(--text)">🔄 Recargar</button>
     <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">🗺️ Zonas</button>
+    <button onclick="abrirResumenDeudores()" style="padding:7px 14px;background:#b91c1c;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">💰 Deudores</button>
     <button onclick="exportarClientesXLSX()" style="padding:7px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">📊 Excel</button>
     <span style="font-size:12px;color:var(--muted);margin-left:auto"><b id="cli-count">0</b> clientes</span>
   </div>
@@ -2888,6 +2889,27 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
       <div id="cc-mov-body" style="padding:0;background:var(--s2)"></div>
     </div>
+  </div>
+</div>
+
+<!-- MODAL RESUMEN DE DEUDORES -->
+<div class="modal-bg" id="modal-deudores" onclick="if(event.target===this)cerrarModal('modal-deudores')">
+  <div class="modal-box" style="max-width:500px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <div>
+        <div class="modal-ttl">💰 Resumen de deudores</div>
+        <div id="deudores-sub" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <button class="modal-cls" onclick="cerrarModal('modal-deudores')">✕</button>
+    </div>
+
+    <!-- Total general -->
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border);background:var(--s3)">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Total a cobrar</div>
+      <div id="deudores-total" style="font-size:28px;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;margin-top:2px">$0,00</div>
+    </div>
+
+    <div id="deudores-body" style="flex:1;overflow-y:auto;min-height:0;background:var(--s2)"></div>
   </div>
 </div>
 
@@ -6839,6 +6861,22 @@ async function _ccRender(cliNom){
       : saldo<-0.01 ? "Saldo a favor del cliente"
       : "Cuenta al día";
   }
+  // Botón de recordatorio WhatsApp si el cliente debe
+  var saldoBox = document.getElementById("cc-saldo-box");
+  var waExist = document.getElementById("cc-wa-btn");
+  if(waExist) waExist.remove();
+  if(saldo>0.01 && saldoBox && _ccClienteActual){
+    var c = Object.values(_clientesDB||{}).find(function(u){ return (u.name||"").toLowerCase()===(_ccClienteActual||"").toLowerCase(); });
+    var tel = c ? (c.tel||c.telefono||"") : "";
+    if(tel){
+      var waBtn = document.createElement("button");
+      waBtn.id = "cc-wa-btn";
+      waBtn.style.cssText = "margin-top:10px;width:100%;padding:9px;background:#25d366;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer";
+      waBtn.innerHTML = "💬 Recordar deuda por WhatsApp";
+      waBtn.onclick = function(){ _recordarDeudaWhatsApp(_ccClienteActual, saldo); };
+      saldoBox.appendChild(waBtn);
+    }
+  }
 
   // Movimientos (objeto → array, ordenado por fecha desc)
   var movsObj = (cc && cc.movimientos) || {};
@@ -6916,6 +6954,101 @@ async function _ccRegistrarDeudaRuta(cliNom, montoDeuda, refRuta){
     var saldoActual = (cc && cc.saldo) || 0;
     await fbPatch("empresas/"+empresaKey+"/cuentas_corrientes/"+cliNom, {saldo: Math.round((saldoActual+montoDeuda)*100)/100});
   } catch(e){ console.warn("[CC] No se pudo registrar deuda de "+cliNom, e); }
+}
+
+// ══════════════ RESUMEN DE DEUDORES ══════════════
+// Trae todos los saldos > 0 de todos los clientes
+async function _getTodosLosSaldos(){
+  var deudores = [];
+  // Supabase primero
+  if(_sbEmpId){
+    try {
+      var rows = await sbGet("cuentas_corrientes","select=cliente_nom,saldo&empresa_id=eq."+_sbEmpId+"&saldo=gt.0&order=saldo.desc");
+      if(rows && rows.length){
+        return rows.map(function(r){ return { nom:r.cliente_nom, saldo:Math.round((r.saldo||0)*100)/100 }; })
+                   .filter(function(d){ return d.saldo>0.01; });
+      }
+    } catch(e){ console.warn("[Deudores] Supabase:", e); }
+  }
+  // Fallback Firebase: leer todas las cuentas
+  try {
+    var cc = await fbGet("empresas/"+empresaKey+"/cuentas_corrientes");
+    if(cc){
+      Object.keys(cc).forEach(function(nom){
+        var saldo = Math.round(((cc[nom]&&cc[nom].saldo)||0)*100)/100;
+        if(saldo>0.01) deudores.push({ nom:nom, saldo:saldo });
+      });
+    }
+  } catch(e){ console.warn("[Deudores] Firebase:", e); }
+  deudores.sort(function(a,b){ return b.saldo - a.saldo; });
+  return deudores;
+}
+
+async function abrirResumenDeudores(){
+  var body = document.getElementById("deudores-body");
+  var totalEl = document.getElementById("deudores-total");
+  var subEl = document.getElementById("deudores-sub");
+  if(body) body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner-ring" style="margin:0 auto 12px"></div>Cargando deudores…</div>';
+  if(totalEl) totalEl.textContent = "…";
+  abrirModal("modal-deudores");
+
+  var deudores = await _getTodosLosSaldos();
+  var total = deudores.reduce(function(s,d){ return s+d.saldo; }, 0);
+
+  if(totalEl) totalEl.textContent = "$"+fM(total);
+  if(subEl) subEl.textContent = deudores.length+" cliente"+(deudores.length!==1?"s":"")+" con saldo pendiente";
+
+  if(!deudores.length){
+    if(body) body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">🎉 Nadie te debe plata.<br><span style="font-size:12px">Todas las cuentas están al día.</span></div>';
+    return;
+  }
+
+  // Buscar teléfono de cada cliente para el botón de WhatsApp
+  function _telDe(nom){
+    var c = Object.values(_clientesDB||{}).find(function(u){ return (u.name||"").toLowerCase()===(nom||"").toLowerCase(); });
+    return c ? (c.tel||c.telefono||"") : "";
+  }
+
+  var html = deudores.map(function(d){
+    var tel = _telDe(d.nom);
+    var waBtn = tel
+      ? '<button onclick="event.stopPropagation();_recordarDeudaWhatsApp(&quot;'+d.nom.replace(/"/g,'&quot;')+'&quot;,'+d.saldo+')" title="Recordar por WhatsApp" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:7px 10px;font-size:13px;cursor:pointer;flex-shrink:0">💬</button>'
+      : '';
+    return '<div onclick="cerrarModal(\'modal-deudores\');abrirCuentaCorriente(&quot;'+d.nom.replace(/"/g,'&quot;')+'&quot;)" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border2);cursor:pointer">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(d.nom)+'</div>'+
+        '<div style="font-size:10.5px;color:var(--muted)">'+(tel?("📞 "+escHtml(tel)):"sin teléfono")+'</div>'+
+      '</div>'+
+      '<div style="font-size:15px;font-weight:800;color:var(--red);flex-shrink:0;font-variant-numeric:tabular-nums">$'+fM(d.saldo)+'</div>'+
+      waBtn+
+    '</div>';
+  }).join("");
+  if(body) body.innerHTML = html;
+}
+
+// Recordatorio de deuda por WhatsApp
+function _recordarDeudaWhatsApp(cliNom, saldo){
+  var c = Object.values(_clientesDB||{}).find(function(u){ return (u.name||"").toLowerCase()===(cliNom||"").toLowerCase(); });
+  var tel = c ? (c.tel||c.telefono||"") : "";
+  if(!tel){ showNotif("Este cliente no tiene teléfono cargado","err"); return; }
+
+  // Normalizar teléfono para WhatsApp (solo dígitos, con código de país AR si falta)
+  var num = tel.replace(/\D/g,"");
+  if(num.length>0 && num[0]!=="5"){
+    // Si no empieza con 54 (Argentina), agregarlo
+    if(num.length===10) num = "54"+num;          // 11 1234 5678 → 54...
+    else if(num.length===11 && num[0]==="0") num = "54"+num.slice(1);
+    else num = "54"+num;
+  }
+
+  var emp = (empresaData && empresaData.nombre) || (_getEmpDatos&&_getEmpDatos().nombre) || "";
+  var msg = "Hola"+(c&&c.name?" "+c.name.split("(")[0].trim():"")+"! 👋\n\n"+
+    "Te recordamos que tenés un saldo pendiente de *$"+fM(saldo)+"*"+
+    (emp?(" con "+emp):"")+".\n\n"+
+    "Cualquier consulta quedamos a disposición. ¡Gracias!";
+
+  var url = "https://wa.me/"+num+"?text="+encodeURIComponent(msg);
+  window.open(url, "_blank");
 }
 
 function descontarStock(items, motivo){
@@ -9449,11 +9582,31 @@ async function _bkReasignar(){
         '<div style="font-size:12.5px;color:var(--muted)">'+
           'Se moverán '+_bkSelected.size+' pedido'+(_bkSelected.size!==1?'s':'')+' a la hoja de ruta seleccionada.'+
         '</div>'+
+        '<button class="mbtn" onclick="_bkReasignarNueva()" style="width:100%;padding:11px;border:1.5px dashed var(--border);background:var(--s2);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text)">➕ Crear nueva hoja de ruta</button>'+
         '<button class="mbtn mbtn-primary" onclick="_confirmarReasignar()" style="padding:12px">✅ Confirmar reasignación</button>'+
         '<button class="mbtn mbtn-ghost" onclick="document.getElementById(\'modal-reasignar\').remove()" style="padding:10px">Cancelar</button>'+
       '</div>'+
     '</div>';
   document.body.appendChild(overlay);
+}
+
+async function _bkReasignarNueva(){
+  var hrNum = await _nextHojaRutaNum();
+  var nombre = hrNum+" — Ruta "+new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
+  showNotif("⏳ Creando "+hrNum+"…","ok");
+  try {
+    var res = await sbPost("rutas",{ empresa_id:_sbEmpId, nombre:nombre, hr_num:hrNum, fecha:new Date().toISOString() });
+    if(!res||!res[0]) throw new Error("No se pudo crear la ruta");
+    var rkNuevo = res[0].id;
+    rutasData[rkNuevo] = {nombre:nombre, hrNum:hrNum, fecha:new Date().toISOString(), clientes:{}};
+    var sel = document.getElementById("reasig-ruta-sel");
+    if(sel){
+      var opt = document.createElement("option");
+      opt.value = rkNuevo; opt.textContent = hrNum+" — "+nombre+" (0 pedidos)";
+      sel.appendChild(opt); sel.value = rkNuevo;
+    }
+    await _confirmarReasignar();
+  } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 
 async function _confirmarReasignar(){
@@ -9579,12 +9732,16 @@ function _renderBkDiasTabs(backups){
   if(!dias.length){ span.innerHTML=""; return; }
   var DL = {lunes:"Lunes",martes:"Martes",miercoles:"Miérc.",jueves:"Jueves",viernes:"Viernes",sabado:"Sábado"};
   span.innerHTML = dias.map(function(dia){
-    var tab = "dia_"+dia;
-    var cnt = backups.filter(function(bk){ return bk.diaEntrega===dia && bk.aprobado!==true && bk.aprobado!==false; }).length;
-    var active = _bkTab===tab ? " active" : "";
-    return '<button class="bk-tab'+active+'" onclick="setBkTab(\''+tab+'\',this)">'+
-      '📅 En espera '+DL[dia]+' <span class="bk-tab-cnt">'+cnt+'</span>'+
-    '</button>';
+    var tabE = "dia_"+dia;
+    var cntE = backups.filter(function(bk){ return bk.diaEntrega===dia && bk.aprobado!==true && bk.aprobado!==false; }).length;
+    var actE = _bkTab===tabE ? " active" : "";
+    var tabA = "diaap_"+dia;
+    var cntA = backups.filter(function(bk){ return bk.diaEntrega===dia && bk.aprobado===true; }).length;
+    var actA = _bkTab===tabA ? " active" : "";
+    return '<button class="bk-tab'+actE+'" onclick="setBkTab(\''+tabE+'\',this)">'+
+        '📅 En espera '+DL[dia]+' <span class="bk-tab-cnt">'+cntE+'</span></button>'+
+      '<button class="bk-tab green'+actA+'" onclick="setBkTab(\''+tabA+'\',this)">'+
+        '✓ Aprob. '+DL[dia]+' <span class="bk-tab-cnt">'+cntA+'</span></button>';
   }).join('');
 }
 
@@ -9701,6 +9858,10 @@ function renderBackup(){
     if(_bkTab==="aprobados")  return bk.aprobado===true;
     if(_bkTab==="rechazados") return bk.aprobado===false;
     if(_bkTab==="espera")     return bk.aprobado!==true && bk.aprobado!==false;
+    if(_bkTab.indexOf("diaap_")===0){
+      var diaA = _bkTab.slice(6);
+      return bk.diaEntrega===diaA && bk.aprobado===true;
+    }
     if(_bkTab.indexOf("dia_")===0){
       var dia = _bkTab.slice(4);
       return bk.diaEntrega===dia && bk.aprobado!==true && bk.aprobado!==false;
@@ -9710,7 +9871,7 @@ function renderBackup(){
 
   if(!arr.length){
     var msgs={todos:"Sin pedidos",espera:"Sin pedidos en espera",aprobados:"Sin pedidos aprobados",rechazados:"Sin pedidos rechazados"};
-    var msgDia = _bkTab.indexOf("dia_")===0 ? "Sin pedidos para este día de entrega" : (msgs[_bkTab]||"Sin pedidos");
+    var msgDia = (_bkTab.indexOf("dia_")===0||_bkTab.indexOf("diaap_")===0) ? "Sin pedidos para este día de entrega" : (msgs[_bkTab]||"Sin pedidos");
     wrap.innerHTML='<div class="bk-zero"><div class="bk-zero-icon">💾</div><div class="bk-zero-txt">'+msgDia+'</div></div>';
     return;
   }
@@ -9729,9 +9890,12 @@ function renderBackup(){
       : bk.tipoComprobante === "remito"
         ? '<span style="font-size:10px;font-weight:600;background:var(--s3);color:var(--muted);padding:2px 8px;border-radius:20px;margin-left:4px">📄 remito</span>'
         : '';
-    var vndBadge = (bk.usuarioNom || bk.usuario)
-      ? '<span style="font-size:10px;color:var(--muted);margin-left:4px">👤 '+(bk.usuarioNom||bk.usuario)+'</span>'
-      : '';
+    var esTiendaBk = (bk.usuario === "tienda") || (bk.usuarioNom === "Tienda Online") || ((bk.obs||"").toLowerCase().indexOf("tienda online")>=0);
+    var _vendRealBk = (bk.usuario && bk.usuario!=="tienda" && bk.usuarioNom!=="Tienda Online") ? (bk.usuarioNom||bk.usuario) : "";
+    var vndBadge = "";
+    if(esTiendaBk) vndBadge += '<span style="font-size:10px;font-weight:800;background:#c9933a;color:#0a1628;padding:2px 8px;border-radius:20px;margin-left:4px">🛒 Pedido por tienda</span>';
+    if(_vendRealBk) vndBadge += '<span style="font-size:10px;color:var(--muted);margin-left:4px">👤 '+_vendRealBk+'</span>';
+    else if(!esTiendaBk && (bk.usuarioNom||bk.usuario)) vndBadge += '<span style="font-size:10px;color:var(--muted);margin-left:4px">👤 '+(bk.usuarioNom||bk.usuario)+'</span>';
     // Para Factura A: calcular totalConIVA si no está guardado (pedidos viejos)
     // Recalcular total con descuentos para mostrar en tarjeta
     var _dscBkCard = bk.descuentos||{};
@@ -10005,9 +10169,30 @@ function renderBackup(){
       var vndInfo=document.createElement("div");
       vndInfo.style.cssText="padding:8px 16px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap";
       if(bk.usuarioNom||bk.usuario){
-        vndInfo.innerHTML='<span style="font-size:11.5px;font-weight:700;color:var(--text)">👤 Vendedor: '+
-          escHtml(bk.usuarioNom||bk.usuario)+'</span>'+
-          '<span style="font-size:10.5px;color:var(--muted)">— esta venta se acreditará a este vendedor al aprobar</span>';
+        var _esTiendaDet = (bk.usuario === "tienda") || (bk.usuarioNom === "Tienda Online") || ((bk.obs||"").toLowerCase().indexOf("tienda online")>=0);
+        var _vendRealDet = (bk.usuario && bk.usuario!=="tienda" && bk.usuarioNom!=="Tienda Online") ? (bk.usuarioNom||bk.usuario) : "";
+        if(_vendRealDet && !_esTiendaDet){
+          // Vendedor normal asignado
+          vndInfo.innerHTML='<span style="font-size:11.5px;font-weight:700;color:var(--text)">👤 Vendedor: '+
+            escHtml(_vendRealDet)+'</span>'+
+            '<span style="font-size:10.5px;color:var(--muted)">— esta venta se acreditará a este vendedor al aprobar</span>';
+        } else {
+          // Pedido de tienda (o sin vendedor): permitir acreditar / cambiar
+          var vndOpts = '<option value="">'+(_vendRealDet?'— Cambiar vendedor —':'— Elegí un vendedor —')+'</option>';
+          Object.values(_clientesDB||{}).filter(function(u){ return u.role==="vendedor"; }).forEach(function(u){
+            vndOpts += '<option value="'+u.id+'|'+(u.name||u.id)+'">'+escHtml(u.name||u.id)+'</option>';
+          });
+          var _etq;
+          if(_vendRealDet){
+            _etq = '<span style="font-size:11.5px;font-weight:700;color:#0f8a4a">✅ Acreditado a: '+escHtml(_vendRealDet)+'</span>';
+          } else if(_esTiendaDet){
+            _etq = '<span style="font-size:11.5px;font-weight:700;color:#c9933a">🛒 Pedido por tienda — acreditá la venta a un vendedor</span>';
+          } else {
+            _etq = '<span style="font-size:11.5px;font-weight:700;color:#b45309">⚠️ Sin vendedor asignado</span>';
+          }
+          vndInfo.innerHTML = _etq +
+            '<select id="bk-vnd-sel-'+bk.id+'" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;flex:1" onchange="_asignarVndBk(\''+bk.id+'\',this)">'+vndOpts+'</select>';
+        }
       } else {
         // Sin vendedor asignado — mostrar selector
         var vndOpts = '<option value="">— Sin asignar (admin) —</option>';
@@ -15110,6 +15295,9 @@ async function cargarVendedores(){
         _src:       "backup"
       });
     });
+
+    // Los pedidos por tienda sin acreditar no cuentan como un "vendedor" en el ranking
+    _vndVentas = _vndVentas.filter(function(v){ return v.usuario !== "tienda"; });
 
     _poblarFiltrosVnd(); renderVendedores();
     await cargarZonas();
