@@ -2510,6 +2510,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto" id="vnd-tabs">
     <button class="bk-tab active" id="vnd-tab-vendedores" onclick="setVndTab('vendedores',this)">👤 Vendedores</button>
     <button class="bk-tab" id="vnd-tab-zonas" onclick="setVndTab('zonas',this)">🗺️ Zonas</button>
+    <button class="bk-tab" id="vnd-tab-mapa" onclick="setVndTab('mapa',this)">📍 Ubicación</button>
   </div>
 
   <!-- Panel Vendedores -->
@@ -2529,6 +2530,19 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <button class="mbtn mbtn-primary" onclick="abrirModalZona(null)" style="padding:8px 16px;font-size:12px">+ Nueva zona</button>
     </div>
     <div id="zonas-list"></div>
+  </div>
+
+  <!-- Panel Mapa / Ubicación -->
+  <div id="vnd-panel-mapa" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">📍 Última ubicación registrada de cada vendedor</span>
+      <button class="btn btn-ghost btn-sm" onclick="renderMapaVendedores()">🔄 Actualizar</button>
+    </div>
+    <div id="vnd-mapa-leaflet" style="height:380px;border-radius:var(--radius);border:1px solid var(--border)"></div>
+    <div id="vnd-mapa-lista" style="margin-top:10px"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5">
+      La ubicación se registra cuando el vendedor abre la app (no es seguimiento en vivo). Si un vendedor no aparece, todavía no la compartió o no dio permiso de GPS.
+    </div>
   </div>
 </div>
 
@@ -4186,15 +4200,65 @@ async function _sbPatchListas(data){
   return Promise.all(promises);
 }
 
-async function _sbGetProductos(){
+// ══ Caché de catálogo en IndexedDB (reduce egress: no re-baja fotos en cada apertura) ══
+var _idbDB = null;
+function _idbOpen(){
+  return new Promise(function(res){
+    if(_idbDB) return res(_idbDB);
+    try{
+      var rq = indexedDB.open("distri_cache", 1);
+      rq.onupgradeneeded = function(e){ var db=e.target.result; if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); };
+      rq.onsuccess = function(e){ _idbDB=e.target.result; res(_idbDB); };
+      rq.onerror   = function(){ res(null); };
+    }catch(e){ res(null); }
+  });
+}
+function _idbGet(key){
+  return _idbOpen().then(function(db){
+    if(!db) return null;
+    return new Promise(function(res){
+      try{
+        var rq = db.transaction("kv","readonly").objectStore("kv").get(key);
+        rq.onsuccess = function(){ res(rq.result || null); };
+        rq.onerror   = function(){ res(null); };
+      }catch(e){ res(null); }
+    });
+  });
+}
+function _idbSet(key, val){
+  return _idbOpen().then(function(db){
+    if(!db) return;
+    return new Promise(function(res){
+      try{
+        var rq = db.transaction("kv","readwrite").objectStore("kv").put(val, key);
+        rq.onsuccess = function(){ res(); };
+        rq.onerror   = function(){ res(); };
+      }catch(e){ res(); }
+    });
+  });
+}
+// Marca que el catálogo cambió (para que los dispositivos vuelvan a bajarlo)
+function _bumpCatVer(){
+  try{ if(_sbEmpId) sbPatch("empresas","id=eq."+_sbEmpId, {cat_ver:new Date().toISOString()}); }catch(e){}
+}
+
+async function _sbGetProductos(force){
+  var _ckey = "productos_"+_sbEmpId;
+  // Versión actual del catálogo (consulta minúscula, ~bytes)
+  var _ver = null;
+  try { var _vr = await sbGet("empresas","select=cat_ver&id=eq."+_sbEmpId); if(_vr && _vr[0]) _ver = _vr[0].cat_ver; } catch(e){}
+  // Si la versión no cambió, usar la copia local (NO baja fotos => ahorra egress)
+  if(!force && _ver){
+    try { var _cc = await _idbGet(_ckey); if(_cc && _cc.ver === _ver && _cc.data) return _cc.data; } catch(e){}
+  }
   var SEL_NEW="select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default";
   var SEL_OLD="select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo";
   var rows;
   try { rows=await sbGet("productos",SEL_NEW+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
   catch(e){ rows=await sbGet("productos",SEL_OLD+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
-  if(!rows)return null; var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"unidad",unidadesBulto:p.unidades_bulto||1,minCompra:p.min_compra||1,cantDefault:p.cant_default||1};});return r; }
-async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1}); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
+  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"unidad",unidadesBulto:p.unidades_bulto||1,minCompra:p.min_compra||1,cantDefault:p.cant_default||1};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
+async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1}); _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
+async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
   var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng&empresa_id=eq."+_sbEmpId+"&order=name.asc");
@@ -4437,6 +4501,7 @@ window.onload = function(){
         });
       }
       iniciarApp(); setTimeout(_checkNotifButton,1000);
+      setTimeout(function(){ _guardarMiUbicacion(true); }, 3000);
       _bkPendingQueue=_bkQueueGet();
       if(_bkPendingQueue.length) setTimeout(_syncPendingBackups,4000);
     }).catch(function(){
@@ -4472,6 +4537,33 @@ window.onload = function(){
   document.getElementById("l-empresa").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
   document.getElementById("l-user").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
 };
+
+// ══ UBICACIÓN DEL VENDEDOR (Opción A: última posición conocida) ══
+var _lastLocSent = 0;
+function _guardarMiUbicacion(force){
+  try {
+    if(!navigator.geolocation || !currentUser || !currentUser._sbId || !_sbEmpId) return;
+    var ahora = Date.now();
+    // Throttle: como máximo 1 envío cada 10 minutos (salvo force=true)
+    if(!force && _lastLocSent && (ahora - _lastLocSent) < 600000) return;
+    navigator.geolocation.getCurrentPosition(
+      function(pos){
+        _lastLocSent = Date.now();
+        sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId, {
+          last_lat:    pos.coords.latitude,
+          last_lng:    pos.coords.longitude,
+          last_loc_at: new Date().toISOString()
+        }).catch(function(e){ console.warn("ubic:", e.message); });
+      },
+      function(){ /* sin permiso GPS o sin señal: se ignora en silencio */ },
+      { timeout:8000, enableHighAccuracy:false, maximumAge:60000 }
+    );
+  } catch(e){ /* noop */ }
+}
+// Actualiza la posición cuando la app vuelve a primer plano (con el throttle interno)
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "visible") _guardarMiUbicacion(false);
+});
 
 function doLogin(){
   var empCod = document.getElementById("l-empresa").value.trim().toLowerCase();
@@ -4587,6 +4679,7 @@ function doLogin(){
       aplicarBranding(); aplicarRestricciones();
       cargarListasPrecios();
       iniciarApp();
+      setTimeout(function(){ _guardarMiUbicacion(true); }, 3000);
       setTimeout(_tryInitPush, 2500);
       setTimeout(_checkNotifButton, 1000);
       // Sincronizar pedidos pendientes al hacer login
@@ -13883,7 +13976,7 @@ function cargarProductos() {
   var grid = document.getElementById("prod-grid");
   if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">⏳</div><div class="prod-empty-msg">Cargando…</div></div>';
   if (!_sbEmpId) return;
-  _sbGetProductos().then(function(sbData){
+  _sbGetProductos(true).then(function(sbData){
     _prodData = sbData || {};
     _sincronizarDbStock();
     renderProductos();
@@ -14251,6 +14344,7 @@ function eliminarProducto(key) {
   if (!confirm("¿Eliminar el producto \"" + (p.nombre || key) + "\"?\nEsta acción no se puede deshacer.")) return;
   sbDel("productos", "id=eq."+key+"&empresa_id=eq."+_sbEmpId).then(function() {
     delete _prodData[key];
+    _bumpCatVer();
     _sincronizarDbStock();
     renderProductos();
     showNotif("🗑 Producto eliminado", "ok");
@@ -15075,7 +15169,7 @@ async function importarProdCSV(){
 
   // Recargar desde Supabase para asegurar que los precios se ven actualizados
   try {
-    var prodsActualizados = await _sbGetProductos();
+    var prodsActualizados = await _sbGetProductos(true);
     if(prodsActualizados) _prodData = prodsActualizados;
   } catch(e){ console.warn("No se pudo recargar productos:", e); }
   renderProductos();
@@ -15429,7 +15523,63 @@ function setVndTab(tab, btn){
   if(btn) btn.classList.add("active");
   document.getElementById("vnd-panel-vendedores").style.display = tab==="vendedores"?"block":"none";
   document.getElementById("vnd-panel-zonas").style.display = tab==="zonas"?"block":"none";
+  var pm = document.getElementById("vnd-panel-mapa");
+  if(pm) pm.style.display = tab==="mapa"?"block":"none";
   if(tab==="zonas") cargarZonas();
+  if(tab==="mapa") renderMapaVendedores();
+}
+
+// ══ MAPA DE UBICACIÓN DE VENDEDORES ══
+var _vndMapa = null, _vndMapaMarkers = [];
+function _haceCuanto(iso){
+  if(!iso) return "sin datos";
+  var d = new Date(iso), s = Math.floor((Date.now() - d.getTime())/1000);
+  if(s < 60)   return "hace instantes";
+  var m = Math.floor(s/60);  if(m < 60) return "hace "+m+" min";
+  var h = Math.floor(m/60);  if(h < 24) return "hace "+h+" h";
+  var dd = Math.floor(h/24); return "hace "+dd+" día"+(dd>1?"s":"");
+}
+async function renderMapaVendedores(){
+  var lista = document.getElementById("vnd-mapa-lista");
+  if(typeof L === "undefined"){ if(lista) lista.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">No se pudo cargar el mapa.</div>'; return; }
+  if(!_vndMapa){
+    _vndMapa = L.map("vnd-mapa-leaflet").setView([-42.7682,-65.0351], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom:19
+    }).addTo(_vndMapa);
+  }
+  setTimeout(function(){ if(_vndMapa) _vndMapa.invalidateSize(); }, 250);
+  _vndMapaMarkers.forEach(function(m){ _vndMapa.removeLayer(m); });
+  _vndMapaMarkers = [];
+  if(lista) lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">Cargando…</div>';
+  try {
+    var rows = await sbGet("usuarios","select=uid,name,role,last_lat,last_lng,last_loc_at&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+    var conUbic = (rows||[]).filter(function(u){ return u.last_lat!=null && u.last_lng!=null; });
+    var bounds = [];
+    conUbic.forEach(function(u){
+      var icon = L.divIcon({ className:"",
+        html:'<div style="width:18px;height:18px;background:var(--accent,#c0633a);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+        iconSize:[18,18], iconAnchor:[9,18] });
+      var mk = L.marker([u.last_lat,u.last_lng],{icon:icon}).addTo(_vndMapa)
+        .bindPopup("<b>"+(u.name||u.uid)+"</b><br>"+_haceCuanto(u.last_loc_at));
+      _vndMapaMarkers.push(mk);
+      bounds.push([u.last_lat,u.last_lng]);
+    });
+    if(bounds.length) _vndMapa.fitBounds(bounds, {padding:[40,40], maxZoom:15});
+    if(lista){
+      if(!conUbic.length){
+        lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">Todavía no hay ubicaciones registradas.</div>';
+      } else {
+        lista.innerHTML = conUbic.map(function(u){
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 8px;border-bottom:1px solid var(--border);font-size:12.5px">'+
+            '<span>👤 '+(u.name||u.uid)+'</span>'+
+            '<span style="color:var(--muted)">'+_haceCuanto(u.last_loc_at)+'</span></div>';
+        }).join("");
+      }
+    }
+  } catch(e){
+    if(lista) lista.innerHTML = '<div style="font-size:12px;color:#c0392b;padding:8px">Error cargando ubicaciones: '+(e.message||e)+'</div>';
+  }
 }
 
 // ══ EDITAR VENDEDOR ══
