@@ -2534,14 +2534,27 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
   <!-- Panel Mapa / Ubicación -->
   <div id="vnd-panel-mapa" style="display:none">
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px">⏰ Horario de seguimiento</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--muted)">Desde</span>
+        <input type="time" id="loc-hora-ini" style="font-size:13px;padding:5px 8px">
+        <span style="font-size:12px;color:var(--muted)">hasta</span>
+        <input type="time" id="loc-hora-fin" style="font-size:13px;padding:5px 8px">
+        <button class="btn btn-primary btn-sm" onclick="_guardarHorarioUbic()">Guardar</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">
+        Fuera de este horario no se registra la ubicación (ahorra datos y batería). Dejalo vacío para registrar a cualquier hora.
+      </div>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-      <span style="font-size:12px;color:var(--muted)">📍 Última ubicación registrada de cada vendedor</span>
+      <span style="font-size:12px;color:var(--muted)">📍 Ubicación de cada vendedor</span>
       <button class="btn btn-ghost btn-sm" onclick="renderMapaVendedores()">🔄 Actualizar</button>
     </div>
     <div id="vnd-mapa-leaflet" style="height:380px;border-radius:var(--radius);border:1px solid var(--border)"></div>
     <div id="vnd-mapa-lista" style="margin-top:10px"></div>
     <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5">
-      La ubicación se registra cuando el vendedor abre la app (no es seguimiento en vivo). Si un vendedor no aparece, todavía no la compartió o no dio permiso de GPS.
+      <b>Por momentos</b>: registra la posición al abrir la app (bajo consumo). <b>En vivo</b>: actualiza cada ~1 min mientras la app está abierta (más datos). <b>Apagado</b>: no registra.
     </div>
   </div>
 </div>
@@ -4482,12 +4495,13 @@ window.onload = function(){
     currentUser=s.user;
     empresaData=s.empresaData;
     _sbEmpId = empresaKey;
+    _locModo = (currentUser && currentUser.loc_modo) || "momentos";
     aplicarBranding();
     // Re-verificar estado desde Supabase (puede haber cambiado desde el último login)
-    sbGet("empresas","select=id,estado,vence,plan&id=eq."+_sbEmpId).then(function(emps){
+    sbGet("empresas","select=id,estado,vence,plan,loc_hora_ini,loc_hora_fin&id=eq."+_sbEmpId).then(function(emps){
       var empActual = (emps && emps[0]) ? emps[0] : (s.empresaData||{});
       if(!checkEmpresaAccess(empActual)){ localStorage.removeItem("dm_session"); return; }
-      if(emps && emps[0]){ empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan; }
+      if(emps && emps[0]){ empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan; empresaData.loc_hora_ini=emps[0].loc_hora_ini; empresaData.loc_hora_fin=emps[0].loc_hora_fin; }
       _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
       aplicarRestricciones(); cargarListasPrecios();
       // Precalentar cache offline 8s después del login para no bloquear la UI
@@ -4501,7 +4515,7 @@ window.onload = function(){
         });
       }
       iniciarApp(); setTimeout(_checkNotifButton,1000);
-      setTimeout(function(){ _guardarMiUbicacion(true); }, 3000);
+      setTimeout(_initTrackingUbicacion, 3000);
       _bkPendingQueue=_bkQueueGet();
       if(_bkPendingQueue.length) setTimeout(_syncPendingBackups,4000);
     }).catch(function(){
@@ -4538,31 +4552,72 @@ window.onload = function(){
   document.getElementById("l-user").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
 };
 
-// ══ UBICACIÓN DEL VENDEDOR (Opción A: última posición conocida) ══
+// ══ UBICACIÓN DEL VENDEDOR (modos: off / momentos / en vivo + horario) ══
 var _lastLocSent = 0;
+var _locModo = "momentos";   // se setea según el usuario al loguear
+var _liveTimer = null;
+
+// ¿Estamos dentro del horario de trabajo configurado por la empresa?
+function _dentroDeHorario(){
+  try {
+    var ini = empresaData && empresaData.loc_hora_ini;
+    var fin = empresaData && empresaData.loc_hora_fin;
+    if(!ini || !fin) return true;  // sin horario configurado = siempre
+    var now = new Date(); var hm = now.getHours()*60 + now.getMinutes();
+    var p = (""+ini).split(":"), q = (""+fin).split(":");
+    var mi = (+p[0])*60 + (+(p[1]||0)), mf = (+q[0])*60 + (+(q[1]||0));
+    if(mf >= mi) return hm >= mi && hm <= mf;
+    return hm >= mi || hm <= mf;   // horario que cruza la medianoche
+  } catch(e){ return true; }
+}
+
+// Envía la posición actual a Supabase (sin throttle)
+function _enviarUbicacion(){
+  if(!navigator.geolocation || !currentUser || !currentUser._sbId || !_sbEmpId) return;
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      _lastLocSent = Date.now();
+      sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId, {
+        last_lat:    pos.coords.latitude,
+        last_lng:    pos.coords.longitude,
+        last_loc_at: new Date().toISOString()
+      }).catch(function(e){ console.warn("ubic:", e.message); });
+    },
+    function(){ /* sin permiso GPS o sin señal: se ignora en silencio */ },
+    { timeout:8000, enableHighAccuracy:false, maximumAge:60000 }
+  );
+}
+
+// Modo "por momentos": con tope de 1 envío cada 10 min
 function _guardarMiUbicacion(force){
   try {
-    if(!navigator.geolocation || !currentUser || !currentUser._sbId || !_sbEmpId) return;
+    if(_locModo === "off") return;
+    if(!_dentroDeHorario()) return;
     var ahora = Date.now();
-    // Throttle: como máximo 1 envío cada 10 minutos (salvo force=true)
     if(!force && _lastLocSent && (ahora - _lastLocSent) < 600000) return;
-    navigator.geolocation.getCurrentPosition(
-      function(pos){
-        _lastLocSent = Date.now();
-        sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId, {
-          last_lat:    pos.coords.latitude,
-          last_lng:    pos.coords.longitude,
-          last_loc_at: new Date().toISOString()
-        }).catch(function(e){ console.warn("ubic:", e.message); });
-      },
-      function(){ /* sin permiso GPS o sin señal: se ignora en silencio */ },
-      { timeout:8000, enableHighAccuracy:false, maximumAge:60000 }
-    );
+    _enviarUbicacion();
   } catch(e){ /* noop */ }
 }
-// Actualiza la posición cuando la app vuelve a primer plano (con el throttle interno)
+
+// Arranca el seguimiento según el modo del usuario
+function _initTrackingUbicacion(){
+  try {
+    if(_locModo === "vivo"){
+      if(_dentroDeHorario()) _enviarUbicacion();   // una inmediata
+      if(!_liveTimer){
+        _liveTimer = setInterval(function(){
+          if(_locModo === "vivo" && document.visibilityState === "visible" && _dentroDeHorario()) _enviarUbicacion();
+        }, 60000);   // en vivo: cada 60 s mientras la app esté abierta
+      }
+    } else if(_locModo === "momentos"){
+      _guardarMiUbicacion(true);
+    }
+  } catch(e){}
+}
+
+// Al volver la app a primer plano: re-evaluar según el modo
 document.addEventListener("visibilitychange", function(){
-  if(document.visibilityState === "visible") _guardarMiUbicacion(false);
+  if(document.visibilityState === "visible") _initTrackingUbicacion();
 });
 
 function doLogin(){
@@ -4576,7 +4631,7 @@ function doLogin(){
   err.textContent="🔄 Conectando…";
 
   // 1. Buscar empresa por código en Supabase
-  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence&codigo=eq."+encodeURIComponent(empCod))
+  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin&codigo=eq."+encodeURIComponent(empCod))
   .then(function(emps){
     if(!emps||!emps.length){ err.textContent="❌ Empresa '"+empCod+"' no encontrada"; return; }
     var emp = emps[0];
@@ -4599,7 +4654,7 @@ function doLogin(){
     }
 
     // 2. Buscar usuario en Supabase directamente (por uid o por id de fila)
-    return sbGet("usuarios","select=id,uid,pass,name,role,lista,catalogo,direccion,telefono,zona,recepciona,nota&empresa_id=eq."+emp.id)
+    return sbGet("usuarios","select=id,uid,pass,name,role,lista,catalogo,direccion,telefono,zona,recepciona,nota,loc_modo&empresa_id=eq."+emp.id)
     .then(function(usuarios){
       if(!usuarios||!usuarios.length){ err.textContent="❌ No hay usuarios en esta empresa"; return; }
 
@@ -4618,8 +4673,10 @@ function doLogin(){
         pass:    found.pass,
         role:    found.role  || "vendedor",
         lista:   found.lista || "Clientes",
-        catalogo:found.catalogo !== false
+        catalogo:found.catalogo !== false,
+        loc_modo: found.loc_modo || "momentos"
       };
+      _locModo = currentUser.loc_modo;
 
       // 4. Cargar el resto de la empresa
       empresaData = Object.assign({}, emp, { usuarios: {} });
@@ -4679,7 +4736,7 @@ function doLogin(){
       aplicarBranding(); aplicarRestricciones();
       cargarListasPrecios();
       iniciarApp();
-      setTimeout(function(){ _guardarMiUbicacion(true); }, 3000);
+      setTimeout(_initTrackingUbicacion, 3000);
       setTimeout(_tryInitPush, 2500);
       setTimeout(_checkNotifButton, 1000);
       // Sincronizar pedidos pendientes al hacer login
@@ -15541,6 +15598,12 @@ function _haceCuanto(iso){
 }
 async function renderMapaVendedores(){
   var lista = document.getElementById("vnd-mapa-lista");
+  // Cargar el horario configurado en los inputs
+  try {
+    var hi = document.getElementById("loc-hora-ini"), hf = document.getElementById("loc-hora-fin");
+    if(hi) hi.value = (empresaData && empresaData.loc_hora_ini) || "";
+    if(hf) hf.value = (empresaData && empresaData.loc_hora_fin) || "";
+  } catch(e){}
   if(typeof L === "undefined"){ if(lista) lista.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">No se pudo cargar el mapa.</div>'; return; }
   if(!_vndMapa){
     _vndMapa = L.map("vnd-mapa-leaflet").setView([-42.7682,-65.0351], 12);
@@ -15553,33 +15616,63 @@ async function renderMapaVendedores(){
   _vndMapaMarkers = [];
   if(lista) lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">Cargando…</div>';
   try {
-    var rows = await sbGet("usuarios","select=uid,name,role,last_lat,last_lng,last_loc_at&empresa_id=eq."+_sbEmpId+"&order=name.asc");
-    var conUbic = (rows||[]).filter(function(u){ return u.last_lat!=null && u.last_lng!=null; });
+    var rows = await sbGet("usuarios","select=id,uid,name,role,last_lat,last_lng,last_loc_at,loc_modo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+    // Solo vendedores y repartidores (los que andan en la calle)
+    var vendedores = (rows||[]).filter(function(u){ var r=(u.role||""); return r==="vendedor" || r==="repartidor"; });
+    var conUbic = vendedores.filter(function(u){ return u.last_lat!=null && u.last_lng!=null; });
     var bounds = [];
     conUbic.forEach(function(u){
+      var enVivo = (u.loc_modo||"momentos")==="vivo";
+      var color = enVivo ? "#16a34a" : "var(--accent,#c0633a)";
       var icon = L.divIcon({ className:"",
-        html:'<div style="width:18px;height:18px;background:var(--accent,#c0633a);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+        html:'<div style="width:18px;height:18px;background:'+color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
         iconSize:[18,18], iconAnchor:[9,18] });
       var mk = L.marker([u.last_lat,u.last_lng],{icon:icon}).addTo(_vndMapa)
-        .bindPopup("<b>"+(u.name||u.uid)+"</b><br>"+_haceCuanto(u.last_loc_at));
+        .bindPopup("<b>"+(u.name||u.uid)+"</b><br>"+_haceCuanto(u.last_loc_at)+(enVivo?"<br>🟢 en vivo":""));
       _vndMapaMarkers.push(mk);
       bounds.push([u.last_lat,u.last_lng]);
     });
     if(bounds.length) _vndMapa.fitBounds(bounds, {padding:[40,40], maxZoom:15});
     if(lista){
-      if(!conUbic.length){
-        lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">Todavía no hay ubicaciones registradas.</div>';
+      if(!vendedores.length){
+        lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">No hay vendedores ni repartidores cargados.</div>';
       } else {
-        lista.innerHTML = conUbic.map(function(u){
-          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 8px;border-bottom:1px solid var(--border);font-size:12.5px">'+
-            '<span>👤 '+(u.name||u.uid)+'</span>'+
-            '<span style="color:var(--muted)">'+_haceCuanto(u.last_loc_at)+'</span></div>';
+        lista.innerHTML = vendedores.map(function(u){
+          var modo = u.loc_modo || "momentos";
+          var emo = (u.role==="repartidor") ? "🚚" : "📝";
+          var ubicTxt = (u.last_lat!=null) ? _haceCuanto(u.last_loc_at) : "sin ubicación";
+          var sel = '<select onchange="_setLocModo(\''+u.id+'\',this.value)" style="font-size:11.5px;padding:3px 6px">'+
+            '<option value="momentos"'+(modo==="momentos"?" selected":"")+'>Por momentos</option>'+
+            '<option value="vivo"'+(modo==="vivo"?" selected":"")+'>En vivo</option>'+
+            '<option value="off"'+(modo==="off"?" selected":"")+'>Apagado</option>'+
+          '</select>';
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);font-size:12.5px">'+
+            '<div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+emo+' '+(u.name||u.uid)+'</div>'+
+            '<div style="color:var(--muted);font-size:11px">'+ubicTxt+'</div></div>'+
+            sel+'</div>';
         }).join("");
       }
     }
   } catch(e){
     if(lista) lista.innerHTML = '<div style="font-size:12px;color:#c0392b;padding:8px">Error cargando ubicaciones: '+(e.message||e)+'</div>';
   }
+}
+
+async function _guardarHorarioUbic(){
+  var hi = (document.getElementById("loc-hora-ini")||{}).value || null;
+  var hf = (document.getElementById("loc-hora-fin")||{}).value || null;
+  try {
+    await sbPatch("empresas","id=eq."+_sbEmpId, {loc_hora_ini:hi, loc_hora_fin:hf});
+    if(empresaData){ empresaData.loc_hora_ini=hi; empresaData.loc_hora_fin=hf; }
+    showNotif("✅ Horario guardado","ok");
+  } catch(e){ showNotif("Error: "+(e.message||e),"err"); }
+}
+
+async function _setLocModo(sbId, modo){
+  try {
+    await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {loc_modo:modo});
+    showNotif("✅ Modo actualizado","ok");
+  } catch(e){ showNotif("Error: "+(e.message||e),"err"); }
 }
 
 // ══ EDITAR VENDEDOR ══
