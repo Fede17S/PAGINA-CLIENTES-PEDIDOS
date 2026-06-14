@@ -1067,6 +1067,48 @@ select option { background:var(--s2); color:var(--text) }
 .me-split { display:flex; flex:1; min-height:0; gap:0 }
 .me-map { flex:1; min-height:300px; z-index:0 }
 .me-list-col { width:320px; flex-shrink:0; overflow-y:auto; border-left:1px solid var(--border); background:var(--bg) }
+
+/* ===== Mejoras mapa de entregas (repartidor) ===== */
+#mapa-paradas { padding:10px; }
+.me-prog { background:var(--s2); border:1px solid var(--border); border-radius:11px; padding:10px 12px; margin-bottom:12px; }
+.me-prog-top { display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--text); margin-bottom:7px; }
+.me-prog-bar { height:8px; background:var(--border); border-radius:5px; overflow:hidden; }
+.me-prog-fill { height:100%; background:linear-gradient(90deg,#16a34a,#22c55e); border-radius:5px; transition:width .4s; }
+.me-next { background:var(--s2); border:2px solid var(--accent,#c2613c); border-radius:14px; padding:13px 14px; margin-bottom:12px; box-shadow:0 3px 14px rgba(0,0,0,.10); }
+.me-next-done { border-color:#16a34a; text-align:center; }
+.me-next-tag { font-size:10.5px; font-weight:800; letter-spacing:.6px; color:var(--accent,#c2613c); margin-bottom:5px; }
+.me-next-done .me-next-tag { color:#16a34a; }
+.me-next-nom { font-size:18px; font-weight:800; color:var(--text); cursor:pointer; line-height:1.15; }
+.me-next-dir { font-size:12.5px; color:var(--muted); margin-top:3px; }
+.me-next-money { display:flex; gap:12px; align-items:center; margin:9px 0 11px; font-size:13px; font-weight:600; color:var(--text); }
+.me-next-money .me-pend { color:var(--amber); font-weight:800; }
+.me-next-money .me-ok { color:#16a34a; font-weight:800; }
+.me-next-actions { display:flex; gap:8px; }
+.me-bigbtn { flex:1; text-align:center; padding:13px 10px; border-radius:11px; font-size:14.5px; font-weight:800; border:none; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+.me-bigbtn-nav { background:#2563eb; color:#fff; }
+.me-bigbtn-call { background:#16a34a; color:#fff; flex:0 0 52px; font-size:18px; }
+.me-bigbtn-done { background:var(--accent,#c2613c); color:#fff; }
+.me-route-all { width:100%; padding:11px; border-radius:11px; border:1px dashed var(--accent,#c2613c); background:transparent; color:var(--accent,#c2613c); font-size:13px; font-weight:700; cursor:pointer; margin-bottom:14px; }
+.me-route-all:hover { background:var(--s2); }
+.me-list-head { font-size:12px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:4px 2px 8px; }
+.parada-card.cercana { border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.18); }
+.pc-estado { font-size:10.5px; font-weight:700; margin-top:2px; }
+.pc-ok { color:#16a34a; } .pc-pend { color:var(--amber); }
+.pc-near { font-size:10px; font-weight:700; color:#2563eb; background:rgba(37,99,235,.12); border-radius:6px; padding:1px 6px; margin-left:6px; }
+.me-acts { display:flex; gap:6px; padding:9px 10px 10px; }
+.me-act { flex:0 0 auto; border:none; border-radius:9px; padding:10px 12px; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+.me-act-nav { flex:1; background:#2563eb; color:#fff; }
+.me-act-call { background:#16a34a; color:#fff; }
+.me-act-pay { background:var(--amber,#d97706); color:#fff; }
+.me-act-done { background:var(--accent,#c2613c); color:#fff; }
+.me-act-mini { background:var(--s1); color:var(--text); border:1px solid var(--border); }
+.me-cobro { padding:0 10px 11px; }
+.me-cobro-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.me-cobro-row label { font-size:12px; font-weight:600; color:var(--muted); width:78px; flex-shrink:0; }
+.me-cobro-row input { flex:1; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:var(--s1); color:var(--text); font-family:inherit; }
+.me-cobro-btns { display:flex; gap:8px; margin-top:3px; }
+.me-cobro-full { flex:1; padding:10px; border-radius:9px; border:1px solid var(--border); background:var(--s1); color:var(--text); font-size:12.5px; font-weight:700; cursor:pointer; }
+.me-cobro-save { flex:1; padding:10px; border-radius:9px; border:none; background:#16a34a; color:#fff; font-size:13px; font-weight:800; cursor:pointer; }
 .me-list-col::-webkit-scrollbar { width:4px }
 .me-list-col::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px }
 
@@ -1076,9 +1118,9 @@ select option { background:var(--s2); color:var(--text) }
   .me-root { height:auto !important; overflow:visible !important; min-height:0 }
   .section.me-root.active { height:auto !important; overflow:visible !important; display:block !important }
   .me-split { flex-direction:column; overflow:visible; height:auto; flex:none }
-  .me-map { height:260px; flex:none }
-  .me-map-wrap { height:260px !important; min-height:260px !important }
-  .me-map-wrap #mapa-leaflet { height:260px !important; min-height:260px !important }
+  .me-map { height:42vh; min-height:300px; flex:none }
+  .me-map-wrap { height:42vh !important; min-height:300px !important }
+  .me-map-wrap #mapa-leaflet { height:42vh !important; min-height:300px !important }
   .me-list-col { width:100%; height:auto !important; max-height:none !important; overflow-y:visible !important;
     border-left:none; border-top:1px solid var(--border); display:block }
   .mapa-stats { grid-template-columns:1fr 1fr }
@@ -5678,6 +5720,7 @@ function _buildBottomNav(role){
 
   var TABS_POR_ROL = {
     admin:      [
+      {id:"dashboard",    ico:"🏠", lbl:"Inicio"},
       {id:"pedido",       ico:"📝", lbl:"Pedido"},
       {id:"remito",       ico:"🚚", lbl:"Remito"},
       {id:"hoja",         ico:"📋", lbl:"Ruta"},
@@ -12984,16 +13027,26 @@ async function optimizarYMostrar() {
   } catch(e){}
 
   var puntos = [];
+  // Teléfonos de clientes (probando nombres de columna comunes, sin romper si no existe)
+  var telMap={};
+  for(var ti=0; ti<3; ti++){
+    var campo=["tel","telefono","celular"][ti];
+    try{
+      var tRows=await sbGet("usuarios","select=uid,name,"+campo+"&empresa_id=eq."+_sbEmpId+"&role=eq.cliente&limit=2000");
+      if(tRows){ tRows.forEach(function(u){ var t=u[campo]||""; if(t){ if(u.name)telMap[(""+u.name).toLowerCase()]=t; if(u.uid)telMap[(""+u.uid).toLowerCase()]=t; } }); if(Object.keys(telMap).length) break; }
+    }catch(e){}
+  }
   for (var ci=0; ci<cliEntries.length; ci++) {
     var ck=cliEntries[ci][0], cli=cliEntries[ci][1];
     var nomKey = (cli.nom||"").toLowerCase(), idKey = (cli.id||"").toLowerCase();
     var dir = usuariosMap[nomKey] || usuariosMap[idKey] || "";
+    var tel = telMap[nomKey] || telMap[idKey] || "";
     document.getElementById("mapa-paradas").innerHTML =
       '<div class="geocoding-progress">📍 ' + (ci+1) + '/' + cliEntries.length + ' — <b>' + cli.nom + '</b></div>';
     // Usar coords guardadas si existen, sino geocodificar
     var savedCoords = coordsMap[nomKey] || coordsMap[idKey] || null;
     var coords = savedCoords || (dir ? await geocodeAddress(dir) : null);
-    puntos.push({cliKey:ck, cli:cli, dir:dir,
+    puntos.push({cliKey:ck, cli:cli, dir:dir, tel:tel,
       lat:coords?coords.lat:null, lng:coords?coords.lng:null, hasCoords:!!coords});
     // Solo esperar si necesitó geocodificar por Nominatim (no si usó coords guardadas)
     if(!savedCoords && dir && !_geocodeCache[dir.toLowerCase()]) await new Promise(function(r){setTimeout(r,1100);});
@@ -13076,61 +13129,154 @@ function initMapa(startLat, startLng, ordered) {
   setTimeout(function(){_mapaLeaflet.invalidateSize();},300);
 }
 
+function _meNavUrls(p){
+  var lat=p.lat,lng=p.lng,dir=p.dir||"";
+  return {
+    gmaps: lat&&lng ? "https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng : "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir+", Argentina"),
+    waze:  lat&&lng ? "https://waze.com/ul?ll="+lat+","+lng+"&navigate=yes" : "https://waze.com/ul?q="+encodeURIComponent(dir+", Argentina")+"&navigate=yes",
+    apple: lat&&lng ? "https://maps.apple.com/?daddr="+lat+","+lng : "https://maps.apple.com/?daddr="+encodeURIComponent(dir+", Argentina")
+  };
+}
+function _meTel(t){ return (""+t).replace(/[^0-9+]/g,""); }
+
 function renderParadas(ordered) {
   var wrap = document.getElementById("mapa-paradas");
   if (!ordered.length) {
     wrap.innerHTML="<div style='padding:40px 20px;text-align:center;color:var(--muted)'>🗺️ Sin paradas para mostrar</div>";
     return;
   }
+  var leg=document.getElementById("mapa-legend"); if(leg) leg.style.display="block";
+
+  var total=ordered.length;
   var entregados=ordered.filter(function(p){return p.cli.entregado;}).length;
-  var msEntr=document.getElementById("ms-entregados");
-  if(msEntr) msEntr.textContent=entregados+"/"+ordered.length;
+  var impTotal=ordered.reduce(function(s,p){return s+(p.cli.importe||0);},0);
+  var cobrado=ordered.reduce(function(s,p){return s+(p.cli.efectivo||0)+(p.cli.transferencia||0);},0);
+  var msEntr=document.getElementById("ms-entregados"); if(msEntr) msEntr.textContent=entregados+"/"+total;
 
-  // Show legend
-  var leg=document.getElementById("mapa-legend");
-  if(leg) leg.style.display="block";
+  // Próxima parada (primera pendiente) y más cercana al GPS
+  var proxIdx=-1; for(var k=0;k<ordered.length;k++){ if(!ordered[k].cli.entregado){ proxIdx=k; break; } }
+  var nearIdx=-1;
+  if(_mePosicion){ var bd=Infinity; ordered.forEach(function(p,i){ if(p.cli.entregado||!p.hasCoords)return; var d=getDistKm(_mePosicion.lat,_mePosicion.lng,p.lat,p.lng); if(d<bd){bd=d;nearIdx=i;} }); }
 
-  wrap.innerHTML = "";
+  var pctProg = total? Math.round(entregados/total*100):0;
+  var html="";
+
+  // Barra de progreso
+  html+='<div class="me-prog">'+
+    '<div class="me-prog-top"><span>'+entregados+' de '+total+' entregadas</span><span>$'+fM(cobrado)+' / $'+fM(impTotal)+'</span></div>'+
+    '<div class="me-prog-bar"><div class="me-prog-fill" style="width:'+pctProg+'%"></div></div>'+
+  '</div>';
+
+  // Tarjeta PRÓXIMA PARADA
+  if(proxIdx>=0){
+    var pp=ordered[proxIdx], ppu=_meNavUrls(pp);
+    var ppSaldo=Math.round(((pp.cli.importe||0)-(pp.cli.efectivo||0)-(pp.cli.transferencia||0))*100)/100;
+    html+='<div class="me-next">'+
+      '<div class="me-next-tag">▶ PRÓXIMA PARADA'+(proxIdx===nearIdx?' · la más cercana':'')+'</div>'+
+      '<div class="me-next-nom" onclick="focusParada('+proxIdx+','+pp.lat+','+pp.lng+')">'+(proxIdx+1)+'. '+escHtml(pp.cli.nom||"")+'</div>'+
+      '<div class="me-next-dir">'+(pp.dir?'📍 '+escHtml(pp.dir):'<span style="color:#fde68a">⚠️ Sin dirección</span>')+'</div>'+
+      '<div class="me-next-money"><span>Total $'+fM(pp.cli.importe||0)+'</span>'+(ppSaldo>0?'<span class="me-pend">Cobrar $'+fM(ppSaldo)+'</span>':'<span class="me-ok">✓ Cobrado</span>')+'</div>'+
+      '<div class="me-next-actions">'+
+        '<a href="'+ppu.gmaps+'" target="_blank" class="me-bigbtn me-bigbtn-nav">🧭 Navegar</a>'+
+        (pp.tel?'<a href="tel:'+_meTel(pp.tel)+'" class="me-bigbtn me-bigbtn-call">📞</a>':'')+
+        '<button class="me-bigbtn me-bigbtn-done" onclick="_meEntregar('+proxIdx+')">✅ Entregar</button>'+
+      '</div>'+
+    '</div>';
+  } else {
+    html+='<div class="me-next me-next-done"><div class="me-next-tag">🎉 ¡Ruta completa!</div><div class="me-next-nom">Todas las entregas hechas</div></div>';
+  }
+
+  // Botón ruta completa
+  html+='<button class="me-route-all" onclick="_meAbrirRutaCompleta()">🗺️ Abrir ruta completa en Google Maps</button>';
+
+  // Lista completa
+  html+='<div class="me-list-head">Todas las paradas</div>';
   ordered.forEach(function(p,i){
-    var color = p.cli.entregado ? "#9ca3af" : COLORS[i%COLORS.length];
+    var u=_meNavUrls(p);
     var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
     var saldo=Math.round(((p.cli.importe||0)-ef-tr)*100)/100;
-    var card = document.createElement("div");
-    card.className="parada-card"+(p.cli.entregado?" entregada":"");
-    card.id="parada-"+i;
+    var color = p.cli.entregado ? "#9ca3af" : COLORS[i%COLORS.length];
+    var estado = p.cli.entregado
+      ? '<div class="pc-estado pc-ok">✅ Entregado</div>'
+      : (saldo>0 ? '<div class="pc-estado pc-pend">$'+fM(saldo)+' pend.</div>' : '<div class="pc-estado pc-ok">✓ Cobrado</div>');
+    var nearTag = (i===nearIdx && !p.cli.entregado) ? '<span class="pc-near">📍 más cercana</span>' : '';
 
-    var lat=p.lat, lng=p.lng, dir=p.dir||"";
-    var gmaps = lat&&lng ? "https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng
-                         : "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir+", Argentina");
-    var waze  = lat&&lng ? "https://waze.com/ul?ll="+lat+","+lng+"&navigate=yes"
-                         : "https://waze.com/ul?q="+encodeURIComponent(dir+", Argentina")+"&navigate=yes";
-    var apple = lat&&lng ? "https://maps.apple.com/?daddr="+lat+","+lng
-                         : "https://maps.apple.com/?daddr="+encodeURIComponent(dir+", Argentina");
-
-    var estadoBadge = p.cli.entregado
-      ? '<div style="font-size:10.5px;font-weight:700;color:var(--green)">✅ Entregado</div>'
-      : (saldo>0 ? '<div style="font-size:10.5px;color:var(--amber);font-weight:700">$'+fM(saldo)+' pend.</div>'
-                 : '<div style="font-size:10.5px;color:var(--green);font-weight:700">✓ Cobrado</div>');
-
-    card.innerHTML =
-      '<div class="parada-head" onclick="focusParada('+i+','+lat+','+lng+')">'+
+    html+='<div class="parada-card'+(p.cli.entregado?" entregada":"")+(i===nearIdx&&!p.cli.entregado?" cercana":"")+'" id="parada-'+i+'">'+
+      '<div class="parada-head" onclick="focusParada('+i+','+p.lat+','+p.lng+')">'+
         '<div class="parada-num" style="background:'+color+'">'+(p.cli.entregado?"✓":(i+1))+'</div>'+
         '<div class="parada-info">'+
-          '<div class="parada-nom">'+escHtml(p.cli.nom||"")+'</div>'+
+          '<div class="parada-nom">'+escHtml(p.cli.nom||"")+nearTag+'</div>'+
           '<div class="parada-dir">'+(p.dir?'📍 '+escHtml(p.dir):'<span style="color:#f59e0b">⚠️ Sin dirección GPS</span>')+'</div>'+
         '</div>'+
         '<div style="text-align:right;flex-shrink:0">'+
-          '<div class="parada-total">$'+fM(p.cli.importe||0)+'</div>'+
-          estadoBadge+
+          '<div class="parada-total">$'+fM(p.cli.importe||0)+'</div>'+estado+
         '</div>'+
       '</div>'+
-      '<div class="nav-btns">'+
-        '<a href="'+gmaps+'" target="_blank" class="nav-btn nav-gmaps">🗺️ Google Maps</a>'+
-        '<a href="'+waze+'"  target="_blank" class="nav-btn nav-waze">🚗 Waze</a>'+
-        '<a href="'+apple+'" target="_blank" class="nav-btn nav-apple">🍎 Apple</a>'+
-      '</div>';
-    wrap.appendChild(card);
+      '<div class="me-acts">'+
+        '<a href="'+u.gmaps+'" target="_blank" class="me-act me-act-nav">🧭 Navegar</a>'+
+        (p.tel?'<a href="tel:'+_meTel(p.tel)+'" class="me-act me-act-call">📞</a>':'')+
+        (!p.cli.entregado?'<button class="me-act me-act-pay" onclick="_meToggleCobro('+i+')">💰</button>':'')+
+        (!p.cli.entregado?'<button class="me-act me-act-done" onclick="_meEntregar('+i+')">✅</button>':'')+
+        '<a href="'+u.waze+'" target="_blank" class="me-act me-act-mini">🚗</a>'+
+      '</div>'+
+      '<div class="me-cobro" id="me-cobro-'+i+'" style="display:none">'+
+        '<div class="me-cobro-row"><label>💵 Efectivo</label><input type="text" inputmode="decimal" id="me-ef-'+i+'" value="'+(ef||"")+'" placeholder="0"></div>'+
+        '<div class="me-cobro-row"><label>🏦 Transfer.</label><input type="text" inputmode="decimal" id="me-tr-'+i+'" value="'+(tr||"")+'" placeholder="0"></div>'+
+        '<div class="me-cobro-btns"><button class="me-cobro-full" onclick="_mePagarTodo('+i+')">Cobrar todo ($'+fM(saldo>0?saldo+ef+tr:(p.cli.importe||0))+')</button><button class="me-cobro-save" onclick="_meGuardarCobro('+i+')">Guardar</button></div>'+
+      '</div>'+
+    '</div>';
   });
+
+  wrap.innerHTML = html;
+}
+
+function _meToggleCobro(i){ var el=document.getElementById("me-cobro-"+i); if(el) el.style.display=el.style.display==="none"?"block":"none"; }
+function _mePagarTodo(i){
+  var p=_mapaParadas[i]; if(!p) return;
+  var ef=document.getElementById("me-ef-"+i), tr=document.getElementById("me-tr-"+i);
+  if(ef){ ef.value=fM(p.cli.importe||0); } if(tr){ tr.value=""; }
+}
+function _meInjectPagoInputs(rk,ck,ef,tr){
+  ["ef","tr"].forEach(function(pre,idx){
+    var id=pre+"-"+rk+"-"+ck, el=document.getElementById(id);
+    if(!el){ el=document.createElement("input"); el.type="hidden"; el.id=id; document.body.appendChild(el); }
+    el.value = (idx===0?ef:tr);
+  });
+}
+function _meGuardarCobro(i){
+  var p=_mapaParadas[i]; if(!p) return;
+  var rk=_rutaMapaKey, ck=p.cliKey;
+  var ef=_parseImporte((document.getElementById("me-ef-"+i)||{}).value||"0");
+  var tr=_parseImporte((document.getElementById("me-tr-"+i)||{}).value||"0");
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(cli){ cli.modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo"); }
+  _meInjectPagoInputs(rk,ck,ef,tr);
+  guardarPago(rk,ck); // patch + cuentas corrientes
+  p.cli.efectivo=ef; p.cli.transferencia=tr;
+  renderParadas(_mapaParadas);
+  showNotif("💰 Cobro guardado","ok");
+}
+function _meEntregar(i){
+  var p=_mapaParadas[i]; if(!p) return;
+  if(!confirm("¿Marcar a "+(p.cli.nom||"este cliente")+" como entregado?")) return;
+  var rk=_rutaMapaKey, ck=p.cliKey, ahora=new Date().toISOString();
+  p.cli.entregado=true; p.cli.entregadoEn=ahora;
+  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].entregado=true; rutasData[rk].clientes[ck].entregadoEn=ahora; }
+  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora}).catch(function(){});
+  renderParadas(_mapaParadas);
+  if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setIcon){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
+  showNotif("✅ Entregado","ok");
+}
+function _meAbrirRutaCompleta(){
+  var pts=_mapaParadas.filter(function(p){return p.hasCoords && !p.cli.entregado;});
+  if(!pts.length){ showNotif("No hay paradas pendientes con ubicación","err"); return; }
+  if(pts.length>10) showNotif("Google Maps permite ~10 paradas; se abren las primeras","ok");
+  pts=pts.slice(0,10);
+  var origin=_mePosicion?(_mePosicion.lat+","+_mePosicion.lng):"";
+  var dest=pts[pts.length-1];
+  var way=pts.slice(0,-1).map(function(p){return p.lat+","+p.lng;}).join("|");
+  var url="https://www.google.com/maps/dir/?api=1"+(origin?"&origin="+origin:"")+"&destination="+dest.lat+","+dest.lng+(way?"&waypoints="+encodeURIComponent(way):"")+"&travelmode=driving";
+  window.open(url,"_blank");
 }
 
 function focusParada(i, lat, lng) {
