@@ -650,6 +650,34 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 .dff-nav-b { background:var(--s2); border:1px dashed var(--border); border-radius:11px; padding:8px; }
 .dff-vs { font-size:12px; font-weight:700; color:var(--muted); flex:0 0 auto; padding:0 2px; }
 .dff-zona { align-self:flex-start; min-width:150px; padding:8px 11px; border:1px solid var(--border); border-radius:9px; font-size:13px; background:var(--s1); color:var(--text); cursor:pointer; }
+
+/* ===== Panel desplegable de detalle de ganancia ===== */
+.gd-wrap { border-top:1px solid var(--border); }
+.gd-det { border-bottom:1px solid var(--border); }
+.gd-det summary { padding:12px 14px; font-size:13px; font-weight:700; color:var(--text); cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; }
+.gd-det summary::-webkit-details-marker { display:none; }
+.gd-det summary::after { content:"▾"; color:var(--muted); font-size:12px; transition:transform .2s; }
+.gd-det[open] summary::after { transform:rotate(180deg); }
+.gd-det[open] summary { color:var(--green); }
+.gd-list { max-height:340px; overflow-y:auto; padding:0 4px 8px; }
+.gd-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:8px; }
+.gd-row:nth-child(odd) { background:var(--s1); }
+.gd-name { font-size:12.5px; color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gd-u { font-size:10.5px; color:var(--muted); font-weight:600; }
+.gd-nums { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.gd-gan { font-size:13px; font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; }
+.gd-marg { font-size:11px; font-weight:600; color:var(--muted); min-width:34px; text-align:right; }
+.gd-search { padding:10px 12px; border-bottom:1px solid var(--border); }
+.gd-search input { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:9px; background:var(--s1); color:var(--text); font-size:13px; box-sizing:border-box; }
+.gd-click { cursor:pointer; transition:background .12s; }
+.gd-click:hover { background:var(--s2)!important; }
+.gd-click .gd-name { text-decoration:underline; text-decoration-color:transparent; }
+.gd-click:active { opacity:.7; }
+.gd-drill-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:flex-end; justify-content:center; }
+.gd-drill-box { background:var(--bg); width:100%; max-width:560px; max-height:80vh; border-radius:18px 18px 0 0; display:flex; flex-direction:column; box-shadow:0 -8px 40px rgba(0,0,0,.4); }
+@media(min-width:600px){ .gd-drill-ov{ align-items:center; } .gd-drill-box{ border-radius:16px; } }
+.gd-drill-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:16px 16px 12px; border-bottom:1px solid var(--border); }
+.gd-drill-body { overflow-y:auto; padding:6px 8px 16px; }
 @media (min-width:880px){
   .dff-box { flex-direction:row; flex-wrap:wrap; align-items:center; }
   .dff-nav { flex:0 0 auto; min-width:260px; }
@@ -3145,8 +3173,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <div>
         <div style="font-size:13px;font-weight:700;color:var(--text)">📥 Importar productos desde CSV / Excel</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">Encabezados aceptados (en cualquier capitalización):<br>
-          <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">CODIGO, NOMBRE PRODUCTO, CATEGORIA, PRECIO BASE, PRECIO CLIENTE, PRECIO PATAGONIA, STOCK, URL IMAGEN &nbsp;·&nbsp; También acepta formato viejo: PRECIO VENTA, PORCENTAJE, PRECIO COMPRA</code>
-          <span style="margin-left:6px;opacity:.7">· Formatos: .csv o .xlsx (el Excel exportado por esta app)</span>
+          <code style="font-size:10.5px;background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)">CODIGO, NOMBRE PRODUCTO, CATEGORIA, PRECIO BASE, STOCK, URL IMAGEN</code>
+          <span style="margin-left:6px;opacity:.7">· Solo se lee el PRECIO BASE (costo). Los precios de cada lista se recalculan solos con el % de la empresa · .csv o .xlsx</span>
         </div>
       </div>
       <button onclick="toggleProdCsvImporter()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px 8px;line-height:1">✕</button>
@@ -3310,6 +3338,19 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 
 <!-- MODAL AGREGAR / EDITAR PRODUCTO -->
+<div class="gd-drill-ov" id="gd-drill-ov" onclick="if(event.target===this)_ganDrillClose()">
+  <div class="gd-drill-box">
+    <div class="gd-drill-head">
+      <div style="min-width:0">
+        <div class="gd-drill-title" style="font-size:15px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div class="gd-drill-sub" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <button onclick="_ganDrillClose()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;flex-shrink:0">×</button>
+    </div>
+    <div class="gd-drill-body"></div>
+  </div>
+</div>
+
 <div class="mprod-overlay" id="mprod-overlay" onclick="if(event.target===this)cerrarModalProducto()">
   <div class="mprod-box">
     <div class="mprod-head">
@@ -4622,6 +4663,7 @@ async function _sbInsertBackup(data){
 
   var body = {
     empresa_id:    _sbEmpId,
+    local_id:      data.id||null,
     fecha:         data.fecha||new Date().toISOString(),
     cliente_nom:   (data.clienteNom||"").slice(0,200),
     cliente_id:    (data.clienteId||"").slice(0,100),
@@ -6323,7 +6365,7 @@ function _elegirCliente(t, c){
   idHid.value  = c.id||"";
   nomHid.value = c.nombre;
 
-  tipoLista[t] = (c.lista||"").toLowerCase().indexOf("patagonia")!==-1?"Patagonia":"Clientes";
+  tipoLista[t] = c.lista || "Clientes";
   var badge = document.getElementById("badge-"+t);
   if(badge) badge.textContent = "📋 "+tipoLista[t];
 
@@ -6396,7 +6438,7 @@ function _agregarFrecuente(pid, btn){
   var prod = dbStock.find(function(p){ return p.id===pid; });
   if(!prod){ showNotif("Producto no disponible","err"); return; }
   var lista = tipoLista["ped"]||"Clientes";
-  var pre = lista==="Patagonia" ? prod.pPat : prod.pCli;
+  var pre = (function(){ if(prod.precios){ var ls=getListasOrdenadas(); for(var li=0;li<ls.length;li++){ if(ls[li][1].nombre===lista){ var _pl=prod.precios[ls[li][0]]; if(_pl!=null&&_pl>0) return _pl; break; } } } return lista==="Patagonia"?prod.pPat:prod.pCli; })();
   var exist = ordenes["ped"].find(function(x){ return x.id===prod.id && x.p===pre; });
   if(exist){ exist.c += 1; exist.sub = exist.p*exist.c; }
   else ordenes["ped"].push({ id:prod.id, n:prod.n, p:pre, c:1, sub:pre });
@@ -6574,7 +6616,7 @@ function filtrarClientes(t){
       document.getElementById("nomCli-"+t).value = c.nombre;
       box.style.display = "none";
       box.innerHTML = "";
-      tipoLista[t] = (c.lista||"").toLowerCase().indexOf("patagonia")!==-1?"Patagonia":"Clientes";
+      tipoLista[t] = c.lista || "Clientes";
       var badge = document.getElementById("badge-"+t);
       if(badge) badge.textContent = "📋 "+tipoLista[t];
     }
@@ -6610,7 +6652,7 @@ function vincularCli(origen, t){
     var c = dbCli.filter(function(x){ return (x.id||"").toString()===v; })[0];
     if(c){
       nomIn.value = c.nombre;
-      tipoLista[t] = (c.lista||"").toLowerCase().indexOf("patagonia")!==-1?"Patagonia":"Clientes";
+      tipoLista[t] = c.lista || "Clientes";
       var badge = document.getElementById("badge-"+t);
       if(badge) badge.textContent = "📋 "+tipoLista[t];
     }
@@ -6628,10 +6670,10 @@ function filtrar(t){
         // Buscar el precio para la lista actual
         var lista = tipoLista[t];
         if(p.precios){
-          // Intentar por nombre de lista
+          // Intentar por nombre de lista (usa el precio de esa lista solo si está cargado)
           var listas = getListasOrdenadas();
           for(var li=0;li<listas.length;li++){
-            if(listas[li][1].nombre===lista) return p.precios[listas[li][0]]||0;
+            if(listas[li][1].nombre===lista){ var _pl=p.precios[listas[li][0]]; if(_pl!=null && _pl>0) return _pl; break; }
           }
         }
         return lista==="Patagonia"?p.pPat:p.pCli;
@@ -10024,21 +10066,14 @@ function _bkAddToLocal(item){
 async function _sbInsertBackupConReintento(item, intentosRestantes, delayMs){
   if(!_sbEmpId) return;
   try {
-    // Verificar si ya existe por _sbId (UUID real) o por fecha+cliente (para items con id local tipo "bk_...")
+    // Verificación robusta por id local (idempotency key): exacta, sin problemas de encoding/fecha/nombre
     var existe = null;
-    if(item._sbId && !item._sbId.startsWith("bk_")){
-      existe = await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId);
+    if(item.id){
+      try { existe = await sbGet("backup_pedidos","select=id&empresa_id=eq."+_sbEmpId+"&local_id=eq."+encodeURIComponent(item.id)); } catch(e){}
     }
-    // Si no tiene UUID real, buscar por fecha exacta + cliente (ventana de 5 segundos)
-    if(!existe || !existe.length){
-      var fechaExacta = (item.fecha||"").slice(0,19); // "2024-01-15T14:32:10"
-      if(fechaExacta && item.clienteNom){
-        existe = await sbGet("backup_pedidos",
-          "select=id&empresa_id=eq."+_sbEmpId+
-          "&fecha=gte."+fechaExacta+
-          "&fecha=lte."+(fechaExacta.slice(0,17)+(parseInt(fechaExacta.slice(17,19))+5).toString().padStart(2,"0"))+
-          "&cliente_nom=eq."+encodeURIComponent(item.clienteNom));
-      }
+    // Fallback: por _sbId si ya tenía UUID real
+    if((!existe || !existe.length) && item._sbId && !(""+item._sbId).startsWith("bk_")){
+      try { existe = await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId); } catch(e){}
     }
     if(existe && existe.length){
       item._sbId=existe[0].id; item._synced=true;
@@ -10144,19 +10179,15 @@ async function _syncPendingBackups(){
     var item=pending[i];
     if(s) s.innerHTML="⏳ Subiendo pedido "+(i+1)+"/"+pending.length+"…";
     try{
-      // Verificar si ya existe (por UUID o por fecha+cliente)
+      // Verificar si ya existe (por id local idempotente, luego por UUID)
       var existe=null;
-      if(item._sbId && typeof item._sbId==="string" && item._sbId.length>10 && !item._sbId.startsWith("bk_")){
+      if(item.id){
+        var chk0=await sbGet("backup_pedidos","select=id&empresa_id=eq."+_sbEmpId+"&local_id=eq."+encodeURIComponent(item.id));
+        if(chk0&&chk0.length) existe=chk0;
+      }
+      if((!existe||!existe.length) && item._sbId && typeof item._sbId==="string" && item._sbId.length>10 && !item._sbId.startsWith("bk_")){
         var chk=await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId);
         if(chk&&chk.length) existe=chk;
-      }
-      if((!existe||!existe.length) && item.fecha && item.clienteNom){
-        var fe=(item.fecha||"").slice(0,19);
-        var chk2=await sbGet("backup_pedidos",
-          "select=id&empresa_id=eq."+_sbEmpId+
-          "&fecha=gte."+fe+
-          "&cliente_nom=eq."+encodeURIComponent(item.clienteNom||""));
-        if(chk2&&chk2.length) existe=chk2;
       }
       if(existe&&existe.length){
         item._sbId=existe[0].id; item._synced=true;
@@ -11709,15 +11740,27 @@ async function confirmarBackupComoRemito(bkParam){
 
   // Los ítems del pedido original conservan sus precios (p = precio al momento del pedido)
   // NO se recalculan precios — se usa lo que tenía el pedido
+  // Congelar el COSTO actual de cada producto (foto al aprobar) para la ganancia histórica
+  var _costoMap={};
+  try {
+    var _pr = await sbGet("productos","select=id,codigo,precio_base&empresa_id=eq."+_sbEmpId+"&limit=5000") || [];
+    _pr.forEach(function(p){
+      var _c=(p.precio_base!=null?+p.precio_base:null);
+      if(p.id!=null && p.id!=="")        _costoMap[String(p.id)]=_c;
+      if(p.codigo!=null && p.codigo!=="")_costoMap[String(p.codigo)]=_c;
+    });
+  } catch(e){ console.warn("[Aprobar] no se pudo cargar costos:", e.message); }
   var itemsAprobados = items.filter(function(i){ return !i.pendiente; }).map(function(i){
     // Conservar sub original (ya tiene descuentos aplicados), dsc y todos los campos
+    var _cst = _costoMap[String(i.id)];
     return {
       id:  i.id,
       n:   i.n,
       c:   i.c,
       p:   i.p,
       sub: i.sub || (i.c||0)*(i.p||0),  // sub original con descuentos
-      dsc: i.dsc || null                  // descuento por ítem
+      dsc: i.dsc || null,                 // descuento por ítem
+      cost:(_cst!=null && _cst>0) ? _cst : (i.cost!=null?i.cost:null)  // costo congelado al aprobar
     };
   });
 
@@ -12348,6 +12391,97 @@ function borrarVenta(fbKey){ if(!confirm("¿Borrar este remito del resumen?"))re
 function poblarFiltros(){ var now=new Date(),selA=document.getElementById("fil-anio"),anioAct=+selA.value||now.getFullYear(); var anioSet=new Set([now.getFullYear()]);ventas.forEach(function(v){anioSet.add(v.anio);}); selA.innerHTML=Array.from(anioSet).sort(function(a,b){return b-a;}).map(function(a){return'<option value="'+a+'"'+(a===anioAct?" selected":"")+'>'+a+'</option>';}).join(""); poblarMeses(); }
 function poblarMeses(){ var now=new Date(),anio=+document.getElementById("fil-anio").value||now.getFullYear(),selM=document.getElementById("fil-mes"),mesAct=selM.value!==""?+selM.value:now.getMonth(); var cd=new Set();ventas.filter(function(v){return v.anio===anio;}).forEach(function(v){cd.add(v.mes);});cd.add(now.getMonth()); selM.innerHTML=MESES.map(function(m,i){return'<option value="'+i+'"'+(i===mesAct?" selected":"")+'>'+m+(cd.has(i)?" ●":"")+'</option>';}).join(""); }
 
+var _resData=[], _resCosto={};
+function _costoDe(it){ return (it.cost!=null&&it.cost>0)?it.cost:(_resCosto[(""+it.id)]); }
+function _ganRows(map, withUnits, tipo){
+  var arr=Object.keys(map).map(function(k){ var m=map[k]; return {k:k, v:m.v, g:m.v-m.c, u:m.u||0}; });
+  if(!arr.length) return '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px">Sin datos</div>';
+  arr.sort(function(a,b){ return b.g-a.g; });
+  return arr.slice(0,200).map(function(r){
+    var marg = r.v>0 ? (r.g/r.v*100) : 0;
+    return '<div class="gd-row gd-click" data-tipo="'+tipo+'" data-k="'+escHtml(r.k).replace(/"/g,"&quot;")+'" onclick="_ganDrill(this)">'+
+      '<div class="gd-name">'+escHtml(r.k)+(withUnits&&r.u?' <span class="gd-u">'+r.u+'u</span>':'')+'</div>'+
+      '<div class="gd-nums"><span class="gd-gan">$'+fM(r.g)+'</span><span class="gd-marg">'+marg.toFixed(0)+'%</span></div>'+
+    '</div>';
+  }).join("");
+}
+function _ganFiltrar(q){
+  q=(q||"").toLowerCase().trim();
+  document.querySelectorAll("#gd-wrap .gd-row").forEach(function(row){
+    var nm=(row.querySelector(".gd-name")||{}).textContent||"";
+    row.style.display = (!q || nm.toLowerCase().indexOf(q)!==-1) ? "" : "none";
+  });
+  // Abrir todas las secciones mientras se busca, para ver resultados
+  if(q) document.querySelectorAll("#gd-wrap .gd-det").forEach(function(d){ d.open=true; });
+}
+function _ganDrill(el){
+  var tipo=el.dataset.tipo, key=el.dataset.k;
+  var pedidos=[];
+  function _porPedido(v){
+    var costo=0, falta=false;
+    (v.items||[]).forEach(function(it){ var cs=_costoDe(it); if(cs==null||cs<=0){falta=true;return;} costo+=cs*(it.c||0); });
+    pedidos.push({fecha:v.fecha, label:(v.nom||""), gan:(v.importe||0)-costo, falta:falta});
+  }
+  if(tipo==="cli")        _resData.filter(function(v){return (v.nom||"Sin cliente")===key;}).forEach(_porPedido);
+  else if(tipo==="lista") _resData.filter(function(v){return (((v.lista||"").trim())||"Sin lista")===key;}).forEach(_porPedido);
+  else if(tipo==="dia")   _resData.filter(function(v){ var d=new Date(v.fecha); return (String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0"))===key; }).forEach(_porPedido);
+  else if(tipo==="prod")  _resData.forEach(function(v){ (v.items||[]).forEach(function(it){ if((it.n||it.id)!==key) return; var cs=_costoDe(it); var c=it.c||0, sub=(it.sub!=null?it.sub:(it.p||0)*c); var falta=(cs==null||cs<=0); pedidos.push({fecha:v.fecha, label:(v.nom||""), qty:c, gan:falta?0:sub-cs*c, falta:falta}); }); });
+  pedidos.sort(function(a,b){ return new Date(b.fecha)-new Date(a.fecha); });
+  var rows=pedidos.map(function(p){
+    var d=new Date(p.fecha); var fl=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+    return '<div class="gd-row"><div class="gd-name">'+fl+(p.qty?' · '+p.qty+'u':'')+(p.label?' · '+escHtml(p.label):'')+(p.falta?' <span style="color:var(--amber)" title="producto sin costo">⚠️</span>':'')+'</div><div class="gd-nums"><span class="gd-gan">$'+fM(p.gan)+'</span></div></div>';
+  }).join("") || '<div style="padding:12px;text-align:center;color:var(--muted)">Sin pedidos</div>';
+  var tot=pedidos.reduce(function(s,p){return s+p.gan;},0);
+  var ov=document.getElementById("gd-drill-ov");
+  ov.querySelector(".gd-drill-title").textContent=key;
+  ov.querySelector(".gd-drill-sub").textContent=pedidos.length+" pedido"+(pedidos.length!==1?"s":"")+" · ganancia $"+fM(tot);
+  ov.querySelector(".gd-drill-body").innerHTML=rows;
+  ov.style.display="flex";
+}
+function _ganDrillClose(){ var ov=document.getElementById("gd-drill-ov"); if(ov)ov.style.display="none"; }
+
+async function _congelarCostosViejos(){
+  if(!_sbEmpId) return;
+  var btn=document.getElementById("btn-congelar");
+  // 1) Costos actuales (por id y por código)
+  var costoMap={};
+  try {
+    var pr = await sbGet("productos","select=id,codigo,precio_base&empresa_id=eq."+_sbEmpId+"&limit=5000") || [];
+    pr.forEach(function(p){ var c=(p.precio_base!=null?+p.precio_base:null); if(p.id!=null&&p.id!=="")costoMap[String(p.id)]=c; if(p.codigo!=null&&p.codigo!=="")costoMap[String(p.codigo)]=c; });
+  } catch(e){ showNotif("No se pudieron cargar los costos","err"); return; }
+  // 2) Traer pedidos de hoja de ruta (solo id e items)
+  var rows;
+  try { rows = await sbGet("ruta_clientes","select=id,items&empresa_id=eq."+_sbEmpId+"&limit=10000") || []; }
+  catch(e){ showNotif("No se pudieron cargar los pedidos","err"); return; }
+  // 3) Detectar los que tienen algún ítem sin foto Y con costo disponible
+  var pendientes=[];
+  rows.forEach(function(r){
+    var items=r.items||[]; if(!items.length) return;
+    var necesita=false;
+    var nuevos=items.map(function(it){
+      if(it.cost!=null && it.cost>0) return it;          // ya tiene foto → no se toca
+      var cs=costoMap[String(it.id)];
+      if(cs!=null && cs>0){ necesita=true; return Object.assign({},it,{cost:cs}); }
+      return it;                                          // sin costo disponible → queda igual
+    });
+    if(necesita) pendientes.push({id:r.id, items:nuevos});
+  });
+  if(!pendientes.length){ showNotif("Todos los pedidos ya tienen su costo congelado ✓","ok"); return; }
+  // 4) Confirmar
+  if(!confirm("Se congelará el costo de "+pendientes.length+" pedido(s) sin foto, usando el costo actual de cada producto.\n\nNo se modifican precios ni totales.\n\n¿Continuar?")) return;
+  // 5) Guardar uno por uno con progreso
+  var ok=0, err=0;
+  if(btn) btn.disabled=true;
+  for(var i=0;i<pendientes.length;i++){
+    if(btn) btn.textContent="🧊 Congelando "+(i+1)+"/"+pendientes.length+"…";
+    try { await sbPatch("ruta_clientes","id=eq."+pendientes[i].id+"&empresa_id=eq."+_sbEmpId,{items:pendientes[i].items}); ok++; }
+    catch(e){ err++; }
+  }
+  if(btn){ btn.disabled=false; btn.textContent="🧊 Congelar costos de pedidos sin foto"; }
+  showNotif("Congelados "+ok+" pedido(s)"+(err?(" · "+err+" con error"):"")+" ✓","ok");
+  if(typeof renderResumen==="function") renderResumen();
+}
+
 async function renderResumen(){
   var mes=+document.getElementById("fil-mes").value,anio=+document.getElementById("fil-anio").value||new Date().getFullYear();
   var body=document.getElementById("resumen-body");
@@ -12366,22 +12500,40 @@ async function renderResumen(){
 
   var total=data.reduce(function(s,v){return s+(v.importe||0);},0),cant=data.length,prom=total/cant;
 
-  // pct por lista de ESTA empresa (de listas_precios)
-  var lp=(empresaData&&empresaData.listasPrecios)||{}, pctPorNombre={};
-  function _regPct(l){ if(l&&l.nombre!=null) pctPorNombre[(""+l.nombre).toLowerCase()]=(l.pct!=null?+l.pct:null); }
-  if(Array.isArray(lp)) lp.forEach(_regPct); else Object.keys(lp).forEach(function(k){_regPct(lp[k]);});
-
-  // Total agrupado por lista
-  var porLista={};
-  data.forEach(function(v){ var n=((v.lista||"").trim())||"Sin lista"; porLista[n]=(porLista[n]||0)+(v.importe||0); });
-
-  // Comisión/ganancia por lista (total × pct de la lista)
-  var comBreak=[], comTot=0, hayLista=false, haySinPct=false;
-  Object.keys(porLista).sort(function(a,b){return porLista[b]-porLista[a];}).forEach(function(n){
-    var venta=porLista[n], pct=pctPorNombre[n.toLowerCase()];
-    if(pct==null){ haySinPct=true; comBreak.push({label:n,sub:"sin % configurado",venta:venta,com:0,warn:true}); }
-    else { hayLista=true; var com=venta*pct/(100+pct); comTot+=com; comBreak.push({label:n+" (recargo "+pct+"%)",sub:"Ganancia real · sobre $"+fM(venta),venta:venta,com:com}); }
+  // GANANCIA REAL = (venta − costo), producto por producto
+  var costoMap={};
+  try {
+    var _pr = await sbGet("productos","select=id,codigo,precio_base&empresa_id=eq."+_sbEmpId+"&limit=5000") || [];
+    _pr.forEach(function(p){
+      var c = (p.precio_base!=null?+p.precio_base:null);
+      if(p.id!=null && p.id!=="")         costoMap[(""+p.id)] = c;
+      if(p.codigo!=null && p.codigo!=="")  costoMap[(""+p.codigo)] = c;
+    });
+  } catch(e){}
+  var ventaTotal=0, costoTotal=0, sinCostoSet={};
+  var gProd={}, gCli={}, gLista={}, gDia={};
+  data.forEach(function(v){
+    ventaTotal += (v.importe||0);
+    var cliK=v.nom||"Sin cliente";
+    var listaK=((v.lista||"").trim())||"Sin lista";
+    var d=new Date(v.fecha); var diaK=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
+    (v.items||[]).forEach(function(it){
+      var c=it.c||0, sub=(it.sub!=null?it.sub:(it.p||0)*c);
+      var costo=(it.cost!=null && it.cost>0) ? it.cost : costoMap[(""+it.id)];
+      if(costo==null || costo<=0){ if(it.n||it.id) sinCostoSet[it.n||it.id]=true; return; }
+      var ct=costo*c;
+      costoTotal += ct;
+      var pk=it.n||it.id;
+      if(!gProd[pk])  gProd[pk] ={v:0,c:0,u:0}; gProd[pk].v+=sub;  gProd[pk].c+=ct;  gProd[pk].u+=c;
+      if(!gCli[cliK]) gCli[cliK]={v:0,c:0};     gCli[cliK].v+=sub;  gCli[cliK].c+=ct;
+      if(!gLista[listaK])gLista[listaK]={v:0,c:0}; gLista[listaK].v+=sub; gLista[listaK].c+=ct;
+      if(!gDia[diaK]) gDia[diaK]={v:0,c:0};     gDia[diaK].v+=sub;  gDia[diaK].c+=ct;
+    });
   });
+  var comTot = ventaTotal - costoTotal;
+  var nSinCosto=Object.keys(sinCostoSet).length;
+  var margenPct = ventaTotal>0 ? (comTot/ventaTotal*100) : 0;
+  _resData = data; _resCosto = costoMap;
 
   var porCli={};data.forEach(function(v){var k=v.nom||"Sin cliente";porCli[k]=(porCli[k]||0)+(v.importe||0);});
   var cliRank=Object.entries(porCli).sort(function(a,b){return b[1]-a[1];});
@@ -12399,10 +12551,19 @@ async function renderResumen(){
     '<div class="sec-card" style="border-color:#a7f3d0">'+
       '<div class="sec-head" style="background:#ecfdf5;color:#065f46;border-bottom-color:#a7f3d0">💵 Ganancia estimada · '+MESES[mes]+' '+anio+'</div>'+
       '<div style="padding:14px">'+
-        comBreak.map(function(b){return'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600'+(b.warn?';color:var(--amber)':'')+'">'+escHtml(b.label)+'</div><div style="font-size:11px;color:var(--muted);margin-top:1px">'+b.sub+'</div></div><div style="font-size:16px;font-weight:700;color:'+(b.warn?'var(--muted)':'var(--green)')+'">$'+fM(b.com)+'</div></div>';}).join("")+
-        '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:14px;font-weight:700">Total ganancia</div><div style="font-size:11px;color:var(--muted)">'+(total>0?(comTot/total*100).toFixed(1):0)+'% del total</div></div><div style="font-size:22px;font-weight:800;color:var(--green)">$'+fM(comTot)+'</div></div>'+
-        (haySinPct?'<div style="margin-top:10px;font-size:11px;color:var(--amber);background:var(--amber-bg,rgba(245,158,11,.08));padding:8px 10px;border-radius:8px">⚠️ Hay listas sin % de ganancia configurado. Configurá el % en Listas de Precios para incluirlas.</div>':"")+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">Facturado (con descuentos)</div><div style="font-size:11px;color:var(--muted);margin-top:1px">Lo realmente cobrado</div></div><div style="font-size:16px;font-weight:700;color:var(--text)">$'+fM(ventaTotal)+'</div></div>'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">Costo de la mercadería</div><div style="font-size:11px;color:var(--muted);margin-top:1px">Lo que te costó (precio base)</div></div><div style="font-size:16px;font-weight:700;color:var(--text)">$'+fM(costoTotal)+'</div></div>'+
+        '<div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:14px;font-weight:700">Ganancia real</div><div style="font-size:11px;color:var(--muted)">'+margenPct.toFixed(1)+'% sobre lo facturado</div></div><div style="font-size:22px;font-weight:800;color:var(--green)">$'+fM(comTot)+'</div></div>'+
+        (nSinCosto?'<div style="margin-top:10px;font-size:11px;color:var(--amber);background:rgba(245,158,11,.08);padding:8px 10px;border-radius:8px">⚠️ '+nSinCosto+' producto'+(nSinCosto!==1?'s':'')+' sin costo (precio base) cargado. La ganancia puede estar sobreestimada hasta que los completes en Productos.</div>':"")+
       '</div>'+
+      '<div class="gd-wrap" id="gd-wrap">'+
+        '<div class="gd-search"><input type="text" placeholder="🔍 Buscar producto, cliente…" oninput="_ganFiltrar(this.value)"></div>'+
+        '<details class="gd-det"><summary>📦 Ganancia por producto</summary><div class="gd-list">'+_ganRows(gProd,true,"prod")+'</div></details>'+
+        '<details class="gd-det"><summary>👥 Ganancia por cliente</summary><div class="gd-list">'+_ganRows(gCli,false,"cli")+'</div></details>'+
+        '<details class="gd-det"><summary>🏷️ Ganancia por lista</summary><div class="gd-list">'+_ganRows(gLista,false,"lista")+'</div></details>'+
+        '<details class="gd-det"><summary>📅 Ganancia por día</summary><div class="gd-list">'+_ganRows(gDia,false,"dia")+'</div></details>'+
+      '</div>'+
+      '<div style="padding:10px 14px;border-top:1px solid var(--border)"><button id="btn-congelar" onclick="_congelarCostosViejos()" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--s1);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer">🧊 Congelar costos de pedidos sin foto</button><div style="font-size:10.5px;color:var(--muted);margin-top:6px;text-align:center">Fija el costo actual a los pedidos viejos para que la ganancia no cambie al editar precios</div></div>'+
     '</div>'+
     '<div class="sec-card"><div class="sec-head">👥 Clientes por volumen</div>'+cliRank.slice(0,8).map(function(c,i){return'<div class="rank-item"><span class="rank-n '+(MED[i]||"")+'">'+( i+1)+'</span><div style="flex:1;min-width:0"><div class="rank-name">'+escHtml(c[0])+'</div><div class="rank-bar-bg"><div class="rank-bar" style="width:'+Math.round(c[1]/maxC*100)+'%"></div></div></div><span class="rank-val">$'+fM(c[1])+'</span></div>';}).join("")+'</div>'+
     '<div class="sec-card"><div class="sec-head">📦 Productos más vendidos</div>'+prodRank.map(function(p,i){return'<div class="rank-item"><span class="rank-n '+(MED[i]||"")+'">'+( i+1)+'</span><div style="flex:1;min-width:0"><div class="rank-name">'+escHtml(p.n)+'</div><div style="font-size:11px;color:var(--muted);margin-top:1px">'+p.cant+' unidades</div><div class="rank-bar-bg"><div class="rank-bar" style="width:'+Math.round(p.total/maxP*100)+'%"></div></div></div><span class="rank-val">$'+fM(p.total)+'</span></div>';}).join("")+'</div>'+
@@ -15688,7 +15849,7 @@ function _parsearProdCSV(text, filename){
     "<br><span style='font-size:11px;color:var(--muted);font-weight:400'>Precios se calcularán automáticamente según listas: "+listasInfo+"</span>";
 
   // ── Tabla preview ──
-  var th = ["Código","Nombre","P. Base","P. Cliente","P. Patagonia","Stock","Categoría","Foto","Estado"]
+  var th = ["Código","Nombre","P. Base","Stock","Categoría","Foto","Estado"]
     .map(function(c){ return '<th style="padding:7px 10px;text-align:left;font-weight:700;font-size:11px;'+
       'color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s3)">'+c+'</th>'; })
     .join('');
@@ -15703,9 +15864,7 @@ function _parsearProdCSV(text, filename){
     return "<tr style='border-bottom:1px solid var(--border2)"+(r._dup?";background:#fffbeb":"")+"'>"+
       "<td style='padding:6px 10px;font-family:monospace;font-size:11.5px'>"+escHtml(r.id)+"</td>"+
       "<td style='padding:6px 10px;font-weight:600;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+escHtml(r.nombre)+"</td>"+
-      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+(r.precioBase>0?"$"+_fmt(r.precioBase):"—")+"</td>"+
-      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+(r.pCli!=null&&r.pCli>0?"$"+_fmt(r.pCli):"—")+"</td>"+
-      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+(r.pPat!=null&&r.pPat>0?"$"+_fmt(r.pPat):"—")+"</td>"+
+      "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+(r.precioBase>0?_fmt(r.precioBase):"—")+"</td>"+
       "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+r.stock+"</td>"+
       "<td style='padding:6px 10px;font-size:12px;color:var(--text2)'>"+escHtml(r.categoria)+"</td>"+
       "<td style='padding:6px 10px'>"+fotoIcon+"</td>"+
@@ -15733,7 +15892,7 @@ async function exportarProductosXLSX(){
     var stockMap = {};
     stockRows.forEach(function(s){ if(s.codigo) stockMap[s.codigo.toUpperCase()] = +s.cantidad||0; });
 
-    var data = [["CODIGO","NOMBRE PRODUCTO","CATEGORIA","PRECIO BASE","PRECIO CLIENTE","PRECIO PATAGONIA","STOCK","URL IMAGEN"]];
+    var data = [["CODIGO","NOMBRE PRODUCTO","CATEGORIA","PRECIO BASE","STOCK","URL IMAGEN"]];
     prodRows.forEach(function(p){
       var cod  = (p.codigo||"").trim();
       var foto = (p.foto||"");
@@ -15745,8 +15904,6 @@ async function exportarProductosXLSX(){
         p.nombre||"",
         (p.categoria||"Sin categoría").replace(/^"+|"+$/g,"").trim(),
         +p.precio_base||0,
-        +p.precio_clientes||0,
-        +p.precio_patagonia||0,
         stockMap[cod.toUpperCase()]||0,
         foto
       ]);
@@ -15754,7 +15911,7 @@ async function exportarProductosXLSX(){
 
     var wb = XLSX.utils.book_new();
     var ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{wch:14},{wch:40},{wch:22},{wch:14},{wch:15},{wch:17},{wch:8},{wch:55}];
+    ws['!cols'] = [{wch:14},{wch:40},{wch:22},{wch:14},{wch:8},{wch:55}];
     var range = XLSX.utils.decode_range(ws['!ref']);
     for(var C = range.s.c; C <= range.e.c; C++){
       var addr = XLSX.utils.encode_cell({r:0,c:C});
@@ -15787,7 +15944,7 @@ async function importarProdCSV(){
   var overwrite   = document.getElementById("prod-csv-overwrite").checked;
   var updateStock = document.getElementById("prod-csv-update-stock").checked;
 
-  var nuevos=0, actualizados=0, omitidos=0, errores=0;
+  var nuevos=0, actualizados=0, omitidos=0, errores=0, sinBase=0;
   var stockPatch = [];   // array para sbPost upsert
 
   for(var i=0;i<_prodCsvRows.length;i++){
@@ -15796,44 +15953,19 @@ async function importarProdCSV(){
 
     if(r._dup && !overwrite){ omitidos++; continue; }
 
-    // Precios: usar columnas específicas del CSV, o calcular desde listas de precios
+    // Solo se usa el PRECIO BASE. Los precios de cada lista se recalculan
+    // automáticamente con el % de la empresa. Se ignora cualquier columna de precio de lista.
     var pBase = r.precioBase || 0;
+    if(pBase <= 0){ sinBase++; continue; }   // sin precio base válido → no se toca el producto
     var listas = getListas();
-
-    // precio_clientes: columna explícita > precio_venta del CSV > calcular desde lista cli
-    var pCli;
-    if(r.pCli != null && r.pCli > 0){
-      pCli = r.pCli;
-    } else if(r.precioVenta && r.precioVenta > 0){
-      pCli = r.precioVenta;
-    } else if(pBase > 0 && listas.cli){
-      pCli = Math.round(pBase * (1 + (listas.cli.pct||0)/100) * 100) / 100;
-    } else {
-      pCli = 0;
-    }
-
-    // precio_patagonia: columna explícita > calcular desde lista pat
-    var pPat;
-    if(r.pPat != null && r.pPat > 0){
-      pPat = r.pPat;
-    } else if(pBase > 0 && listas.pat){
-      pPat = Math.round(pBase * (1 + (listas.pat.pct||0)/100) * 100) / 100;
-    } else {
-      pPat = 0;
-    }
-
-    // Aplicar también cualquier lista extra definida por el usuario
-    var preciosExtra = {};
+    var pCli = (listas.cli) ? Math.round(pBase*(1+(listas.cli.pct||0)/100)*100)/100 : pBase;
+    var pPat = (listas.pat) ? Math.round(pBase*(1+(listas.pat.pct||0)/100)*100)/100 : pBase;
+    var preciosTodos = {cli:pCli, pat:pPat};
     Object.entries(listas).forEach(function(e){
-      var lid = e[0], lista = e[1];
-      if(lid === 'cli' || lid === 'pat') return; // ya calculados
-      if(pBase > 0){
-        preciosExtra[lid] = Math.round(pBase * (1 + (lista.pct||0)/100) * 100) / 100;
-      }
+      var lid=e[0], lista=e[1];
+      if(lid==='cli'||lid==='pat') return;
+      preciosTodos[lid] = Math.round(pBase*(1+(lista.pct||0)/100)*100)/100;
     });
-
-    // Mezclar precios extra en el campo precios JSONB
-    var preciosTodos = Object.assign({cli: pCli, pat: pPat}, preciosExtra);
 
     var prodObj = {
       empresa_id:       _sbEmpId,
@@ -15911,6 +16043,7 @@ async function importarProdCSV(){
   var msg = "✅ "+nuevos+" nuevo"+(nuevos!==1?"s":"")+
     (actualizados>0 ? " · "+actualizados+" actualizado"+(actualizados!==1?"s":"") : "")+
     (omitidos>0     ? " · "+omitidos+" omitido"+(omitidos!==1?"s":"") : "")+
+    (sinBase>0      ? " · "+sinBase+" sin precio base" : "")+
     (errores>0      ? " · ⚠ "+errores+" error"+(errores!==1?"es":"") : "");
   var res = document.getElementById("prod-csv-result");
   res.style.cssText = "display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:9px 12px;color:#065f46;font-weight:600;font-size:12.5px";
