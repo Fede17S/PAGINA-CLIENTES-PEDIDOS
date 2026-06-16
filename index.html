@@ -488,6 +488,10 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 .cart-it-step span { min-width:26px; text-align:center; font-weight:800; font-size:14px; color:var(--text); }
 .cart-it-sub { font-size:13px; font-weight:800; color:var(--text); min-width:74px; text-align:right; flex-shrink:0; }
 .cart-it-del { background:none; border:none; font-size:15px; cursor:pointer; opacity:.6; flex-shrink:0; }
+.cart-it-dscbtn { background:none; border:none; font-size:15px; cursor:pointer; opacity:.5; flex-shrink:0; padding:0; filter:grayscale(1); }
+.cart-it-dscbtn.on { opacity:1; filter:none; }
+.cart-it-dscpanel { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:8px 6px 12px; border-bottom:1px solid var(--border); }
+.cart-it-dsclbl { font-size:11px; color:var(--muted); font-weight:600; width:100%; }
 .cart-foot { border-top:1px solid var(--border); padding:14px 16px calc(16px + var(--safe-bottom)); background:var(--s2); border-radius:0; }
 .cart-dsc { margin-bottom:12px; }
 .cart-dsc-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:7px; }
@@ -6706,6 +6710,18 @@ function _agregarFrecuente(pid, btn){
 }
 
 function limpiarCliente(t){
+  // Al cambiar de cliente, el pedido ya no corresponde (otra lista de precios): vaciarlo
+  if((ordenes[t]||[]).length>0){
+    if(!confirm("Tenés "+ordenes[t].length+" producto(s) cargados. Si cambiás de cliente se vacía el pedido.\n\n¿Querés continuar?")) return;
+    ordenes[t]=[];
+    dscGen[t]=null;
+    if(typeof _itemDscOpen!=="undefined") _itemDscOpen[t]=-1;
+    renderItems(t);
+    if(t==="ped"){
+      var _fs=document.getElementById("ped-float-summary"); if(_fs) _fs.classList.remove("show");
+      _cerrarCartModal();
+    }
+  }
   var inp    = document.getElementById("cli-search-"+t);
   var selBox = document.getElementById("cli-selected-"+t);
   var idHid  = document.getElementById("idCli-"+t);
@@ -7152,10 +7168,10 @@ function _pgDelta(id, d, e){
   var pre=_precioDe(p,lista);
   var exist=(ordenes['ped']||[]).find(function(x){return x.id===p.id && x.p===pre;});
   if(d>0){
-    if(exist){ exist.c+=1; exist.sub=exist.p*exist.c; }
+    if(exist){ exist.c+=1; _cartRecalcSub(exist); }
     else ordenes['ped'].push({id:p.id,n:p.n,p:pre,c:1,sub:pre});
   } else {
-    if(exist){ exist.c-=1; if(exist.c<=0){ ordenes['ped']=ordenes['ped'].filter(function(x){return x!==exist;}); } else exist.sub=exist.p*exist.c; }
+    if(exist){ exist.c-=1; if(exist.c<=0){ ordenes['ped']=ordenes['ped'].filter(function(x){return x!==exist;}); } else _cartRecalcSub(exist); }
   }
   renderItems('ped');
   _pgRender();
@@ -7194,15 +7210,30 @@ function _renderCartModal(){
     return;
   }
   body.innerHTML=items.map(function(it,i){
-    var subBase=it.p*it.c;
-    var dsc = it.sub<subBase-0.001;
-    return '<div class="cart-item">'+
+    var hasDsc=it.disc&&it.disc.valor>0;
+    var abierto=(_cartDscOpen===i);
+    var dscLbl=hasDsc?(it.disc.tipo==="%"?"−"+it.disc.valor+"%":"−$"+fM(it.disc.valor)):"";
+    var fila='<div class="cart-item">'+
       '<div class="cart-it-info"><div class="cart-it-nom">'+(it.n||"")+'</div>'+
-        '<div class="cart-it-price">$'+fM(it.p)+' c/u'+(dsc?' · <span style="color:var(--green)">con dsc.</span>':'')+'</div></div>'+
+        '<div class="cart-it-price">$'+fM(it.p)+' c/u'+(hasDsc?' · <span style="color:var(--green);font-weight:700">'+dscLbl+'</span>':'')+'</div></div>'+
       '<div class="cart-it-step"><button onclick="_cartDelta('+i+',-1)">−</button><span>'+it.c+'</span><button onclick="_cartDelta('+i+',1)">+</button></div>'+
       '<div class="cart-it-sub">$'+fM(it.sub)+'</div>'+
+      '<button class="cart-it-dscbtn'+(hasDsc?' on':'')+'" onclick="_cartToggleDsc('+i+')" title="Descuento del producto">🏷️</button>'+
       '<button class="cart-it-del" onclick="_cartDel('+i+')" aria-label="Quitar">🗑</button>'+
     '</div>';
+    if(abierto){
+      fila+='<div class="cart-it-dscpanel">'+
+        '<span class="cart-it-dsclbl">Dsc. de este producto:</span>'+
+        '<div class="cart-dsc-tipo" id="cart-it-tipo-'+i+'">'+
+          '<button class="'+(!hasDsc||it.disc.tipo==="%"?"sel":"")+'" data-t="%" onclick="_cartItemTipo('+i+',\'%\')">%</button>'+
+          '<button class="'+(hasDsc&&it.disc.tipo==="$"?"sel":"")+'" data-t="$" onclick="_cartItemTipo('+i+',\'$\')">$</button>'+
+        '</div>'+
+        '<input type="number" min="0" id="cart-it-val-'+i+'" class="cart-dsc-inp" placeholder="Valor" value="'+(hasDsc?it.disc.valor:"")+'">'+
+        '<button class="cart-dsc-apply" onclick="_cartAplicarItemDsc('+i+')">OK</button>'+
+        (hasDsc?'<button class="cart-dsc-quit" onclick="_cartQuitarItemDsc('+i+')">✕</button>':'')+
+      '</div>';
+    }
+    return fila;
   }).join("");
   var c=_cartCalc();
   var dg=c.dg;
@@ -7251,18 +7282,47 @@ function _cartQuitarDsc(){
   _renderCartModal();
   _updateFloatFromCalc();
 }
+var _cartDscOpen = -1;
+function _cartRecalcSub(it){
+  var base=(it.p||0)*(it.c||0);
+  if(it.disc && it.disc.valor>0){
+    it.sub = it.disc.tipo==="%" ? Math.max(0,base*(1-it.disc.valor/100)) : Math.max(0,base-it.disc.valor);
+  } else { it.sub=base; }
+}
+function _cartToggleDsc(i){ _cartDscOpen=(_cartDscOpen===i)?-1:i; _renderCartModal(); }
+function _cartItemTipo(i,tp){
+  var cont=document.getElementById("cart-it-tipo-"+i);
+  if(cont){ [].forEach.call(cont.children,function(b){ b.classList.toggle("sel", b.dataset.t===tp); }); }
+}
+function _cartAplicarItemDsc(i){
+  var it=ordenes['ped'][i]; if(!it) return;
+  var cont=document.getElementById("cart-it-tipo-"+i);
+  var tipo="%"; if(cont){ [].forEach.call(cont.children,function(b){ if(b.classList.contains("sel")) tipo=b.dataset.t; }); }
+  var val=parseFloat((document.getElementById("cart-it-val-"+i)||{}).value)||0;
+  if(val<=0){ delete it.disc; } else { it.disc={tipo:tipo,valor:val}; }
+  _cartRecalcSub(it);
+  _cartDscOpen=-1;
+  renderItems('ped'); _renderCartModal(); _pgRender();
+}
+function _cartQuitarItemDsc(i){
+  var it=ordenes['ped'][i]; if(!it) return;
+  delete it.disc; _cartRecalcSub(it);
+  _cartDscOpen=-1;
+  renderItems('ped'); _renderCartModal(); _pgRender();
+}
 function _cartDelta(i,d){
   var it=ordenes['ped'][i];
   if(!it) return;
   it.c+=d;
-  if(it.c<=0){ ordenes['ped'].splice(i,1); }
-  else { it.sub=it.p*it.c; } // nota: respeta precio; el dsc por ítem se recalcula en renderItems si aplica
+  if(it.c<=0){ ordenes['ped'].splice(i,1); if(_cartDscOpen===i) _cartDscOpen=-1; }
+  else { _cartRecalcSub(it); }
   renderItems('ped');
   _renderCartModal();
   _pgRender();
 }
 function _cartDel(i){
   ordenes['ped'].splice(i,1);
+  if(_cartDscOpen===i) _cartDscOpen=-1;
   renderItems('ped');
   _renderCartModal();
   _pgRender();
