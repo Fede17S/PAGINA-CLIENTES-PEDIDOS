@@ -2608,7 +2608,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
               <input type="text" id="bus-ped" placeholder="🔍 Buscar producto…"
                 oninput="_busPedInput(this.value)"
                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" style="width:100%">
-              <div id="res-ped" class="dropdown" style="display:none"></div>
+              <div id="res-ped" class="dropdown"></div>
             </div>
             <button type="button" class="voz-btn" onclick="dictarEn('bus-ped',this)" aria-label="Dictar por voz" title="Dictar por voz">🎤</button>
           </div>
@@ -7133,7 +7133,7 @@ function _setPedMetodo(nuevo){
   if(cats) cats.style.display = nuevo?"flex":"none";
   if(grilla) grilla.style.display = nuevo?"grid":"none";
   if(viejo) viejo.style.display = nuevo?"none":"block";
-  if(res) res.style.display = "none";
+  if(res) res.classList.remove("open");
   var bp=document.getElementById("bus-ped"); if(bp) bp.value="";
   if(nuevo){ _pgQ=""; _pgRenderCats(); _pgRender(); }
 }
@@ -17365,7 +17365,7 @@ function setVndTab(tab, btn){
 }
 
 // ══ MAPA DE UBICACIÓN DE VENDEDORES ══
-var _vndMapa = null, _vndMapaMarkers = [];
+var _vndMapa = null, _vndMapaMarkers = [], _vndMapaById = {}, _vndMapaTimer = null;
 function _haceCuanto(iso){
   if(!iso) return "sin datos";
   var d = new Date(iso), s = Math.floor((Date.now() - d.getTime())/1000);
@@ -17388,29 +17388,53 @@ async function renderMapaVendedores(){
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom:19
     }).addTo(_vndMapa);
+    _vndMapaById = {};
   }
   setTimeout(function(){ if(_vndMapa) _vndMapa.invalidateSize(); }, 250);
-  _vndMapaMarkers.forEach(function(m){ _vndMapa.removeLayer(m); });
-  _vndMapaMarkers = [];
   if(lista) lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">Cargando…</div>';
+  await _vndMapaActualizar(true);
+  // Auto-refresco "en vivo": mueve los marcadores cada 10 s mientras la pestaña esté visible
+  if(_vndMapaTimer){ clearInterval(_vndMapaTimer); _vndMapaTimer=null; }
+  _vndMapaTimer = setInterval(function(){
+    var el = document.getElementById("vnd-mapa-leaflet");
+    var visible = el && el.offsetParent !== null && document.visibilityState === "visible";
+    if(visible){ _vndMapaActualizar(false); }
+    else { clearInterval(_vndMapaTimer); _vndMapaTimer = null; }
+  }, 60000);
+}
+
+// Re-lee posiciones y mueve los marcadores sin recrear el mapa (efecto "en vivo")
+async function _vndMapaActualizar(encuadrar){
+  if(!_vndMapa) return;
+  var lista = document.getElementById("vnd-mapa-lista");
   try {
     var rows = await sbGet("usuarios","select=id,uid,name,role,last_lat,last_lng,last_loc_at,loc_modo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
-    // Solo vendedores y repartidores (los que andan en la calle)
     var vendedores = (rows||[]).filter(function(u){ var r=(u.role||""); return r==="vendedor" || r==="repartidor"; });
     var conUbic = vendedores.filter(function(u){ return u.last_lat!=null && u.last_lng!=null; });
-    var bounds = [];
+    var bounds = [], vistos = {};
     conUbic.forEach(function(u){
+      vistos[u.id] = true;
       var enVivo = (u.loc_modo||"momentos")==="vivo";
       var color = enVivo ? "#16a34a" : "var(--accent,#c0633a)";
-      var icon = L.divIcon({ className:"",
-        html:'<div style="width:18px;height:18px;background:'+color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
-        iconSize:[18,18], iconAnchor:[9,18] });
-      var mk = L.marker([u.last_lat,u.last_lng],{icon:icon}).addTo(_vndMapa)
-        .bindPopup("<b>"+(u.name||u.uid)+"</b><br>"+_haceCuanto(u.last_loc_at)+(enVivo?"<br>🟢 en vivo":""));
-      _vndMapaMarkers.push(mk);
+      var popupHtml = "<b>"+(u.name||u.uid)+"</b><br>"+_haceCuanto(u.last_loc_at)+(enVivo?"<br>🟢 en vivo":"");
       bounds.push([u.last_lat,u.last_lng]);
+      var ex = _vndMapaById[u.id];
+      if(ex){
+        ex.setLatLng([u.last_lat,u.last_lng]);
+        if(ex.getPopup()) ex.getPopup().setContent(popupHtml);
+      } else {
+        var icon = L.divIcon({ className:"",
+          html:'<div style="width:18px;height:18px;background:'+color+';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',
+          iconSize:[18,18], iconAnchor:[9,18] });
+        var mk = L.marker([u.last_lat,u.last_lng],{icon:icon}).addTo(_vndMapa).bindPopup(popupHtml);
+        _vndMapaById[u.id] = mk;
+      }
     });
-    if(bounds.length) _vndMapa.fitBounds(bounds, {padding:[40,40], maxZoom:15});
+    // Quitar marcadores de quienes ya no tienen ubicación
+    Object.keys(_vndMapaById).forEach(function(id){
+      if(!vistos[id]){ _vndMapa.removeLayer(_vndMapaById[id]); delete _vndMapaById[id]; }
+    });
+    if(encuadrar && bounds.length) _vndMapa.fitBounds(bounds, {padding:[40,40], maxZoom:15});
     if(lista){
       if(!vendedores.length){
         lista.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px">No hay vendedores ni repartidores cargados.</div>';
