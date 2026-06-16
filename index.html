@@ -646,6 +646,77 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 }
 /* Contenido centrado dentro del main fijo */
 .main > .section { max-width:560px; margin:0 auto; width:100%; padding-bottom:80px }
+/* Hoja de Ruta: aprovecha el ancho en desktop, vista maestro/detalle */
+#hoja .ruta-header select { width:auto !important; min-width:120px; }
+/* Mi Stock: lista en 2 columnas en desktop */
+@media (min-width:901px){
+  .main > #stock { max-width:1080px; }
+  #stock #stk-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(470px,1fr)); gap:10px; align-items:start; }
+}
+/* Mis Vendedores: comparativa + evolución mensual */
+.vnd-comp { background:var(--s2); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:14px; }
+.vnd-comp-ttl { font-size:10.5px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+.vnd-comp-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+.vnd-comp-row:last-child { margin-bottom:0; }
+.vnd-comp-name { width:90px; flex-shrink:0; font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vnd-comp-track { flex:1; position:relative; height:22px; background:var(--s3,rgba(0,0,0,.05)); border-radius:7px; overflow:hidden; }
+.vnd-comp-fill { height:100%; border-radius:7px; background:linear-gradient(90deg, var(--accent,#c9933a), oklch(72% 0.12 70)); transition:width .5s ease; min-width:3px; }
+.vnd-comp-fill.rank-1 { background:linear-gradient(90deg,#c9933a,#e8c06a); }
+.vnd-comp-fill.rank-2 { background:linear-gradient(90deg,#94a3b8,#cbd5e1); }
+.vnd-comp-fill.rank-3 { background:linear-gradient(90deg,#b87333,#d89a5e); }
+.vnd-comp-pct { position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:10.5px; font-weight:800; color:var(--text); mix-blend-mode:luminosity; }
+.vnd-comp-val { width:96px; flex-shrink:0; text-align:right; font-size:12.5px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
+.vnd-evol { margin-bottom:12px; }
+.vnd-evol-ttl { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+.vnd-evol-bars { display:flex; align-items:flex-end; gap:3px; height:74px; }
+.vnd-evol-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; height:100%; }
+.vnd-evol-bar-track { flex:1; width:100%; display:flex; align-items:flex-end; justify-content:center; }
+.vnd-evol-bar { width:78%; background:var(--accent,#c9933a); opacity:.4; border-radius:3px 3px 0 0; min-height:2px; transition:height .5s ease; }
+.vnd-evol-bar.act { opacity:1; }
+.vnd-evol-lbl { font-size:8.5px; font-weight:600; color:var(--muted); }
+.vnd-evol-lbl.act { color:var(--accent,#c9933a); font-weight:800; }
+@media (min-width:901px){
+  .main > #vendedores { max-width:880px; }
+}
+/* Resumen Mensual: aprovecha el ancho en desktop */
+@media (min-width:901px){
+  .main > #resumen { max-width:1080px; }
+  #resumen .kpi-grid { grid-template-columns:repeat(4,1fr); }
+  #resumen .kpi-grid > div:nth-child(1) { grid-column:span 2; }
+  #resumen .kpi-grid > div:nth-child(4) { grid-column:1 / -1; }
+  #resumen-body { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  #resumen-body > .kpi-grid { grid-column:1 / -1; margin-bottom:0; }
+  #resumen-body > div:nth-child(2) { grid-column:1 / -1; }
+  #resumen-body > div:nth-child(5) { grid-column:1 / -1; }
+  #resumen .gd-wrap { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start; }
+  #resumen .gd-search { grid-column:1 / -1; }
+}
+/* Backup de Pedidos: lista + panel de detalle al lado en desktop */
+.backup-split { display:block; }
+.backup-detail-panel { display:none; }
+@media (min-width:901px){
+  .main > #backup { max-width:1180px; }
+  #backup .backup-split { display:grid; grid-template-columns:400px 1fr; gap:16px; align-items:start; }
+  #backup #backup-list { display:block; }
+  #backup .backup-detail-panel { display:block; position:sticky; top:4px; max-height:calc(100vh - var(--header-h) - 30px); overflow-y:auto; background:var(--s2); border:1px solid var(--border); border-radius:var(--radius); }
+  #backup .backup-detail-panel .bk-card-detail { display:block !important; border-top:none; }
+  #backup .bk-detail-panel-empty { padding:60px 24px; text-align:center; color:var(--muted); font-size:30px; }
+}
+#hoja .hoja-split { display:block; }
+.ruta-detail-panel { display:none; }
+@media (min-width:901px){
+  .main > #hoja { max-width:1180px; }
+  #hoja .hoja-split { display:grid; grid-template-columns:370px 1fr; gap:16px; align-items:start; }
+  #hoja #rutas-list { display:flex; flex-direction:column; gap:10px; }
+  #hoja .ruta-detail-panel { display:block; position:sticky; top:4px; max-height:calc(100vh - var(--header-h) - 30px); overflow-y:auto; }
+  #hoja .ruta-detail-panel .ruta-detail { margin-bottom:0; }
+  #hoja .ruta-detail-panel-empty { padding:60px 24px; text-align:center; color:var(--muted); border:2px dashed var(--border); border-radius:16px; font-size:30px; }
+  #hoja .ruta-summary-bar { grid-template-columns:repeat(3,1fr); }
+  #hoja .ruta-header { gap:10px; }
+  #hoja #ruta-buscar-cli { font-size:13px !important; }
+  /* En desktop, la flechita del acordeón no aplica (el detalle va al panel) */
+  #hoja #rutas-list .ruta-list-btn { width:100%; }
+}
 
 /* ===== Dashboard responsive ===== */
 .main > #dashboard.section { max-width:none; }
@@ -974,6 +1045,17 @@ select option { background:var(--s2); color:var(--text) }
   box-shadow:var(--shadow-sm);
 }
 .rsb-item { background:var(--s2); padding:14px 10px; text-align:center }
+/* Barra de progreso de cobranza por ruta */
+.ruta-prog { display:flex; align-items:center; gap:8px; margin-top:8px; }
+.ruta-prog-track { flex:1; height:6px; background:var(--border); border-radius:4px; overflow:hidden; max-width:260px; }
+.ruta-prog-fill { height:100%; border-radius:4px; transition:width .45s ease; min-width:2px; }
+.ruta-prog-lbl { font-size:11px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.ruta-alert { font-size:10px; font-weight:700; color:#b91c1c; background:rgba(220,38,38,.1); padding:2px 7px; border-radius:6px; white-space:nowrap; }
+/* Orden de deudores */
+.deud-orden { display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--s1,#fff); z-index:2; flex-wrap:wrap; }
+.deud-orden > span { font-size:11px; color:var(--muted); font-weight:600; }
+.deud-orden button { font-size:11.5px; font-weight:700; padding:6px 11px; border-radius:8px; border:1px solid var(--border); background:var(--s2); color:var(--text); cursor:pointer; font-family:inherit; }
+.deud-orden button.on { background:var(--accent,#c9933a); border-color:var(--accent,#c9933a); color:#fff; }
 .rsb-val { font-size:18px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-0.02em }
 .rsb-lbl { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px }
 .nueva-ruta-btn {
@@ -2705,7 +2787,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="rsb-item"><div class="rsb-val" id="rsb-cobrado">$0</div><div class="rsb-lbl">Cobrado</div></div>
     <div class="rsb-item"><div class="rsb-val" id="rsb-saldo" style="color:var(--amber)">$0</div><div class="rsb-lbl">Saldo</div></div>
   </div>
-  <div id="rutas-list"></div>
+  <div class="hoja-split">
+    <div id="rutas-list"></div>
+    <div id="ruta-detail-panel" class="ruta-detail-panel"></div>
+  </div>
 </div>
 
 <div id="backup" class="section">
@@ -2739,7 +2824,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <div class="card" style="padding:0;overflow:visible">
-    <div id="backup-list"></div>
+    <div class="backup-split">
+      <div id="backup-list"></div>
+      <div id="backup-detail-panel" class="backup-detail-panel"></div>
+    </div>
   </div>
 </div>
 
@@ -8331,27 +8419,31 @@ async function _ccRegistrarDeudaRuta(cliNom, montoDeuda, refRuta){
 // ══════════════ RESUMEN DE DEUDORES ══════════════
 // Trae todos los saldos > 0 de todos los clientes
 async function _getTodosLosSaldos(){
-  var deudores = [];
-  // Supabase primero
+  var map = {}; // nomLower -> {nom, saldo}
+  function add(nom, saldo){
+    if(!nom) return;
+    saldo = Math.round((saldo||0)*100)/100;
+    if(saldo<=0.01) return;
+    var k=(""+nom).toLowerCase().trim();
+    if(!map[k]) map[k]={ nom:nom, saldo:0 };
+    map[k].saldo = Math.round((map[k].saldo+saldo)*100)/100;
+  }
+  // 1) Saldos de cuenta corriente (deuda acumulada / ajustes manuales)
   if(_sbEmpId){
     try {
-      var rows = await sbGet("cuentas_corrientes","select=cliente_nom,saldo&empresa_id=eq."+_sbEmpId+"&saldo=gt.0&order=saldo.desc");
-      if(rows && rows.length){
-        return rows.map(function(r){ return { nom:r.cliente_nom, saldo:Math.round((r.saldo||0)*100)/100 }; })
-                   .filter(function(d){ return d.saldo>0.01; });
-      }
+      var rows = await sbGet("cuentas_corrientes","select=cliente_nom,saldo&empresa_id=eq."+_sbEmpId+"&saldo=gt.0");
+      (rows||[]).forEach(function(r){ add(r.cliente_nom, r.saldo); });
     } catch(e){ console.warn("[Deudores] Supabase:", e); }
+  } else {
+    try {
+      var cc = await fbGet("empresas/"+empresaKey+"/cuentas_corrientes");
+      if(cc){ Object.keys(cc).forEach(function(nom){ add(nom, (cc[nom]&&cc[nom].saldo)||0); }); }
+    } catch(e){ console.warn("[Deudores] Firebase:", e); }
   }
-  // Fallback Firebase: leer todas las cuentas
-  try {
-    var cc = await fbGet("empresas/"+empresaKey+"/cuentas_corrientes");
-    if(cc){
-      Object.keys(cc).forEach(function(nom){
-        var saldo = Math.round(((cc[nom]&&cc[nom].saldo)||0)*100)/100;
-        if(saldo>0.01) deudores.push({ nom:nom, saldo:saldo });
-      });
-    }
-  } catch(e){ console.warn("[Deudores] Firebase:", e); }
+  // 2) Entregas sin pagar de las rutas (deudas de reparto pendientes)
+  try { _getUnpaidList().forEach(function(x){ add(x.nom, x.pendiente); }); } catch(e){ console.warn("[Deudores] Rutas:", e); }
+
+  var deudores = Object.values(map).filter(function(d){ return d.saldo>0.01; });
   deudores.sort(function(a,b){ return b.saldo - a.saldo; });
   return deudores;
 }
@@ -8375,27 +8467,64 @@ async function abrirResumenDeudores(){
     return;
   }
 
-  // Buscar teléfono de cada cliente para el botón de WhatsApp
+  // Enriquecer con teléfono y antigüedad de la deuda
   function _telDe(nom){
     var c = Object.values(_clientesDB||{}).find(function(u){ return (u.name||"").toLowerCase()===(nom||"").toLowerCase(); });
     return c ? (c.tel||c.telefono||"") : "";
   }
+  deudores.forEach(function(d){ d.tel=_telDe(d.nom); d.dias=_antiguedadDeudaDias(d.nom); });
+  _deudoresCache = deudores;
+  _renderDeudores();
+}
 
-  var html = deudores.map(function(d){
-    var tel = _telDe(d.nom);
-    var waBtn = tel
-      ? '<button onclick="event.stopPropagation();_recordarDeudaWhatsApp(&quot;'+d.nom.replace(/"/g,'&quot;')+'&quot;,'+d.saldo+')" title="Recordar por WhatsApp" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:7px 10px;font-size:13px;cursor:pointer;flex-shrink:0">💬</button>'
-      : '';
+// Antigüedad de la deuda: días desde la entrega impaga más vieja (de las rutas en memoria)
+function _antiguedadDeudaDias(nom){
+  var nl=(nom||"").toLowerCase().trim();
+  var masVieja=null;
+  Object.values(rutasData||{}).forEach(function(ruta){
+    var f=ruta.fecha;
+    Object.values(ruta.clientes||{}).forEach(function(c){
+      if((c.nom||"").toLowerCase().trim()!==nl) return;
+      var pagado=(c.efectivo||0)+(c.transferencia||0)+((c.pagos_adicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0));
+      var saldo=(c.importe||0)-pagado;
+      if(saldo>0.01 && f){ var t=new Date(f).getTime(); if(!isNaN(t) && (masVieja===null||t<masVieja)) masVieja=t; }
+    });
+  });
+  if(masVieja===null) return null;
+  return Math.max(0, Math.floor((Date.now()-masVieja)/86400000));
+}
+var _deudoresCache = [];
+var _deudoresOrden = "monto";
+function _setDeudoresOrden(o){ _deudoresOrden=o; _renderDeudores(); }
+function _renderDeudores(){
+  var body=document.getElementById("deudores-body");
+  if(!body) return;
+  var arr=_deudoresCache.slice();
+  if(_deudoresOrden==="antiguedad"){ arr.sort(function(a,b){ return (b.dias||0)-(a.dias||0) || (b.saldo-a.saldo); }); }
+  else { arr.sort(function(a,b){ return b.saldo-a.saldo; }); }
+  var conTel=arr.filter(function(d){return d.tel;}).length;
+  var toggle='<div class="deud-orden">'+
+    '<span>Ordenar:</span>'+
+    '<button class="'+(_deudoresOrden==="monto"?"on":"")+'" onclick="_setDeudoresOrden(\'monto\')">💰 Monto</button>'+
+    '<button class="'+(_deudoresOrden==="antiguedad"?"on":"")+'" onclick="_setDeudoresOrden(\'antiguedad\')">⏱️ Más atrasados</button>'+
+  '</div>';
+  var html=arr.map(function(d){
+    var waBtn=d.tel?'<button onclick="event.stopPropagation();_recordarDeudaWhatsApp(&quot;'+d.nom.replace(/"/g,'&quot;')+'&quot;,'+d.saldo+')" title="Recordar por WhatsApp" style="background:#25d366;color:#fff;border:none;border-radius:7px;padding:7px 10px;font-size:13px;cursor:pointer;flex-shrink:0">💬</button>':'';
+    var diasHtml="";
+    if(d.dias!=null){
+      var dc=d.dias>=15?"#b91c1c":(d.dias>=7?"#b45309":"var(--muted)");
+      diasHtml='<span style="font-size:10.5px;font-weight:700;color:'+dc+'">⏱️ '+d.dias+' día'+(d.dias!==1?"s":"")+'</span>';
+    }
     return '<div onclick="cerrarModal(\'modal-deudores\');abrirCuentaCorriente(&quot;'+d.nom.replace(/"/g,'&quot;')+'&quot;)" style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border2);cursor:pointer">'+
       '<div style="flex:1;min-width:0">'+
         '<div style="font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(d.nom)+'</div>'+
-        '<div style="font-size:10.5px;color:var(--muted)">'+(tel?("📞 "+escHtml(tel)):"sin teléfono")+'</div>'+
+        '<div style="font-size:10.5px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+(d.tel?("📞 "+escHtml(d.tel)):"sin teléfono")+(diasHtml?'<span>·</span>'+diasHtml:'')+'</div>'+
       '</div>'+
       '<div style="font-size:15px;font-weight:800;color:var(--red);flex-shrink:0;font-variant-numeric:tabular-nums">$'+fM(d.saldo)+'</div>'+
       waBtn+
     '</div>';
   }).join("");
-  if(body) body.innerHTML = html;
+  body.innerHTML=toggle+html;
 }
 
 // Recordatorio de deuda por WhatsApp
@@ -8767,6 +8896,9 @@ function renderRutas(){
   _renderUnpaidBanner(_getUnpaidList());
 
   wrap.innerHTML="";
+  var _detailPanel = document.getElementById("ruta-detail-panel");
+  var _esDesktop = window.matchMedia && window.matchMedia("(min-width:901px)").matches;
+  if(_detailPanel) _detailPanel.innerHTML="";
   keys.forEach(function(rutaKey){
     var ruta=rutasData[rutaKey];
     var calc=calcRuta(ruta);
@@ -8775,6 +8907,12 @@ function renderRutas(){
     var clientes=Object.values(ruta.clientes||{});
     var todasEntregadas=clientes.length>0&&clientes.every(function(c){return c.entregado;});
     var zonaRuta = ruta.zona_id && _zonasData[ruta.zona_id];
+    var _pctCobr = calc.total>0 ? Math.round(calc.cobrado/calc.total*100) : (calc.clientes?0:100);
+    if(_pctCobr>100) _pctCobr=100; if(_pctCobr<0) _pctCobr=0;
+    var _progCol = _pctCobr>=100 ? "var(--green)" : (_pctCobr>=50 ? "var(--amber)" : "#d1453b");
+    // Alerta de atraso: con saldo pendiente y varios días desde la fecha
+    var _diasRuta = ruta.fecha ? Math.floor((Date.now()-new Date(ruta.fecha).getTime())/86400000) : 0;
+    var _atrasada = calc.saldo>0 && _diasRuta>=4 && !ruta.finalizada;
 
     var outer=document.createElement("div");
 
@@ -8787,7 +8925,13 @@ function renderRutas(){
       '<div class="ruta-resumen">'+fecha+' · '+calc.clientes+' clientes · '+calc.pagados+'/'+calc.clientes+' pagados'+
         (ruta.repartidorNom ? ' · <span style="color:var(--green);font-weight:600">🚚 '+ruta.repartidorNom+'</span>' : '')+
         (zonaRuta ? ' · <span style="color:'+zonaRuta.color+';font-weight:600">🗺️ '+escHtml(zonaRuta.nombre)+'</span>' : '')+
-      '</div></div>'+
+      '</div>'+
+      '<div class="ruta-prog">'+
+        '<div class="ruta-prog-track"><div class="ruta-prog-fill" style="width:'+_pctCobr+'%;background:'+_progCol+'"></div></div>'+
+        '<span class="ruta-prog-lbl" style="color:'+_progCol+'">'+_pctCobr+'%</span>'+
+        (_atrasada?'<span class="ruta-alert">⚠️ '+_diasRuta+' días</span>':'')+
+      '</div>'+
+      '</div>'+
       '<div class="ruta-chips">'+
         (ruta.finalizada===true
           ? '<span class="chip chip-ok">✅ Finalizada</span>'
@@ -8915,9 +9059,18 @@ function renderRutas(){
       '<button onclick="_rutaToggleSelect(\''+rutaKey+'\')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>';
     detail.appendChild(selToolbar);
 
-    outer.appendChild(detail);
+    // Maestro/detalle: en desktop el detalle va al panel derecho; en móvil, acordeón inline
+    if(_esDesktop && _detailPanel){
+      if(isOpen){ detail.classList.add("open"); _detailPanel.appendChild(detail); }
+    } else {
+      outer.appendChild(detail);
+    }
     wrap.appendChild(outer);
   });
+  // Placeholder del panel cuando no hay ruta seleccionada (desktop)
+  if(_esDesktop && _detailPanel && !_detailPanel.children.length){
+    _detailPanel.innerHTML='<div class="ruta-detail-panel-empty">🗺️<div style="margin-top:10px;font-weight:600">Elegí una ruta de la izquierda</div><div style="font-size:12px;margin-top:4px">para ver sus clientes, entregas y cobros acá.</div></div>';
+  }
 }
 
 
@@ -11239,6 +11392,9 @@ function renderBackup(){
     return;
   }
   wrap.innerHTML="";
+  var _bkPanel = document.getElementById("backup-detail-panel");
+  var _bkDesktop = window.matchMedia && window.matchMedia("(min-width:901px)").matches;
+  if(_bkPanel) _bkPanel.innerHTML="";
   arr.forEach(function(bk,idx){
     var isOpen = backupAbierto === bk.id;
     var d = new Date(bk.fecha);
@@ -11601,10 +11757,17 @@ function renderBackup(){
       detail.appendChild(estadoVnd);
     }
 
-    card.appendChild(detail);
+    if(_bkDesktop && _bkPanel){
+      if(isOpen){ _bkPanel.appendChild(detail); }
+    } else {
+      card.appendChild(detail);
+    }
     wrap.appendChild(card);
     } // end else (normal render)
   });
+  if(_bkDesktop && _bkPanel && !_bkPanel.children.length){
+    _bkPanel.innerHTML='<div class="bk-detail-panel-empty">💾<div style="margin-top:10px;font-weight:600">Elegí un pedido de la izquierda</div><div style="font-size:12px;margin-top:4px">para ver su detalle, productos y acciones acá.</div></div>';
+  }
 }
 
 
@@ -17458,7 +17621,21 @@ function renderVendedores(){
     '<div class="vnd-sum-cell"><div class="vnd-sum-val">'+sorted.length+'</div><div class="vnd-sum-lbl">Vendedores</div></div>'+
     '<div class="vnd-sum-cell"><div class="vnd-sum-val">$'+fM(totalGlobal)+'</div><div class="vnd-sum-lbl">Total vendido</div></div>'+
     '<div class="vnd-sum-cell" style="background:var(--green-bg)"><div class="vnd-sum-val" style="color:var(--green)">$'+fM(comGlobal)+'</div><div class="vnd-sum-lbl">Comisiones ('+comPct+'%)</div></div>'+
-    '</div><div style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">'+periodo+' — Ranking</div>';
+    '</div>';
+  // Gráfico comparativo de ventas por vendedor
+  if(sorted.length>1){
+    var _maxVndComp = sorted[0].total||1;
+    html += '<div class="vnd-comp"><div class="vnd-comp-ttl">📊 Comparativa de ventas</div>'+
+      sorted.map(function(v,i){
+        var w=_maxVndComp>0?(v.total/_maxVndComp*100):0;
+        var pg=totalGlobal>0?(v.total/totalGlobal*100).toFixed(1):"0";
+        var rc=i===0?"rank-1":i===1?"rank-2":i===2?"rank-3":"";
+        return '<div class="vnd-comp-row"><div class="vnd-comp-name" title="'+escHtml(v.nombre)+'">'+escHtml(v.nombre)+'</div>'+
+          '<div class="vnd-comp-track"><div class="vnd-comp-fill '+rc+'" style="width:'+Math.max(2,w)+'%"></div><span class="vnd-comp-pct">'+pg+'%</span></div>'+
+          '<div class="vnd-comp-val">$'+fM(v.total)+'</div></div>';
+      }).join('')+'</div>';
+  }
+  html += '<div style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">'+periodo+' — Ranking</div>';
   sorted.forEach(function(vnd,idx){
     var uData = Object.values(_clientesDB||{}).find(function(u){ return u.id===vnd.uid; }) || {};
     var comPctVnd = uData.comision || comPct;
@@ -17473,6 +17650,16 @@ function renderVendedores(){
     var maxProd=topProds.length?topProds[0].t:1;
     var ticketProm=vnd.remitos?vnd.total/vnd.remitos:0;
     var ventasOrd=vnd.ventas.slice().sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);});
+    // Evolución mensual del año (independiente del filtro de mes)
+    var _evolMes=new Array(12).fill(0);
+    _vndVentas.forEach(function(v){
+      if((v.usuario||"sin-asignar")!==vnd.uid) return;
+      var de=new Date(v.fecha);
+      if(de.getFullYear()!==anio) return;
+      _evolMes[de.getMonth()]+=v.total||0;
+    });
+    var _maxEvol=Math.max.apply(null,_evolMes)||1;
+    var _hayEvol=_evolMes.some(function(x){return x>0;});
     var zonaBadge = zonaVnd ? '<span style="font-size:10px;background:'+(_zonasData[uData.zona_id]||{color:"#2563eb"}).color+'22;color:'+(_zonasData[uData.zona_id]||{color:"#2563eb"}).color+';border-radius:5px;padding:1px 6px;font-weight:700;margin-left:6px">'+escHtml(zonaVnd.nombre)+'</span>' : '';
     html+='<div class="vnd-card '+rankClass+'">'+
       '<div class="vnd-card-head" data-uid="'+vnd.uid+'" onclick="toggleVnd(this.dataset.uid)">'+
@@ -17490,6 +17677,12 @@ function renderVendedores(){
           '<div style="background:var(--green-bg);border-radius:8px;padding:10px;text-align:center;border:1px solid oklch(88% 0.04 155)"><div style="font-size:13px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">$'+fM(com)+'</div><div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px">Comisión '+comPctVnd+'%</div></div>'+
           '<div style="background:var(--s3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:13px;font-weight:800;color:var(--text)">'+vnd.remitos+'</div><div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px">Remitos</div></div>'+
         '</div>'+
+        (_hayEvol?'<div class="vnd-evol"><div class="vnd-evol-ttl">📈 Evolución '+anio+'</div><div class="vnd-evol-bars">'+
+          _evolMes.map(function(m,i){
+            var h=m>0?Math.max(4,Math.round((m/_maxEvol)*100)):0;
+            var act=(mes!==null&&i===mes)?" act":"";
+            return '<div class="vnd-evol-col" title="'+MESES[i]+' '+anio+': $'+fM(m)+'"><div class="vnd-evol-bar-track"><div class="vnd-evol-bar'+act+'" style="height:'+h+'%"></div></div><div class="vnd-evol-lbl'+act+'">'+MESES[i].slice(0,3)+'</div></div>';
+          }).join('')+'</div></div>':'')+
         (topProds.length?'<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Productos más vendidos</div>'+
           topProds.map(function(p){var bw=Math.round((p.t/maxProd)*100);return '<div class="vnd-prod-bar-row"><div class="vnd-prod-bar-name" title="'+escHtml(p.n)+'">'+escHtml(p.n)+'</div><div class="vnd-prod-bar-track"><div class="vnd-prod-bar-fill" style="width:'+bw+'%"></div></div><div class="vnd-prod-bar-val">$'+fM(p.t)+'</div><div style="font-size:10px;color:var(--muted);width:36px;text-align:right">'+p.u+'u.</div></div>';}).join('')+'</div>':'')+
         '<div class="vnd-detail"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Remitos</div>'+
