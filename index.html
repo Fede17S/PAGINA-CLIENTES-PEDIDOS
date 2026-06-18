@@ -691,6 +691,20 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
   #resumen .gd-wrap { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start; }
   #resumen .gd-search { grid-column:1 / -1; }
 }
+/* Fix: #clientes, #productos y #catalogo quedaron fuera de .main en el HTML, por eso se
+   metían bajo el header fijo y se estiraban a todo el ancho. Las reposicionamos como el resto. */
+#clientes.section.active,
+#productos.section.active,
+#catalogo.section.active {
+  position:fixed; top:var(--header-h); left:0; right:0; bottom:0;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:18px max(16px, calc((100% - 560px) / 2)) calc(20px + var(--safe-bottom)); background:var(--bg);
+}
+@media (min-width:901px){
+  #clientes.section.active { padding-left:max(16px, calc((100% - 1000px)/2)); padding-right:max(16px, calc((100% - 1000px)/2)); }
+  #productos.section.active { padding-left:max(16px, calc((100% - 1400px)/2)); padding-right:max(16px, calc((100% - 1400px)/2)); }
+  #catalogo.section.active { padding-left:max(16px, calc((100% - 720px)/2)); padding-right:max(16px, calc((100% - 720px)/2)); }
+}
 /* Backup de Pedidos: lista + panel de detalle al lado en desktop */
 .backup-split { display:block; }
 .backup-detail-panel { display:none; }
@@ -1767,6 +1781,20 @@ select option { background:var(--s2); color:var(--text) }
 .cli-form-title { font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px }
 .cli-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px }
 .cli-form-grid .full { grid-column:1/-1 }
+/* Modal de cliente — bottom sheet en móvil, centrado y prolijo en desktop */
+#modal-edit-cli .cli-edit-box { max-width:540px; width:100%; padding:0; display:flex; flex-direction:column; max-height:92vh; overflow:hidden; }
+#modal-edit-cli .cli-edit-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); flex-shrink:0; background:var(--s2); }
+#modal-edit-cli .cli-edit-body { padding:18px; overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; }
+#modal-edit-cli .cli-edit-foot { display:flex; gap:10px; padding:14px 18px calc(14px + var(--safe-bottom)); border-top:1px solid var(--border); flex-shrink:0; background:var(--s2); }
+#modal-edit-cli .cli-edit-foot .btn { padding:13px 16px; font-size:15px; }
+#modal-edit-cli .cli-field input, #modal-edit-cli .cli-field select { width:100%; padding:12px 13px; border:1.5px solid var(--border); border-radius:10px; font-size:16px; font-family:inherit; background:var(--s1); color:var(--text); box-sizing:border-box; transition:border-color .15s; }
+#modal-edit-cli .cli-field input:focus, #modal-edit-cli .cli-field select:focus { outline:none; border-color:var(--accent); }
+@media (max-width:600px){
+  #modal-edit-cli { align-items:flex-end; padding:0; }
+  #modal-edit-cli .cli-edit-box { max-width:none; max-height:90vh; border-radius:20px 20px 0 0; animation:sheetUp .25s cubic-bezier(.4,0,.2,1); }
+  #modal-edit-cli .cli-form-grid { grid-template-columns:1fr; }
+}
+@keyframes sheetUp { from { transform:translateY(100%); } }
 .cli-field label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.6px }
 .cli-field input, .cli-field select { margin-bottom:0 }
 .btn-add-cli { width:100%; margin-top:14px; padding:12px; background:var(--text); color:#fff; border:none; border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s }
@@ -1777,7 +1805,10 @@ select option { background:var(--s2); color:var(--text) }
 .cli-card:hover { border-color:var(--muted2) }
 .cli-avatar { width:38px; height:38px; border-radius:50%; background:var(--s3); color:var(--text); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex-shrink:0 }
 .cli-info { flex:1; min-width:0 }
-.cli-name { font-size:13.5px; font-weight:600; color:var(--text); margin-bottom:2px }
+.cli-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; line-height:1.35 }
+.cli-zona-tag { font-size:10.5px; color:var(--muted); font-weight:500 }
+.cli-card-actions { display:flex; gap:2px; flex-shrink:0; align-self:center }
+.cli-avatar { box-shadow:0 1px 3px rgba(0,0,0,.18) }
 .cli-meta { font-size:11.5px; color:var(--muted); line-height:1.5 }
 .cli-badge { font-size:10px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; padding:2px 8px; border-radius:20px; background:var(--blue-bg); color:#1f4ea8; border:1px solid oklch(88% 0.04 245); white-space:nowrap; flex-shrink:0; align-self:flex-start; margin-left:auto }
 .cli-rol-badge { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
@@ -1785,6 +1816,7 @@ select option { background:var(--s2); color:var(--text) }
 .cli-rol-vendedor   { background:oklch(93% 0.04 240); color:oklch(35% 0.10 240); }
 .cli-rol-repartidor { background:oklch(94% 0.05 50);  color:oklch(38% 0.10 50);  }
 .cli-rol-admin      { background:oklch(93% 0.05 300); color:oklch(35% 0.10 300); }
+.cli-rol-armador    { background:oklch(94% 0.06 40);  color:oklch(38% 0.12 40);  }
 .cli-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:15px; padding:5px 7px; border-radius:7px; flex-shrink:0; transition:all .15s; align-self:flex-start }
 .cli-del:hover { color:var(--red); background:var(--red-bg) }
 .cli-act { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:15px; padding:5px 7px; border-radius:7px; flex-shrink:0; transition:all .15s; align-self:flex-start }
@@ -3141,13 +3173,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- Nuevo cliente -->
-  <div id="cli-nuevo-panel" style="margin-bottom:10px;background:var(--s2);border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
+  <div id="cli-nuevo-panel" style="margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('nc-form-body');var open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('span:last-child').textContent=open?'tocá para abrir ▼':'tocá para cerrar ▲'"
       style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
       <span style="font-size:13px;font-weight:600;color:var(--text)" id="cli-form-title">➕ Agregar nuevo cliente</span>
-      <span style="font-size:11px;color:#75726a">tocá para cerrar ▲</span>
+      <span style="font-size:11px;color:var(--muted)">tocá para abrir ▼</span>
     </div>
-    <div id="nc-form-body" style="display:block;padding:14px;border-top:1px solid #e3e1da">
+    <div id="nc-form-body" style="display:none;padding:14px;border-top:1px solid var(--border)">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div><label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">ID *</label>
           <input type="text" id="nc-id" placeholder="ej: CL001" autocapitalize="none" autocomplete="off"
@@ -3215,13 +3247,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
 
   <!-- CSV -->
-  <div id="cli-csv-panel" style="margin-bottom:10px;background:var(--s2);border:1px solid #e3e1da;border-radius:10px;overflow:hidden">
+  <div id="cli-csv-panel" style="margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'"
       style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
       <span style="font-size:13px;font-weight:600;color:var(--text)">📥 Importar CSV</span>
-      <span style="font-size:11px;color:#75726a">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA ▼</span>
+      <span style="font-size:11px;color:var(--muted)">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA ▼</span>
     </div>
-    <div id="cli-csv-body" style="display:none;padding:14px;border-top:1px solid #e3e1da">
+    <div id="cli-csv-body" style="display:none;padding:14px;border-top:1px solid var(--border)">
       <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
         style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer"
         ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
@@ -3249,7 +3281,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <input type="text" id="cli-search-input"
     placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
     oninput="_filtrarClientes(this.value)" autocomplete="off"
-    style="width:100%;padding:11px 14px;border:1.5px solid #e3e1da;border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:var(--s2);box-sizing:border-box;margin-bottom:10px;display:block;color:var(--text)">
+    style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:var(--s2);box-sizing:border-box;margin-bottom:10px;display:block;color:var(--text)">
 
   <!-- Filtros -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
@@ -3276,9 +3308,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 <!-- MODAL EDITAR CLIENTE -->
 <div class="modal-bg" id="modal-edit-cli">
-  <div class="modal-box" style="max-width:480px;width:94%">
-    <div class="modal-ttl">✏️ Editar cliente</div>
-    <div class="cli-form-grid" style="margin-top:14px">
+  <div class="modal-box cli-edit-box">
+    <div class="cli-edit-head">
+      <div class="modal-ttl">✏️ Editar cliente</div>
+      <button class="modal-cls" onclick="cerrarModal('modal-edit-cli')" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="cli-edit-body">
+    <div class="cli-form-grid">
       <div class="cli-field">
         <label>ID / Usuario</label>
         <input type="text" id="ec-id" autocapitalize="none" autocomplete="off">
@@ -3348,9 +3384,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
     </div>
     <input type="hidden" id="ec-key">
-    <div style="display:flex;gap:8px;margin-top:18px">
-      <button class="btn btn-primary" style="flex:1" onclick="guardarEditCliente()">💾 Guardar cambios</button>
+    </div><!-- cli-edit-body -->
+    <div class="cli-edit-foot">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-edit-cli')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" onclick="guardarEditCliente()">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -4110,6 +4147,17 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 <script>
 
+// En la app nativa (Capacitor) silenciamos los logs de debug para mayor fluidez.
+// En el navegador (web) se mantienen intactos para poder depurar.
+(function(){
+  try {
+    if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()){
+      var _noop=function(){};
+      console.log=_noop; console.warn=_noop; console.info=_noop; console.debug=_noop;
+      // console.error se deja activo para no perder errores reales
+    }
+  } catch(e){}
+})();
 
 // Firebase migrado a Supabase — ver capa de datos abajo
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -4310,8 +4358,98 @@ function _urlBase64ToUint8Array(b64){
   return arr;
 }
 
+// ══ PUSH NATIVO (Capacitor + Firebase FCM) — solo en la app Android/iOS ══
+var _fcmToken = null;
+var _pushListenersSet = false;
+async function _initPushNativo(interactivo){
+  try {
+    var C = window.Capacitor;
+    if(!(C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.PushNotifications)){
+      if(interactivo) alert("El push nativo no está disponible en este dispositivo.");
+      return;
+    }
+    var Push = C.Plugins.PushNotifications;
+    if(!_pushListenersSet){
+      _pushListenersSet = true;
+      Push.addListener('registration', function(t){
+        _fcmToken = (t && t.value) ? t.value : t;
+        console.log('[PushNativo] Token FCM:', _fcmToken);
+        _guardarTokenNativo(_fcmToken);
+      });
+      Push.addListener('registrationError', function(e){
+        console.error('[PushNativo] Error de registro:', e);
+      });
+      Push.addListener('pushNotificationReceived', function(n){
+        console.log('[PushNativo] Recibida en primer plano:', n);
+        try { showNotif("🔔 "+((n&&n.title)||"Notificación")+((n&&n.body)?": "+n.body:""), "ok"); } catch(e){}
+      });
+    }
+    var perm = await Push.requestPermissions();
+    if(perm && perm.receive === 'granted'){
+      await Push.register();
+      if(interactivo) showNotif("🔔 Notificaciones activadas","ok");
+    } else {
+      if(interactivo) alert("Permiso de notificaciones denegado.\nActivalo en Ajustes → CoreDistri → Notificaciones.");
+    }
+  } catch(e){
+    console.error('[PushNativo] ERROR:', e);
+    if(interactivo) alert("Error al activar notificaciones: "+((e&&e.message)||e));
+  }
+}
+
+// ══ Guardar / actualizar el token FCM del admin en Supabase (Etapa 2) ══
+async function _guardarTokenNativo(token){
+  try {
+    if(!token){ console.warn('[PushNativo] Sin token, no se guarda.'); return; }
+    if(!_sbEmpId || !currentUser){
+      // Todavía no hay sesión cargada; reintentar en breve
+      console.log('[PushNativo] Sesión no lista, reintento en 1.5s…');
+      setTimeout(function(){ _guardarTokenNativo(token); }, 1500);
+      return;
+    }
+    var devInfo = "";
+    try {
+      var C = window.Capacitor;
+      if(C && C.getPlatform) devInfo = C.getPlatform();
+      if(navigator.userAgent) devInfo += " | " + navigator.userAgent.slice(0,120);
+    } catch(e){}
+
+    var res = await fetch(SB_URL+'/rest/v1/push_tokens?on_conflict=token', {
+      method:'POST',
+      headers:{
+        'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify({
+        empresa_id:   _sbEmpId,
+        usuario_id:   currentUser.id,
+        usuario_sbid: currentUser._sbId || null,
+        nombre:       currentUser.name || currentUser.id,
+        rol:          currentUser.role || 'admin',
+        token:        token,
+        plataforma:   (window.Capacitor && window.Capacitor.getPlatform) ? window.Capacitor.getPlatform() : 'android',
+        device_info:  devInfo,
+        activo:       true,
+        updated_at:   new Date().toISOString()
+      })
+    });
+    if(!res.ok){
+      var errTxt = await res.text();
+      throw new Error('Supabase '+res.status+': '+errTxt.slice(0,150));
+    }
+    console.log('[PushNativo] ✅ Token guardado en Supabase');
+  } catch(e){
+    console.error('[PushNativo] Error guardando token:', e);
+  }
+}
+
 // Llamar a _initPushSubscription después de login exitoso
 async function activarNotificaciones(){
+  // App nativa (Capacitor): usar push de Firebase FCM en vez del push web
+  if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()){
+    return _initPushNativo(true);
+  }
   var btn = document.getElementById("btn-activar-notif");
   if(!('serviceWorker' in navigator) || !('PushManager' in window)){
     alert("Tu dispositivo no soporta push.\n\nEn iPhone: abrí desde Safari → Compartir → Añadir a pantalla de inicio → abrila desde el ícono.");
@@ -4379,6 +4517,14 @@ function _checkNotifButton(){
   if(!btn) return;
   // Solo mostrar para admins
   if(!currentUser || currentUser.role !== 'admin'){ btn.style.display="none"; return; }
+  // App nativa (Capacitor): push de Firebase FCM — registrar en segundo plano y dejar el botón disponible
+  if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()){
+    btn.style.display="block";
+    btn.disabled=false;
+    btn.textContent="🔔 Activar notificaciones";
+    _initPushNativo(false);
+    return;
+  }
   // Si el browser no soporta push, no mostrar
   if(!('Notification' in window) || !('serviceWorker' in navigator)){ btn.style.display="none"; return; }
   // Si ya tiene permiso, mostrar como activo
@@ -5074,11 +5220,12 @@ window.onload = function(){
       _bkPendingQueue=_bkQueueGet();
       if(_bkPendingQueue.length) setTimeout(_syncPendingBackups,4000);
     }).catch(function(){
-      // Sin red: usar datos guardados como fallback
-      if(!checkEmpresaAccess(s.empresaData||{})){ localStorage.removeItem("dm_session"); return; }
+      // Sin red al reabrir la app: NO echamos al usuario al login.
+      // Entramos con la sesión guardada; el control de acceso real se re-verifica cuando vuelve la conexión.
       _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
       aplicarRestricciones(); cargarListasPrecios(); iniciarApp();
       setTimeout(_checkNotifButton,1000);
+      setTimeout(_initTrackingUbicacion, 3000);
     });
   }catch(e){ localStorage.removeItem("dm_session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
@@ -5105,7 +5252,18 @@ window.onload = function(){
   } catch(e){}
   document.getElementById("l-empresa").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
   document.getElementById("l-user").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
+
+  // Ocultar el splash de la app nativa cuando la pantalla ya se dibujó
+  requestAnimationFrame(function(){ requestAnimationFrame(_hideSplash); });
 };
+
+// Oculta el splash screen de Capacitor (solo tiene efecto en la app nativa)
+function _hideSplash(){
+  try {
+    var C = window.Capacitor;
+    if(C && C.Plugins && C.Plugins.SplashScreen){ C.Plugins.SplashScreen.hide(); }
+  } catch(e){}
+}
 
 // ══ UBICACIÓN DEL VENDEDOR (modos: off / momentos / en vivo + horario) ══
 var _lastLocSent = 0;
@@ -5282,6 +5440,9 @@ function doLogin(){
           }));
         } catch(e2) { console.warn('Session save failed:', e2); }
       }
+
+      // Recordar la empresa en este dispositivo (para la app nativa: no volver a pedir el código)
+      try { localStorage.setItem("coredistri_emp", (emp.codigo||empCod||"").toLowerCase()); } catch(e){}
 
       // Guardar credenciales si "recordarme" está marcado
       var remEl = document.getElementById("l-remember");
@@ -6797,7 +6958,7 @@ function _agregarFrecuente(pid, btn){
   }
 }
 
-function limpiarCliente(t){
+function limpiarCliente(t, noFocus){
   // Al cambiar de cliente, el pedido ya no corresponde (otra lista de precios): vaciarlo
   if((ordenes[t]||[]).length>0){
     if(!confirm("Tenés "+ordenes[t].length+" producto(s) cargados. Si cambiás de cliente se vacía el pedido.\n\n¿Querés continuar?")) return;
@@ -6840,7 +7001,7 @@ function limpiarCliente(t){
     var _r=document.getElementById("cli-recientes-ped"); if(_r){ _r.style.display="block"; _renderCliRecientes(); }
   }
 
-  setTimeout(function(){ inp.focus(); }, 50);
+  if(!noFocus) setTimeout(function(){ inp.focus(); }, 50);
 }
 
 var _pickersInitialized = false;
@@ -7227,7 +7388,7 @@ function _pgAbrirFamilia(fam){
   var rows=prods.map(function(p){
     var pre=_precioDe(p,lista);
     var qty=_pgQtyDe(p.id);
-    var foto=p.foto?'<img src="'+p.foto+'" onerror="this.outerHTML=&quot;<div class=pgv-ph>📦</div>&quot;" style="width:48px;height:48px;object-fit:contain;border-radius:8px;background:#fff;flex-shrink:0">':'<div class="pgv-ph">📦</div>';
+    var foto=p.foto?'<img loading="lazy" decoding="async" src="'+p.foto+'" onerror="this.outerHTML=&quot;<div class=pgv-ph>📦</div>&quot;" style="width:48px;height:48px;object-fit:contain;border-radius:8px;background:#fff;flex-shrink:0">':'<div class="pgv-ph">📦</div>';
     return '<div class="pgv-row'+(qty>0?' on':'')+'" id="pgv-'+p.id+'">'+
       foto+
       '<div class="pgv-info"><div class="pgv-nom">'+(p.n||"")+'</div><div class="pgv-price">$'+fM(pre)+'</div></div>'+
@@ -8060,12 +8221,9 @@ async function generarPDF(m){
   bkItem._tPDF  = t;
   bkItem._nom   = nom;
   bkItem._remitoNum = remitoNum;
-  // Asociar HR de la ruta abierta
-  if(rutaAbierta && rutasData[rutaAbierta]){
-    bkItem._hrNum = rutasData[rutaAbierta].hrNum || rutasData[rutaAbierta].nombre || "";
-  } else {
-    bkItem._hrNum = "";
-  }
+  // Un pedido nuevo NO pertenece a ninguna hoja de ruta: no heredar la ruta que esté abierta.
+  // (El _hrNum se asigna recién cuando el pedido se agrega a una hoja de ruta, en su propio flujo.)
+  bkItem._hrNum = "";
   bkItem._ordenes = ordenes[t].map(function(i){return Object.assign({},i);});
   bkItem._hayDescuentos = hayDescuentos;
   bkItem._subtotalLista = subtotalLista;
@@ -11906,8 +12064,8 @@ function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
     }
   }
 
-  // Ahora sí limpiar el formulario — el usuario ya confirmó
-  if(bk._tPDF) limpiarFormulario(bk._tPDF);
+  // Ahora sí limpiar el formulario y volver a la pantalla de elegir cliente — el usuario ya confirmó
+  if(bk._tPDF){ limpiarFormulario(bk._tPDF); limpiarCliente(bk._tPDF, true); }
 
   // Delegar SIEMPRE a generarPDFDesdeBackup — formato unificado con zona, descuentos, IVA
   // Construir items desde _ordenes (los del pedido actual, con descuentos)
@@ -11958,6 +12116,9 @@ function _pedidoOkCerrar(){
   var ov = document.getElementById("pedido-ok-overlay");
   if(ov) ov.classList.remove("show");
   _pedidoOkBk = null;
+  // Recién ahora (al cerrar la animación) enfocamos el buscador de cliente
+  var inp = document.getElementById("cli-search-ped");
+  if(inp) setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 60);
 }
 
 // ══ EDITAR BACKUP PEDIDO ══
@@ -12616,6 +12777,31 @@ async function confirmarBackupComoRemito(bkParam){
   showNotif("🚚 Pedido enviado a Hoja de Ruta","ok");
 }
 
+// Comparte un PDF de jsPDF: en la app nativa (Capacitor) usa los plugins de Archivos+Compartir;
+// en el navegador usa Web Share con archivo o descarga directa.
+async function _compartirPDF(doc, fname, titulo){
+  var C = window.Capacitor;
+  if(C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.Filesystem && C.Plugins.Share){
+    try {
+      var Filesystem = C.Plugins.Filesystem, Share = C.Plugins.Share;
+      var b64 = doc.output("datauristring").split(",")[1];
+      await Filesystem.writeFile({ path: fname, data: b64, directory: "CACHE" });
+      var u = await Filesystem.getUri({ path: fname, directory: "CACHE" });
+      await Share.share({ title: titulo||"Pedido", url: u.uri });
+      return;
+    } catch(e){ console.warn("[Compartir nativo]", e); }
+  }
+  try {
+    var blob = doc.output("blob");
+    var file = new File([blob], fname, { type:"application/pdf" });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ files:[file], title: titulo||"Pedido" });
+      return;
+    }
+  } catch(e){ /* cancelado o no soportado */ }
+  doc.save(fname);
+}
+
 // ══ PDF UNIFICADO — FORMATO LA REGIONAL ══
 function generarPDFDesdeBackup(bk, compartir){
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
@@ -12857,10 +13043,8 @@ function generarPDFDesdeBackup(bk, compartir){
   var nomSafe=nom.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g,"").replace(/\s+/g,"_").slice(0,25);
   var hrTag=hrNum?hrNum.replace("-","")+"_":"";
   var fname=(esFactura?"FactA":"Remito")+"_"+hrTag+"N"+remitoNum+"_"+nomSafe+".pdf";
-  var blob=doc.output("blob");
-  var file=new File([blob],fname,{type:"application/pdf"});
-  if(compartir&&navigator.share){
-    navigator.share({files:[file]}).catch(function(){doc.save(fname);});
+  if(compartir){
+    _compartirPDF(doc, fname, (esFactura?"Factura":"Remito")+" "+nom);
   } else {
     doc.save(fname);
   }
@@ -14500,27 +14684,23 @@ function _renderClientesList(){
       (u.rec||u.recepciona) ? "👤 "+escHtml(u.rec||u.recepciona) : null
     ].filter(Boolean).join(" · ");
     var editDeleteBtns = isArmadorCli ? "" :
-      '<button onclick="abrirEditCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">✏️</button>'+
-      '<button onclick="_eliminarCliente(&quot;'+pk+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">🗑</button>';
-    // Botón cuenta corriente — solo para clientes
+      '<button class="cli-act" onclick="abrirEditCliente(&quot;'+pk+'&quot;)" title="Editar">✏️</button>'+
+      '<button class="cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)" title="Eliminar">🗑</button>';
     var ccBtn = (rol==="cliente")
-      ? '<button onclick="abrirCuentaCorriente(&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Cuenta corriente" style="background:none;border:none;cursor:pointer;font-size:15px;padding:5px 7px;border-radius:7px">💰</button>'
+      ? '<button class="cli-act" onclick="abrirCuentaCorriente(&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Cuenta corriente">💰</button>'
       : '';
-    return '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--s2);border:1px solid #e3e1da;border-left:4px solid '+col+';border-radius:10px;margin-bottom:8px">'+
-      '<div style="width:38px;height:38px;border-radius:50%;background:'+col+'22;color:'+col+';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0">'+ini+'</div>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:13.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+escHtml(nom)+
-          '<span style="font-size:10px;background:'+col+'22;color:'+col+';border-radius:5px;padding:1px 7px;font-weight:700">'+RL[rol]+'</span>'+
-          (u.zona ? '<span style="font-size:10.5px;color:#75726a">🗺 '+escHtml(u.zona)+'</span>' : '')+
+    return '<div class="cli-card" style="border-left:4px solid '+col+'">'+
+      '<div class="cli-avatar" style="background:'+col+';color:#fff">'+ini+'</div>'+
+      '<div class="cli-info">'+
+        '<div class="cli-name">'+escHtml(nom)+
+          ' <span class="cli-rol-badge cli-rol-'+rol+'">'+RL[rol]+'</span>'+
+          (u.zona ? ' <span class="cli-zona-tag">🗺 '+escHtml(u.zona)+'</span>' : '')+
         '</div>'+
-        (meta ? '<div style="font-size:11.5px;color:#75726a;margin-top:2px;line-height:1.5">'+meta+'</div>' : '')+
-        (u.direccion ? '<div style="font-size:11.5px;color:#75726a;margin-top:1px">📍 '+escHtml(u.direccion)+'</div>' : '')+
+        (meta ? '<div class="cli-meta">'+meta+'</div>' : '')+
+        (u.direccion ? '<div class="cli-meta">📍 '+escHtml(u.direccion)+'</div>' : '')+
       '</div>'+
-      '<div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:#e8f0fe;color:#1f4ea8;border:1px solid #c7d7f5;white-space:nowrap;flex-shrink:0;align-self:flex-start">'+(u.lista||'Clientes')+'</div>'+
-      '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">'+
-        ccBtn+
-        editDeleteBtns+
-      '</div>'+
+      '<span class="cli-badge">'+escHtml(u.lista||'Clientes')+'</span>'+
+      '<div class="cli-card-actions">'+ccBtn+editDeleteBtns+'</div>'+
     '</div>';
   }).join("");
 }
@@ -14626,12 +14806,13 @@ async function guardarNuevoCliente() {
         if(sbId){ pushKey = sbId; nuevo._sbId = sbId; }
       } catch(se){ console.warn("Supabase insert:", se); }
     }
-    // Fallback Firebase
-    try {
-      var fbKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
-      if(!pushKey) pushKey = fbKey;
-      nuevo._fbKey = fbKey;
-    } catch(fe){ console.warn("Firebase insert:", fe); }
+    // Fallback SOLO si Supabase no guardó (fbPush también escribe en Supabase: si corre siempre, duplica el cliente)
+    if(!pushKey){
+      try {
+        var fbKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
+        if(fbKey){ pushKey = fbKey; nuevo._fbKey = fbKey; }
+      } catch(fe){ console.warn("Insert fallback:", fe); }
+    }
     if(!pushKey) throw new Error("No se pudo guardar el cliente");
     _clientesDB[pushKey] = nuevo;
     ["nc-pass","nc-name","nc-dir","nc-tel","nc-cuit","nc-zona","nc-rec","nc-nota","nc-lat","nc-lng"].forEach(function(fid){
@@ -14694,14 +14875,19 @@ async function _restaurarCliente(pushKey, u){
   if(!u) return;
   try {
     var uid = u.id || u.uid || "";
+    var _sbOk = false;
     if(_sbEmpId && uid){
       try {
         var limpio = Object.assign({}, u);
         delete limpio._fbKey; delete limpio._doc;
         await sbUpsert("usuarios", Object.assign(limpio, { empresa_id:_sbEmpId, uid:uid }));
+        _sbOk = true;
       } catch(se){ console.warn("[Undo cliente] Supabase:", se); }
     }
-    try { await fbPush("empresas/"+empresaKey+"/usuarios", u); } catch(fe){}
+    // Fallback solo si Supabase no guardó (fbPush también escribe en Supabase → duplicaría el cliente)
+    if(!_sbOk){
+      try { await fbPush("empresas/"+empresaKey+"/usuarios", u); } catch(fe){}
+    }
     _clientesDB[pushKey] = u;
     _agregarCliAlDatalist(u);
     _renderClientesList();
@@ -15293,13 +15479,33 @@ document.addEventListener("DOMContentLoaded",function(){
 
 
 
-// ── URL empresa param ──
+// ── URL empresa param (o memoria del dispositivo, para la app nativa) ──
 (function(){
-  var u=new URLSearchParams(location.search).get("emp");
+  var u = new URLSearchParams(location.search).get("emp");
+  var fromStore = false;
+  if(!u){ try { u = localStorage.getItem("coredistri_emp") || ""; fromStore = !!u; } catch(e){} }
   if(u){ document.addEventListener("DOMContentLoaded",function(){
     var el=document.getElementById("l-empresa"),lbl=document.getElementById("l-empresa-label");
     if(el){el.value=u.toLowerCase();el.readOnly=true;el.style.display="none";}
     if(lbl)lbl.style.display="none";
+    // Si la empresa quedó guardada en el celu, mostrar un chip con opción de cambiarla
+    if(fromStore && el){
+      try {
+        if(!document.getElementById("l-emp-chip")){
+          var chip=document.createElement("div");
+          chip.id="l-emp-chip";
+          chip.style.cssText="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted,#888);margin:0 0 14px;padding:9px 13px;background:rgba(127,127,127,.10);border-radius:10px";
+          chip.innerHTML='<span>🏢 Empresa: <b style="color:var(--text)">'+u.toLowerCase()+'</b></span><a href="#" id="l-emp-cambiar" style="color:var(--accent,#4f8eff);text-decoration:none;font-weight:700">Cambiar</a>';
+          el.insertAdjacentElement("afterend", chip);
+          var lk=document.getElementById("l-emp-cambiar");
+          if(lk) lk.addEventListener("click",function(ev){
+            ev.preventDefault();
+            try { localStorage.removeItem("coredistri_emp"); } catch(e){}
+            location.reload();
+          });
+        }
+      } catch(e){}
+    }
   });}
 })();
 // ── Sidebar overlay ──
@@ -15777,7 +15983,7 @@ function abrirGestorFamilias(){
     body=fams.map(function(f){
       var arr=m[f];
       var fotos=arr.filter(function(x){return x[1].foto;}).slice(0,4).map(function(x){
-        return '<img src="'+x[1].foto+'" onerror="_prodImgFail(this)" style="width:32px;height:32px;object-fit:contain;border-radius:5px;background:#fff;border:1px solid var(--border)">';
+        return '<img loading="lazy" decoding="async" src="'+x[1].foto+'" onerror="_prodImgFail(this)" style="width:32px;height:32px;object-fit:contain;border-radius:5px;background:#fff;border:1px solid var(--border)">';
       }).join("");
       return '<div class="fam-row" onclick="abrirModalFamilia(\''+(""+f).replace(/'/g,"\\'").replace(/"/g,"&quot;")+'\')">'+
         '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'+(fotos||'<div style="width:32px;height:32px;border-radius:5px;background:var(--s2);display:flex;align-items:center;justify-content:center">📦</div>')+'</div>'+
@@ -15795,7 +16001,7 @@ function abrirModalFamilia(fam){
   arr.sort(function(a,b){return (a[1].nombre||"").localeCompare(b[1].nombre||"");});
   var rows=arr.map(function(x){
     var key=x[0], p=x[1];
-    var img=p.foto?'<img src="'+p.foto+'" onerror="_prodImgFail(this)" style="width:46px;height:46px;object-fit:contain;border-radius:7px;background:#fff;border:1px solid var(--border)">':'<div style="width:46px;height:46px;border-radius:7px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>';
+    var img=p.foto?'<img loading="lazy" decoding="async" src="'+p.foto+'" onerror="_prodImgFail(this)" style="width:46px;height:46px;object-fit:contain;border-radius:7px;background:#fff;border:1px solid var(--border)">':'<div style="width:46px;height:46px;border-radius:7px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>';
     return '<div class="famv-row" data-key="'+key+'">'+
       '<div class="famv-img">'+img+'</div>'+
       '<div class="famv-info"><div class="famv-name">'+(p.nombre||"")+'</div><div class="famv-cod">'+(p.codigo||"—")+'</div></div>'+
@@ -18134,10 +18340,7 @@ async function generarCatalogoPDF(){
 
     progress.textContent = "✅ ¡Listo! Guardando PDF…";
     var nomArchivo = "catalogo_"+(filtro||"completo")+"_"+lista.toLowerCase()+"_"+new Date().toISOString().slice(0,10)+".pdf";
-    var blob = doc.output("blob");
-    var file = new File([blob], nomArchivo, {type:"application/pdf"});
-    if(navigator.share){ navigator.share({files:[file]}).catch(function(){ doc.save(nomArchivo); }); }
-    else { doc.save(nomArchivo); }
+    _compartirPDF(doc, nomArchivo, "Catálogo");
     showNotif("📄 Catálogo generado — "+prods.length+" productos en "+doc.getNumberOfPages()+" páginas","ok");
 
   } catch(err){
