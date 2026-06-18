@@ -901,7 +901,7 @@ select option { background:var(--s2); color:var(--text) }
 }
 .dropdown.open { display:block }
 .dd-item {
-  display:flex; justify-content:space-between; align-items:center;
+  display:flex; justify-content:space-between; align-items:flex-start;
   padding:11px 13px; border-bottom:1px solid var(--border2);
   cursor:pointer; gap:10px;
   transition:background .1s;
@@ -909,10 +909,10 @@ select option { background:var(--s2); color:var(--text) }
 .dd-item:last-child { border-bottom:none }
 .dd-item:hover, .dd-item:active { background:var(--s3) }
 .dd-item * { pointer-events:none }
-.dd-name { font-size:14px; font-weight:500; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.dd-name { font-size:14px; font-weight:500; color:var(--text); flex:1; min-width:0; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; word-break:break-word; line-height:1.3 }
 .dd-grupo { font-size:10.5px; color:var(--muted); font-weight:500; margin-left:3px }
-.dd-code { font-size:10.5px; font-weight:600; color:var(--muted); background:var(--s3); padding:3px 7px; border-radius:5px; white-space:nowrap; font-variant-numeric:tabular-nums }
-.dd-price { font-size:13.5px; font-weight:700; color:var(--text); white-space:nowrap; font-variant-numeric:tabular-nums }
+.dd-code { font-size:10.5px; font-weight:600; color:var(--muted); background:var(--s3); padding:3px 7px; border-radius:5px; white-space:nowrap; font-variant-numeric:tabular-nums; flex-shrink:0; margin-top:1px }
+.dd-price { font-size:13.5px; font-weight:700; color:var(--text); white-space:nowrap; font-variant-numeric:tabular-nums; flex-shrink:0; margin-top:1px }
 
 /* ── ITEM LIST ── */
 .item-row {
@@ -7274,7 +7274,7 @@ async function _mostrarFrecuentes(cliNom, cliId){
 
   var chips = frec.map(function(f){
     var nomCorto = f.n.length>26 ? f.n.slice(0,24)+"…" : f.n;
-    return '<button type="button" onclick="_agregarFrecuente(&quot;'+f.id+'&quot;,this)" '+
+    return '<button type="button" data-pid="'+encodeURIComponent(f.id)+'" onclick="_agregarFrecuente(this)" '+
       'style="display:inline-flex;align-items:center;gap:5px;padding:7px 11px;background:var(--s2);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .12s" '+
       'title="Comprado '+f.veces+' vez'+(f.veces!==1?'es':'')+'">'+
       '<span style="font-size:13px">➕</span>'+escHtml(nomCorto)+
@@ -7289,8 +7289,10 @@ async function _mostrarFrecuentes(cliNom, cliId){
 }
 
 // Agrega un producto frecuente al pedido (cantidad 1)
-function _agregarFrecuente(pid, btn){
-  var prod = dbStock.find(function(p){ return p.id===pid; });
+function _agregarFrecuente(btn){
+  var pid = "";
+  try { pid = decodeURIComponent(btn.getAttribute("data-pid")||""); } catch(e){ pid = btn.getAttribute("data-pid")||""; }
+  var prod = dbStock.find(function(p){ return String(p.id)===String(pid); });
   if(!prod){ showNotif("Producto no disponible","err"); return; }
   var lista = tipoLista["ped"]||"Clientes";
   var pre = (function(){ if(prod.precios){ var ls=getListasOrdenadas(); for(var li=0;li<ls.length;li++){ if(ls[li][1].nombre===lista){ var _pl=prod.precios[ls[li][0]]; if(_pl!=null&&_pl>0) return _pl; break; } } } return lista==="Patagonia"?prod.pPat:prod.pCli; })();
