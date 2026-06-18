@@ -371,64 +371,86 @@ html[data-theme="dark"] .theme-toggle-thumb {
    Solo visible en mobile (≤900px). El tab activo
    se expande mostrando su etiqueta con animación.
 ══════════════════════════════════════════ */
-#bottom-nav { display:none; }
+#bottom-nav { display:none !important; }
+#nav-fab, #nav-fab-back, #nav-fab-panel { display:none; }
 @media (max-width:900px){
-  #bottom-nav {
-    display:flex;
-    position:fixed; left:0; right:0; bottom:0;
-    z-index:280;
-    align-items:center;
-    gap:5px;
-    padding:7px 10px calc(7px + var(--safe-bottom));
-    background:rgba(255,255,255,0.92);
-    backdrop-filter:blur(16px) saturate(1.5);
-    -webkit-backdrop-filter:blur(16px) saturate(1.5);
-    border-top:1px solid var(--border);
-    box-shadow:0 -2px 18px rgba(0,0,0,0.06);
-    overflow-x:auto;
-    overflow-y:hidden;
-    scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;
-    scroll-snap-type:x proximity;
-  }
-  #bottom-nav::-webkit-scrollbar { display:none; }
-  /* Dar espacio al final del contenido para que la barra no tape */
-  .main { padding-bottom:calc(72px + var(--safe-bottom)) !important; }
-  .main > .section { padding-bottom:calc(96px + var(--safe-bottom)); }
+  /* Dar espacio al final del contenido para que el FAB no tape lo último */
+  .main { padding-bottom:calc(20px + var(--safe-bottom)) !important; }
+  .main > .section { padding-bottom:calc(40px + var(--safe-bottom)); }
 
-  .bn-item {
+  /* ── Botón flotante (FAB) ── */
+  #nav-fab {
     display:flex; align-items:center; justify-content:center;
-    height:42px; flex-shrink:0;
-    padding:0 .7rem;
-    border:none; border-radius:13px;
-    background:transparent; color:var(--muted);
-    font-family:inherit; font-size:13px; font-weight:600;
-    cursor:pointer; white-space:nowrap;
-    scroll-snap-align:center;
+    position:fixed; right:18px; bottom:calc(18px + var(--safe-bottom));
+    z-index:300;
+    width:58px; height:58px; border-radius:50%;
+    border:none; cursor:pointer;
+    background:var(--gold, #c9933a); color:#fff;
+    box-shadow:0 6px 20px rgba(0,0,0,0.28);
     -webkit-tap-highlight-color:transparent;
-    transition:background .25s ease, color .25s ease;
-    will-change:background, color;
+    transition:transform .3s cubic-bezier(.2,.9,.3,1.3), box-shadow .25s, background .25s, bottom .3s cubic-bezier(.25,.85,.3,1);
   }
-  .bn-item .bn-ico { font-size:20px; line-height:1; flex-shrink:0; }
-  .bn-item .bn-lbl {
-    display:inline-grid;
-    grid-template-columns:0fr;
-    margin-left:0;
-    transition:grid-template-columns .3s ease, margin-left .3s ease;
+  #nav-fab:active { transform:scale(.92); }
+  /* Si está visible el resumen del pedido, subir el FAB para que no se encimen */
+  body:has(#ped-float-summary.show) #nav-fab { bottom:calc(86px + var(--safe-bottom)); }
+  #nav-fab .nav-fab-ico {
+    font-size:24px; line-height:1;
+    transition:transform .35s cubic-bezier(.2,.9,.3,1.3);
   }
-  .bn-item .bn-lbl > span { overflow:hidden; }
-  .bn-item.active {
-    background:var(--text); color:#fff;
+  #nav-fab.open { background:var(--text, #0a1628); opacity:0; pointer-events:none; transform:scale(.6); }
+  #nav-fab.open .nav-fab-ico { transform:rotate(135deg); }
+
+  /* ── Fondo oscuro ── */
+  #nav-fab-back {
+    display:block; position:fixed; inset:0; z-index:290;
+    background:rgba(0,0,0,0.45);
+    opacity:0; pointer-events:none;
+    transition:opacity .28s ease;
   }
-  .bn-item.active .bn-lbl {
-    grid-template-columns:1fr;
-    margin-left:.45rem;
+  #nav-fab-back.open { opacity:1; pointer-events:auto; }
+
+  /* ── Panel (hoja que sube) ── */
+  #nav-fab-panel {
+    display:block; position:fixed; left:0; right:0; bottom:0; z-index:295;
+    background:var(--bg, #fff);
+    border-top-left-radius:22px; border-top-right-radius:22px;
+    box-shadow:0 -8px 30px rgba(0,0,0,0.22);
+    padding:10px 16px calc(20px + var(--safe-bottom));
+    max-height:72vh; overflow-y:auto;
+    transform:translateY(110%);
+    transition:transform .34s cubic-bezier(.25,.85,.3,1);
+    -webkit-overflow-scrolling:touch;
   }
-  .bn-item:active { opacity:.7; }
-  .bn-sep { width:1.2px; height:22px; background:var(--border); flex-shrink:0; }
+  #nav-fab-panel.open { transform:translateY(0); }
+  .nav-fab-handle {
+    width:38px; height:4px; border-radius:3px; background:var(--border, #ccc);
+    margin:2px auto 12px;
+  }
+  .nav-fab-title {
+    font-size:11px; font-weight:800; letter-spacing:.8px; text-transform:uppercase;
+    color:var(--muted); margin:0 4px 12px;
+  }
+  #nav-fab-grid {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:9px;
+  }
+  .nav-fab-sep { grid-column:1 / -1; height:1px; background:var(--border); margin:5px 2px; opacity:.6; }
+  .nav-fab-tile {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    padding:12px 4px; border-radius:14px;
+    background:var(--s2); border:1px solid var(--border);
+    color:var(--text2, var(--text)); font-family:inherit; font-size:11px; font-weight:600;
+    cursor:pointer; text-align:center; line-height:1.15;
+    -webkit-tap-highlight-color:transparent;
+    opacity:0; transform:translateY(10px) scale(.96);
+    transition:opacity .26s ease, transform .26s cubic-bezier(.2,.9,.3,1.3), background .15s, border-color .15s;
+  }
+  #nav-fab-panel.open .nav-fab-tile { opacity:1; transform:none; }
+  .nav-fab-tile .nft-ico { font-size:23px; line-height:1; }
+  .nav-fab-tile:active { background:var(--s3); }
+  .nav-fab-tile.active { background:var(--text); border-color:var(--text); color:#fff; }
 }
 @media (max-width:900px){
-  html[data-theme="dark"] #bottom-nav { background:rgba(22,28,36,0.92); border-top:1px solid rgba(255,255,255,0.08); }
+  html[data-theme="dark"] #nav-fab-panel { background:#161c24; }
 }
 
 /* ── Resumen flotante del pedido ── */
@@ -461,7 +483,7 @@ html[data-theme="dark"] .theme-toggle-thumb {
 }
 .pfs-send:active { transform:scale(.96); }
 @media (max-width:900px){
-  #ped-float-summary { bottom:calc(72px + var(--safe-bottom)); }
+  #ped-float-summary { bottom:calc(16px + var(--safe-bottom)); }
 }
 html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px solid var(--border); }
 
@@ -4110,8 +4132,17 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 </div>
 
-<!-- BOTTOM NAV MÓVIL (estilo expandable tabs) — se llena por JS según el rol -->
-<nav id="bottom-nav" aria-label="Navegación principal"></nav>
+<!-- BOTTOM NAV MÓVIL — botón flotante (FAB) que despliega un panel con las secciones -->
+<nav id="bottom-nav" aria-label="Navegación principal" style="display:none"></nav>
+<button id="nav-fab" type="button" onclick="_toggleNavFab()" aria-label="Menú de secciones" aria-expanded="false">
+  <span class="nav-fab-ico" aria-hidden="true">☰</span>
+</button>
+<div id="nav-fab-back" onclick="_closeNavFab()" aria-hidden="true"></div>
+<div id="nav-fab-panel" role="menu" aria-label="Secciones">
+  <div class="nav-fab-handle" aria-hidden="true"></div>
+  <div class="nav-fab-title">Secciones</div>
+  <div id="nav-fab-grid"></div>
+</div>
 
 <!-- RESUMEN FLOTANTE DEL PEDIDO -->
 <div id="ped-float-summary" onclick="_abrirCartModal()">
@@ -6566,9 +6597,6 @@ function aplicarRol(){
 // Define qué tabs ve cada rol en la barra inferior. Se eligen las
 // secciones más usadas; el resto sigue accesible desde el menú lateral.
 function _buildBottomNav(role){
-  var nav = document.getElementById("bottom-nav");
-  if(!nav) return;
-
   var TABS_POR_ROL = {
     admin:      [
       {id:"dashboard",    ico:"🏠", lbl:"Inicio"},
@@ -6606,53 +6634,69 @@ function _buildBottomNav(role){
   };
 
   var tabs = TABS_POR_ROL[role] || TABS_POR_ROL.vendedor;
-  // Si solo hay un tab, no tiene sentido la barra inferior
+  var grid = document.getElementById("nav-fab-grid");
+  var fab  = document.getElementById("nav-fab");
+  if(!grid || !fab) return;
+
+  // Si hay menos de 2 secciones, no tiene sentido el botón flotante
   if(tabs.filter(function(t){return !t.sep;}).length < 2){
-    nav.style.display = "none";
-    nav.innerHTML = "";
+    fab.style.display = "none";
+    grid.innerHTML = "";
     return;
   }
-  nav.style.removeProperty("display");
+  fab.style.removeProperty("display");
 
-  nav.innerHTML = tabs.map(function(t){
-    if(t.sep) return '<div class="bn-sep" aria-hidden="true"></div>';
-    return '<button class="bn-item" data-tab="'+t.id+'" onclick="_bnGo(\''+t.id+'\')" aria-label="'+t.lbl+'">'+
-             '<span class="bn-ico" aria-hidden="true">'+t.ico+'</span>'+
-             '<span class="bn-lbl"><span>'+t.lbl+'</span></span>'+
+  var idx = 0;
+  grid.innerHTML = tabs.map(function(t){
+    if(t.sep) return '<div class="nav-fab-sep" aria-hidden="true"></div>';
+    var delay = (idx++ * 28); // animación en cascada
+    return '<button class="nav-fab-tile" role="menuitem" data-tab="'+t.id+'" '+
+             'style="transition-delay:'+delay+'ms" '+
+             'onclick="_bnGo(\''+t.id+'\')" aria-label="'+t.lbl+'">'+
+             '<span class="nft-ico" aria-hidden="true">'+t.ico+'</span>'+
+             '<span>'+t.lbl+'</span>'+
            '</button>';
   }).join("");
 
   _bnSyncActive();
-  // Centrar el tab activo en la vista al construir
-  setTimeout(_bnScrollToActive, 50);
 }
 
-// Navegar desde el bottom-nav reutilizando verTab + resaltar el sidebar item correcto
+// Abrir / cerrar el panel flotante
+var _navFabOpen = false;
+function _toggleNavFab(){ _navFabOpen ? _closeNavFab() : _openNavFab(); }
+function _openNavFab(){
+  _navFabOpen = true;
+  _bnSyncActive();
+  var fab=document.getElementById("nav-fab"), back=document.getElementById("nav-fab-back"), panel=document.getElementById("nav-fab-panel");
+  if(back) back.classList.add("open");
+  if(panel) panel.classList.add("open");
+  if(fab){ fab.classList.add("open"); fab.setAttribute("aria-expanded","true"); }
+}
+function _closeNavFab(){
+  _navFabOpen = false;
+  var fab=document.getElementById("nav-fab"), back=document.getElementById("nav-fab-back"), panel=document.getElementById("nav-fab-panel");
+  if(back) back.classList.remove("open");
+  if(panel) panel.classList.remove("open");
+  if(fab){ fab.classList.remove("open"); fab.setAttribute("aria-expanded","false"); }
+}
+
+// Navegar desde el panel: ir a la sección, cerrar y resaltar
 function _bnGo(id){
   var sbBtn = document.getElementById("nav-"+id);
   verTab(id, sbBtn||null);
+  _closeNavFab();
   _bnSyncActive();
 }
 
-// Marcar el tab activo en la barra inferior según la sección visible
+// Marcar la sección activa en la grilla
 function _bnSyncActive(){
   var sec = document.querySelector(".section.active");
   var activeId = sec ? sec.id : null;
-  document.querySelectorAll("#bottom-nav .bn-item").forEach(function(b){
+  document.querySelectorAll("#nav-fab-grid .nav-fab-tile").forEach(function(b){
     b.classList.toggle("active", b.dataset.tab===activeId);
   });
-  _bnScrollToActive();
 }
-
-// Centrar el tab activo dentro de la barra (cuando hay scroll horizontal)
-function _bnScrollToActive(){
-  var nav = document.getElementById("bottom-nav");
-  if(!nav || nav.scrollWidth<=nav.clientWidth) return;
-  var active = nav.querySelector(".bn-item.active");
-  if(!active) return;
-  var target = active.offsetLeft - (nav.clientWidth/2) + (active.offsetWidth/2);
-  nav.scrollTo({ left:Math.max(0,target), behavior:"smooth" });
-}
+function _bnScrollToActive(){ /* ya no aplica con el panel en grilla */ }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
 function closeSidebar(){ document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); }
 
