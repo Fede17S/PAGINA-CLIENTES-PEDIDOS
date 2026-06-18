@@ -2507,6 +2507,40 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div id="modal-pendientes-body" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px"></div>
   </div>
 </div>
+<style id="notif-swipe-styles">
+  .notif-row{ position:relative; overflow:hidden; border-radius:10px; }
+  .notif-row.collapsing{ transition:height .32s cubic-bezier(.25,.8,.3,1), opacity .26s, margin .32s; }
+  .notif-swipe-bg{ position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between;
+    padding:0 18px; border-radius:10px; background:linear-gradient(90deg,#ef4444,#b91c1c); }
+  .notif-swipe-bg .trash{ font-size:20px; transform:scale(.7); opacity:.45; transition:transform .08s ease; }
+  .notif-swipe-bg.armed{ background:linear-gradient(90deg,#dc2626,#991b1b); }
+  .notif-swipe-bg.armed .trash{ animation:notifTrashBounce .35s ease; }
+  @keyframes notifTrashBounce{ 0%{transform:scale(1.1)} 40%{transform:scale(1.45) rotate(-8deg)} 100%{transform:scale(1.3)} }
+  .notif-card{ position:relative; background:var(--s2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 12px; touch-action:pan-y; will-change:transform; cursor:grab; }
+  .notif-card:active{ cursor:grabbing; }
+  .notif-card.snapback{ transition:transform .26s cubic-bezier(.2,.9,.3,1.3); }
+  .notif-card.flyout{ transition:transform .3s ease-in, opacity .3s ease-in; }
+  #notif-borrar-todas{ border:1px solid var(--border); background:var(--s2); color:var(--muted);
+    border-radius:8px; padding:5px 10px; font-size:11.5px; font-weight:700; cursor:pointer;
+    transition:background .2s, color .2s, transform .12s; }
+  #notif-borrar-todas:hover{ color:var(--red); }
+  #notif-borrar-todas.armed{ background:var(--red); color:#fff; border-color:var(--red); transform:scale(1.04); }
+</style>
+<div class="modal-bg" id="modal-notifs" onclick="if(event.target===this)cerrarModal('modal-notifs')">
+  <div class="modal-box" style="max-width:520px;max-height:82vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <span style="font-size:15px;font-weight:700">🔔 Notificaciones</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="notif-borrar-todas" onclick="_confirmBorrarTodas(this)" style="display:none">🗑 Borrar todas</button>
+        <button class="modal-close" onclick="cerrarModal('modal-notifs')">✕</button>
+      </div>
+    </div>
+    <div id="modal-notifs-body" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">
+      <div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Cargando…</div>
+    </div>
+  </div>
+</div>
 <div id="offline-banner" style="display:none;background:#1a0e00;color:#fbbf24;padding:10px 16px;text-align:center;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;display:flex;align-items:center;justify-content:center;gap:10px">
   <span>📵</span>
   <span id="offline-text">Sin conexión — Modo offline activo</span>
@@ -2553,7 +2587,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <div style="font-size:19px;font-weight:800" id="dash-saludo">Hola 👋</div>
         <div style="font-size:12px;color:var(--muted)" id="dash-fecha"></div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="renderDashboard(true)" title="Actualizar">🔄</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-ghost btn-sm" id="dash-notif-btn" onclick="abrirNotifs()" title="Notificaciones" style="position:relative">🔔<span id="dash-notif-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;border-radius:20px;min-width:18px;height:18px;font-size:10px;font-weight:800;line-height:18px;text-align:center;padding:0 4px;box-sizing:border-box">0</span></button>
+        <button class="btn btn-ghost btn-sm" onclick="renderDashboard(true)" title="Actualizar">🔄</button>
+      </div>
     </div>
     <div id="dash-alertas" style="margin-bottom:12px"></div>
     <div id="dash-filtros" class="dff-box"></div>
@@ -4369,6 +4406,7 @@ async function _initPushNativo(interactivo){
       return;
     }
     var Push = C.Plugins.PushNotifications;
+    await _crearCanalesPush(Push);
     if(!_pushListenersSet){
       _pushListenersSet = true;
       Push.addListener('registration', function(t){
@@ -4394,6 +4432,43 @@ async function _initPushNativo(interactivo){
   } catch(e){
     console.error('[PushNativo] ERROR:', e);
     if(interactivo) alert("Error al activar notificaciones: "+((e&&e.message)||e));
+  }
+}
+
+// ══ Crear los canales de notificación con sus sonidos (Etapa 4) ══
+// IMPORTANTE: un canal, una vez creado, NO se puede modificar (ni el sonido).
+// Si algún día querés cambiar un sonido, subí la versión del ID (_v1 -> _v2).
+var _canalesPushCreados = false;
+async function _crearCanalesPush(Push){
+  try {
+    if(_canalesPushCreados) return;
+    if(!Push || !Push.createChannel) return; // createChannel solo existe en Android
+    // Canal de PEDIDOS y ENTREGAS -> sonido pedido_nuevo
+    await Push.createChannel({
+      id: 'pedidos_v1',
+      name: 'Pedidos y entregas',
+      description: 'Avisos de nuevos pedidos y entregas',
+      sound: 'pedido_nuevo',   // archivo en res/raw, SIN extensión
+      importance: 5,           // 5 = alta (aparece arriba con sonido)
+      visibility: 1,
+      vibration: true,
+      lights: true
+    });
+    // Canal de COBROS -> sonido cobro
+    await Push.createChannel({
+      id: 'cobros_v1',
+      name: 'Cobros',
+      description: 'Avisos de pedidos cobrados',
+      sound: 'cobro',          // archivo en res/raw, SIN extensión
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+      lights: true
+    });
+    _canalesPushCreados = true;
+    console.log('[PushNativo] Canales de notificación creados');
+  } catch(e){
+    console.warn('[PushNativo] No se pudieron crear los canales:', e);
   }
 }
 
@@ -4442,6 +4517,280 @@ async function _guardarTokenNativo(token){
   } catch(e){
     console.error('[PushNativo] Error guardando token:', e);
   }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CENTRO DE NOTIFICACIONES (admin) — lee de la tabla notificaciones
+// ════════════════════════════════════════════════════════════════
+var _notifsCache = [];
+
+// Tiempo relativo simple en español ("hace 5 min", "hace 2 h", "ayer", fecha)
+function _notifTiempoRel(iso){
+  try {
+    var d = new Date(iso), ahora = new Date();
+    var seg = Math.floor((ahora - d) / 1000);
+    if(seg < 60)      return "recién";
+    var min = Math.floor(seg/60);
+    if(min < 60)      return "hace " + min + " min";
+    var hs = Math.floor(min/60);
+    if(hs < 24)       return "hace " + hs + " h";
+    var dias = Math.floor(hs/24);
+    if(dias === 1)    return "ayer";
+    if(dias < 7)      return "hace " + dias + " días";
+    return d.toLocaleDateString("es-AR", {day:"numeric", month:"short"});
+  } catch(e){ return ""; }
+}
+
+// Traer notificaciones de Supabase y refrescar el badge de no leídas
+async function _cargarNotifs(){
+  try {
+    if(!_sbEmpId || !currentUser || currentUser.role !== "admin") return;
+    var res = await fetch(
+      SB_URL + '/rest/v1/notificaciones?empresa_id=eq.' + _sbEmpId +
+      '&order=created_at.desc&limit=100',
+      { headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY } }
+    );
+    if(!res.ok) return;
+    _notifsCache = await res.json();
+    _actualizarBadgeNotifs();
+  } catch(e){ console.warn('[Notifs] Error cargando:', e); }
+}
+
+// Mostrar/ocultar el globito rojo con la cantidad de no leídas
+function _actualizarBadgeNotifs(){
+  var badge = document.getElementById("dash-notif-badge");
+  if(!badge) return;
+  var sinLeer = _notifsCache.filter(function(n){ return !n.leido; }).length;
+  if(sinLeer > 0){
+    badge.textContent = sinLeer > 99 ? "99+" : sinLeer;
+    badge.style.display = "block";
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+// Abrir el modal, dibujar las notificaciones y marcarlas como leídas
+async function abrirNotifs(){
+  abrirModal("modal-notifs");
+  await _cargarNotifs();
+  _renderNotifs();
+  _marcarNotifsLeidas();
+}
+
+// Dibujar las notificaciones agrupadas por categoría
+function _renderNotifs(){
+  var body = document.getElementById("modal-notifs-body");
+  if(!body) return;
+  var btnBorrar = document.getElementById("notif-borrar-todas");
+
+  if(!_notifsCache || !_notifsCache.length){
+    body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;font-size:13px">No hay notificaciones todavía.</div>';
+    if(btnBorrar) btnBorrar.style.display = "none";
+    return;
+  }
+  if(btnBorrar) btnBorrar.style.display = "block";
+
+  var cats = {
+    pedido:  { ico:"🛒", titulo:"Nuevos pedidos", col:"var(--gold)" },
+    entrega: { ico:"📦", titulo:"Entregas",       col:"#0a7048"     },
+    cobro:   { ico:"💵", titulo:"Cobros",          col:"#2563eb"     }
+  };
+  var orden = ["pedido","entrega","cobro"];
+
+  var html = "";
+  orden.forEach(function(catKey){
+    var lista = _notifsCache.filter(function(n){ return n.categoria === catKey; });
+    if(!lista.length) return;
+    var c = cats[catKey];
+    html += '<div data-cat-sec="'+catKey+'">'
+      + '<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">'
+      +   '<span style="font-size:15px">'+c.ico+'</span>'
+      +   '<span style="font-weight:800;font-size:13.5px;color:'+c.col+'">'+c.titulo+'</span>'
+      +   '<span data-cat-count style="font-size:11px;color:var(--muted);font-weight:600">('+lista.length+')</span>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:7px">';
+
+    lista.forEach(function(n){
+      html += '<div class="notif-row" data-id="'+escHtml(String(n.id))+'">'
+        + '<div class="notif-swipe-bg"><span class="trash">🗑️</span><span class="trash">🗑️</span></div>'
+        + '<div class="notif-card" style="border-left:3px solid '+c.col+'">'
+        +   '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">'
+        +     '<span style="font-weight:700;font-size:13px">'+escHtml(n.cliente||"Cliente")+'</span>'
+        +     '<span style="font-weight:800;font-size:13px;white-space:nowrap">$'+fM(n.total||0)+'</span>'
+        +   '</div>'
+        +   '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:3px">'
+        +     '<span style="font-size:11.5px;color:var(--muted)">por '+escHtml(n.usuario_nom||"—")+'</span>'
+        +     '<span style="font-size:11px;color:var(--muted)">'+_notifTiempoRel(n.created_at)+'</span>'
+        +   '</div>'
+        + '</div>'
+        + '</div>';
+    });
+
+    html += '</div></div>';
+  });
+
+  body.innerHTML = html;
+
+  // Enganchar el swipe en cada tarjeta
+  _initSwipeGlobals();
+  body.querySelectorAll(".notif-row").forEach(function(row){
+    var card = row.querySelector(".notif-card");
+    var bg   = row.querySelector(".notif-swipe-bg");
+    var id   = row.getAttribute("data-id");
+    card.addEventListener("touchstart", function(e){ _swipeStart(card, id, row, bg, e.touches[0].clientX); }, {passive:true});
+    card.addEventListener("mousedown",  function(e){ _swipeStart(card, id, row, bg, e.clientX); e.preventDefault(); });
+  });
+}
+
+// ── Swipe para borrar (un solo set de listeners globales) ──
+var _swipeState = null;
+function _initSwipeGlobals(){
+  if(window._swipeGlobalsSet) return;
+  window._swipeGlobalsSet = true;
+  window.addEventListener("mousemove", function(e){ if(_swipeState) _swipeMove(e.clientX); });
+  window.addEventListener("mouseup",   function(){ if(_swipeState) _swipeEnd(); });
+  window.addEventListener("touchmove", function(e){
+    if(_swipeState){
+      var x = e.touches[0].clientX;
+      if(Math.abs(x - _swipeState.startX) > 6) e.preventDefault();
+      _swipeMove(x);
+    }
+  }, {passive:false});
+  window.addEventListener("touchend",    function(){ if(_swipeState) _swipeEnd(); });
+  window.addEventListener("touchcancel", function(){ if(_swipeState) _swipeEnd(); });
+}
+function _swipeStart(card, id, row, bg, x){
+  _swipeState = { card:card, id:id, row:row, bg:bg, startX:x, dx:0, th:Math.max(80, row.offsetWidth*0.33) };
+  card.classList.remove("snapback","flyout");
+}
+function _swipeMove(x){
+  var s = _swipeState; if(!s) return;
+  s.dx = x - s.startX;
+  s.card.style.transform = "translateX("+s.dx+"px)";
+  var p = Math.min(1, Math.abs(s.dx)/s.th);
+  s.bg.querySelectorAll(".trash").forEach(function(el){
+    el.style.transform = "scale("+(0.7 + p*0.7)+")";
+    el.style.opacity   = (0.4 + p*0.6);
+  });
+  s.bg.classList.toggle("armed", p >= 1);
+}
+function _swipeEnd(){
+  var s = _swipeState; if(!s) return;
+  _swipeState = null;
+  if(Math.abs(s.dx) >= s.th){
+    _flyAndDelete(s.card, s.id, s.row, s.dx > 0 ? 1 : -1);
+  } else {
+    s.card.classList.add("snapback");
+    s.card.style.transform = "translateX(0)";
+  }
+}
+
+// Volar la tarjeta hacia afuera + colapsar la fila + borrar
+function _flyAndDelete(card, id, row, dir){
+  var w = row.offsetWidth + 50;
+  card.classList.add("flyout");
+  card.style.transform = "translateX("+(dir*w)+"px)";
+  card.style.opacity = "0";
+  setTimeout(function(){
+    row.style.height = row.offsetHeight + "px";
+    row.offsetHeight; // forzar reflow
+    row.classList.add("collapsing");
+    row.style.height = "0"; row.style.opacity = "0";
+    row.style.marginTop = "0"; row.style.marginBottom = "0";
+  }, 170);
+  setTimeout(function(){ row.remove(); _afterNotifRemoved(); }, 520);
+  _notifsCache = _notifsCache.filter(function(n){ return String(n.id) !== String(id); });
+  _borrarNotifSupabase(id);
+}
+
+// Tras borrar una: actualizar contadores, sacar secciones vacías, badge
+function _afterNotifRemoved(){
+  _actualizarBadgeNotifs();
+  var body = document.getElementById("modal-notifs-body");
+  if(!body) return;
+  body.querySelectorAll("[data-cat-sec]").forEach(function(sec){
+    var n = sec.querySelectorAll(".notif-row").length;
+    if(n === 0){ sec.remove(); }
+    else { var cnt = sec.querySelector("[data-cat-count]"); if(cnt) cnt.textContent = "("+n+")"; }
+  });
+  if(!_notifsCache.length){
+    body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;font-size:13px">No hay notificaciones todavía.</div>';
+    var bt = document.getElementById("notif-borrar-todas"); if(bt) bt.style.display = "none";
+  }
+}
+
+// Borrar todas — confirmación de dos toques + cascada
+var _confBorrarTimer = null;
+function _confirmBorrarTodas(btn){
+  if(btn.dataset.armed === "1"){
+    clearTimeout(_confBorrarTimer);
+    btn.dataset.armed = "0"; btn.textContent = "🗑 Borrar todas"; btn.classList.remove("armed");
+    _borrarTodasNotifs();
+    return;
+  }
+  btn.dataset.armed = "1"; btn.textContent = "¿Seguro? Tocá de nuevo"; btn.classList.add("armed");
+  _confBorrarTimer = setTimeout(function(){
+    btn.dataset.armed = "0"; btn.textContent = "🗑 Borrar todas"; btn.classList.remove("armed");
+  }, 2600);
+}
+function _borrarTodasNotifs(){
+  var body = document.getElementById("modal-notifs-body");
+  var rows = body ? Array.prototype.slice.call(body.querySelectorAll(".notif-row")) : [];
+  rows.forEach(function(r, i){
+    setTimeout(function(){
+      var card = r.querySelector(".notif-card");
+      if(card){ card.classList.add("flyout"); card.style.transform = "translateX(-"+(r.offsetWidth+50)+"px)"; card.style.opacity = "0"; }
+      r.style.height = r.offsetHeight + "px"; r.offsetHeight;
+      r.classList.add("collapsing"); r.style.height = "0"; r.style.opacity = "0";
+    }, i*55);
+  });
+  var totalT = rows.length*55 + 520;
+  setTimeout(function(){
+    if(body) body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;font-size:13px">No hay notificaciones todavía.</div>';
+    var bt = document.getElementById("notif-borrar-todas"); if(bt) bt.style.display = "none";
+  }, totalT);
+  _notifsCache = [];
+  _actualizarBadgeNotifs();
+  _borrarTodasSupabase();
+}
+
+// Borrados en Supabase
+async function _borrarNotifSupabase(id){
+  try {
+    await fetch(SB_URL + '/rest/v1/notificaciones?id=eq.' + encodeURIComponent(id), {
+      method:'DELETE',
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Prefer':'return=minimal' }
+    });
+  } catch(e){ console.warn('[Notifs] Error borrando una:', e); }
+}
+async function _borrarTodasSupabase(){
+  try {
+    await fetch(SB_URL + '/rest/v1/notificaciones?empresa_id=eq.' + _sbEmpId, {
+      method:'DELETE',
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Prefer':'return=minimal' }
+    });
+  } catch(e){ console.warn('[Notifs] Error borrando todas:', e); }
+}
+
+// Marcar todas como leídas en Supabase y bajar el badge
+async function _marcarNotifsLeidas(){
+  try {
+    var hayNoLeidas = _notifsCache.some(function(n){ return !n.leido; });
+    if(!hayNoLeidas) return;
+    await fetch(
+      SB_URL + '/rest/v1/notificaciones?empresa_id=eq.' + _sbEmpId + '&leido=eq.false',
+      {
+        method:'PATCH',
+        headers:{
+          'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY,
+          'Content-Type':'application/json', 'Prefer':'return=minimal'
+        },
+        body: JSON.stringify({ leido:true })
+      }
+    );
+    _notifsCache.forEach(function(n){ n.leido = true; });
+    _actualizarBadgeNotifs();
+  } catch(e){ console.warn('[Notifs] Error marcando leídas:', e); }
 }
 
 // Llamar a _initPushSubscription después de login exitoso
@@ -5972,6 +6321,7 @@ function _dashSetFiltro(k,v){ _dashFiltro[k]=v; _dashRender(); }
 
 async function renderDashboard(force){
   if(!_sbEmpId) return;
+  _cargarNotifs();
   var saludo=document.getElementById("dash-saludo"), fechaEl=document.getElementById("dash-fecha");
   if(saludo) saludo.textContent="Hola, "+((currentUser&&currentUser.name)||"")+" \uD83D\uDC4B";
   if(fechaEl) fechaEl.textContent=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})+" \u00b7 actualizado "+new Date().toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
