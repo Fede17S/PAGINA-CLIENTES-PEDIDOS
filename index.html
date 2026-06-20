@@ -371,64 +371,91 @@ html[data-theme="dark"] .theme-toggle-thumb {
    Solo visible en mobile (≤900px). El tab activo
    se expande mostrando su etiqueta con animación.
 ══════════════════════════════════════════ */
-#bottom-nav { display:none; }
+#bottom-nav { display:none !important; }
+#nav-fab, #nav-fab-back, #nav-fab-panel { display:none; }
 @media (max-width:900px){
-  #bottom-nav {
-    display:flex;
-    position:fixed; left:0; right:0; bottom:0;
-    z-index:280;
-    align-items:center;
-    gap:5px;
-    padding:7px 10px calc(7px + var(--safe-bottom));
-    background:rgba(255,255,255,0.92);
-    backdrop-filter:blur(16px) saturate(1.5);
-    -webkit-backdrop-filter:blur(16px) saturate(1.5);
-    border-top:1px solid var(--border);
-    box-shadow:0 -2px 18px rgba(0,0,0,0.06);
-    overflow-x:auto;
-    overflow-y:hidden;
-    scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;
-    scroll-snap-type:x proximity;
-  }
-  #bottom-nav::-webkit-scrollbar { display:none; }
-  /* Dar espacio al final del contenido para que la barra no tape */
-  .main { padding-bottom:calc(72px + var(--safe-bottom)) !important; }
-  .main > .section { padding-bottom:calc(96px + var(--safe-bottom)); }
+  /* Dar espacio al final del contenido para que el FAB no tape lo último */
+  .main { padding-bottom:calc(20px + var(--safe-bottom)) !important; }
+  .main > .section { padding-bottom:calc(40px + var(--safe-bottom)); }
 
-  .bn-item {
+  /* ── Botón flotante (FAB) ── */
+  #nav-fab {
     display:flex; align-items:center; justify-content:center;
-    height:42px; flex-shrink:0;
-    padding:0 .7rem;
-    border:none; border-radius:13px;
-    background:transparent; color:var(--muted);
-    font-family:inherit; font-size:13px; font-weight:600;
-    cursor:pointer; white-space:nowrap;
-    scroll-snap-align:center;
+    position:fixed; right:18px; bottom:calc(18px + var(--safe-bottom));
+    z-index:300;
+    width:58px; height:58px; border-radius:50%;
+    border:none; cursor:pointer;
+    background:var(--gold, #c9933a); color:#fff;
+    box-shadow:0 6px 20px rgba(0,0,0,0.28);
     -webkit-tap-highlight-color:transparent;
-    transition:background .25s ease, color .25s ease;
-    will-change:background, color;
+    transition:transform .3s cubic-bezier(.2,.9,.3,1.3), box-shadow .25s, background .25s, bottom .3s cubic-bezier(.25,.85,.3,1);
   }
-  .bn-item .bn-ico { font-size:20px; line-height:1; flex-shrink:0; }
-  .bn-item .bn-lbl {
-    display:inline-grid;
-    grid-template-columns:0fr;
-    margin-left:0;
-    transition:grid-template-columns .3s ease, margin-left .3s ease;
+  #nav-fab:active { transform:scale(.92); }
+  /* Si está visible el resumen del pedido, subir el FAB para que no se encimen */
+  #nav-fab.con-resumen { bottom:calc(86px + var(--safe-bottom)); }
+  #nav-fab .nav-fab-ico {
+    font-size:24px; line-height:1;
+    transition:transform .35s cubic-bezier(.2,.9,.3,1.3);
   }
-  .bn-item .bn-lbl > span { overflow:hidden; }
-  .bn-item.active {
-    background:var(--text); color:#fff;
+  #nav-fab.open { background:var(--text, #0a1628); opacity:0; pointer-events:none; transform:scale(.6); }
+  #nav-fab.open .nav-fab-ico { transform:rotate(135deg); }
+
+  /* ── Fondo oscuro ── */
+  #nav-fab-back {
+    display:block; position:fixed; inset:0; z-index:290;
+    background:rgba(0,0,0,0.45);
+    opacity:0; pointer-events:none;
+    transition:opacity .28s ease;
   }
-  .bn-item.active .bn-lbl {
-    grid-template-columns:1fr;
-    margin-left:.45rem;
+  #nav-fab-back.open { opacity:1; pointer-events:auto; }
+
+  /* ── Panel (hoja que sube) ── */
+  #nav-fab-panel {
+    display:block; position:fixed; left:0; right:0; bottom:0; z-index:295;
+    background:var(--bg, #fff);
+    border-top-left-radius:22px; border-top-right-radius:22px;
+    box-shadow:0 -8px 30px rgba(0,0,0,0.22);
+    padding:10px 16px calc(20px + var(--safe-bottom));
+    max-height:72vh; overflow-y:auto;
+    transform:translateY(110%);
+    transition:transform .34s cubic-bezier(.25,.85,.3,1);
+    -webkit-overflow-scrolling:touch;
+    pointer-events:none;          /* cerrado: no capta toques (evita que trabe la página) */
+    visibility:hidden;
+    transition:transform .34s cubic-bezier(.25,.85,.3,1), visibility 0s linear .34s;
   }
-  .bn-item:active { opacity:.7; }
-  .bn-sep { width:1.2px; height:22px; background:var(--border); flex-shrink:0; }
+  #nav-fab-panel.open { transform:translateY(0); pointer-events:auto; visibility:visible; transition:transform .34s cubic-bezier(.25,.85,.3,1); }
+  /* Al cerrar, los tiles desaparecen sin la cascada (más ágil) */
+  #nav-fab-panel:not(.open) .nav-fab-tile { transition-delay:0ms !important; }
+  .nav-fab-handle {
+    width:38px; height:4px; border-radius:3px; background:var(--border, #ccc);
+    margin:2px auto 12px;
+  }
+  .nav-fab-title {
+    font-size:11px; font-weight:800; letter-spacing:.8px; text-transform:uppercase;
+    color:var(--muted); margin:0 4px 12px;
+  }
+  #nav-fab-grid {
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:9px;
+  }
+  .nav-fab-sep { grid-column:1 / -1; height:1px; background:var(--border); margin:5px 2px; opacity:.6; }
+  .nav-fab-tile {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    padding:12px 4px; border-radius:14px;
+    background:var(--s2); border:1px solid var(--border);
+    color:var(--text2, var(--text)); font-family:inherit; font-size:11px; font-weight:600;
+    cursor:pointer; text-align:center; line-height:1.15;
+    -webkit-tap-highlight-color:transparent;
+    opacity:0; transform:translateY(10px) scale(.96);
+    transition:opacity .26s ease, transform .26s cubic-bezier(.2,.9,.3,1.3), background .15s, border-color .15s;
+  }
+  #nav-fab-panel.open .nav-fab-tile { opacity:1; transform:none; }
+  .nav-fab-tile .nft-ico { font-size:23px; line-height:1; }
+  .nav-fab-tile:active { background:var(--s3); }
+  .nav-fab-tile.active { background:var(--text); border-color:var(--text); color:#fff; }
 }
 @media (max-width:900px){
-  html[data-theme="dark"] #bottom-nav { background:rgba(22,28,36,0.92); border-top:1px solid rgba(255,255,255,0.08); }
+  html[data-theme="dark"] #nav-fab-panel { background:#161c24; }
 }
 
 /* ── Resumen flotante del pedido ── */
@@ -461,7 +488,7 @@ html[data-theme="dark"] .theme-toggle-thumb {
 }
 .pfs-send:active { transform:scale(.96); }
 @media (max-width:900px){
-  #ped-float-summary { bottom:calc(72px + var(--safe-bottom)); }
+  #ped-float-summary { bottom:calc(16px + var(--safe-bottom)); }
 }
 html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px solid var(--border); }
 
@@ -1569,6 +1596,9 @@ select option { background:var(--s2); color:var(--text) }
 .rc-item-cant { font-size:12px; font-weight:700; color:var(--muted); min-width:28px; text-align:center; flex-shrink:0; background:var(--s3); padding:2px 5px; border-radius:5px }
 .rc-item-name { flex:1; font-size:13.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .rc-item-sub { font-size:13.5px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; flex-shrink:0 }
+.rc-iva-breakdown { margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); display:flex; flex-direction:column; gap:3px }
+.rc-iva-line { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums }
+.rc-iva-line.rc-iva-total { margin-top:3px; padding-top:5px; border-top:1px solid var(--border); font-size:13.5px; font-weight:700; color:var(--text) }
 
 /* Edit items */
 .rc-edit-wrap { margin:8px 0 4px }
@@ -2488,14 +2518,19 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <div id="main-wrapper">
 
 <!-- OFFLINE BANNER -->
-<div id="pendientes-banner" style="display:none;background:#7f1d1d;color:#fef2f2;padding:10px 16px;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;cursor:pointer" onclick="abrirModalPendientes()">
+<div id="pendientes-banner" style="display:none;background:#7f1d1d;color:#fef2f2;padding:8px 14px;font-size:12px;font-weight:700;position:sticky;top:0;z-index:250;align-items:center;gap:8px">
+  <span style="flex-shrink:0">🔴</span>
+  <span id="pendientes-banner-txt" onclick="abrirModalPendientes()" style="cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+  <span onclick="abrirModalPendientes()" style="cursor:pointer;opacity:.7;font-size:10.5px;flex-shrink:0;white-space:nowrap">→ Ver</span>
+  <button onclick="_minimizarBannerPend(event)" title="Minimizar" style="flex-shrink:0;background:rgba(255,255,255,.15);color:#fef2f2;border:none;border-radius:6px;width:24px;height:24px;font-size:14px;font-weight:700;cursor:pointer;line-height:1;padding:0;display:flex;align-items:center;justify-content:center">–</button>
+</div>
+<!-- Chip minimizado: puntito chico con el número de pendientes -->
+<div id="pendientes-chip" onclick="_expandirBannerPend()" title="Pedidos pendientes" style="display:none;position:fixed;top:8px;right:8px;z-index:251;background:#7f1d1d;color:#fef2f2;border-radius:20px;padding:4px 10px;font-size:11.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);align-items:center;gap:5px">
+  <span>🔴</span><span id="pendientes-chip-num"></span>
+</div>
 
 <!-- Banner de vencimiento de suscripción (solo admin) -->
 <div id="sub-vence-banner" style="display:none;padding:10px 16px;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:249;cursor:pointer;text-align:center" onclick="document.getElementById('sub-vence-banner').style.display='none'"></div>
-  <span style="margin-right:8px">🔴</span>
-  <span id="pendientes-banner-txt"></span>
-  <span style="margin-left:8px;opacity:.7;font-size:11px">→ Ver detalle</span>
-</div>
 
 <!-- MODAL PENDIENTES -->
 <div class="modal-bg" id="modal-pendientes" onclick="if(event.target===this)cerrarModal('modal-pendientes')">
@@ -4110,8 +4145,17 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 </div>
 
-<!-- BOTTOM NAV MÓVIL (estilo expandable tabs) — se llena por JS según el rol -->
-<nav id="bottom-nav" aria-label="Navegación principal"></nav>
+<!-- BOTTOM NAV MÓVIL — botón flotante (FAB) que despliega un panel con las secciones -->
+<nav id="bottom-nav" aria-label="Navegación principal" style="display:none"></nav>
+<button id="nav-fab" type="button" onclick="_toggleNavFab()" aria-label="Menú de secciones" aria-expanded="false">
+  <span class="nav-fab-ico" aria-hidden="true">☰</span>
+</button>
+<div id="nav-fab-back" onclick="_closeNavFab()" aria-hidden="true"></div>
+<div id="nav-fab-panel" role="menu" aria-label="Secciones">
+  <div class="nav-fab-handle" aria-hidden="true"></div>
+  <div class="nav-fab-title">Secciones</div>
+  <div id="nav-fab-grid"></div>
+</div>
 
 <!-- RESUMEN FLOTANTE DEL PEDIDO -->
 <div id="ped-float-summary" onclick="_abrirCartModal()">
@@ -5361,6 +5405,7 @@ async function _sbGetRutas(){
         id:            c.cliente_id,  // ID del cliente
         nom:           c.nom,
         importe:       c.importe,
+        tipoComprobante: c.tipo_comprobante||null,
         efectivo:      c.efectivo,
         transferencia: c.transferencia,
         modo:          c.modo,
@@ -5393,13 +5438,14 @@ async function _sbGetRutas(){
   return result;
 }
 async function _sbInsertRuta(data){ var rows=await sbPost("rutas",{empresa_id:_sbEmpId,nombre:data.nombre,fecha:data.fecha||new Date().toISOString()}); return rows&&rows[0]?rows[0].id:null; }
-async function _sbInsertRutaCli(rutaId,data){ var rows=await sbPost("ruta_clientes",{ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),lista:data.lista||"",obs:data.obs||"",firma:"",pagos_adicionales:[],comprobantes:[]}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbInsertRutaCli(rutaId,data){ var rows=await sbPost("ruta_clientes",{ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),lista:data.lista||"",obs:data.obs||"",tipo_comprobante:data.tipoComprobante||null,firma:"",pagos_adicionales:[],comprobantes:[]}); return rows&&rows[0]?rows[0].id:null; }
 async function _sbPatchRutaCli(rutaId,cliId,data){
   var b={};
   if(data.efectivo!==undefined)         b.efectivo=data.efectivo;
   if(data.transferencia!==undefined)    b.transferencia=data.transferencia;
   if(data.modo!==undefined)             b.modo=data.modo;
   if(data.importe!==undefined)          b.importe=data.importe;
+  if(data.tipoComprobante!==undefined)  b.tipo_comprobante=data.tipoComprobante;
   if(data.firma!==undefined)            b.firma=data.firma;
   if(data.firmadoEn!==undefined)        b.firmado_en=data.firmadoEn;
   if(data.pagosAdicionales!==undefined) b.pagos_adicionales=data.pagosAdicionales;
@@ -6566,9 +6612,6 @@ function aplicarRol(){
 // Define qué tabs ve cada rol en la barra inferior. Se eligen las
 // secciones más usadas; el resto sigue accesible desde el menú lateral.
 function _buildBottomNav(role){
-  var nav = document.getElementById("bottom-nav");
-  if(!nav) return;
-
   var TABS_POR_ROL = {
     admin:      [
       {id:"dashboard",    ico:"🏠", lbl:"Inicio"},
@@ -6606,53 +6649,69 @@ function _buildBottomNav(role){
   };
 
   var tabs = TABS_POR_ROL[role] || TABS_POR_ROL.vendedor;
-  // Si solo hay un tab, no tiene sentido la barra inferior
+  var grid = document.getElementById("nav-fab-grid");
+  var fab  = document.getElementById("nav-fab");
+  if(!grid || !fab) return;
+
+  // Si hay menos de 2 secciones, no tiene sentido el botón flotante
   if(tabs.filter(function(t){return !t.sep;}).length < 2){
-    nav.style.display = "none";
-    nav.innerHTML = "";
+    fab.style.display = "none";
+    grid.innerHTML = "";
     return;
   }
-  nav.style.removeProperty("display");
+  fab.style.removeProperty("display");
 
-  nav.innerHTML = tabs.map(function(t){
-    if(t.sep) return '<div class="bn-sep" aria-hidden="true"></div>';
-    return '<button class="bn-item" data-tab="'+t.id+'" onclick="_bnGo(\''+t.id+'\')" aria-label="'+t.lbl+'">'+
-             '<span class="bn-ico" aria-hidden="true">'+t.ico+'</span>'+
-             '<span class="bn-lbl"><span>'+t.lbl+'</span></span>'+
+  var idx = 0;
+  grid.innerHTML = tabs.map(function(t){
+    if(t.sep) return '<div class="nav-fab-sep" aria-hidden="true"></div>';
+    var delay = (idx++ * 28); // animación en cascada
+    return '<button class="nav-fab-tile" role="menuitem" data-tab="'+t.id+'" '+
+             'style="transition-delay:'+delay+'ms" '+
+             'onclick="_bnGo(\''+t.id+'\')" aria-label="'+t.lbl+'">'+
+             '<span class="nft-ico" aria-hidden="true">'+t.ico+'</span>'+
+             '<span>'+t.lbl+'</span>'+
            '</button>';
   }).join("");
 
   _bnSyncActive();
-  // Centrar el tab activo en la vista al construir
-  setTimeout(_bnScrollToActive, 50);
 }
 
-// Navegar desde el bottom-nav reutilizando verTab + resaltar el sidebar item correcto
+// Abrir / cerrar el panel flotante
+var _navFabOpen = false;
+function _toggleNavFab(){ _navFabOpen ? _closeNavFab() : _openNavFab(); }
+function _openNavFab(){
+  _navFabOpen = true;
+  _bnSyncActive();
+  var fab=document.getElementById("nav-fab"), back=document.getElementById("nav-fab-back"), panel=document.getElementById("nav-fab-panel");
+  if(back) back.classList.add("open");
+  if(panel) panel.classList.add("open");
+  if(fab){ fab.classList.add("open"); fab.setAttribute("aria-expanded","true"); }
+}
+function _closeNavFab(){
+  _navFabOpen = false;
+  var fab=document.getElementById("nav-fab"), back=document.getElementById("nav-fab-back"), panel=document.getElementById("nav-fab-panel");
+  if(back) back.classList.remove("open");
+  if(panel) panel.classList.remove("open");
+  if(fab){ fab.classList.remove("open"); fab.setAttribute("aria-expanded","false"); }
+}
+
+// Navegar desde el panel: ir a la sección, cerrar y resaltar
 function _bnGo(id){
   var sbBtn = document.getElementById("nav-"+id);
   verTab(id, sbBtn||null);
+  _closeNavFab();
   _bnSyncActive();
 }
 
-// Marcar el tab activo en la barra inferior según la sección visible
+// Marcar la sección activa en la grilla
 function _bnSyncActive(){
   var sec = document.querySelector(".section.active");
   var activeId = sec ? sec.id : null;
-  document.querySelectorAll("#bottom-nav .bn-item").forEach(function(b){
+  document.querySelectorAll("#nav-fab-grid .nav-fab-tile").forEach(function(b){
     b.classList.toggle("active", b.dataset.tab===activeId);
   });
-  _bnScrollToActive();
 }
-
-// Centrar el tab activo dentro de la barra (cuando hay scroll horizontal)
-function _bnScrollToActive(){
-  var nav = document.getElementById("bottom-nav");
-  if(!nav || nav.scrollWidth<=nav.clientWidth) return;
-  var active = nav.querySelector(".bn-item.active");
-  if(!active) return;
-  var target = active.offsetLeft - (nav.clientWidth/2) + (active.offsetWidth/2);
-  nav.scrollTo({ left:Math.max(0,target), behavior:"smooth" });
-}
+function _bnScrollToActive(){ /* ya no aplica con el panel en grilla */ }
 function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); document.getElementById("overlay").classList.toggle("open"); }
 function closeSidebar(){ document.getElementById("sidebar").classList.remove("open"); document.getElementById("overlay").classList.remove("open"); }
 
@@ -7965,8 +8024,10 @@ function _updatePedFloatSummary(items, total){
     if(cnt) cnt.textContent = nItems+" producto"+(nItems!==1?"s":"")+" · "+nUnidades+" u.";
     if(tot) tot.textContent = "$"+fM(total);
     bar.classList.add("show");
+    var _fab=document.getElementById("nav-fab"); if(_fab) _fab.classList.add("con-resumen");
   } else {
     bar.classList.remove("show");
+    var _fab2=document.getElementById("nav-fab"); if(_fab2) _fab2.classList.remove("con-resumen");
   }
 }
 
@@ -9215,6 +9276,7 @@ async function imprimirPedidosDeRuta(rk){
     var cliRec  = (cfg.showEncargado !==false)?(cliRaw?(cliRaw.rec||cliRaw.recepciona||""):""):"";
 
     // ── Encabezado empresa ──
+    var _esFactA = (cli.tipoComprobante === "factura_a");
     if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",80,6,50,16);}catch(e){}}
     doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
     doc.text(empNom.toUpperCase(),105,25,{align:"center"});
@@ -9223,7 +9285,7 @@ async function imprimirPedidosDeRuta(rk){
     if(ed.cuit){doc.text("CUIT: "+ed.cuit,10,ey);ey+=5;}
     if(ed.dir) {doc.text("Dirección: "+ed.dir,10,ey);ey+=5;}
     if(ed.tel) {doc.text("Tel: "+ed.tel,10,ey);ey+=5;}
-    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text("Remito",200,20,{align:"right"});
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text(_esFactA?"FACTURA A":"Remito",200,20,{align:"right"});
     doc.setFont("helvetica","normal"); doc.setFontSize(9);
     doc.text("N°: "+remitoNum,200,27,{align:"right"});
     doc.text("Fecha: "+fechaStr,200,33,{align:"right"});
@@ -9280,7 +9342,14 @@ async function imprimirPedidosDeRuta(rk){
     var dsc=cli.descuentos||{};
     var total=cli.importe||0;
     var totalDsc=dsc.ahorroTotal||0;
-    var subtotLista=dsc.subtotalLista||(total+totalDsc);
+    // ¿Es Factura A? El importe guardado en ruta YA incluye el IVA 21%.
+    var _esFacturaA = _esFactA;
+    var _neto = total, _ivaMonto = 0;
+    if(_esFacturaA){
+      _neto = Math.round((total/1.21)*100)/100;      // total sin IVA
+      _ivaMonto = Math.round((total-_neto)*100)/100;  // IVA 21%
+    }
+    var subtotLista=dsc.subtotalLista||((_esFacturaA?_neto:total)+totalDsc);
 
     var obsH  = showObs ? 38 : 0;
     var rowH  = 6;
@@ -9302,7 +9371,7 @@ async function imprimirPedidosDeRuta(rk){
     // Subtotal lista
     doc.rect(tX,ty,tW,rowH);
     doc.text("Subtotal lista:",tX+2,ty+4);
-    doc.setFont("helvetica","normal"); doc.text("$"+fM(totalDsc>0?subtotLista:total),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
+    doc.setFont("helvetica","normal"); doc.text("$"+fM(totalDsc>0?subtotLista:(_esFacturaA?_neto:total)),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
 
     // Dscto. total
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
@@ -9316,7 +9385,11 @@ async function imprimirPedidosDeRuta(rk){
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
     doc.text("IVA 21%:",tX+2,ty+4);
     doc.setFont("helvetica","normal");
-    doc.setTextColor(150,150,150); doc.text("No aplica",tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    if(_esFacturaA){
+      doc.text("+$"+fM(_ivaMonto),tX+tW-2,ty+4,{align:"right"});
+    } else {
+      doc.setTextColor(150,150,150); doc.text("No aplica",tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    }
     ty+=rowH;
 
     // TOTAL
@@ -9326,7 +9399,7 @@ async function imprimirPedidosDeRuta(rk){
 
     // Pie de página
     doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
-    doc.text([empNom,"Remito N°"+remitoNum,"Ruta "+hrNum,fechaStr].join("  ·  "),105,289,{align:"center"});
+    doc.text([empNom,(_esFactA?"FACTURA A N°":"Remito N°")+remitoNum,"Ruta "+hrNum,fechaStr].join("  ·  "),105,289,{align:"center"});
   }
 
   var hrTag = hrNum.replace(/[^a-zA-Z0-9]/g,"");
@@ -9771,6 +9844,7 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
         cliente_id: cli.id||cli._rcId||"",
         items:      cli.items||[],
         importe:    cli.importe||0,
+        tipo_comprobante: cli.tipoComprobante||null,
         fecha:      cli.fecha||new Date().toISOString(),
         modo:       cli.modo||"ninguno",
         efectivo:   cli.efectivo||0,
@@ -10364,6 +10438,19 @@ function buildClienteRow(rutaKey, cliKey, cli){
         '<span class="rc-item-sub">$'+fM(it.sub)+'</span>';
       itemsDiv.appendChild(d);
     });
+    // Si es Factura A, mostrar desglose Subtotal / IVA / Total para que los números cuadren
+    // (el importe del cliente YA incluye el IVA 21%)
+    if(cli.tipoComprobante === "factura_a"){
+      var _netoRC = Math.round((tot/1.21)*100)/100;
+      var _ivaRC  = Math.round((tot-_netoRC)*100)/100;
+      var dgl=document.createElement("div");
+      dgl.className="rc-iva-breakdown";
+      dgl.innerHTML=
+        '<div class="rc-iva-line"><span>Subtotal sin IVA</span><span>$'+fM(_netoRC)+'</span></div>'+
+        '<div class="rc-iva-line"><span>IVA 21%</span><span>+$'+fM(_ivaRC)+'</span></div>'+
+        '<div class="rc-iva-line rc-iva-total"><span>Total Factura A</span><span>$'+fM(tot)+'</span></div>';
+      itemsDiv.appendChild(dgl);
+    }
     body.appendChild(itemsDiv);
   }
 
@@ -10756,6 +10843,13 @@ async function imprimirRemitoCli(rk, ck){
     fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {_remitoNum:remitoNum}).catch(function(){});
   }
 
+  var _esFactA = (cli.tipoComprobante === "factura_a");
+  // cli.importe YA incluye el IVA cuando es Factura A; generarPDFDesdeBackup
+  // espera el total SIN IVA (le aplica el 21% internamente), así que lo neteamos.
+  var _totalBk = _esFactA
+    ? Math.round((((cli.importe||0)/1.21))*100)/100
+    : (cli.importe||0);
+
   var bk = {
     id: ck, _remitoNum: remitoNum, _hrNum: hrNum,
     fecha: cli.fecha || ruta.fecha || new Date().toISOString(),
@@ -10764,9 +10858,9 @@ async function imprimirRemitoCli(rk, ck){
     lista:      cli.lista||"Clientes",
     obs:        cli.obs||"",
     items:      cli.items||[],
-    total:      cli.importe||0,
+    total:      _totalBk,
     usuarioNom: ruta.repartidorNom||"",
-    tipoComprobante: "remito",
+    tipoComprobante: cli.tipoComprobante || "remito",
     descuentos: cli.descuentos||null
   };
   generarPDFDesdeBackup(bk, false);
@@ -11635,6 +11729,16 @@ async function _bkReasignarNueva(){
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 
+// ══ Helper único: importe que va a la hoja de ruta, con IVA si es Factura A ══
+// Centraliza el cálculo para que NUNCA se pierda el IVA al pasar un pedido a ruta.
+function _importeParaRuta(bk){
+  var base = (bk && (bk.total!=null ? bk.total : bk.importe)) || 0;
+  if(bk && bk.tipoComprobante === "factura_a"){
+    return Math.round(base * 1.21 * 100) / 100;
+  }
+  return Math.round(base * 100) / 100;
+}
+
 async function _confirmarReasignar(){
   var sel = document.getElementById("reasig-ruta-sel");
   if(!sel||!sel.value){ showNotif("Elegí una ruta","err"); return; }
@@ -11659,12 +11763,13 @@ async function _confirmarReasignar(){
       // Agregar el pedido como cliente en la ruta destino
       var nom = bk.clienteNom||"Mostrador";
       var items = bk.items||[];
-      var total = bk.total||0;
+      var total = _importeParaRuta(bk);   // ← incluye IVA 21% si es Factura A
       var cliData = {
         nom:    nom,
         id:     bk.clienteId||"",
         items:  items,
         importe:total,
+        tipoComprobante: bk.tipoComprobante || "remito",
         lista:  bk.lista||"Clientes",
         obs:    bk.obs||"",
         fecha:  bk.fecha||new Date().toISOString(),
@@ -11679,6 +11784,7 @@ async function _confirmarReasignar(){
         cliente_id: bk.clienteId||"",
         items:   items,
         importe: total,
+        tipo_comprobante: bk.tipoComprobante || "remito",
         lista:   bk.lista||"Clientes",
         obs:     bk.obs||"",
         fecha:   bk.fecha||new Date().toISOString(),
@@ -11786,13 +11892,49 @@ function _checkPendientes(){
   });
   var banner = document.getElementById("pendientes-banner");
   var txt    = document.getElementById("pendientes-banner-txt");
+  var chip   = document.getElementById("pendientes-chip");
   if(!banner||!txt) return;
+  // Solo el admin ve el aviso de pendientes
+  var esAdmin = currentUser && currentUser.role === "admin";
   var totalPed = Object.keys(_pendientesMap).length;
-  if(totalPed === 0){ banner.style.display="none"; return; }
+  if(!esAdmin || totalPed === 0){
+    banner.style.display="none";
+    if(chip) chip.style.display="none";
+    return;
+  }
   var totalProds = Object.values(_pendientesMap).reduce(function(s,p){ return s+p.items.length; },0);
   var clientesUnicos = Object.values(_pendientesMap).map(function(p){ return p.clienteNom; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
   txt.textContent = "⚠️ "+totalProds+" producto"+(totalProds!==1?"s":"")+" pendiente"+(totalProds!==1?"s":"")+" en "+totalPed+" pedido"+(totalPed!==1?"s":"")+" · "+clientesUnicos.slice(0,3).join(", ")+(clientesUnicos.length>3?" +"+(clientesUnicos.length-3)+" más":"");
-  banner.style.display="flex"; banner.style.alignItems="center";
+  var chipNum = document.getElementById("pendientes-chip-num");
+  if(chipNum) chipNum.textContent = totalPed;
+  // Respetar si el admin lo había minimizado
+  if(_bannerPendMinimizado()){
+    banner.style.display="none";
+    if(chip) chip.style.display="flex";
+  } else {
+    banner.style.display="flex";
+    if(chip) chip.style.display="none";
+  }
+}
+
+// Estado minimizado del banner (se recuerda en el dispositivo)
+function _bannerPendMinimizado(){
+  try { return localStorage.getItem("pendBannerMin") === "1"; } catch(e){ return false; }
+}
+function _minimizarBannerPend(ev){
+  if(ev){ ev.stopPropagation(); }
+  try { localStorage.setItem("pendBannerMin","1"); } catch(e){}
+  var banner = document.getElementById("pendientes-banner");
+  var chip   = document.getElementById("pendientes-chip");
+  if(banner) banner.style.display="none";
+  if(chip)   chip.style.display="flex";
+}
+function _expandirBannerPend(){
+  try { localStorage.setItem("pendBannerMin","0"); } catch(e){}
+  var banner = document.getElementById("pendientes-banner");
+  var chip   = document.getElementById("pendientes-chip");
+  if(chip)   chip.style.display="none";
+  if(banner) banner.style.display="flex";
 }
 
 function abrirModalPendientes(){
@@ -12371,47 +12513,30 @@ function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   bk.tipoComprobante = tipo;
   if(fechaEntrega){ bk.fechaEntrega = fechaEntrega; bk.diaEntrega = diaEntrega; }
 
-  // Actualizar tipoComprobante en la hoja de ruta siempre
+  // ── Actualizar la hoja de ruta: tipo de comprobante + importe con IVA si es Factura A ──
+  // Un solo recorrido para no pisar el flag antes de aplicar el IVA al importe.
+  var _esFactA = (tipo === "factura_a");
+  var totalConIVA = _esFactA ? Math.round((bk.total||0) * 1.21 * 100) / 100 : (bk.total||0);
+  if(_esFactA) bk.totalConIVA = totalConIVA;
   if(rutaAbierta && rutasData[rutaAbierta] && rutasData[rutaAbierta].clientes){
     var _clientes = rutasData[rutaAbierta].clientes;
-    var _nomLow2 = (bk.clienteNom||"").toLowerCase();
+    var _nomLow2  = (bk.clienteNom||"").toLowerCase();
     var _cliKeys2 = Object.keys(_clientes);
     for(var _ci2 = _cliKeys2.length-1; _ci2 >= 0; _ci2--){
       var _ck2 = _cliKeys2[_ci2];
-      if((_clientes[_ck2].nom||"").toLowerCase() === _nomLow2){
-        _clientes[_ck2].tipoComprobante = tipo;
-        fbPatch("empresas/"+empresaKey+"/rutas/"+rutaAbierta+"/clientes/"+_ck2,
-          {tipoComprobante: tipo}).catch(function(){});
-        break;
-      }
-    }
-  }
-
-  // Si elige Factura A, actualizar el total con IVA en el backup y en la hoja de ruta
-  if(tipo === "factura_a"){
-    var totalSinIVA = bk.total || 0;
-    var totalConIVA = Math.round(totalSinIVA * 1.21 * 100) / 100;
-    bk.totalConIVA = totalConIVA;
-    // Actualizar el importe en la hoja de ruta (el cliente de ruta recién guardado)
-    // Buscar la ruta abierta y el cliente recién agregado
-    if(rutaAbierta && rutasData[rutaAbierta] && rutasData[rutaAbierta].clientes){
-      var clientes = rutasData[rutaAbierta].clientes;
-      var nomLow = (bk.clienteNom||"").toLowerCase();
-      // Buscar el último cliente agregado que coincida por nombre
-      var cliKeys = Object.keys(clientes);
-      for(var ci = cliKeys.length-1; ci >= 0; ci--){
-        var cliKey = cliKeys[ci];
-        var cliRuta = clientes[cliKey];
-        if((cliRuta.nom||"").toLowerCase() === nomLow && cliRuta.importe === totalSinIVA){
-          // Actualizar en memoria
-          clientes[cliKey].importe = totalConIVA;
-          // Actualizar en Firebase
-          fbPatch("empresas/"+empresaKey+"/rutas/"+rutaAbierta+"/clientes/"+cliKey,
-            {importe: totalConIVA, tipoComprobante: "factura_a"}).catch(function(){});
-          // También actualizar tipoComprobante en la copia en memoria
-          clientes[cliKey].tipoComprobante = "factura_a";
-          break;
+      var _cliR = _clientes[_ck2];
+      if((_cliR.nom||"").toLowerCase() === _nomLow2){
+        // Patch a aplicar (memoria + Supabase/Firebase)
+        var _patch = { tipoComprobante: tipo };
+        _cliR.tipoComprobante = tipo;
+        if(_esFactA){
+          _patch.importe = totalConIVA;
+          _cliR.importe  = totalConIVA;
         }
+        // _rcId es el UUID real de la fila en Supabase; usarlo si está
+        var _rk = rutaAbierta, _rcKey = _cliR._rcId || _ck2;
+        fbPatch("empresas/"+empresaKey+"/rutas/"+_rk+"/clientes/"+_rcKey, _patch).catch(function(){});
+        break;
       }
     }
   }
@@ -13083,6 +13208,7 @@ async function confirmarBackupComoRemito(bkParam){
       cliente_id:      bk.clienteId||"",
       nom:             nom,
       importe:         totalNum,
+      tipo_comprobante: bk.tipoComprobante || "remito",
       efectivo:        0,
       transferencia:   0,
       modo:            "ninguno",
@@ -14122,6 +14248,7 @@ function iniciarMapaEntregas() {
                 if(!rutasData[c.ruta_id].clientes) rutasData[c.ruta_id].clientes={};
                 rutasData[c.ruta_id].clientes[c.id] = {
                   nom:c.nom, id:c.cliente_id, importe:c.importe,
+                  tipoComprobante:c.tipo_comprobante||null,
                   efectivo:c.efectivo||0, transferencia:c.transferencia||0,
                   modo:c.modo||"ninguno", items:c.items||[],
                   fecha:c.fecha, entregado:c.entregado||false,
