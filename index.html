@@ -1524,19 +1524,25 @@ select option { background:var(--s2); color:var(--text) }
    RESPONSIVE
 ══════════════════════════════════════ */
 @media (min-width:900px) {
+  /* El sidebar es deslizante (se abre con la hamburguesa), igual que en móvil.
+     Cuando está cerrado, el contenido ocupa TODO el ancho. */
   #sidebar {
-    position:relative !important;
-    transform:none !important;
-    width:264px; flex-shrink:0; height:100vh;
+    position:fixed !important;
+    left:0; top:0;
+    width:264px; height:100vh;
+    transform:translateX(-100%);
     border-right:1px solid var(--border);
+    z-index:300;
   }
-  .hbtn { display:none }
-  #overlay { display:none !important }
-  #hdr-cuenta-btn { display:none !important }
-  /* Header y main se corren a la derecha del sidebar */
-  .app-header { left:264px }
-  .main { left:264px; padding:24px 24px calc(20px + var(--safe-bottom)) }
-  .main > .section { max-width:640px }
+  #sidebar.open { transform:translateX(0) !important; }
+  .hbtn { display:flex; }              /* mostrar hamburguesa en escritorio */
+  #overlay { display:block; }           /* overlay al abrir el menú */
+  #hdr-cuenta-btn { display:none !important; }
+  /* Header y main ocupan todo el ancho (el menú flota por encima al abrirse) */
+  .app-header { left:0; }
+  .main { left:0; padding:24px 28px calc(20px + var(--safe-bottom)); }
+  /* Ancho máximo cómodo para leer, centrado */
+  .main > .section { max-width:980px; margin-left:auto; margin-right:auto; }
 }
 @media (max-width:899px) {
   /* En móvil la navegación es SOLO la barra inferior:
@@ -1946,7 +1952,8 @@ html[data-theme="dark"] .prod-toolbar {
   box-sizing:border-box;
 }
 .prod-search-wrap:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(201,147,58,.12); }
-.prod-search-wrap input { flex:1; min-width:0; padding:11px 0; }
+.prod-search-wrap input { flex:1; min-width:0; padding:11px 0; border:none; outline:none; background:transparent; box-shadow:none; -webkit-appearance:none; appearance:none; font-size:14px; color:var(--text); }
+.prod-search-wrap input:focus { border:none; outline:none; box-shadow:none; }
 .prod-search-ic { font-size:14px; opacity:.55; }
 .prod-cat-sel {
   padding:10px 12px; border:1.5px solid var(--border); border-radius:11px;
@@ -4250,6 +4257,9 @@ var stockData = {};
 var stockConfig = {}; // { [prodId]: { umbral: N } } — umbral de bajo stock por producto
 var dbStock = [], dbCli = [], ventas = [], rutasData = {};
 var rutaAbierta = null, clienteAbierto = {};
+// Recuerda qué editor "Editar productos" está abierto (clave "rk|ck"),
+// para que no se cierre solo al re-renderizar tras cada cambio.
+var _rcEditorAbierto = {};
 var modalRutaKey = null, modalCliKey = null;
 var ordenes = {ped:[],rem:[]};
 var tipoLista = {ped:"Clientes",rem:"Clientes"};
@@ -9285,7 +9295,7 @@ async function imprimirPedidosDeRuta(rk){
     if(ed.cuit){doc.text("CUIT: "+ed.cuit,10,ey);ey+=5;}
     if(ed.dir) {doc.text("Dirección: "+ed.dir,10,ey);ey+=5;}
     if(ed.tel) {doc.text("Tel: "+ed.tel,10,ey);ey+=5;}
-    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text(_esFactA?"FACTURA A":"Remito",200,20,{align:"right"});
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text("Remito",200,20,{align:"right"});
     doc.setFont("helvetica","normal"); doc.setFontSize(9);
     doc.text("N°: "+remitoNum,200,27,{align:"right"});
     doc.text("Fecha: "+fechaStr,200,33,{align:"right"});
@@ -9399,7 +9409,7 @@ async function imprimirPedidosDeRuta(rk){
 
     // Pie de página
     doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
-    doc.text([empNom,(_esFactA?"FACTURA A N°":"Remito N°")+remitoNum,"Ruta "+hrNum,fechaStr].join("  ·  "),105,289,{align:"center"});
+    doc.text([empNom,"Remito N°"+remitoNum,"Ruta "+hrNum,fechaStr].join("  ·  "),105,289,{align:"center"});
   }
 
   var hrTag = hrNum.replace(/[^a-zA-Z0-9]/g,"");
@@ -10640,11 +10650,17 @@ function renderEditItems(wrap, rk, ck){
   toggle.innerHTML='<span>✏️ Editar productos</span><span class="rc-edit-count">'+items.length+'</span>';
   var editBody=document.createElement("div");
   editBody.className="rc-edit-body";
-  editBody.style.display="none";
+  var _edKey = rk+"|"+ck;
+  var _abiertoAhora = !!_rcEditorAbierto[_edKey];
+  editBody.style.display = _abiertoAhora ? "block" : "none";
+  toggle.classList.toggle("open", _abiertoAhora);
   toggle.onclick=function(){
     var open=editBody.style.display!=="none";
     editBody.style.display=open?"none":"block";
     toggle.classList.toggle("open",!open);
+    // Recordar el estado para que sobreviva a los re-render tras cada cambio
+    if(open){ delete _rcEditorAbierto[_edKey]; }
+    else { _rcEditorAbierto[_edKey] = true; }
   };
   wrap.appendChild(toggle);
   wrap.appendChild(editBody);
@@ -10895,16 +10911,10 @@ function guardarItemsEditados(rk, ck, items, wrap){
       if(changes.length){
         _appendAuditLog(rk, ck, changes.join("; "));
       }
+      // El estado del editor (abierto/cerrado) ahora es global (_rcEditorAbierto),
+      // así que renderEditItems lo restaura solo. Solo refrescamos el contenido.
       if(wrap){
-        var editBody = wrap.querySelector(".rc-edit-body");
-        var wasOpen = editBody && editBody.style.display !== "none";
         renderEditItems(wrap, rk, ck);
-        if(wasOpen){
-          var newBody = wrap.querySelector(".rc-edit-body");
-          var toggle = wrap.querySelector(".rc-edit-toggle");
-          if(newBody) newBody.style.display = "block";
-          if(toggle) toggle.classList.add("open");
-        }
       }
       actualizarVentaDeRuta(rk, ck, nuevoTotal, items);
       renderRutas();
@@ -11061,7 +11071,7 @@ function borrarPagoAdicional(rk,ck,idx){
 }
 
 function toggleRuta(k){ rutaAbierta=rutaAbierta===k?null:k; renderRutas(); }
-function toggleCliente(rk,ck){ if(clienteAbierto[rk]===ck)delete clienteAbierto[rk]; else clienteAbierto[rk]=ck; renderRutas(); }
+function toggleCliente(rk,ck){ if(clienteAbierto[rk]===ck){delete clienteAbierto[rk]; delete _rcEditorAbierto[rk+"|"+ck];} else clienteAbierto[rk]=ck; renderRutas(); }
 function setModo(rk,ck,modo){ if(!rutasData[rk]||!rutasData[rk].clientes||!rutasData[rk].clientes[ck])return; rutasData[rk].clientes[ck].modo=modo; if(modo==="efectivo")rutasData[rk].clientes[ck].transferencia=0; if(modo==="transferencia")rutasData[rk].clientes[ck].efectivo=0; clienteAbierto[rk]=ck; renderRutas(); }
 // Normalizar importe: acepta coma o punto como decimal, elimina caracteres no numéricos
 function _normalizarImporte(inp){
@@ -13289,7 +13299,9 @@ function generarPDFDesdeBackup(bk, compartir){
   var empNom   = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
   var esFactura= (bk.tipoComprobante==="factura_a");
   var iva      = esFactura ? 1.21 : 1;
-  var tipoLabel= esFactura ? "FACTURA A" : "Remito";
+  // El título SIEMPRE dice "Remito" (un remito no es un comprobante fiscal oficial),
+  // pero el IVA/total se siguen calculando y mostrando si es Factura A.
+  var tipoLabel= "Remito";
   // Número de remito SOLO numérico (sin letras). Si el _remitoNum o id traen
   // letras (ej. "bk_1736..."), nos quedamos solo con los dígitos.
   var _remRaw = bk._remitoNum || bk.id || "";
@@ -13435,12 +13447,25 @@ function generarPDFDesdeBackup(bk, compartir){
   var totalFinal = esFactura ? Math.round(total*1.21*100)/100 : total;
 
   // Layout: obs ocupa más, totales más compactos
-  var obsH   = showObs ? 38 : 0;  // altura caja obs — más grande
+  var obsH   = showObs ? 26 : 0;  // altura caja obs (más chica que antes)
   var rowH   = 7;                  // altura filas totales
   var totalH = 14;                 // altura fila TOTAL — más grande
   var obsW   = 96;                 // ancho caja obs
   var tX     = obsW+14;            // columna totales empieza a la derecha de obs
   var tW     = 200-tX-10;         // ancho columna totales (llega al margen derecho)
+
+  // ── Salto de página si el bloque de pie (obs + totales) no entra ──
+  // Cantidad de filas de totales que se van a dibujar (varía según descuentos/IVA).
+  var _nFilasTot = 2;                 // Subtotal lista + TOTAL (mínimo)
+  if(totalDsc>0) _nFilasTot += 2;     // Subtotal final + Descuento
+  _nFilasTot += 1;                    // IVA (siempre se dibuja la fila)
+  var _altoTotales = _nFilasTot*rowH + totalH;
+  var _altoPie = Math.max(obsH+12, _altoTotales) + 10; // alto del bloque + margen
+  var _limiteY = 289 - 8;             // el pie de página va en y=289
+  if(yP + _altoPie > _limiteY){
+    doc.addPage();
+    yP = 18;                          // arranca arriba en la hoja nueva
+  }
 
   // Caja observaciones — más grande
   if(showObs){
