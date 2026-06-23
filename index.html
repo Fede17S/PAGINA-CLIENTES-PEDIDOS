@@ -6085,17 +6085,14 @@ async function guardarDatosEmpresa(){
 async function _nextHojaRutaNum(){
   if(!_sbEmpId) return "HR-0120";
   try {
-    var rows=await sbGet("empresas_config","select=hr_contador&empresa_id=eq."+_sbEmpId);
-    var actual = rows&&rows[0]&&rows[0].hr_contador!=null ? rows[0].hr_contador : null;
-    if(actual === null){
-      // Primera vez — determinar base según empresa
-      var esCod = (empresaData&&empresaData.codigo||"").toLowerCase();
-      var esNom = (empresaData&&empresaData.nombre||"").toLowerCase();
-      var esLaRegional = esCod.includes("regional") || esNom.includes("regional");
-      actual = esLaRegional ? 119 : 0; // La Regional arranca en 120, resto en 1
-    }
-    var sig = actual + 1;
-    await sbUpsert("empresas_config",{empresa_id:_sbEmpId, hr_contador:sig});
+    // La base (La Regional arranca en 120) solo se usa la 1ra vez; el RPC la ignora si ya hay contador.
+    var esCod = (empresaData&&empresaData.codigo||"").toLowerCase();
+    var esNom = (empresaData&&empresaData.nombre||"").toLowerCase();
+    var esLaRegional = esCod.includes("regional") || esNom.includes("regional");
+    var base = esLaRegional ? 119 : 0; // La Regional arranca en 120, resto en 1
+    // Incremento ATÓMICO en el servidor (UPDATE ... RETURNING vía RPC) — evita números duplicados con usuarios simultáneos.
+    var sig = await sbFetch("POST","/rest/v1/rpc/next_hr_num",{p_empresa_id:_sbEmpId, p_start:base});
+    if(sig==null || isNaN(sig)) throw new Error("RPC no devolvió número");
     if(empresaData&&empresaData._config) empresaData._config.hr_contador=sig;
     return "HR-"+String(sig).padStart(4,"0");
   } catch(e){ return "HR-"+String(Math.floor(Math.random()*9000)+1000); }
@@ -6104,10 +6101,9 @@ async function _nextHojaRutaNum(){
 async function _nextRemitoNum(){
   if(!_sbEmpId) return "1";
   try {
-    var rows=await sbGet("empresas_config","select=emp_contador&empresa_id=eq."+_sbEmpId);
-    var actual=(rows&&rows[0]&&rows[0].emp_contador)||0; // empieza desde 0 → primer remito es 1
-    var sig=actual+1;
-    await sbUpsert("empresas_config",{empresa_id:_sbEmpId,emp_contador:sig});
+    // Incremento ATÓMICO en el servidor (UPDATE ... RETURNING vía RPC) — evita números duplicados con usuarios simultáneos.
+    var sig = await sbFetch("POST","/rest/v1/rpc/next_remito_num",{p_empresa_id:_sbEmpId});
+    if(sig==null || isNaN(sig)) throw new Error("RPC no devolvió número");
     if(empresaData._config)empresaData._config.emp_contador=sig;
     return String(sig);
   } catch(e){ return String(Math.floor(Math.random()*1000)+1); }
@@ -8465,7 +8461,12 @@ async function generarPDF(m){
       var precioFinal=hasDsc?Math.round(i.sub/i.c*100)/100:i.p;
       return[i.n, i.c, "$"+fM(precioLista), dscLabel, hasDsc?"$"+fM(precioFinal):"—", "$"+fM(i.sub)];
     });
-    var minRows2=pdfMinRows; while(body.length < minRows2) body.push(["","","","","",""]);
+    var minRows2; (function(){
+      var _rowH=7.4, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=50;
+      var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9) / _rowH));
+      minRows2=(ordenes[t].length <= _maxFit) ? _maxFit : 0;
+    })();
+    while(body.length < minRows2) body.push(["","","","","",""]);
     doc.autoTable({
       startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
       headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
@@ -8482,7 +8483,12 @@ async function generarPDF(m){
     // Tabla simple sin descuentos
     head=[["Descripción","Cant.","Precio","Subtotal"]];
     body=ordenes[t].map(function(i){ return[i.n, i.c, "$"+fM(i.p), "$"+fM(i.sub)]; });
-    var minRows3=pdfMinRows; while(body.length < minRows3) body.push(["","","",""]);
+    var minRows3; (function(){
+      var _rowH=7.4, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=50;
+      var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9) / _rowH));
+      minRows3=(ordenes[t].length <= _maxFit) ? _maxFit : 0;
+    })();
+    while(body.length < minRows3) body.push(["","","",""]);
     doc.autoTable({
       startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
       headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
@@ -9338,7 +9344,13 @@ async function imprimirPedidosDeRuta(rk){
       var pF=hasDsc?Math.round(sub/(i.c||1)*100)/100:(i.p||0);
       return[i.n||"",i.c||1,"$"+fM(i.p||0),dscLbl,"$"+fM(pF),"$"+fM(sub)];
     });
-    while(body.length<pdfMinRows) body.push(["","","","","",""]);
+    // ── Relleno con tope: nunca empujar los totales a otra hoja ──
+    (function(){
+      var _rowH=7.4, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=50;
+      var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9) / _rowH));
+      var _target=(items.length <= _maxFit) ? _maxFit : 0;
+      while(body.length < _target) body.push(["","","","","",""]);
+    })();
     doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
       headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
       bodyStyles:{fontSize:8.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:2,left:2,right:2},minCellHeight:7},
@@ -13408,7 +13420,16 @@ function generarPDFDesdeBackup(bk, compartir){
     var pF     = hasDsc ? Math.round(subSin/(i.c||1)*100)/100 : pL;
     return[i.n||"", i.c||1, "$"+fM(pL), dscLbl, "$"+fM(pF), "$"+fM(subSin)];
   });
-  while(body.length<pdfMinRows) body.push(["","","","","",""]);
+  // ── Relleno con tope: nunca empujar los totales a otra hoja ──
+  // Si los productos entran en una hoja, rellena con filas vacías (aspecto de
+  // formulario) pero solo hasta donde quepa dejando lugar a obs+totales.
+  // Si hay más productos de los que entran, no rellena: la tabla pagina sola.
+  (function(){
+    var _rowH=9.3, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=50;
+    var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9.5) / _rowH));
+    var _target=(items.length <= _maxFit) ? _maxFit : 0;
+    while(body.length < _target) body.push(["","","","","",""]);
+  })();
   doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
     headStyles:{fontStyle:"bold",fontSize:9.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
     bodyStyles:{fontSize:10,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3.2,bottom:2.6,left:2,right:2},minCellHeight:8},
@@ -13460,8 +13481,8 @@ function generarPDFDesdeBackup(bk, compartir){
   if(totalDsc>0) _nFilasTot += 2;     // Subtotal final + Descuento
   _nFilasTot += 1;                    // IVA (siempre se dibuja la fila)
   var _altoTotales = _nFilasTot*rowH + totalH;
-  var _altoPie = Math.max(obsH+12, _altoTotales) + 10; // alto del bloque + margen
-  var _limiteY = 289 - 8;             // el pie de página va en y=289
+  var _altoPie = Math.max(obsH+12, _altoTotales) + 6; // alto del bloque + margen
+  var _limiteY = 289 - 4;             // el pie de página va en y=289
   if(yP + _altoPie > _limiteY){
     doc.addPage();
     yP = 18;                          // arranca arriba en la hoja nueva
