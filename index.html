@@ -4430,7 +4430,13 @@ async function _initPushSubscription(swReg){
         applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
     }
-    // Guardar en Supabase
+    // Guardar en Supabase (borrar la previa primero para evitar duplicados/409)
+    try {
+      await fetch(SB_URL+'/rest/v1/push_subscriptions?usuario_id=eq.'+encodeURIComponent(currentUser.id)+'&empresa_id=eq.'+encodeURIComponent(_sbEmpId), {
+        method:'DELETE',
+        headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }
+      });
+    } catch(eDel){ console.warn('[Push] No se pudo limpiar sub previa:', eDel); }
     await sbPost('push_subscriptions', {
       empresa_id:  _sbEmpId,
       usuario_id:  currentUser.id,
@@ -4882,14 +4888,23 @@ async function activarNotificaciones(){
     });
     console.log('[Push] Suscripto:', sub.endpoint.slice(0,60)+'…');
     if(btn) btn.textContent="⏳ Guardando…";
-    // Guardar en Supabase con upsert
     var subJSON = sub.toJSON();
+    // Borrar cualquier suscripción previa de este usuario (evita el error 409
+    // "duplicate key": así el INSERT siguiente nunca choca con una fila existente,
+    // sin importar cuál sea la columna con restricción única).
+    try {
+      await fetch(SB_URL+'/rest/v1/push_subscriptions?usuario_id=eq.'+encodeURIComponent(currentUser.id)+'&empresa_id=eq.'+encodeURIComponent(_sbEmpId), {
+        method:'DELETE',
+        headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY }
+      });
+    } catch(eDel){ console.warn('[Push] No se pudo limpiar sub previa:', eDel); }
+    // Insertar la suscripción nueva
     var res = await fetch(SB_URL+'/rest/v1/push_subscriptions', {
       method:'POST',
       headers:{
         'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
         'Content-Type':'application/json',
-        'Prefer':'resolution=merge-duplicates,return=representation'
+        'Prefer':'return=representation'
       },
       body: JSON.stringify({
         empresa_id:  _sbEmpId,
