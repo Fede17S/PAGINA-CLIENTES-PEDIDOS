@@ -68,6 +68,7 @@
   --radius:    12px;
   --radius-sm: 8px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --shadow-sm: 0 1px 2px rgba(20,18,12,.04);
   --shadow:    0 1px 3px rgba(20,18,12,.06), 0 1px 2px rgba(20,18,12,.04);
   --shadow-lg: 0 8px 24px rgba(20,18,12,.08), 0 2px 6px rgba(20,18,12,.04);
@@ -325,10 +326,12 @@ body {
    HEADER
 ══════════════ */
 .app-header {
-  background:var(--s1); height:var(--header-h);
-  display:flex; align-items:center; gap:12px; padding:0 16px;
+  background:var(--s1); height:calc(var(--header-h) + var(--safe-top));
+  padding-top:var(--safe-top);
+  display:flex; align-items:center; gap:12px; padding-left:16px; padding-right:16px;
   position:fixed; top:0; left:0; right:0; z-index:200;
   border-bottom:1px solid var(--border);
+  box-sizing:border-box;
 }
 .hbtn { background:none; border:none; cursor:pointer; padding:8px; display:flex; flex-direction:column; gap:4px; flex-shrink:0; border-radius:8px; transition:background .12s }
 .hbtn:hover { background:var(--s3) }
@@ -663,7 +666,7 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 #main-wrapper { flex:1; min-width:0; background:var(--bg) }
 .main {
   position:fixed;
-  top:var(--header-h);
+  top:calc(var(--header-h) + var(--safe-top));
   left:0; right:0; bottom:0;
   overflow-y:hidden;
   overflow-x:hidden;
@@ -723,7 +726,7 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 #clientes.section.active,
 #productos.section.active,
 #catalogo.section.active {
-  position:fixed; top:var(--header-h); left:0; right:0; bottom:0;
+  position:fixed; top:calc(var(--header-h) + var(--safe-top)); left:0; right:0; bottom:0;
   overflow-y:auto; -webkit-overflow-scrolling:touch;
   padding:18px max(16px, calc((100% - 560px) / 2)) calc(20px + var(--safe-bottom)); background:var(--bg);
 }
@@ -1912,7 +1915,7 @@ select option { background:var(--s2); color:var(--text) }
 #productos.active {
   display:block;
   position:fixed;
-  top:var(--header-h); left:0; right:0; bottom:0;
+  top:calc(var(--header-h) + var(--safe-top)); left:0; right:0; bottom:0;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
@@ -2294,7 +2297,7 @@ html[data-theme="dark"] .prod-toolbar {
 #catalogo.active {
   display:block;
   position:fixed;
-  top:var(--header-h); left:0; right:0; bottom:0;
+  top:calc(var(--header-h) + var(--safe-top)); left:0; right:0; bottom:0;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
