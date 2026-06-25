@@ -2873,7 +2873,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <option value="">Todas las zonas</option>
       </select>
       <button class="btn btn-ghost btn-sm" onclick="cargarRutasFirebase()">🔄</button>
-      <button class="nueva-ruta-btn" onclick="crearNuevaRuta()">+ Nueva Ruta</button>
+      <button class="nueva-ruta-btn" id="btn-nueva-ruta" onclick="crearNuevaRuta()">+ Nueva Ruta</button>
     </div>
   </div>
   <!-- Resultado de búsqueda global -->
@@ -6635,6 +6635,9 @@ function aplicarRol(){
   // Repartidor: navegar a hoja de ruta al iniciar (sin timeout que interfiera)
   if (isRepartidor) {
     verTab("hoja", document.getElementById("nav-hoja"));
+    // Ocultar el botón de crear nueva hoja de ruta (el repartidor solo ve las asignadas)
+    var _btnNR = document.getElementById("btn-nueva-ruta");
+    if(_btnNR) _btnNR.style.display = "none";
   }
   // Armador: navegar a backup al iniciar
   if (isArmador) {
@@ -9469,6 +9472,11 @@ async function imprimirPedidosDeRuta(rk){
 }
 
 async function crearNuevaRuta(){
+  // El rol repartidor no puede crear hojas de ruta (solo ve las asignadas).
+  if(currentUser && currentUser.role === "repartidor"){
+    showNotif("No tenés permiso para crear hojas de ruta.","err");
+    return;
+  }
   var nombre=prompt("Nombre para esta ruta (opcional, se auto-numerará):");
   if(nombre===null) return; // canceló
   var hrNum = await _nextHojaRutaNum();
@@ -9854,6 +9862,11 @@ async function _rutaReasignar(rkOrigen){
 }
 
 async function _rutaReasignarNueva(rkOrigen){
+  // El repartidor no puede crear hojas de ruta nuevas.
+  if(currentUser && currentUser.role === "repartidor"){
+    showNotif("No tenés permiso para crear hojas de ruta.","err");
+    return;
+  }
   var overlay = document.getElementById("modal-ruta-reasignar");
   if(overlay) overlay.remove();
   var hrNum = await _nextHojaRutaNum();
