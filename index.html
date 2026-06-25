@@ -4238,14 +4238,20 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 </div>
 <script>
 
-// En la app nativa (Capacitor) silenciamos los logs de debug para mayor fluidez.
-// En el navegador (web) se mantienen intactos para poder depurar.
+// Silenciamos los logs de debug en PRODUCCIÓN (app nativa Capacitor y web en
+// Vercel/dominio propio) para no exponer info interna ni ensuciar la consola.
+// En desarrollo local (localhost) se mantienen intactos para poder depurar.
+// console.error SIEMPRE queda activo para no perder errores reales.
 (function(){
   try {
-    if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()){
+    var esNativo = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    var host = (location && location.hostname) ? location.hostname : "";
+    var esLocal = (host === "localhost" || host === "127.0.0.1" || host === "" || host.indexOf("192.168.") === 0);
+    var esProdWeb = !esLocal; // cualquier host real (vercel.app, dominio propio, etc.)
+    if(esNativo || esProdWeb){
       var _noop=function(){};
       console.log=_noop; console.warn=_noop; console.info=_noop; console.debug=_noop;
-      // console.error se deja activo para no perder errores reales
+      // console.error se deja activo a propósito.
     }
   } catch(e){}
 })();
@@ -5515,7 +5521,9 @@ async function _sbGetBackup(){
       usuarioNom:     b.usuario_nom  || b.usuarioNom  || "",
       descuentos:     b.descuentos   || null,
       fechaEntrega:   b.fecha_entrega|| b.fechaEntrega|| null,
-      diaEntrega:     b.dia_entrega  || b.diaEntrega  || null
+      diaEntrega:     b.dia_entrega  || b.diaEntrega  || null,
+      estado:         b.estado       || "recibido",
+      trackCode:      b.track_code   || ""
     };
   });
   return r;
@@ -6118,13 +6126,23 @@ async function _nextHojaRutaNum(){
 
 async function _nextRemitoNum(){
   if(!_sbEmpId) return "1";
-  try {
-    // Incremento ATÓMICO en el servidor (UPDATE ... RETURNING vía RPC) — evita números duplicados con usuarios simultáneos.
-    var sig = await sbFetch("POST","/rest/v1/rpc/next_remito_num",{p_empresa_id:_sbEmpId});
-    if(sig==null || isNaN(sig)) throw new Error("RPC no devolvió número");
-    if(empresaData._config)empresaData._config.emp_contador=sig;
-    return String(sig);
-  } catch(e){ return String(Math.floor(Math.random()*1000)+1); }
+  // Intenta el incremento ATÓMICO en el servidor (evita números duplicados con
+  // usuarios simultáneos). Si falla, reintenta una vez antes de rendirse.
+  for(var _intento=0; _intento<2; _intento++){
+    try {
+      var sig = await sbFetch("POST","/rest/v1/rpc/next_remito_num",{p_empresa_id:_sbEmpId});
+      if(sig==null || isNaN(sig)) throw new Error("RPC no devolvió número");
+      if(empresaData._config)empresaData._config.emp_contador=sig;
+      return String(sig);
+    } catch(e){
+      if(_intento===0){ await new Promise(function(r){ setTimeout(r,400); }); continue; }
+      // Falló dos veces: NO inventamos un número (podría duplicarse). Avisamos y abortamos.
+      console.error("[Remito] No se pudo obtener el número correlativo:", e);
+      try { alert("No se pudo generar el número de remito (problema de conexión). Revisá tu internet e intentá de nuevo."); } catch(_){}
+      return null;
+    }
+  }
+  return null;
 }
 
 function aplicarBranding(){
@@ -8351,6 +8369,7 @@ async function generarPDF(m){
   var cliRec  = cliData?(cliData.rec||cliData.recepciona||""):"";"";
   var ed=_getEmpDatos();
   var remitoNum = await _nextRemitoNum();
+  if(remitoNum==null){ return; } // No se pudo obtener número correlativo: abortar (ya se avisó al usuario)
 
   // Cálculos
   var subtotalLista    = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
@@ -9288,6 +9307,7 @@ async function imprimirPedidosDeRuta(rk){
     var remitoNum = cli._remitoNum;
     if(!remitoNum){
       remitoNum = await _nextRemitoNum();
+      if(remitoNum==null){ return; } // No se pudo obtener número: abortar
       cli._remitoNum = remitoNum;
       fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{_remitoNum:remitoNum}).catch(function(){});
     }
@@ -10884,6 +10904,7 @@ async function imprimirRemitoCli(rk, ck){
   var remitoNum = cli._remitoNum;
   if(!remitoNum){
     remitoNum = await _nextRemitoNum();
+    if(remitoNum==null){ return; } // No se pudo obtener número: abortar
     // Guardarlo en el cliente de la ruta para no re-generar
     cli._remitoNum = remitoNum;
     fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {_remitoNum:remitoNum}).catch(function(){});
@@ -12148,6 +12169,19 @@ function renderBackup(){
     var entregaBadge = bk.fechaEntrega
       ? '<span style="font-size:10px;background:#dbeafe;color:#1e40af;border-radius:5px;padding:2px 7px;font-weight:700;margin-left:6px">📅 '+(bk.diaEntrega?DL2[bk.diaEntrega]+' ':'')+new Date(bk.fechaEntrega+'T12:00:00').toLocaleDateString("es-AR",{day:"numeric",month:"short"})+'</span>'
       : '';
+    // Badge de estado del pedido (solo para pedidos de la tienda online)
+    var _esTienda = (bk.usuario === "tienda" || bk.usuarioNom === "Tienda Online");
+    var _estadosBk = {
+      recibido:  {txt:"📥 Recibido",  bg:"#e0e7ff", col:"#3730a3"},
+      preparando:{txt:"📦 Preparando",bg:"#fef3c7", col:"#92400e"},
+      enviado:   {txt:"🚚 Enviado",   bg:"#cffafe", col:"#155e75"},
+      entregado: {txt:"✅ Entregado", bg:"#d1fae5", col:"#065f46"}
+    };
+    var estadoBadge = "";
+    if(_esTienda){
+      var _est = _estadosBk[bk.estado] || _estadosBk.recibido;
+      estadoBadge = '<span style="font-size:10px;background:'+_est.bg+';color:'+_est.col+';border-radius:5px;padding:2px 7px;font-weight:700;margin-left:6px">'+_est.txt+'</span>';
+    }
     // Badge observaciones
     var obsBadge = (bk.obs && bk.obs.trim())
       ? '<span style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:5px;padding:2px 7px;font-weight:600;margin-left:4px" title="'+bk.obs.trim().substring(0,80)+'">💬 obs</span>'
@@ -12173,7 +12207,7 @@ function renderBackup(){
       chk.innerHTML =
         '<div style="width:22px;height:22px;border-radius:6px;border:2px solid var(--accent);background:'+(_bkSelected.has(bk.id)?"var(--accent)":"#fff")+';display:grid;place-items:center;flex-shrink:0;font-size:14px;margin-top:1px">'+(_bkSelected.has(bk.id)?"✓":"")+'</div>'+
         '<div style="flex:1;min-width:0">'+
-          '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+'</div>'+
+          '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+'</div>'+
           '<div class="bk-card-meta">'+
             tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
             listaBadge+vndBadge+obsBadge+dscBadge+
@@ -12198,7 +12232,7 @@ function renderBackup(){
 
     header.innerHTML =
       '<div class="bk-card-left">'+
-        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+'</div>'+
+        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+'</div>'+
         '<div class="bk-card-meta">'+
           tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
           listaBadge+vndBadge+obsBadge+dscBadge+
@@ -12433,6 +12467,24 @@ function renderBackup(){
       if(bk.aprobado!==true){ var btnAprob=document.createElement("button"); btnAprob.className="bk-act-btn"; btnAprob.style.cssText="flex:1;background:#e8f5ee;color:#0f8a4a;border-color:#a7f3d0;font-weight:700"; btnAprob.innerHTML="✓ Aprobar"; btnAprob.onclick=function(e){e.stopPropagation();_cambiarAprobacion(bk,true);}; aprobar.appendChild(btnAprob); }
       if(bk.aprobado!==false){ var btnRech=document.createElement("button"); btnRech.className="bk-act-btn"; btnRech.style.cssText="flex:1;background:#fff0f0;color:#b91c1c;border-color:#fca5a5;font-weight:700"; btnRech.innerHTML="✗ Rechazar"; btnRech.onclick=function(e){e.stopPropagation();_cambiarAprobacion(bk,false);}; aprobar.appendChild(btnRech); }
       if(aprobar.children.length) detail.appendChild(aprobar);
+      // Selector de estado del pedido (solo para pedidos de la tienda online)
+      if(bk.usuario === "tienda" || bk.usuarioNom === "Tienda Online"){
+        var estadoWrap = document.createElement("div");
+        estadoWrap.style.cssText = "padding:8px 16px 12px;border-top:1px solid var(--border2);";
+        var _ests = [["recibido","📥 Recibido"],["preparando","📦 Preparando"],["enviado","🚚 Enviado"],["entregado","✅ Entregado"]];
+        var _estActual = bk.estado || "recibido";
+        var botonesEstado = _ests.map(function(e){
+          var activo = e[0] === _estActual;
+          return '<button data-est="'+e[0]+'" style="flex:1;padding:7px 4px;font-size:11px;font-weight:700;border-radius:7px;cursor:pointer;border:1px solid '+(activo?"var(--accent)":"var(--border)")+';background:'+(activo?"var(--accent)":"var(--s2)")+';color:'+(activo?"#fff":"var(--muted)")+';">'+e[1]+'</button>';
+        }).join("");
+        estadoWrap.innerHTML =
+          '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">📱 Estado del pedido (lo ve el cliente)'+(bk.trackCode?' · código: <b>'+bk.trackCode+'</b>':'')+'</div>'+
+          '<div style="display:flex;gap:5px;">'+botonesEstado+'</div>';
+        estadoWrap.querySelectorAll("button[data-est]").forEach(function(btn){
+          btn.onclick = function(e){ e.stopPropagation(); _cambiarEstadoPedido(bk, btn.getAttribute("data-est")); };
+        });
+        detail.appendChild(estadoWrap);
+      }
     } else if(canEdit){
       // Vendedor: estado de aprobación solo lectura
       var estadoVnd=document.createElement("div");
@@ -17787,6 +17839,47 @@ async function _asignarVndBk(bkId, sel){
   if(bk2){ bk2.usuario=uid; bk2.usuarioNom=nom; }
   showNotif("✓ Vendedor asignado: "+nom,"ok");
   renderBackup();
+}
+
+// Cambia el estado de un pedido de la tienda (recibido/preparando/enviado/entregado)
+async function _cambiarEstadoPedido(bk, nuevoEstado){
+  var sbId = bk._sbId || bk._fbKey || bk.id;
+  if(sbId && _sbEmpId){
+    try {
+      await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {estado:nuevoEstado});
+    } catch(e){ console.warn("Error actualizando estado del pedido:", e); alert("No se pudo actualizar el estado. Revisá la conexión."); return; }
+  }
+  // Actualizar en localStorage y en memoria
+  var arr = getBackups();
+  var idx = arr.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId || x._fbKey===sbId; });
+  if(idx>=0){ arr[idx].estado = nuevoEstado; saveBackups(arr); }
+  bk.estado = nuevoEstado;
+  backupAbierto = bk.id;
+  renderBackup();
+  // Ofrecer avisar al cliente por WhatsApp (si el pedido tiene teléfono guardado)
+  _ofrecerAvisoWhatsApp(bk, nuevoEstado);
+}
+
+// Abre WhatsApp con un mensaje pre-armado según el estado, al teléfono del cliente.
+function _ofrecerAvisoWhatsApp(bk, estado){
+  // El teléfono del cliente (tienda online) se guarda en clienteId
+  var tel = (bk.clienteId || "").replace(/[^0-9]/g, "");
+  if(tel.length < 8) return; // sin teléfono válido, no se puede avisar
+  var nombreNeg = (empresaData && (empresaData.nombre || empresaData.appname)) || "la tienda";
+  var track = bk.trackCode ? (" (código " + bk.trackCode + ")") : "";
+  var msgs = {
+    recibido:   "¡Hola! 👋 Recibimos tu pedido" + track + " en " + nombreNeg + ". Ya lo estamos procesando. ¡Gracias por tu compra!",
+    preparando: "📦 ¡Buenas noticias! Tu pedido" + track + " en " + nombreNeg + " ya está en preparación. Te avisamos cuando salga.",
+    enviado:    "🚚 ¡Tu pedido" + track + " de " + nombreNeg + " ya está en camino! Pronto lo vas a recibir.",
+    entregado:  "✅ Tu pedido" + track + " de " + nombreNeg + " fue entregado. ¡Esperamos que disfrutes tu compra! Gracias por elegirnos. 🙌"
+  };
+  var msg = msgs[estado] || msgs.recibido;
+  var labels = {recibido:"📥 Recibido", preparando:"📦 Preparando", enviado:"🚚 Enviado", entregado:"✅ Entregado"};
+  // Confirmación con el admin antes de abrir WhatsApp
+  if(confirm("¿Avisar al cliente por WhatsApp que su pedido pasó a \""+(labels[estado]||estado)+"\"?\n\nSe va a abrir WhatsApp con el mensaje listo para enviar.")){
+    var url = "https://wa.me/" + tel + "?text=" + encodeURIComponent(msg);
+    window.open(url, "_blank");
+  }
 }
 
 async function _cambiarAprobacion(bk, aprobado){
