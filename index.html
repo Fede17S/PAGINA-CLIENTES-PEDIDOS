@@ -751,7 +751,9 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 @media (min-width:901px){
   .main > #hoja { max-width:1180px; }
   #hoja .hoja-split { display:grid; grid-template-columns:370px 1fr; gap:16px; align-items:start; }
-  #hoja #rutas-list { display:flex; flex-direction:column; gap:10px; }
+  #hoja #rutas-list { display:flex; flex-direction:column; gap:10px; position:sticky; top:4px; max-height:calc(100vh - var(--header-h) - 30px); overflow-y:auto; padding-right:4px; }
+  #hoja #rutas-list::-webkit-scrollbar { width:6px; }
+  #hoja #rutas-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:6px; }
   #hoja .ruta-detail-panel { display:block; position:sticky; top:4px; max-height:calc(100vh - var(--header-h) - 30px); overflow-y:auto; }
   #hoja .ruta-detail-panel .ruta-detail { margin-bottom:0; }
   #hoja .ruta-detail-panel-empty { padding:60px 24px; text-align:center; color:var(--muted); border:2px dashed var(--border); border-radius:16px; font-size:30px; }
@@ -1494,7 +1496,7 @@ select option { background:var(--s2); color:var(--text) }
 .bk-lista { display:inline-flex; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; border:1px solid }
 .bk-lista-cli { background:var(--blue-bg); color:#1f4ea8; border-color:oklch(88% 0.04 245) }
 .bk-lista-pat { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
-.bk-card-right { display:flex; align-items:center; gap:10px; flex-shrink:0 }
+.bk-card-right { display:flex; align-items:flex-start; gap:10px; flex-shrink:0 }
 .bk-card-total { font-size:15px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-0.01em }
 .bk-card-caret { font-size:11px; color:var(--muted2) }
 .bk-card-detail { display:none; border-top:1px solid var(--border) }
@@ -4115,8 +4117,16 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
     </div>
 
+    <div id="edit-bk-comprob-wrap" style="display:flex;gap:8px;margin-bottom:10px">
+      <button type="button" id="edit-bk-comp-remito" onclick="_editBkSetComprobante('remito')" style="flex:1;padding:9px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">🧾 Remito</button>
+      <button type="button" id="edit-bk-comp-facta" onclick="_editBkSetComprobante('factura_a')" style="flex:1;padding:9px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">📄 Factura A <span style="font-size:11px;font-weight:400;color:var(--muted)">+IVA 21%</span></button>
+    </div>
+
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s2);border-radius:9px;margin-bottom:14px;font-size:15px;font-weight:700">
       <span>Total</span><span id="edit-bk-total">$0,00</span>
+    </div>
+    <div id="edit-bk-iva-line" style="display:none;justify-content:space-between;align-items:center;padding:0 14px 10px;font-size:12.5px;color:var(--muted)">
+      <span>Incluye IVA 21%</span><span id="edit-bk-iva-monto"></span>
     </div>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button onclick="guardarEdicionBackup()" class="mbtn mbtn-primary" style="flex:1">💾 Guardar cambios</button>
@@ -12403,7 +12413,7 @@ function renderBackup(){
       chk.innerHTML =
         '<div style="width:22px;height:22px;border-radius:6px;border:2px solid var(--accent);background:'+(_bkSelected.has(bk.id)?"var(--accent)":"#fff")+';display:grid;place-items:center;flex-shrink:0;font-size:14px;margin-top:1px">'+(_bkSelected.has(bk.id)?"✓":"")+'</div>'+
         '<div style="flex:1;min-width:0">'+
-          '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+hrPill+'</div>'+
+          '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+'</div>'+
           '<div class="bk-card-meta">'+
             tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
             listaBadge+vndBadge+obsBadge+dscBadge+
@@ -12428,18 +12438,21 @@ function renderBackup(){
 
     header.innerHTML =
       '<div class="bk-card-left">'+
-        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+hrPill+'</div>'+
+        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+'</div>'+
         '<div class="bk-card-meta">'+
           tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
           listaBadge+vndBadge+obsBadge+dscBadge+
         '</div>'+
       '</div>'+
       '<div class="bk-card-right">'+
-        (_totalConIVA > 0
-          ? '<div class="bk-card-total">$'+fM(_totalConIVA)+'</div>'+
-            '<div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">sin fact.: $'+fM(_totalMostrar)+'</div>'+
-            '<div style="font-size:9.5px;color:#1e2a4a;font-weight:700;margin-top:1px">🟦 c/Factura A</div>'
-          : '<div class="bk-card-total">$'+fM(bk.total||0)+'</div>')+
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0">'+
+          '<div class="bk-hr-pill-slot" style="margin-bottom:2px">'+hrPill+'</div>'+
+          (_totalConIVA > 0
+            ? '<div class="bk-card-total">$'+fM(_totalConIVA)+'</div>'+
+              '<div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">sin fact.: $'+fM(_totalMostrar)+'</div>'+
+              '<div style="font-size:9.5px;color:#1e2a4a;font-weight:700;margin-top:1px">🟦 c/Factura A</div>'
+            : '<div class="bk-card-total">$'+fM(bk.total||0)+'</div>')+
+        '</div>'+
         '<span class="bk-card-caret">'+(isOpen?"▲":"▼")+'</span>'+
       '</div>';
     header.onclick = function(){ backupAbierto = isOpen ? null : bk.id; renderBackup(); };
@@ -12911,6 +12924,7 @@ function abrirEditarBackup(bk){
     var cantEl=document.getElementById("edit-bk-cant");
     if(cantEl) cantEl.value="1";
     _editBkSelProd=null;
+    _editBkActualizarBotonesComprobante();
     _renderEditBkItems();
     _editBkCargarDsc();
     abrirModal("modal-editar-backup");
@@ -13004,6 +13018,28 @@ function _seleccionarEditBkCli(id, nombre, lista){
   showNotif("Cliente cambiado a "+nombre,"ok");
 }
 
+// Cambia el tipo de comprobante (remito / factura_a) en la edición y recalcula
+function _editBkSetComprobante(tipo){
+  if(!_editBkItem) return;
+  _editBkItem.tipoComprobante = tipo;
+  _editBkActualizarBotonesComprobante();
+  _renderEditBkItems();
+}
+
+// Refleja visualmente qué tipo de comprobante está activo
+function _editBkActualizarBotonesComprobante(){
+  var bRem = document.getElementById("edit-bk-comp-remito");
+  var bFac = document.getElementById("edit-bk-comp-facta");
+  if(!bRem || !bFac || !_editBkItem) return;
+  var esFacta = _editBkItem.tipoComprobante === "factura_a";
+  bRem.style.background = esFacta ? "var(--s2)" : "var(--accent)";
+  bRem.style.color      = esFacta ? "var(--text)" : "#fff";
+  bRem.style.borderColor= esFacta ? "var(--border)" : "var(--accent)";
+  bFac.style.background = esFacta ? "var(--accent)" : "var(--s2)";
+  bFac.style.color      = esFacta ? "#fff" : "var(--text)";
+  bFac.style.borderColor= esFacta ? "var(--accent)" : "var(--border)";
+}
+
 function _renderEditBkItems(){
   var wrap = document.getElementById("edit-bk-items");
   var totalEl = document.getElementById("edit-bk-total");
@@ -13025,6 +13061,20 @@ function _renderEditBkItems(){
     totalEl.innerHTML = totalEl.textContent;
   }
   _editBkItem.total = total;
+
+  // Mostrar línea de IVA si el comprobante es Factura A
+  var _ivaLine = document.getElementById("edit-bk-iva-line");
+  var _ivaMonto = document.getElementById("edit-bk-iva-monto");
+  if(_ivaLine){
+    if(_editBkItem.tipoComprobante === "factura_a"){
+      var _ivaCalc = Math.round(total * 0.21 * 100)/100;
+      var _conIva = Math.round(total * 1.21 * 100)/100;
+      _ivaLine.style.display = "flex";
+      if(_ivaMonto) _ivaMonto.textContent = "+$"+fM(_ivaCalc)+" → $"+fM(_conIva);
+    } else {
+      _ivaLine.style.display = "none";
+    }
+  }
 
   // Reaplicar descuento general si existe (después de recalcular el total base)
   if(_editBkItem.descuentos && _editBkItem.descuentos.dscGenValor>0){
@@ -13339,12 +13389,66 @@ function agregarItemEditBk(){
   _renderEditBkItems();
 }
 
+// Propaga la edición de un pedido de backup a su hoja de ruta vinculada (items + importe).
+// Solo actualiza los productos NO pendientes (los que efectivamente se entregan).
+async function _propagarEdicionARuta(bk){
+  if(!bk || !bk.rutaVinculadaId || !_sbEmpId) return;
+  var rk = bk.rutaVinculadaId;
+  try {
+    // Asegurar que la ruta esté cargada en memoria
+    if(!rutasData || !rutasData[rk]){
+      var d = await fbGet("empresas/"+empresaKey+"/rutas");
+      rutasData = d || rutasData || {};
+    }
+    var ruta = rutasData[rk];
+    if(!ruta || !ruta.clientes) return; // la ruta ya no existe o está vacía
+
+    // Buscar el cliente dentro de la ruta que corresponde a este pedido.
+    // Se identifica por cliente_id (si lo hay) o por nombre.
+    var bkCliId  = String(bk.clienteId || bk.cliente_id || "");
+    var bkCliNom = (bk.clienteNom || bk.cliente_nom || "").toLowerCase().trim();
+    var rcKey = null;
+    Object.entries(ruta.clientes).forEach(function(e){
+      if(rcKey) return;
+      var c = e[1];
+      var cId  = String(c.id || c.cliente_id || "");
+      var cNom = (c.nom || "").toLowerCase().trim();
+      if((bkCliId && cId && bkCliId === cId) || (bkCliNom && cNom && bkCliNom === cNom)){
+        rcKey = e[0];
+      }
+    });
+    if(!rcKey) return; // no se encontró el pedido en la ruta (quizás se borró de la HR)
+
+    // Items que van a la ruta: solo los NO pendientes
+    var itemsRuta = (bk.items||[]).filter(function(i){ return !i.pendiente; });
+    var nuevoImporte = _importeParaRuta(bk);
+
+    // Actualizar en Supabase
+    await sbPatch("ruta_clientes","id=eq."+rcKey+"&ruta_id=eq."+rk, {
+      items: itemsRuta,
+      importe: nuevoImporte,
+      tipo_comprobante: bk.tipoComprobante || "remito"
+    });
+    // Actualizar en memoria para que el PDF y la vista salgan al día
+    if(rutasData[rk] && rutasData[rk].clientes && rutasData[rk].clientes[rcKey]){
+      rutasData[rk].clientes[rcKey].items = itemsRuta;
+      rutasData[rk].clientes[rcKey].importe = nuevoImporte;
+      rutasData[rk].clientes[rcKey].tipoComprobante = bk.tipoComprobante || "remito";
+    }
+    showNotif("🔄 Hoja de ruta actualizada","ok");
+  } catch(e){ console.warn("[propagarEdicionARuta] error:", e.message); }
+}
+
 function guardarEdicionBackup(){
   if(!_editBkItem) return;
   // Armar el objeto completo con todos los campos editados
+  var _esFactA = _editBkItem.tipoComprobante === "factura_a";
+  var _totalBase = _editBkItem.total || 0;
   var patch = {
     items:       _editBkItem.items,
-    total:       _editBkItem.total,
+    total:       _totalBase,
+    total_con_iva: _esFactA ? Math.round(_totalBase * 1.21 * 100)/100 : _totalBase,
+    tipo_comprobante: _editBkItem.tipoComprobante || "remito",
     cliente_nom: _editBkItem.clienteNom || _editBkItem.cliente_nom || "",
     cliente_id:  _editBkItem.clienteId  || _editBkItem.cliente_id  || "",
     lista:       _editBkItem.lista      || "Clientes",
@@ -13367,6 +13471,7 @@ function guardarEdicionBackup(){
   if(_editBkItem._fbKey && empresaKey){
     fbPatch("empresas/"+empresaKey+"/backupPedidos/"+_editBkItem._fbKey, {
       items: patch.items, total: patch.total,
+      tipoComprobante: patch.tipo_comprobante, totalConIVA: patch.total_con_iva,
       clienteNom: patch.cliente_nom, clienteId: patch.cliente_id, lista: patch.lista,
       descuentos: patch.descuentos
     }).catch(function(){});
@@ -13376,6 +13481,10 @@ function guardarEdicionBackup(){
   renderBackup();
   _checkPendientes();
   showNotif("✓ Pedido actualizado","ok");
+  // Si el pedido está vinculado a una hoja de ruta, propagar los cambios (items + importe).
+  if(_editBkItem && _editBkItem.rutaVinculadaId){
+    _propagarEdicionARuta(_editBkItem);
+  }
 }
 
 async function confirmarBackupComoRemito(bkParam){
