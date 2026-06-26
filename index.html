@@ -3258,7 +3258,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div><!-- end cfg-panel-remito -->
 
   <!-- ═══ PANEL CUPONES ═══ -->
-  <div id="cfg-panel-cupones" style="display:none">
+  <div id="cfg-panel-cupones" style="display:none;position:static;height:auto;overflow:visible">
     <div class="card">
       <div class="card-head">
         <span style="font-weight:700">🎟️ Cupones de descuento</span>
@@ -6263,13 +6263,19 @@ async function _borrarCupon(id, codigo){
 function setCfgTab(tab, btn){
   document.querySelectorAll("#cfg-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
-  document.getElementById("cfg-panel-empresa").style.display = tab==="empresa"?"block":"none";
-  document.getElementById("cfg-panel-remito").style.display   = tab==="remito"?"block":"none";
-  var pcup = document.getElementById("cfg-panel-cupones");
-  if(pcup) pcup.style.display = tab==="cupones"?"block":"none";
+  var pEmp = document.getElementById("cfg-panel-empresa");
+  var pRem = document.getElementById("cfg-panel-remito");
+  var pCup = document.getElementById("cfg-panel-cupones");
+  // Ocultar/mostrar con prioridad alta para evitar que algún estilo lo pise
+  if(pEmp) pEmp.style.setProperty("display", tab==="empresa"?"block":"none", "important");
+  if(pRem) pRem.style.setProperty("display", tab==="remito"?"block":"none", "important");
+  if(pCup) pCup.style.setProperty("display", tab==="cupones"?"block":"none", "important");
   if(tab==="empresa")  cargarDatosEmpresa();
   if(tab==="remito")   cargarDisenoRemito();
   if(tab==="cupones")  cargarCupones();
+  // Llevar el scroll de la sección arriba al cambiar de tab (evita quedar al fondo)
+  var _sec = document.getElementById("datos-empresa");
+  if(_sec && _sec.scrollTo) _sec.scrollTo({top:0, behavior:"auto"});
 }
 
 async function cargarDatosEmpresa(){
