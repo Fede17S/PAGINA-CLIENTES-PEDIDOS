@@ -1882,6 +1882,22 @@ select option { background:var(--s2); color:var(--text) }
   accent-color:var(--text); cursor:pointer; flex-shrink:0; margin-top:2px;
 }
 .cli-check-list { max-height:240px; overflow-y:auto }
+/* Checkboxes de roles múltiples: que se vea claro cuando están marcados */
+.ec-rol-multi {
+  -webkit-appearance:checkbox !important; appearance:checkbox !important;
+  width:17px !important; height:17px !important; cursor:pointer;
+  accent-color:var(--accent) !important; flex-shrink:0; margin:0 !important;
+}
+label.rol-chk {
+  transition:border-color .15s, background .15s, color .15s;
+}
+label.rol-chk:has(.ec-rol-multi:checked) {
+  border-color:var(--accent) !important;
+  background:var(--accent) !important;
+  color:#fff !important;
+  font-weight:700;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
 .cli-check-list::-webkit-scrollbar { width:3px }
 .cli-check-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px }
 .cli-check-item { display:flex; align-items:flex-start; gap:9px; padding:9px 4px; border-bottom:1px solid var(--border2); cursor:pointer; user-select:none }
@@ -3418,7 +3434,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
       <!-- Rol — solo visible para admin -->
       <div class="cli-field" id="ec-rol-wrap" style="display:none">
-        <label>Rol</label>
+        <label>Rol principal</label>
         <select id="ec-rol">
           <option value="cliente">👤 Cliente</option>
           <option value="vendedor">📝 Vendedor</option>
@@ -3426,6 +3442,15 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <option value="armador">📦 Armador</option>
           <option value="admin">👑 Admin</option>
         </select>
+        <div id="ec-roles-extra" style="margin-top:10px">
+          <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px">Funciones adicionales (puede tener varias)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <label class="rol-chk" style="display:flex;align-items:center;gap:5px;font-size:12.5px;background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;cursor:pointer"><input type="checkbox" class="ec-rol-multi" value="vendedor" style="cursor:pointer">📝 Vendedor</label>
+            <label class="rol-chk" style="display:flex;align-items:center;gap:5px;font-size:12.5px;background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;cursor:pointer"><input type="checkbox" class="ec-rol-multi" value="repartidor" style="cursor:pointer">🚚 Repartidor</label>
+            <label class="rol-chk" style="display:flex;align-items:center;gap:5px;font-size:12.5px;background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;cursor:pointer"><input type="checkbox" class="ec-rol-multi" value="armador" style="cursor:pointer">📦 Armador</label>
+          </div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:5px">Marcá las funciones que tendrá además del rol principal. Ej: vendedor + repartidor.</div>
+        </div>
       </div>
       <div class="cli-field">
         <label>Teléfono</label>
@@ -5397,7 +5422,7 @@ async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_
 async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
-  var rows = await sbGet("usuarios","select=id,uid,pass,name,role,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+  var rows = await sbGet("usuarios","select=id,uid,pass,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng&empresa_id=eq."+_sbEmpId+"&order=name.asc");
   if(!rows) return null;
   var r={};
   rows.forEach(function(u){
@@ -5523,7 +5548,8 @@ async function _sbGetBackup(){
       fechaEntrega:   b.fecha_entrega|| b.fechaEntrega|| null,
       diaEntrega:     b.dia_entrega  || b.diaEntrega  || null,
       estado:         b.estado       || "recibido",
-      trackCode:      b.track_code   || ""
+      trackCode:      b.track_code   || "",
+      rutaVinculadaId: b.ruta_vinculada_id || null
     };
   });
   return r;
@@ -5641,7 +5667,7 @@ window.onload = function(){
       var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
       if(cachedUsers && cachedUsers.length){
         cachedUsers.forEach(function(u){
-          _clientesDB[u.id]={id:u.uid||u.id,_sbId:u.id,name:u.name,role:u.role,lista:u.lista,
+          _clientesDB[u.id]={id:u.uid||u.id,_sbId:u.id,name:u.name,role:u.role,roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),lista:u.lista,
             direccion:u.direccion||"",tel:u.telefono||"",cuit:u.cuit||"",
             zona:u.zona||"",zona_id:u.zona_id||"",rec:u.recepciona||"",nota:u.nota||""};
         });
@@ -5803,7 +5829,7 @@ function doLogin(){
       .then(function(u){ return {rpcOk:true, rpcUser:(u && u.id)?u:null}; })
       .catch(function(){ return {rpcOk:false, rpcUser:null}; })
       .then(function(_val){
-        return sbGet("usuarios","select=id,uid,pass,name,role,lista,catalogo,direccion,telefono,zona,recepciona,nota,loc_modo&empresa_id=eq."+emp.id)
+        return sbGet("usuarios","select=id,uid,pass,name,role,roles,lista,catalogo,direccion,telefono,zona,recepciona,nota,loc_modo&empresa_id=eq."+emp.id)
           .then(function(usuarios){ return {val:_val, usuarios:usuarios||[]}; });
       })
     .then(function(ctx){
@@ -5819,6 +5845,11 @@ function doLogin(){
       if(!found){ err.textContent="❌ Usuario o contraseña incorrectos"; return; }
 
       // 3. Setear currentUser con datos directos de Supabase
+      // El RPC verificar_login no devuelve 'roles', así que lo buscamos en la lista de usuarios.
+      var _foundEnLista = usuarios.find(function(u){ return u.uid === found.uid || u.id === found.id; });
+      var _rolesRaw = (_foundEnLista && _foundEnLista.roles) ? _foundEnLista.roles : found.roles;
+      var _rolesNorm = _normalizarRoles(_rolesRaw);
+      var _rolesUsuario = _rolesNorm.length ? _rolesNorm : null;
       currentUser = {
         id:      found.uid,
         _sbId:   found.id,
@@ -5826,6 +5857,7 @@ function doLogin(){
         nom:     found.name  || found.uid,
         pass:    found.pass,
         role:    found.role  || "vendedor",
+        roles:   _rolesUsuario,
         lista:   found.lista || "Clientes",
         catalogo:found.catalogo !== false,
         loc_modo: found.loc_modo || "momentos"
@@ -5835,7 +5867,7 @@ function doLogin(){
       // 4. Cargar el resto de la empresa
       empresaData = Object.assign({}, emp, { usuarios: {} });
       usuarios.forEach(function(u){
-        empresaData.usuarios[u.id] = {id:u.uid,_sbId:u.id,name:u.name,pass:u.pass,role:u.role,lista:u.lista,catalogo:u.catalogo,direccion:u.direccion||"",tel:u.telefono||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
+        empresaData.usuarios[u.id] = {id:u.uid,_sbId:u.id,name:u.name,pass:u.pass,role:u.role,roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),lista:u.lista,catalogo:u.catalogo,direccion:u.direccion||"",tel:u.telefono||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
       });
 
       // Limpiar localStorage de datos viejos/pesados antes de guardar
@@ -6588,13 +6620,34 @@ function _checkSubVencimiento(){
   banner.textContent = msg;
   banner.onclick = function(){ banner.style.display="none"; };
 }
+// Normaliza el campo roles: puede venir como array real o como string JSON '["a","b"]'.
+// Devuelve siempre un array (vacío si no hay nada).
+function _normalizarRoles(roles){
+  if(!roles) return [];
+  if(Array.isArray(roles)) return roles;
+  if(typeof roles === "string"){
+    var s = roles.trim();
+    if(!s) return [];
+    try { var parsed = JSON.parse(s); if(Array.isArray(parsed)) return parsed; } catch(e){}
+    // Formato Postgres {a,b}
+    if(s[0]==="{" && s[s.length-1]==="}"){
+      return s.slice(1,-1).split(",").map(function(x){ return x.replace(/^"|"$/g,"").trim(); }).filter(Boolean);
+    }
+    return [s];
+  }
+  return [];
+}
+
 function aplicarRol(){
   var role = currentUser.role || "vendedor";
-  var isAdmin      = role === "admin";
-  var isVendedor   = role === "vendedor" || (!currentUser.role);
-  var isRepartidor = role === "repartidor";
-  var isArmador    = role === "armador";
-  var isCliente    = role === "cliente";
+  // Lista efectiva de roles: usa 'roles' (múltiples) si existe, sino el 'role' único (compatibilidad).
+  var _rolesArr = _normalizarRoles(currentUser.roles).length ? _normalizarRoles(currentUser.roles) : [role];
+  function _tieneRol(r){ return _rolesArr.indexOf(r) !== -1; }
+  var isAdmin      = _tieneRol("admin");
+  var isVendedor   = _tieneRol("vendedor") || (!currentUser.role && !currentUser.roles);
+  var isRepartidor = _tieneRol("repartidor");
+  var isArmador    = _tieneRol("armador");
+  var isCliente    = _tieneRol("cliente");
 
   var allNav = ["nav-dashboard","nav-pedido","nav-remito","nav-hoja","nav-mapa-entregas",
                 "nav-backup","nav-pedidos-acum","nav-resumen","nav-clientes","nav-productos",
@@ -6604,16 +6657,16 @@ function aplicarRol(){
     var el = document.getElementById(id);
     if (!el) return;
     var show = false;
+    // Combinar las secciones de TODOS los roles del usuario (no excluyente).
     if (isAdmin) {
       show = (id !== "nav-mis-ventas");  // admin ve todo excepto mis-ventas
-    } else if (isVendedor) {
-      show = (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup");
-    } else if (isRepartidor) {
-      show = (id === "nav-hoja" || id === "nav-mapa-entregas");
-    } else if (isArmador) {
-      show = (id === "nav-backup");
     } else {
-      show = (id === "nav-pedido");
+      // Sumar las secciones de cada rol que tenga
+      if (isVendedor   && (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup")) show = true;
+      if (isRepartidor && (id === "nav-hoja" || id === "nav-mapa-entregas")) show = true;
+      if (isArmador    && (id === "nav-backup")) show = true;
+      // Si no tiene ningún rol reconocido, ve al menos Pedido
+      if (!isVendedor && !isRepartidor && !isArmador && id === "nav-pedido") show = true;
     }
     el.style.display = show ? "flex" : "none";
   });
@@ -6632,21 +6685,21 @@ function aplicarRol(){
   if(remVndWrap) remVndWrap.style.display = isAdmin ? "block" : "none";
   if(isAdmin) _poblarSelectorVendedores();
 
-  // Repartidor: navegar a hoja de ruta al iniciar (sin timeout que interfiera)
-  if (isRepartidor) {
-    verTab("hoja", document.getElementById("nav-hoja"));
-    // Ocultar el botón de crear nueva hoja de ruta (el repartidor solo ve las asignadas)
-    var _btnNR = document.getElementById("btn-nueva-ruta");
-    if(_btnNR) _btnNR.style.display = "none";
-  }
-  // Armador: navegar a backup al iniciar
-  if (isArmador) {
-    verTab("backup", document.getElementById("nav-backup"));
-  }
-  // Admin: arrancar en el dashboard + actualización automática de datos
+  // Ocultar botón de crear ruta solo si es repartidor SIN ser admin ni vendedor
+  // (un vendedor o admin sí pueden crear rutas, aunque también sean repartidores).
+  var _btnNR = document.getElementById("btn-nueva-ruta");
+  if(_btnNR) _btnNR.style.display = (isRepartidor && !isAdmin && !isVendedor) ? "none" : "";
+
+  // Navegación inicial: una sola pantalla, con prioridad admin > vendedor > repartidor > armador.
   if (isAdmin) {
     verTab("dashboard", document.getElementById("nav-dashboard"));
     _startDashAutoRefresh();
+  } else if (isVendedor) {
+    verTab("pedido", document.getElementById("nav-pedido"));
+  } else if (isRepartidor) {
+    verTab("hoja", document.getElementById("nav-hoja"));
+  } else if (isArmador) {
+    verTab("backup", document.getElementById("nav-backup"));
   }
 
   // Construir barra inferior móvil según el rol
@@ -6693,7 +6746,27 @@ function _buildBottomNav(role){
     ]
   };
 
-  var tabs = TABS_POR_ROL[role] || TABS_POR_ROL.vendedor;
+  // Combinar las pestañas de TODOS los roles del usuario (sin duplicados).
+  var _rolesNav = (currentUser && _normalizarRoles(currentUser.roles).length) ? _normalizarRoles(currentUser.roles) : [role];
+  var tabs;
+  if(_rolesNav.indexOf("admin") !== -1){
+    tabs = TABS_POR_ROL.admin; // admin ve todo
+  } else if(_rolesNav.length === 1){
+    tabs = TABS_POR_ROL[_rolesNav[0]] || TABS_POR_ROL.vendedor;
+  } else {
+    // Múltiples roles: fusionar las pestañas, evitando duplicados
+    var _vistos = {};
+    tabs = [];
+    _rolesNav.forEach(function(r){
+      var t = TABS_POR_ROL[r];
+      if(!t) return;
+      t.forEach(function(item){
+        if(item.sep) return; // los separadores se rearman después
+        if(!_vistos[item.id]){ _vistos[item.id]=1; tabs.push(item); }
+      });
+    });
+    if(!tabs.length) tabs = TABS_POR_ROL.vendedor;
+  }
   var grid = document.getElementById("nav-fab-grid");
   var fab  = document.getElementById("nav-fab");
   if(!grid || !fab) return;
@@ -6847,18 +6920,27 @@ function _abrirMenuCuenta(){
 function verTab(id,btn){
   // Cerrar cualquier modal abierto al cambiar de sección
   document.querySelectorAll(".modal-bg.open").forEach(function(m){ m.classList.remove("open"); });
-  // Guard: vendedor solo puede acceder a pedido y mis-ventas
+  // Guard: permitir acceso a una sección si CUALQUIERA de los roles del usuario la habilita.
   var role = currentUser ? (currentUser.role || "vendedor") : "vendedor";
-  var isAdmin      = role === "admin";
-  var isVendedor   = role === "vendedor" || !currentUser.role;
-  var isRepartidor = role === "repartidor";
-  var isArmador    = role === "armador";
-  if (isVendedor    && id !== "pedido" && id !== "mis-ventas" && id !== "clientes" && id !== "backup") return;
-  if (isRepartidor  && id !== "hoja"   && id !== "mapa-entregas") return;
-  if (isArmador     && id !== "backup") return;
-  if (!isAdmin      && id === "vendedores") return;
-  if (!isAdmin      && id === "datos-empresa") return;
-  if (!isAdmin      && id === "dashboard") return;
+  var _rolesArr = (currentUser && _normalizarRoles(currentUser.roles).length) ? _normalizarRoles(currentUser.roles) : [role];
+  function _tieneRol(r){ return _rolesArr.indexOf(r) !== -1; }
+  var isAdmin      = _tieneRol("admin");
+  var isVendedor   = _tieneRol("vendedor") || (currentUser && !currentUser.role && !currentUser.roles);
+  var isRepartidor = _tieneRol("repartidor");
+  var isArmador    = _tieneRol("armador");
+  // Si es admin, puede entrar a todo (no se aplica ningún bloqueo de sección).
+  if(!isAdmin){
+    // Secciones permitidas según TODOS los roles combinados
+    var _permitidas = {};
+    if(isVendedor){ ["pedido","mis-ventas","clientes","backup"].forEach(function(s){_permitidas[s]=1;}); }
+    if(isRepartidor){ ["hoja","mapa-entregas"].forEach(function(s){_permitidas[s]=1;}); }
+    if(isArmador){ _permitidas["backup"]=1; }
+    // Secciones solo-admin: nunca permitidas para no-admin
+    var _soloAdmin = {vendedores:1, "datos-empresa":1, dashboard:1};
+    if(_soloAdmin[id]) return;
+    // Si la sección no está entre las permitidas por ningún rol, bloquear
+    if(!_permitidas[id]) return;
+  }
 
   document.querySelectorAll(".section").forEach(function(s){s.classList.remove("active");});
   document.querySelectorAll(".sb-item").forEach(function(b){b.classList.remove("active");});
@@ -9265,14 +9347,21 @@ async function guardarAsignacion(){
 }
 
 function cargarRutasFirebase(){
+  _soloVerRuta = null;  // al recargar la sección, mostrar todas las rutas
   var role = currentUser ? (currentUser.role||"vendedor") : "vendedor";
   setStatus("fb-hoja-status","sync","☁️ Cargando…");
   fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
     var all = d || {};
     if(role === "repartidor"){
-      var uid = currentUser.id;
+      // En este panel, currentUser.id ES el uid del usuario, y currentUser._sbId es el UUID de Supabase.
+      // La asignación guarda el uid en repartidorId, así que comparamos contra ambos por robustez.
+      var miUid = currentUser.id;       // el uid (ej. "juan")
+      var miSbId = currentUser._sbId;   // el UUID de Supabase
       var filtradas = {};
-      Object.entries(all).forEach(function(e){ if(e[1].repartidorId === uid) filtradas[e[0]] = e[1]; });
+      Object.entries(all).forEach(function(e){
+        var asignado = e[1].repartidorId;
+        if(asignado && (asignado === miUid || asignado === miSbId)) filtradas[e[0]] = e[1];
+      });
       rutasData = filtradas;
     } else {
       rutasData = all;
@@ -9511,9 +9600,16 @@ function renderRutas(){
 
   var keys=Object.keys(rutasData).sort(function(a,b){return(rutasData[b].fecha||"").localeCompare(rutasData[a].fecha||"");});
 
+  // Modo "ver solo una ruta" (al elegir un cliente desde el buscador): mostrar únicamente esa.
+  if(_soloVerRuta && rutasData[_soloVerRuta]){
+    keys = [_soloVerRuta];
+  }
+
   // Aplicar filtros
   keys = keys.filter(function(k){
     var ruta = rutasData[k];
+    // Si estamos en modo "ver solo una ruta", no aplicar los otros filtros
+    if(_soloVerRuta) return true;
     // Filtro mes
     if(filMes){
       var d = new Date(ruta.fecha||Date.now());
@@ -9547,6 +9643,15 @@ function renderRutas(){
   _renderUnpaidBanner(_getUnpaidList());
 
   wrap.innerHTML="";
+  // Banner para volver a ver todas las rutas (cuando se está viendo solo una desde el buscador)
+  if(_soloVerRuta && rutasData[_soloVerRuta]){
+    var _backBanner = document.createElement("div");
+    _backBanner.style.cssText = "display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--accent);border-radius:10px;padding:8px 12px;margin-bottom:10px;cursor:pointer";
+    _backBanner.innerHTML = '<span style="font-size:13px;font-weight:700;color:var(--accent)">← Ver todas las hojas de ruta</span>'+
+      '<span style="margin-left:auto;font-size:11.5px;color:var(--muted)">Mostrando solo: '+escHtml(rutasData[_soloVerRuta].hrNum||rutasData[_soloVerRuta].nombre||"ruta")+'</span>';
+    _backBanner.onclick = _verTodasLasRutas;
+    wrap.appendChild(_backBanner);
+  }
   var _detailPanel = document.getElementById("ruta-detail-panel");
   var _esDesktop = window.matchMedia && window.matchMedia("(min-width:901px)").matches;
   if(_detailPanel) _detailPanel.innerHTML="";
@@ -10041,9 +10146,29 @@ function abrirModalSinPagar(){
 
 // ══ BUSCADOR EN HOJA DE RUTA ══
 var _rutaSearchQ = "";
+var _soloVerRuta = null;   // si tiene un rk, renderRutas muestra solo esa ruta
+
+// Mostrar SOLO la ruta elegida desde el buscador (y abrirla)
+function _verSoloRuta(rk){
+  _soloVerRuta = rk;
+  rutaAbierta = rk;
+  _rutaSearchQ = "";
+  var inp = document.getElementById("ruta-buscar-cli"); if(inp) inp.value="";
+  var res = document.getElementById("ruta-search-result"); if(res) res.style.display="none";
+  var lst = document.getElementById("rutas-list"); if(lst) lst.style.display="";
+  renderRutas();
+  if(lst && lst.scrollIntoView) lst.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+// Volver a ver todas las rutas
+function _verTodasLasRutas(){
+  _soloVerRuta = null;
+  renderRutas();
+}
 
 function _buscarEnRutas(q){
   _rutaSearchQ = (q||"").toLowerCase().trim();
+  _soloVerRuta = null;  // al buscar de nuevo, salir del modo "ver solo una ruta"
   var clearBtn  = document.getElementById("ruta-buscar-clear");
   var inp       = document.getElementById("ruta-buscar-cli");
   var resultDiv = document.getElementById("ruta-search-result");
@@ -10110,7 +10235,7 @@ function _buscarEnRutas(q){
         '<div style="padding:8px 14px;background:var(--s2);font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">'+
           hrBadge+escHtml(grupo.rutaNom)+
           '<span style="margin-left:auto;font-size:11px;color:var(--muted)">'+grupo.clientes.length+' coincidencia'+(grupo.clientes.length!==1?'s':'')+'</span>'+
-          '<button onclick="rutaAbierta=\''+rk+'\';_rutaSearchQ=\'\';document.getElementById(\'ruta-buscar-cli\').value=\'\';document.getElementById(\'ruta-search-result\').style.display=\'none\';document.getElementById(\'rutas-list\').style.display=\'\';renderRutas();" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Ver ruta →</button>'+
+          '<button onclick="_verSoloRuta(\''+rk+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Ver ruta →</button>'+
         '</div>'+
         grupo.clientes.map(function(r){
           var ef=(r.cli.efectivo||0), tr=(r.cli.transferencia||0);
@@ -11813,6 +11938,40 @@ function _importeParaRuta(bk){
   return Math.round(base * 100) / 100;
 }
 
+// Lleva a la sección Hoja de Ruta y abre la ruta vinculada al pedido
+function _irAHojaRuta(rk){
+  if(!rk) return;
+  rutaAbierta = rk;
+  verTab("hoja", document.getElementById("nav-hoja"));
+  // Asegurar que las rutas estén cargadas y la ruta quede abierta
+  setTimeout(function(){
+    if(!rutasData || !rutasData[rk]){
+      if(typeof cargarRutasFirebase==="function") cargarRutasFirebase();
+    }
+    setTimeout(function(){
+      rutaAbierta = rk;
+      // Limpiar cualquier búsqueda activa que pudiera ocultar la lista
+      _rutaSearchQ = "";
+      var _inp = document.getElementById("ruta-buscar-cli"); if(_inp) _inp.value="";
+      var _res = document.getElementById("ruta-search-result"); if(_res) _res.style.display="none";
+      var _lst = document.getElementById("rutas-list"); if(_lst) _lst.style.display="";
+      if(typeof renderRutas==="function") renderRutas();
+      // Intentar hacer scroll a la ruta abierta
+      setTimeout(function(){
+        var card = document.querySelector('.ruta-card.open') || document.querySelector('[data-ruta-key="'+rk+'"]');
+        if(card && card.scrollIntoView) card.scrollIntoView({behavior:"smooth", block:"start"});
+      }, 150);
+    }, 350);
+  }, 80);
+}
+
+// Abre el flujo de mover/asignar un pedido puntual a una ruta
+function _asignarPedidoARuta(bkId){
+  if(!bkId) return;
+  _bkSelected = new Set([bkId]);
+  _bkReasignar();
+}
+
 async function _confirmarReasignar(){
   var sel = document.getElementById("reasig-ruta-sel");
   if(!sel||!sel.value){ showNotif("Elegí una ruta","err"); return; }
@@ -11868,6 +12027,18 @@ async function _confirmarReasignar(){
         var ck = inserted[0].id;
         if(!rutasData[rutaDestKey].clientes) rutasData[rutaDestKey].clientes={};
         rutasData[rutaDestKey].clientes[ck] = Object.assign({}, cliData, {id:ck});
+        // Guardar el vínculo: este pedido de backup quedó en esta ruta
+        var _bkSbId = bk._sbId || bk.id;
+        if(_bkSbId && _sbEmpId){
+          try {
+            await sbPatch("backup_pedidos","id=eq."+_bkSbId+"&empresa_id=eq."+_sbEmpId, {ruta_vinculada_id:rutaDestKey});
+          } catch(e){ console.warn("[Reasignar] no se pudo guardar vínculo HR:", e.message); }
+          // Actualizar en memoria/localStorage
+          bk.rutaVinculadaId = rutaDestKey;
+          var _arr = getBackups();
+          var _ix = _arr.findIndex(function(x){ return x.id===bk.id || x._sbId===_bkSbId; });
+          if(_ix>=0){ _arr[_ix].rutaVinculadaId = rutaDestKey; saveBackups(_arr); }
+        }
       }
     } catch(e){ console.warn('[Reasignar] Error en '+bkId+':', e.message); errores++; }
   }
@@ -12195,6 +12366,18 @@ function renderBackup(){
       var _est = _estadosBk[bk.estado] || _estadosBk.recibido;
       estadoBadge = '<span style="font-size:10px;background:'+_est.bg+';color:'+_est.col+';border-radius:5px;padding:2px 7px;font-weight:700;margin-left:6px">'+_est.txt+'</span>';
     }
+    // Píldora de Hoja de Ruta vinculada
+    var _rkVinc = bk.rutaVinculadaId;
+    var _rutaVinc = _rkVinc ? (rutasData||{})[_rkVinc] : null;
+    var hrPill;
+    if(_rutaVinc){
+      var _hrTxt = _rutaVinc.hrNum || ("Ruta "+String(_rkVinc).slice(-5));
+      hrPill = '<button onclick="event.stopPropagation();_irAHojaRuta(\''+_rkVinc+'\')" title="Ver hoja de ruta" '+
+        'style="font-size:10px;background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:5px;padding:2px 8px;font-weight:700;margin-left:6px;cursor:pointer;font-family:inherit">📋 '+_hrTxt+'</button>';
+    } else {
+      hrPill = '<button onclick="event.stopPropagation();_asignarPedidoARuta(\''+(bk._sbId||bk.id)+'\')" title="Asignar a una hoja de ruta" '+
+        'style="font-size:10px;background:var(--s2);color:var(--muted);border:1px dashed var(--border);border-radius:5px;padding:2px 8px;font-weight:700;margin-left:6px;cursor:pointer;font-family:inherit">📋 Asignar a ruta</button>';
+    }
     // Badge observaciones
     var obsBadge = (bk.obs && bk.obs.trim())
       ? '<span style="font-size:10px;background:#fef9c3;color:#854d0e;border-radius:5px;padding:2px 7px;font-weight:600;margin-left:4px" title="'+bk.obs.trim().substring(0,80)+'">💬 obs</span>'
@@ -12220,7 +12403,7 @@ function renderBackup(){
       chk.innerHTML =
         '<div style="width:22px;height:22px;border-radius:6px;border:2px solid var(--accent);background:'+(_bkSelected.has(bk.id)?"var(--accent)":"#fff")+';display:grid;place-items:center;flex-shrink:0;font-size:14px;margin-top:1px">'+(_bkSelected.has(bk.id)?"✓":"")+'</div>'+
         '<div style="flex:1;min-width:0">'+
-          '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+'</div>'+
+          '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+hrPill+'</div>'+
           '<div class="bk-card-meta">'+
             tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
             listaBadge+vndBadge+obsBadge+dscBadge+
@@ -12245,7 +12428,7 @@ function renderBackup(){
 
     header.innerHTML =
       '<div class="bk-card-left">'+
-        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+'</div>'+
+        '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+hrPill+'</div>'+
         '<div class="bk-card-meta">'+
           tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
           listaBadge+vndBadge+obsBadge+dscBadge+
@@ -15504,6 +15687,23 @@ async function _restaurarCliente(pushKey, u){
 }
 
 /* ── EDICIÓN DE CLIENTE ── */
+// Actualiza el aspecto de la tarjeta del checkbox de rol según si está marcado
+function _actualizarEstiloRolChk(chk){
+  var label = chk.closest("label.rol-chk");
+  if(!label) return;
+  if(chk.checked){
+    label.style.borderColor = "var(--accent)";
+    label.style.background   = "var(--accent)";
+    label.style.color        = "#fff";
+    label.style.fontWeight   = "700";
+  } else {
+    label.style.borderColor = "var(--border)";
+    label.style.background   = "var(--s2)";
+    label.style.color        = "";
+    label.style.fontWeight   = "";
+  }
+}
+
 function abrirEditCliente(pushKey) {
   var u = _clientesDB[pushKey];
   if (!u) return;
@@ -15526,6 +15726,17 @@ function abrirEditCliente(pushKey) {
   document.getElementById("ec-rec").value   = u.rec   || "";
   var ecCuit = document.getElementById("ec-cuit"); if(ecCuit) ecCuit.value = u.cuit||"";
   var ecRol  = document.getElementById("ec-rol");  if(ecRol)  ecRol.value  = u.role||"cliente";
+  // Marcar los checkboxes de funciones adicionales según los roles actuales del usuario
+  var _rolesUsr = _normalizarRoles(u.roles).length ? _normalizarRoles(u.roles) : (u.role ? [u.role] : []);
+  document.querySelectorAll(".ec-rol-multi").forEach(function(chk){
+    chk.checked = _rolesUsr.indexOf(chk.value) !== -1;
+    _actualizarEstiloRolChk(chk);
+    // Listener para actualizar el estilo al tildar/destildar (refuerzo por si :has no anda)
+    if(!chk._estiloLigado){
+      chk.addEventListener("change", function(){ _actualizarEstiloRolChk(chk); });
+      chk._estiloLigado = true;
+    }
+  });
   // Mostrar/ocultar campo rol según si es admin
   var ecRolWrap2 = document.getElementById("ec-rol-wrap");
   if(ecRolWrap2) ecRolWrap2.style.display = (currentUser&&currentUser.role==="admin") ? "block" : "none";
@@ -15551,11 +15762,22 @@ async function guardarEditCliente() {
   var rec  = document.getElementById("ec-rec").value.trim();
   var rolEl2 = document.getElementById("ec-rol");
   var rol = (currentUser && currentUser.role === "admin" && rolEl2) ? rolEl2.value : ((_clientesDB[pushKey]&&_clientesDB[pushKey].role)||"cliente");
+  // Recolectar roles múltiples: rol principal + funciones adicionales marcadas
+  var _rolesMarcados = [];
+  if(currentUser && currentUser.role === "admin"){
+    document.querySelectorAll(".ec-rol-multi").forEach(function(chk){
+      if(chk.checked && _rolesMarcados.indexOf(chk.value)===-1) _rolesMarcados.push(chk.value);
+    });
+    // El rol principal siempre forma parte de la lista
+    if(rol && _rolesMarcados.indexOf(rol)===-1) _rolesMarcados.unshift(rol);
+  }
   if (!id)   { showNotif("El ID es obligatorio","err"); return; }
   if (!name) { showNotif("El nombre es obligatorio","err"); return; }
   var dup = Object.entries(_clientesDB).find(function(e){ return e[0]!==pushKey && e[1].id===id; });
   if (dup) { showNotif("Ese ID ya lo usa otro usuario","err"); return; }
   var updated = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true, role:rol };
+  if(_rolesMarcados.length > 1){ updated.roles = _rolesMarcados; }
+  else { updated.roles = null; } // un solo rol: usar el campo role clásico
   if (dir)    updated.direccion = dir;
   if (tel)    updated.tel = tel;
   if (cuit)   updated.cuit = cuit;
@@ -15572,6 +15794,7 @@ async function guardarEditCliente() {
     var sbPayload = {
       uid:updated.id, name:updated.name,
       lista:updated.lista, role:updated.role, catalogo:true,
+      roles: (_rolesMarcados && _rolesMarcados.length > 1) ? _rolesMarcados : null,
       direccion:updated.direccion||"", telefono:updated.tel||"",
       cuit:updated.cuit||"", zona:updated.zona||"",
       zona_id:updated.zona_id||null, recepciona:updated.rec||"",
