@@ -2570,6 +2570,55 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div id="modal-pendientes-body" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px"></div>
   </div>
 </div>
+
+<!-- MODAL CUPONES -->
+<div class="modal-bg" id="modal-cupones" onclick="if(event.target===this)cerrarModal('modal-cupones')">
+  <div class="modal-box" style="max-width:560px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <span style="font-size:15px;font-weight:700">🎟️ Cupones de descuento</span>
+      <button class="modal-close" onclick="cerrarModal('modal-cupones')">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px">
+      <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">Creá códigos de descuento para tus clientes de la tienda online. Pueden ser por porcentaje o monto fijo, con vencimiento, límite de usos y compra mínima.</div>
+
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">➕ Nuevo cupón</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Código</label>
+            <input type="text" id="cup-codigo" placeholder="Ej: BIENVENIDO10" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);text-transform:uppercase;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Tipo</label>
+            <select id="cup-tipo" onchange="_cupActualizarLabelValor()" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
+              <option value="porcentaje">Porcentaje (%)</option>
+              <option value="monto">Monto fijo ($)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px" id="cup-valor-label">Descuento (%)</label>
+            <input type="number" id="cup-valor" min="0" step="any" placeholder="10" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Compra mínima ($, opcional)</label>
+            <input type="number" id="cup-minima" min="0" step="any" placeholder="0" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Vence (opcional)</label>
+            <input type="date" id="cup-vence" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Máx. usos (opcional)</label>
+            <input type="number" id="cup-maxusos" min="1" step="1" placeholder="Ilimitado" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
+          </div>
+        </div>
+        <button onclick="crearCupon()" class="mbtn mbtn-primary" style="width:100%;padding:11px">➕ Crear cupón</button>
+      </div>
+
+      <div id="cupones-lista" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+  </div>
+</div>
 <style id="notif-swipe-styles">
   .notif-row{ position:relative; overflow:hidden; border-radius:10px; }
   .notif-row.collapsing{ transition:height .32s cubic-bezier(.25,.8,.3,1), opacity .26s, margin .32s; }
@@ -3258,54 +3307,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div><!-- end cfg-panel-remito -->
 
   <!-- ═══ PANEL CUPONES ═══ -->
-  <div id="cfg-panel-cupones" style="display:none;position:static;height:auto;overflow:visible">
-    <div class="card">
-      <div class="card-head">
-        <span style="font-weight:700">🎟️ Cupones de descuento</span>
-      </div>
-      <div style="padding:14px">
-        <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.5">Creá códigos de descuento para tus clientes de la tienda online. Pueden ser por porcentaje o monto fijo, con vencimiento, límite de usos y compra mínima.</div>
-
-        <!-- Formulario de nuevo cupón -->
-        <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px">
-          <div style="font-size:13px;font-weight:700;margin-bottom:10px">➕ Nuevo cupón</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div>
-              <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Código</label>
-              <input type="text" id="cup-codigo" placeholder="Ej: BIENVENIDO10" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);text-transform:uppercase;box-sizing:border-box">
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Tipo</label>
-              <select id="cup-tipo" onchange="_cupActualizarLabelValor()" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
-                <option value="porcentaje">Porcentaje (%)</option>
-                <option value="monto">Monto fijo ($)</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px" id="cup-valor-label">Descuento (%)</label>
-              <input type="number" id="cup-valor" min="0" step="any" placeholder="10" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Compra mínima ($, opcional)</label>
-              <input type="number" id="cup-minima" min="0" step="any" placeholder="0" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Vence (opcional)</label>
-              <input type="date" id="cup-vence" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">Máx. usos (opcional)</label>
-              <input type="number" id="cup-maxusos" min="1" step="1" placeholder="Ilimitado" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;background:var(--s3);box-sizing:border-box">
-            </div>
-          </div>
-          <button onclick="crearCupon()" class="mbtn mbtn-primary" style="width:100%;padding:11px">➕ Crear cupón</button>
-        </div>
-
-        <!-- Lista de cupones -->
-        <div id="cupones-lista" style="display:flex;flex-direction:column;gap:10px"></div>
-      </div>
-    </div>
-  </div><!-- end cfg-panel-cupones -->
+  <!-- panel cupones movido a modal-cupones -->
 
 </div><!-- end datos-empresa section -->
 
@@ -6261,15 +6263,19 @@ async function _borrarCupon(id, codigo){
 }
 
 function setCfgTab(tab, btn){
+  // El tab de cupones abre un modal (no un panel inline, por problemas de layout)
+  if(tab==="cupones"){
+    // No marcar como activo el tab cupones; volver al tab que estaba
+    abrirModal("modal-cupones");
+    cargarCupones();
+    return;
+  }
   document.querySelectorAll("#cfg-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
   var pEmp = document.getElementById("cfg-panel-empresa");
   var pRem = document.getElementById("cfg-panel-remito");
-  var pCup = document.getElementById("cfg-panel-cupones");
-  // Ocultar/mostrar con prioridad alta para evitar que algún estilo lo pise
   if(pEmp) pEmp.style.setProperty("display", tab==="empresa"?"block":"none", "important");
   if(pRem) pRem.style.setProperty("display", tab==="remito"?"block":"none", "important");
-  if(pCup) pCup.style.setProperty("display", tab==="cupones"?"block":"none", "important");
   if(tab==="empresa")  cargarDatosEmpresa();
   if(tab==="remito")   cargarDisenoRemito();
   if(tab==="cupones")  cargarCupones();
