@@ -4368,13 +4368,43 @@ var itemSel = {ped:null,rem:null};
 var SB_URL  = "https://vhoswhyixqtomgqudigj.supabase.co";
 var SB_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZob3N3aHlpeHF0b21ncXVkaWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MTI4ODIsImV4cCI6MjA5NTM4ODg4Mn0.gjUaVJ1RvF3KrjfXVyh8wYIso4QW6RtIfFRbkd0PyA8";
 var SB_HDR  = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY, "Content-Type": "application/json", "Prefer": "return=representation" };
+// Token de empresa (RLS). Se setea al hacer login y viaja en cada request.
+// Vacío hasta el login; mientras esté vacío, los requests usan solo la anon key.
+var _empToken = null;
+try {
+  var _tk = localStorage.getItem("dm_emp_token");
+  if(_tk){
+    // Verificar que no esté vencido (lee el campo exp del payload)
+    var _payload = JSON.parse(atob(_tk.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+    if(_payload && _payload.exp && (_payload.exp * 1000) > Date.now()){
+      _empToken = _tk;  // todavía válido
+    } else {
+      localStorage.removeItem("dm_emp_token");  // vencido → descartar
+    }
+  }
+} catch(e){ _empToken = null; }
 var _sbEmpId = null;
+
+// Helper central de headers para Supabase. Incluye el token de empresa (RLS)
+// si existe. Todos los fetch directos deberían usar esto para que el RLS
+// funcione de forma consistente.
+function _sbHeaders(extra){
+  var h = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY };
+  if(_empToken) h["x-empresa-token"] = _empToken;
+  if(extra){ for(var k in extra){ h[k] = extra[k]; } }
+  return h;
+}
 
 function sbFetch(method, path, body){
   // Timeout de 15 segundos para evitar que quede colgado
   var controller = typeof AbortController!=="undefined" ? new AbortController() : null;
   var timer = controller ? setTimeout(function(){ controller.abort(); }, 15000) : null;
-  var opts = { method:method, headers:SB_HDR, body: body ? JSON.stringify(body) : undefined };
+  // Headers: copia de los base + token de empresa si existe (para RLS).
+  var _hdr = SB_HDR;
+  if(_empToken){
+    _hdr = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY, "Content-Type": "application/json", "Prefer": "return=representation", "x-empresa-token": _empToken };
+  }
+  var opts = { method:method, headers:_hdr, body: body ? JSON.stringify(body) : undefined };
   if(controller) opts.signal = controller.signal;
   return fetch(SB_URL+path, opts)
     .then(function(r){
@@ -5213,14 +5243,14 @@ function fbDel(path){
 async function _sbGetAllEmpresas(){
   var [emps, users] = await Promise.all([
     sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence"),
-    sbGet("usuarios","select=id,empresa_id,uid,pass,name,role,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng")
+    sbGet("usuarios","select=id,empresa_id,uid,name,role,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng")
   ]);
   if(!emps) return null;
   var result={};
   emps.forEach(function(e){
     var uMap={};
     (users||[]).filter(function(u){return u.empresa_id===e.id;}).forEach(function(u){
-      uMap[u.id]={id:u.uid||"",_sbId:u.id,name:u.name||"",pass:u.pass||"",role:u.role||"cliente",
+      uMap[u.id]={id:u.uid||"",_sbId:u.id,name:u.name||"",role:u.role||"cliente",
         lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
         tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",zona_id:u.zona_id||null,
         rec:u.recepciona||"",nota:u.nota||""};
@@ -5248,7 +5278,6 @@ async function _sbGetEmpresa(empId){
     id:        u.uid||"",      // login ID (ej: "CL8450")
     _sbId:     u.id,           // Supabase UUID
     name:      u.name||"",
-    pass:      u.pass||"",
     role:      u.role||"cliente",
     lista:     u.lista||"Clientes",
     catalogo:  u.catalogo,
@@ -5485,7 +5514,7 @@ async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_
 async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
-  var rows = await sbGet("usuarios","select=id,uid,pass,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+  var rows = await sbGet("usuarios","select=id,uid,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng&empresa_id=eq."+_sbEmpId+"&order=name.asc");
   if(!rows) return null;
   var r={};
   rows.forEach(function(u){
@@ -5493,7 +5522,6 @@ async function _sbGetUsuarios(){
       id:        u.uid||"",
       _sbId:     u.id,
       name:      u.name||"",
-      pass:      u.pass||"",
       role:      u.role||"cliente",
       lista:     u.lista||"Clientes",
       catalogo:  u.catalogo,
@@ -5510,8 +5538,53 @@ async function _sbGetUsuarios(){
   });
   return r;
 }
-async function _sbInsertUsuario(u){ var payload={empresa_id:_sbEmpId,uid:u.id,pass:u.pass||u.id,name:u.name||u.id,role:u.role||"vendedor",lista:u.lista||"Clientes",direccion:u.direccion||"",telefono:u.tel||"",zona:u.zona||"",zona_id:u.zona_id||null,recepciona:u.rec||"",nota:u.nota||"",catalogo:u.catalogo!==false}; if(u.lat) payload.lat=u.lat; if(u.lng) payload.lng=u.lng; var rows=await sbPost("usuarios",payload); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchUsuario(id,u){ var b={};if(u.name!==undefined)b.name=u.name;if(u.pass!==undefined)b.pass=u.pass;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.zona_id!==undefined)b.zona_id=u.zona_id;if(u.cuit!==undefined)b.cuit=u.cuit;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;if(u.uid!==undefined)b.uid=u.uid;return sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b); }
+async function _sbInsertUsuario(u){
+  // SEGURIDAD: la contraseña se hashea del lado del servidor (RPC crear_usuario_seguro).
+  // El navegador nunca escribe pass en texto plano.
+  var rpcBody = {
+    p_empresa_id: _sbEmpId,
+    p_uid:        u.id,
+    p_pass:       u.pass||u.id,
+    p_name:       u.name||u.id,
+    p_role:       u.role||"vendedor",
+    p_lista:      u.lista||"Clientes",
+    p_direccion:  u.direccion||"",
+    p_telefono:   u.tel||"",
+    p_zona:       u.zona||"",
+    p_zona_id:    u.zona_id||null,
+    p_recepciona: u.rec||"",
+    p_nota:       u.nota||"",
+    p_catalogo:   u.catalogo!==false,
+    p_lat:        u.lat||null,
+    p_lng:        u.lng||null
+  };
+  try {
+    var newId = await sbFetch("POST","/rest/v1/rpc/crear_usuario_seguro",rpcBody);
+    return newId || null;
+  } catch(e){
+    // Si el RPC no existiera, avisar claramente (sin caer a texto plano).
+    console.warn("crear_usuario_seguro falló:", e && e.message);
+    throw new Error("No se pudo crear el usuario de forma segura. Verificá que el RPC crear_usuario_seguro esté creado en Supabase.");
+  }
+}
+async function _sbPatchUsuario(id,u){
+  // Datos no sensibles: update normal.
+  var b={};if(u.name!==undefined)b.name=u.name;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.zona_id!==undefined)b.zona_id=u.zona_id;if(u.cuit!==undefined)b.cuit=u.cuit;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;if(u.uid!==undefined)b.uid=u.uid;
+  // Si hay datos no-pass, actualizarlos primero.
+  if(Object.keys(b).length){
+    await sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b);
+  }
+  // SEGURIDAD: la contraseña (si se cambió) se hashea del lado del servidor.
+  if(u.pass!==undefined && u.pass!==null && u.pass!==""){
+    try {
+      await sbFetch("POST","/rest/v1/rpc/cambiar_pass_seguro",{p_usuario_id:id,p_empresa_id:_sbEmpId,p_pass:u.pass});
+    } catch(e){
+      console.warn("cambiar_pass_seguro falló:", e && e.message);
+      throw new Error("No se pudo actualizar la contraseña de forma segura. Verificá que el RPC cambiar_pass_seguro esté creado en Supabase.");
+    }
+  }
+  return true;
+}
 
 async function _sbGetRutas(){
   var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
@@ -5759,7 +5832,6 @@ window.onload = function(){
       var remEl  = document.getElementById("l-remember");
       if(empEl)  empEl.value  = savedCreds.empresa||"";
       if(userEl) userEl.value = savedCreds.user||"";
-      if(passEl) passEl.value = savedCreds.pass||"";
       if(remEl)  remEl.checked = true;
       var track = document.getElementById("l-remember-track");
       var thumb = document.getElementById("l-remember-thumb");
@@ -5892,20 +5964,27 @@ function doLogin(){
       .then(function(u){ return {rpcOk:true, rpcUser:(u && u.id)?u:null}; })
       .catch(function(){ return {rpcOk:false, rpcUser:null}; })
       .then(function(_val){
-        return sbGet("usuarios","select=id,uid,pass,name,role,roles,lista,catalogo,direccion,telefono,zona,recepciona,nota,loc_modo&empresa_id=eq."+emp.id)
+        return sbGet("usuarios","select=id,uid,name,role,roles,lista,catalogo,direccion,telefono,zona,recepciona,nota,loc_modo&empresa_id=eq."+emp.id)
           .then(function(usuarios){ return {val:_val, usuarios:usuarios||[]}; });
       })
     .then(function(ctx){
       var usuarios = ctx.usuarios;
       if(!usuarios||!usuarios.length){ err.textContent="❌ No hay usuarios en esta empresa"; return; }
 
-      var found = ctx.val.rpcOk ? ctx.val.rpcUser : null;
+      // La validación de credenciales es 100% del lado del servidor (RPC verificar_login).
+      // El navegador ya NO recibe ni compara contraseñas.
       if(!ctx.val.rpcOk){
-        usuarios.forEach(function(u){
-          if(!found && (u.uid===uid || u.uid===uid.toLowerCase()) && u.pass===pass) found=u;
-        });
+        err.textContent="⚠️ No se pudo validar el acceso. Revisá tu conexión e intentá de nuevo.";
+        return;
       }
+      var found = ctx.val.rpcUser;
       if(!found){ err.textContent="❌ Usuario o contraseña incorrectos"; return; }
+
+      // Guardar el token de empresa (RLS). Viaja en cada request desde ahora.
+      if(found.token){
+        _empToken = found.token;
+        try { localStorage.setItem("dm_emp_token", found.token); } catch(e){}
+      }
 
       // 3. Setear currentUser con datos directos de Supabase
       // El RPC verificar_login no devuelve 'roles', así que lo buscamos en la lista de usuarios.
@@ -5918,7 +5997,6 @@ function doLogin(){
         _sbId:   found.id,
         name:    found.name  || found.uid,
         nom:     found.name  || found.uid,
-        pass:    found.pass,
         role:    found.role  || "vendedor",
         roles:   _rolesUsuario,
         lista:   found.lista || "Clientes",
@@ -5930,7 +6008,7 @@ function doLogin(){
       // 4. Cargar el resto de la empresa
       empresaData = Object.assign({}, emp, { usuarios: {} });
       usuarios.forEach(function(u){
-        empresaData.usuarios[u.id] = {id:u.uid,_sbId:u.id,name:u.name,pass:u.pass,role:u.role,roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),lista:u.lista,catalogo:u.catalogo,direccion:u.direccion||"",tel:u.telefono||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
+        empresaData.usuarios[u.id] = {id:u.uid,_sbId:u.id,name:u.name,role:u.role,roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),lista:u.lista,catalogo:u.catalogo,direccion:u.direccion||"",tel:u.telefono||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
       });
 
       // Limpiar localStorage de datos viejos/pesados antes de guardar
@@ -5971,12 +6049,12 @@ function doLogin(){
       try { localStorage.setItem("coredistri_emp", (emp.codigo||empCod||"").toLowerCase()); } catch(e){}
 
       // Guardar credenciales si "recordarme" está marcado
+      // SEGURIDAD: ya NO se guarda la contraseña en el dispositivo, solo empresa y usuario.
       var remEl = document.getElementById("l-remember");
       if(remEl && remEl.checked){
         localStorage.setItem("dm_creds", JSON.stringify({
           empresa: document.getElementById("l-empresa").value.trim().toLowerCase(),
-          user:    document.getElementById("l-user").value.trim(),
-          pass:    document.getElementById("l-pass").value
+          user:    document.getElementById("l-user").value.trim()
         }));
       } else {
         localStorage.removeItem("dm_creds");
@@ -6454,6 +6532,8 @@ function doLogout(){
   if(!confirm("¿Cerrar sesión?")) return;
   localStorage.removeItem("dm_session");
   localStorage.removeItem("dm_creds");
+  _empToken = null;
+  try { localStorage.removeItem("dm_emp_token"); } catch(e){}
   location.reload();
 }
 // ══════════════ DASHBOARD DEL ADMIN ══════════════
@@ -6595,10 +6675,10 @@ function _cmp(actual, prev, etiq){
 async function _cargarDashData(force){
   if(!_sbEmpId) return;
   // Entregas (hoja de ruta) — liviano, sin items. Fuente de TODO: facturado, cobrado, calle, etc.
-  try { _dashCache.entregas = await sbGet("ruta_clientes","select=nom,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=3000") || (_dashCache.entregas||[]); } catch(e){ if(!_dashCache.entregas)_dashCache.entregas=[]; }
+  try { _dashCache.entregas = await sbGet("ruta_clientes","select=nom,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || (_dashCache.entregas||[]); } catch(e){ if(!_dashCache.entregas)_dashCache.entregas=[]; }
   // Items de la ruta (más pesado) — solo en carga/refresh manual, para Top productos
   if(force || !_dashCache.entItems){
-    try { _dashCache.entItems = await sbGet("ruta_clientes","select=nom,items,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=3000") || []; } catch(e){ if(!_dashCache.entItems)_dashCache.entItems=[]; }
+    try { _dashCache.entItems = await sbGet("ruta_clientes","select=nom,items,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || []; } catch(e){ if(!_dashCache.entItems)_dashCache.entItems=[]; }
   }
   if(force || !_dashCache.zonaCli){
     try {
@@ -16073,11 +16153,10 @@ async function guardarEditCliente() {
       zona_id:updated.zona_id||null, recepciona:updated.rec||"",
       nota:updated.nota||""
     };
-    // Contraseña: solo se manda si escribiste una nueva. Si el campo quedó
-    // vacío y el usuario ya existe, se conserva la contraseña actual (hash).
+    // Contraseña: NO se manda en el PATCH normal (ya no se guarda en texto plano).
+    // Si escribiste una nueva, se hashea aparte vía RPC cambiar_pass_seguro (más abajo).
     var _esExistente = !!(_clientesDB[pushKey] && _clientesDB[pushKey]._sbId);
-    if(pass){ sbPayload.pass = pass; }
-    else if(!_esExistente){ sbPayload.pass = id; }
+    var _passNueva = pass || (!_esExistente ? id : "");  // usuario nuevo sin pass: usa el id
     if(updated.lat) sbPayload.lat = updated.lat;
     if(updated.lng) sbPayload.lng = updated.lng;
 
@@ -16094,6 +16173,10 @@ async function guardarEditCliente() {
     if(_sbEmpId && isUUID){
       try {
         await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, sbPayload);
+        // Contraseña nueva → hashear del lado servidor
+        if(_passNueva){
+          await sbFetch("POST","/rest/v1/rpc/cambiar_pass_seguro",{p_usuario_id:sbId,p_empresa_id:_sbEmpId,p_pass:_passNueva});
+        }
         savedOk = true;
       } catch(sbErr){
         console.error("Supabase PATCH error:", sbErr.message);
@@ -16106,6 +16189,9 @@ async function guardarEditCliente() {
         var existRows = await sbGet("usuarios","select=id&uid=eq."+id+"&empresa_id=eq."+_sbEmpId);
         if(existRows && existRows.length){
           await sbPatch("usuarios","id=eq."+existRows[0].id+"&empresa_id=eq."+_sbEmpId, sbPayload);
+          if(_passNueva){
+            await sbFetch("POST","/rest/v1/rpc/cambiar_pass_seguro",{p_usuario_id:existRows[0].id,p_empresa_id:_sbEmpId,p_pass:_passNueva});
+          }
           savedOk = true;
         }
       } catch(sbErr2){
