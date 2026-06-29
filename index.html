@@ -5045,7 +5045,7 @@ function _urlBase64ToUint8Array(b64){
 // ══ PUSH NATIVO (Capacitor + Firebase FCM) — solo en la app Android/iOS ══
 var _fcmToken = null;
 var _pushListenersSet = false;
-async function _initPushNativo(interactivo){
+async function _initPushNativo(interactivo, forzar){
   try {
     var C = window.Capacitor;
     if(!(C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.PushNotifications)){
@@ -5063,6 +5063,7 @@ async function _initPushNativo(interactivo){
       });
       Push.addListener('registrationError', function(e){
         console.error('[PushNativo] Error de registro:', e);
+        if(interactivo) alert("Error al registrar el token: "+((e&&e.error)||e));
       });
       Push.addListener('pushNotificationReceived', function(n){
         console.log('[PushNativo] Recibida en primer plano:', n);
@@ -5071,6 +5072,13 @@ async function _initPushNativo(interactivo){
     }
     var perm = await Push.requestPermissions();
     if(perm && perm.receive === 'granted'){
+      // Si pedimos forzar (reactivación manual), borramos el token viejo del dispositivo
+      // para que FCM emita uno nuevo en el register() siguiente.
+      if(forzar){
+        try {
+          if(Push.unregister){ await Push.unregister(); console.log('[PushNativo] unregister() OK, forzando token nuevo'); }
+        } catch(eU){ console.warn('[PushNativo] unregister() no disponible:', eU); }
+      }
       await Push.register();
       if(interactivo) showNotif("🔔 Notificaciones activadas","ok");
     } else {
@@ -5444,7 +5452,7 @@ async function _marcarNotifsLeidas(){
 async function activarNotificaciones(){
   // App nativa (Capacitor): usar push de Firebase FCM en vez del push web
   if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()){
-    return _initPushNativo(true);
+    return _initPushNativo(true, true); // 2do true = forzar token nuevo
   }
   var btn = document.getElementById("btn-activar-notif");
   if(!('serviceWorker' in navigator) || !('PushManager' in window)){
@@ -15855,7 +15863,7 @@ async function _compartirPDF(doc, fname, titulo){
 }
 
 // ══ PDF UNIFICADO — FORMATO LA REGIONAL ══
-async function generarPDFDesdeBackup(bk, compartir){
+function generarPDFDesdeBackup(bk, compartir){
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
   var INK=[20,20,20], LINE=[180,180,180], RED=[160,60,0];
   var nom      = bk.clienteNom||bk.cliente_nom||bk.cliente||"Mostrador";
@@ -15866,32 +15874,11 @@ async function generarPDFDesdeBackup(bk, compartir){
   // El título SIEMPRE dice "Remito" (un remito no es un comprobante fiscal oficial),
   // pero el IVA/total se siguen calculando y mostrando si es Factura A.
   var tipoLabel= "Remito";
-  // Número de remito: usar el correlativo guardado. Si NO tiene uno (pedido viejo),
-  // generar uno correlativo real y guardarlo para que sea estable de ahí en más.
-  var _remGuardado = bk._remitoNum || bk.remito_num || "";
-  var remitoNum;
-  if(_remGuardado && /^\d+$/.test(String(_remGuardado).replace(/\D/g,"")) && String(_remGuardado).replace(/\D/g,"")!==""){
-    var _d = String(_remGuardado).replace(/\D/g,"");
-    remitoNum = _d.slice(-5).padStart(5,"0");
-  } else {
-    // No tiene número correlativo: generar uno nuevo y guardarlo en el backup
-    try {
-      var _nuevo = await _nextRemitoNum();
-      if(_nuevo!=null){
-        remitoNum = String(_nuevo).replace(/\D/g,"").slice(-5).padStart(5,"0");
-        bk._remitoNum = _nuevo;
-        // Persistir en Supabase para que no cambie nunca más
-        try {
-          var _sbId = bk._sbId || bk.sb_id || null;
-          if(_sbId && typeof sbPatch==="function"){
-            sbPatch("backup_pedidos","id=eq."+_sbId+"&empresa_id=eq."+_sbEmpId,{remito_num:String(_nuevo)}).catch(function(){});
-          }
-        } catch(_){}
-      } else {
-        remitoNum = "00000";
-      }
-    } catch(e){ remitoNum = "00000"; }
-  }
+  // Número de remito SOLO numérico (sin letras). Si el _remitoNum o id traen
+  // letras (ej. "bk_1736..."), nos quedamos solo con los dígitos.
+  var _remRaw = bk._remitoNum || bk.id || "";
+  var _remDigits = String(_remRaw).replace(/\D/g,"");
+  var remitoNum = _remDigits ? _remDigits.slice(-5).padStart(5,"0") : "00000";
   var hrNum     = bk._hrNum || "";
   var fechaStr  = new Date(bk.fecha||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
 
@@ -16031,14 +16018,9 @@ async function generarPDFDesdeBackup(bk, compartir){
 
   // Calcular todo SIEMPRE desde los items reales (no usar dsc.subtotalLista
   // guardado, que puede estar desactualizado y no coincidir con la tabla).
-  //   i.p   = precio efectivo (con oferta si está aplicada)
-  //   i.ofNormal = precio sin oferta (si tenía oferta)
+  //   i.p   = precio de lista (P. Lista)
   //   i.sub = subtotal con descuento por ítem aplicado
-  // Subtotal lista = precio NORMAL (sin oferta), para que el ahorro se vea.
-  var subtotLista = items.reduce(function(s,i){
-    var pLista = (i.ofNormal && i.ofPrecio && i.ofAplicada) ? i.ofNormal : (i.p||0);
-    return s + pLista*(i.c||1);
-  },0);
+  var subtotLista = items.reduce(function(s,i){ return s+(i.p||0)*(i.c||1); },0);
   var subtotItems = items.reduce(function(s,i){ return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1)); },0);
   subtotLista = Math.round(subtotLista*100)/100;
   subtotItems = Math.round(subtotItems*100)/100;
