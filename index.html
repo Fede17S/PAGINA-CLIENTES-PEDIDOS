@@ -818,14 +818,16 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 .dash-card-ico { font-size:19px; }
 .dash-card-val { font-size:21px; font-weight:800; margin-top:5px; font-variant-numeric:tabular-nums; line-height:1.1; }
 .dash-card-lbl { font-size:11px; color:var(--muted); margin-top:3px; }
+.dash-cmp-pill { display:inline-flex; align-items:center; gap:3px; margin-top:7px; padding:3px 8px; border-radius:7px; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 .dash-grid { display:grid; grid-template-columns:1fr; gap:14px; }
 .dash-block-tit { font-size:13px; font-weight:700; margin-bottom:8px; }
-.dash-pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.dash-pair { display:grid; grid-template-columns:1fr; gap:12px; }
 @media (min-width:880px){
   .dash-wrap { max-width:1180px; padding:22px; }
   .dash-cards { grid-template-columns:repeat(4,1fr); gap:12px; }
   .dash-grid { grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
   .dash-grid .dash-full { grid-column:1 / -1; }
+  .dash-pair { grid-template-columns:1fr 1fr; }
 }
 @media (max-width:560px){
   .dash-wrap { padding:11px; }
@@ -1160,6 +1162,15 @@ select option { background:var(--s2); color:var(--text) }
 }
 .nueva-ruta-btn:hover { background:#000 }
 .nueva-ruta-btn:active { transform:scale(.97) }
+/* Toolbar de filtros de Hoja de Ruta */
+.ruta-toolbar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex:1; }
+@media (max-width:900px){
+  .ruta-toolbar { display:grid; grid-template-columns:1fr 1fr; gap:7px; align-items:stretch; }
+  .ruta-toolbar .ruta-search { grid-column:1 / -1; max-width:none !important; min-width:0 !important; }
+  .ruta-toolbar > select { width:100%; min-width:0; }
+  .ruta-toolbar > .btn-ghost { width:100%; }
+  .ruta-toolbar > .nueva-ruta-btn { grid-column:1 / -1; width:100%; justify-content:center; }
+}
 
 /* ── RESUMEN ── */
 .res-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px }
@@ -2534,6 +2545,126 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 .dia-ent-btn:has(input:checked) { border-color:var(--accent);background:var(--blue-bg);color:var(--accent);font-weight:700 }
 .dia-ent-btn input { display:none }
 
+/* ── Modal de confirmación _confirmar() ── */
+.confirm-ov{
+  display:none; position:fixed; inset:0; z-index:99999;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,.55); backdrop-filter:blur(3px);
+  padding:20px; opacity:0; transition:opacity .18s ease;
+}
+.confirm-ov.show{ opacity:1 }
+.confirm-card{
+  background:var(--s1, var(--bg)); color:var(--text);
+  border:1px solid var(--border); border-radius:16px;
+  box-shadow:var(--shadow-lg);
+  width:100%; max-width:380px; padding:24px 22px 20px;
+  text-align:center;
+  transform:translateY(12px) scale(.97); transition:transform .2s cubic-bezier(.2,.9,.3,1.2);
+}
+.confirm-ov.show .confirm-card{ transform:translateY(0) scale(1) }
+.alerta-card{
+  background:var(--s1, var(--bg)); color:var(--text);
+  border:1px solid var(--border); border-radius:16px;
+  box-shadow:var(--shadow-lg);
+  width:100%; max-width:440px; max-height:80vh; overflow:hidden;
+  display:flex; flex-direction:column;
+  transform:translateY(12px) scale(.97); transition:transform .2s cubic-bezier(.2,.9,.3,1.2);
+}
+.confirm-ov.show .alerta-card{ transform:translateY(0) scale(1) }
+.alerta-head{ display:flex; align-items:center; gap:9px; padding:14px 16px; color:#fff; }
+.alerta-x{ background:rgba(255,255,255,.2); border:none; color:#fff; width:26px; height:26px; border-radius:7px; font-size:13px; cursor:pointer; flex-shrink:0; line-height:1; }
+.alerta-x:hover{ background:rgba(255,255,255,.32); }
+.alerta-body{ overflow-y:auto; padding:4px 0; }
+.alerta-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:11px 16px; border-bottom:1px solid var(--border); font-size:12.5px; }
+.alerta-item:last-child{ border-bottom:none; }
+.alerta-item-izq{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.alerta-item-der{ flex-shrink:0; font-variant-numeric:tabular-nums; }
+.alerta-foot{ padding:12px 16px; border-top:1px solid var(--border); }
+.alerta-go{ width:100%; background:var(--accent); color:#fff; border:none; border-radius:9px; padding:11px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+.alerta-go:hover{ filter:brightness(1.08); }
+.confirm-ico{ font-size:38px; line-height:1; margin-bottom:10px }
+.confirm-titulo{ font-size:17px; font-weight:700; margin-bottom:8px; color:var(--text) }
+.confirm-msg{ font-size:14px; line-height:1.5; color:var(--muted); margin-bottom:20px; white-space:pre-line }
+.confirm-btns{ display:flex; gap:10px }
+.confirm-btns button{
+  flex:1; padding:12px 14px; border-radius:10px;
+  font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;
+  transition:filter .15s, transform .1s; border:1px solid transparent;
+}
+.confirm-btns button:active{ transform:scale(.97) }
+.confirm-btn-cancel{
+  background:var(--s2, transparent); color:var(--text);
+  border:1px solid var(--border);
+}
+.confirm-btn-cancel:hover{ filter:brightness(.95) }
+.confirm-btn-ok{ background:var(--accent); color:#fff }
+.confirm-btn-ok:hover{ filter:brightness(1.08) }
+.confirm-btn-ok.peligro{ background:var(--red) }
+
+/* ── Onboarding ── */
+.onb-ov{
+  display:none; position:fixed; inset:0; z-index:99998;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,.6); backdrop-filter:blur(4px);
+  padding:20px; opacity:0; transition:opacity .2s ease;
+  overflow-y:auto;
+}
+.onb-ov.show{ opacity:1 }
+.onb-card{
+  background:var(--s1, var(--bg)); color:var(--text);
+  border:1px solid var(--border); border-radius:20px;
+  box-shadow:var(--shadow-lg);
+  width:100%; max-width:440px; padding:28px 24px 22px;
+  position:relative; text-align:center;
+  transform:translateY(16px) scale(.96); transition:transform .25s cubic-bezier(.2,.9,.3,1.2);
+  margin:auto;
+}
+.onb-ov.show .onb-card{ transform:translateY(0) scale(1) }
+.onb-x{
+  position:absolute; top:14px; right:14px; width:30px; height:30px;
+  background:var(--s2,transparent); border:1px solid var(--border); border-radius:8px;
+  color:var(--muted); font-size:14px; cursor:pointer; line-height:1;
+}
+.onb-emoji{ font-size:44px; line-height:1; margin-bottom:8px }
+.onb-titulo{ font-size:20px; font-weight:800; margin-bottom:6px; color:var(--text) }
+.onb-sub{ font-size:13.5px; color:var(--muted); margin-bottom:18px; line-height:1.5 }
+.onb-prog{ height:8px; background:var(--s3,var(--border)); border-radius:99px; overflow:hidden; margin-bottom:7px }
+.onb-prog-bar{ height:100%; width:0%; background:var(--accent); border-radius:99px; transition:width .4s cubic-bezier(.2,.9,.3,1.2) }
+.onb-prog-txt{ font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:20px; text-align:right }
+.onb-pasos{ display:flex; flex-direction:column; gap:10px; margin-bottom:18px; text-align:left }
+.onb-paso{
+  display:flex; align-items:center; gap:13px;
+  padding:13px 14px; border:1px solid var(--border); border-radius:13px;
+  background:var(--s2,transparent); cursor:pointer;
+  transition:border-color .15s, transform .1s, background .15s;
+}
+.onb-paso:hover{ border-color:var(--accent); transform:translateY(-1px) }
+.onb-paso:active{ transform:scale(.99) }
+.onb-paso.hecho{ background:var(--green-bg); border-color:var(--green); cursor:default }
+.onb-paso.hecho:hover{ transform:none }
+.onb-paso-num{
+  flex-shrink:0; width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; font-weight:800;
+  background:var(--accent-bg); color:var(--accent); border:2px solid var(--accent);
+}
+.onb-paso.hecho .onb-paso-num{ background:var(--green); color:#fff; border-color:var(--green) }
+.onb-paso-body{ flex:1; min-width:0 }
+.onb-paso-tit{ font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px }
+.onb-paso.hecho .onb-paso-tit{ color:var(--green) }
+.onb-paso-desc{ font-size:12px; color:var(--muted); line-height:1.4 }
+.onb-paso-flecha{ flex-shrink:0; color:var(--muted); font-size:18px }
+.onb-paso.hecho .onb-paso-flecha{ display:none }
+.onb-skip{
+  width:100%; padding:11px; background:transparent; border:none;
+  color:var(--muted); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
+}
+.onb-skip:hover{ color:var(--text) }
+.onb-final{
+  font-size:13.5px; color:var(--green); font-weight:700;
+  padding:14px; background:var(--green-bg); border-radius:12px; margin-bottom:6px;
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -2846,6 +2977,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
       <button id="cuenta-notif-btn" onclick="activarNotificaciones()" style="display:none;width:100%;padding:11px 12px;background:oklch(22% 0.06 240);color:oklch(85% 0.08 240);border:1px solid oklch(35% 0.08 240);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center">🔔 Activar notificaciones</button>
+      <button id="cuenta-onb-btn" onclick="cerrarModal('modal-cuenta');abrirOnboarding();" style="display:none;width:100%;padding:11px 12px;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center">🚀 Primeros pasos</button>
       <button onclick="doLogout()" style="width:100%;padding:11px 12px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center">🚪 Cerrar sesión</button>
     </div>
   </div>
@@ -3083,9 +3215,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <div id="hoja" class="section">
   <div class="ruta-header" style="flex-wrap:wrap;gap:8px">
     <span id="fb-hoja-status" class="fb-pill sync">☁️</span>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1">
+    <div class="ruta-toolbar">
       <!-- Buscador de cliente en rutas -->
-      <div style="position:relative;flex:1;min-width:160px;max-width:260px">
+      <div class="ruta-search" style="position:relative;flex:1;min-width:160px;max-width:260px">
         <input type="text" id="ruta-buscar-cli" placeholder="🔍 Buscar cliente…"
           autocomplete="off" autocorrect="off" oninput="_buscarEnRutas(this.value)"
           style="width:100%;padding:7px 10px 7px 32px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--s2)">
@@ -5045,7 +5177,7 @@ function _urlBase64ToUint8Array(b64){
 // ══ PUSH NATIVO (Capacitor + Firebase FCM) — solo en la app Android/iOS ══
 var _fcmToken = null;
 var _pushListenersSet = false;
-async function _initPushNativo(interactivo, forzar){
+async function _initPushNativo(interactivo){
   try {
     var C = window.Capacitor;
     if(!(C && C.isNativePlatform && C.isNativePlatform() && C.Plugins && C.Plugins.PushNotifications)){
@@ -5063,7 +5195,6 @@ async function _initPushNativo(interactivo, forzar){
       });
       Push.addListener('registrationError', function(e){
         console.error('[PushNativo] Error de registro:', e);
-        if(interactivo) alert("Error al registrar el token: "+((e&&e.error)||e));
       });
       Push.addListener('pushNotificationReceived', function(n){
         console.log('[PushNativo] Recibida en primer plano:', n);
@@ -5072,13 +5203,6 @@ async function _initPushNativo(interactivo, forzar){
     }
     var perm = await Push.requestPermissions();
     if(perm && perm.receive === 'granted'){
-      // Si pedimos forzar (reactivación manual), borramos el token viejo del dispositivo
-      // para que FCM emita uno nuevo en el register() siguiente.
-      if(forzar){
-        try {
-          if(Push.unregister){ await Push.unregister(); console.log('[PushNativo] unregister() OK, forzando token nuevo'); }
-        } catch(eU){ console.warn('[PushNativo] unregister() no disponible:', eU); }
-      }
       await Push.register();
       if(interactivo) showNotif("🔔 Notificaciones activadas","ok");
     } else {
@@ -5452,7 +5576,7 @@ async function _marcarNotifsLeidas(){
 async function activarNotificaciones(){
   // App nativa (Capacitor): usar push de Firebase FCM en vez del push web
   if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()){
-    return _initPushNativo(true, true); // 2do true = forzar token nuevo
+    return _initPushNativo(true);
   }
   var btn = document.getElementById("btn-activar-notif");
   if(!('serviceWorker' in navigator) || !('PushManager' in window)){
@@ -5712,7 +5836,7 @@ function fbDel(path){
 // ── Implementaciones ──
 async function _sbGetAllEmpresas(){
   var [emps, users] = await Promise.all([
-    sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence"),
+    sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,onboarding_done"),
     sbGet("usuarios","select=id,empresa_id,uid,name,role,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng")
   ]);
   if(!emps) return null;
@@ -5940,7 +6064,7 @@ async function _subirFotoStorage(dataURL, nombreBase){
 // Migra todas las fotos base64 existentes a Storage (botón en Mis Productos)
 async function _migrarFotosStorage(){
   if(!_sbEmpId){ showNotif("Sin empresa activa","err"); return; }
-  if(!confirm("Voy a subir a Storage todas las fotos que todavía están como base64 y reemplazarlas por enlaces. Puede tardar un rato según cuántas haya. ¿Seguir?")) return;
+  if(!(await _confirmar({icono:"☁️",titulo:"Subir fotos a Storage",mensaje:"Voy a subir a Storage todas las fotos que todavía están como base64 y reemplazarlas por enlaces. Puede tardar un rato según cuántas haya.",ok:"Seguir"}))) return;
   var btn = document.getElementById("btn-migrar-fotos");
   var txtOrig = btn ? btn.textContent : "";
   try {
@@ -6258,6 +6382,14 @@ async function _sbInsertBackup(data){
       it.ofPrecio = i.ofPrecio;
       it.ofAplicada = !!i.ofAplicada;
     }
+    // Conservar info de promo por cantidad si existe
+    if(i.promoNormal && i.promoPrecio){
+      it.promoNormal = i.promoNormal;
+      it.promoPrecio = i.promoPrecio;
+      it.promoAplicada = !!i.promoAplicada;
+    }
+    // Etiqueta que viene de la tienda online (et: "PROMO" / "OFERTA")
+    if(i.et) it.et = i.et;
     return it;
   });
 
@@ -6287,7 +6419,16 @@ async function _sbInsertBackup(data){
 }
 
 async function _sbGetCC(cliNom){ var rows=await sbGet("cuentas_corrientes","select=saldo&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)); if(!rows||!rows.length)return null; var movs=await sbGet("cc_movimientos","select=*&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom)+"&order=fecha.desc"); return {saldo:rows[0].saldo,movimientos:movs||[]}; }
-async function _sbPatchCC(cliNom,data){ if(data.saldo!==undefined)return sbUpsert("cuentas_corrientes",{empresa_id:_sbEmpId,cliente_nom:cliNom,saldo:data.saldo,updated_at:new Date().toISOString()}); }
+async function _sbPatchCC(cliNom,data){
+  if(data.saldo!==undefined) return sbUpsert("cuentas_corrientes",{empresa_id:_sbEmpId,cliente_nom:cliNom,saldo:data.saldo,updated_at:new Date().toISOString()});
+  // saldo_delta: aplicar un cambio relativo (usado al sincronizar cobros hechos offline)
+  if(data.saldo_delta!==undefined){
+    var rows = await sbGet("cuentas_corrientes","select=saldo&empresa_id=eq."+_sbEmpId+"&cliente_nom=eq."+encodeURIComponent(cliNom));
+    var saldoActual = (rows&&rows[0]&&typeof rows[0].saldo==="number") ? rows[0].saldo : 0;
+    var nuevoSaldo = saldoActual + Number(data.saldo_delta||0);
+    return sbUpsert("cuentas_corrientes",{empresa_id:_sbEmpId,cliente_nom:cliNom,saldo:nuevoSaldo,updated_at:new Date().toISOString()});
+  }
+}
 async function _sbInsertCCMov(cliNom,data){ var rows=await sbPost("cc_movimientos",{empresa_id:_sbEmpId,cliente_nom:cliNom,monto:data.monto||0,forma:data.forma||"",nota:data.nota||"",usuario:(currentUser?currentUser.id:""),fecha:data.fecha||new Date().toISOString()}); return rows&&rows[0]?rows[0].id:null; }
 
 function fbGetCached(p){
@@ -6562,7 +6703,7 @@ function doLogin(){
   err.textContent="🔄 Conectando…";
 
   // 1. Buscar empresa por código en Supabase
-  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin&codigo=eq."+encodeURIComponent(empCod))
+  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin,onboarding_done&codigo=eq."+encodeURIComponent(empCod))
   .then(function(emps){
     if(!emps||!emps.length){ err.textContent="❌ Empresa '"+empCod+"' no encontrada"; return; }
     var emp = emps[0];
@@ -6666,7 +6807,7 @@ function doLogin(){
           localStorage.setItem("dm_session", JSON.stringify({
             empresaKey: emp.id,
             user:       currentUser,
-            empresaData: { id: emp.id, nombre: emp.nombre, codigo: emp.codigo, color: emp.color, plan: emp.plan, estado: emp.estado }
+            empresaData: { id: emp.id, nombre: emp.nombre, codigo: emp.codigo, color: emp.color, plan: emp.plan, estado: emp.estado, onboarding_done: emp.onboarding_done }
           }));
         } catch(e2) { console.warn('Session save failed:', e2); }
       }
@@ -6720,6 +6861,18 @@ function _getEmpDatos(){
 // ══ DISEÑO DEL REMITO ══
 var _pdfConfig = {};
 
+// Calcula la Y donde dibujar el pie del PDF (observaciones/totales). Si el bloque
+// del pie (altoPie en mm) no entra en la página actual, agrega una hoja nueva y
+// devuelve la Y del tope. Así la tabla pagina sola y el pie nunca se corta ni se
+// encima. Si los ítems entran en una hoja, queda todo en una sola.
+function _pdfPieY(doc, gap, altoPie){
+  var fin = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : 0;
+  var y = fin + (gap||4);
+  var h = 297;
+  try { h = doc.internal.pageSize.getHeight ? doc.internal.pageSize.getHeight() : doc.internal.pageSize.height; } catch(e){}
+  if(y + (altoPie||50) > (h - 8)){ doc.addPage(); y = 20; }
+  return y;
+}
 function _getPdfConfig(){
   var cfg = _pdfConfig;
   return {
@@ -6958,7 +7111,7 @@ async function _toggleCupon(id, activar){
 }
 
 async function _borrarCupon(id, codigo){
-  if(!confirm("¿Borrar el cupón "+codigo+"? Esta acción no se puede deshacer.")) return;
+  if(!(await _confirmar({icono:"🎟️",titulo:"Borrar cupón",mensaje:"¿Borrar el cupón "+codigo+"? Esta acción no se puede deshacer.",ok:"Borrar",peligro:true}))) return;
   try {
     await sbDel("cupones","id=eq."+id+"&empresa_id=eq."+_sbEmpId);
     showNotif("Cupón borrado","ok");
@@ -7154,8 +7307,8 @@ function showPlanLocked(plan) {
   showNotif('Esta función no está en tu plan actual', 'err');
 }
 
-function doLogout(){
-  if(!confirm("¿Cerrar sesión?")) return;
+async function doLogout(){
+  if(!(await _confirmar({icono:"🚪",titulo:"Cerrar sesión",mensaje:"¿Querés cerrar la sesión?",ok:"Cerrar sesión"}))) return;
   localStorage.removeItem("dm_session");
   document.documentElement.classList.remove("has-session");
   localStorage.removeItem("dm_creds");
@@ -7295,15 +7448,92 @@ function _descargarBlob(blob){
 }
 function _truncar(s,n){ s=String(s||""); return s.length>n ? s.slice(0,n-1)+"…" : s; }
 
-function _dashCard(ico, valor, label, color){
+function _dashCard(ico, valor, label, color, cmpHtml){
   return '<div class="dash-card">'+
     '<div class="dash-card-ico">'+ico+'</div>'+
     '<div class="dash-card-val" style="color:'+(color||"var(--text)")+'">'+valor+'</div>'+
     '<div class="dash-card-lbl">'+label+'</div>'+
+    (cmpHtml||"")+
   '</div>';
+}
+// Píldora de comparación clara: flecha + % + período anterior con su monto
+function _cmpPill(actual, prev, etiq){
+  if(prev===null||prev===undefined||!etiq) return ""; // sin comparación activa, no mostrar nada
+  var vs = etiq ? ("vs "+etiq) : "vs ant.";
+  if(prev===0){
+    if(actual>0) return '<div class="dash-cmp-pill" style="background:oklch(95% 0.04 155);color:#0a7048">✨ Nuevo · '+vs+'</div>';
+    return "";
+  }
+  var pct=Math.round((actual-prev)/prev*100);
+  var sube=pct>0, igual=pct===0;
+  var col = igual ? "var(--muted)" : (sube ? "#0a7048" : "#b91c1c");
+  var bg  = igual ? "var(--s3)" : (sube ? "oklch(95% 0.04 155)" : "oklch(95% 0.04 25)");
+  var fl  = igual ? "=" : (sube ? "▲" : "▼");
+  return '<div class="dash-cmp-pill" style="background:'+bg+';color:'+col+'">'+
+      fl+' '+(igual?"igual":(Math.abs(pct)+"%"))+
+      '<span style="opacity:.7;font-weight:600"> · '+etiq+': $'+fM(prev)+'</span>'+
+    '</div>';
+}
+
+// ── MODAL DE DETALLE DE ALERTA ──
+function _alertaItemPartes(tipo, x){
+  if(tipo==="riesgo") return {izq:escHtml(x.nom||""), der:'<span style="color:#9a3412;font-weight:700">'+(x.dias||0)+'d</span>'};
+  if(tipo==="sinentregar") return {izq:escHtml(x.nom||""), der:'<span style="color:var(--muted);font-weight:700">$'+fM(x.monto||0)+'</span>'};
+  if(tipo==="calle15") return {izq:escHtml(x.nom||"")+' <span style="color:var(--muted);font-weight:400">\u00b7 '+(x.dias||0)+'d</span>', der:'<span style="color:var(--red);font-weight:700">$'+fM(x.saldo||0)+'</span>'};
+  if(tipo==="stockneg"||tipo==="stockbajo") return {izq:escHtml(x.nom||"")+' <span style="color:var(--muted);font-weight:400">\u00b7 '+escHtml(x.cod||"")+'</span>', der:'<span style="color:'+((x.qty<0)?"var(--red)":"#88571f")+';font-weight:700">'+x.qty+' u.</span>'};
+  return {izq:escHtml(x.nom||""), der:""};
+}
+function _abrirAlertaModal(idx){
+  var a=_dashAlertas[idx];
+  if(!a) return;
+  var ov=document.getElementById("alerta-modal-ov");
+  if(!ov){
+    ov=document.createElement("div");
+    ov.id="alerta-modal-ov";
+    ov.className="confirm-ov";
+    ov.addEventListener("click",function(e){ if(e.target===ov) _cerrarAlertaModal(); });
+    document.body.appendChild(ov);
+  }
+  var secLbl=(typeof TITLES!=="undefined" && TITLES[a.goto]) ? TITLES[a.goto] : a.goto;
+  var items=a.items||[];
+  var listaHtml = items.length ? items.map(function(x){
+    var p=_alertaItemPartes(a.tipo,x);
+    return '<div class="alerta-item">'+
+        '<span class="alerta-item-izq">'+p.izq+'</span>'+
+        (p.der?'<span class="alerta-item-der">'+p.der+'</span>':'')+
+      '</div>';
+  }).join("") : '<div style="text-align:center;padding:18px;color:var(--muted);font-size:12.5px">Sin detalle disponible</div>';
+  ov.innerHTML=
+    '<div class="alerta-card" role="dialog" aria-modal="true">'+
+      '<div class="alerta-head" style="background:'+a.col+'">'+
+        '<span style="font-size:18px">'+a.ico+'</span>'+
+        '<span style="flex:1;font-weight:800;font-size:13.5px;line-height:1.3">'+a.txt+'</span>'+
+        '<button class="alerta-x" onclick="_cerrarAlertaModal()" aria-label="Cerrar">\u2715</button>'+
+      '</div>'+
+      '<div class="alerta-body">'+listaHtml+'</div>'+
+      '<div class="alerta-foot">'+
+        '<button class="alerta-go" onclick="_irDesdeAlerta(\''+a.goto+'\')">Ver todo en '+escHtml(secLbl)+' \u2192</button>'+
+      '</div>'+
+    '</div>';
+  ov.style.display="flex";
+  requestAnimationFrame(function(){ ov.classList.add("show"); });
+}
+function _cerrarAlertaModal(){
+  var ov=document.getElementById("alerta-modal-ov");
+  if(!ov) return;
+  ov.classList.remove("show");
+  setTimeout(function(){ ov.style.display="none"; }, 180);
+}
+function _irDesdeAlerta(goto){
+  _cerrarAlertaModal();
+  setTimeout(function(){
+    var nav=document.getElementById("nav-"+goto);
+    if(typeof verTab==="function") verTab(goto, nav);
+  }, 120);
 }
 
 var _dashFiltro = { gran:"mes", ref:Date.now(), zona:"", cmpOn:false, cmpRef:null };
+var _dashAlertas = []; // alertas actuales del dashboard, con sus ítems detallados (para el modal)
 var _dashCache  = { entregas:null, pedidos:null, zonaCli:null };
 
 function _ymd(ts){ var d=new Date(ts); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -7561,36 +7791,41 @@ function _dashRender(){
 
   var alertas=[];
   var calle15=bcn.d15+bcn.d30;
-  if(calle15>0) alertas.push({ico:"\uD83D\uDD34",txt:calle15+" entrega"+(calle15!==1?"s":"")+" sin cobrar hace +15 d\u00edas",col:"#7f1d1d",goto:"hoja"});
-  var sinEnt2=sinEntregar.filter(function(x){return x.fecha && (ahora-new Date(x.fecha).getTime())>2*86400000;}).length;
-  if(sinEnt2>0) alertas.push({ico:"\uD83D\uDFE0",txt:sinEnt2+" pedido"+(sinEnt2!==1?"s":"")+" sin entregar hace +2 d\u00edas",col:"#9a3412",goto:"hoja"});
-  if(riesgo.length>0) alertas.push({ico:"\u26A0\uFE0F",txt:riesgo.length+" cliente"+(riesgo.length!==1?"s":"")+" dejaron de comprar",col:"#854d0e",goto:"clientes"});
+  if(calle15>0){
+    var calle15List=(sinCobrar||[]).filter(function(x){return (x.dias||0)>15;});
+    alertas.push({tipo:"calle15",ico:"\uD83D\uDD34",txt:calle15+" entrega"+(calle15!==1?"s":"")+" sin cobrar hace +15 d\u00edas",col:"#7f1d1d",goto:"hoja",items:calle15List});
+  }
+  var sinEnt2List=sinEntregar.filter(function(x){return x.fecha && (ahora-new Date(x.fecha).getTime())>2*86400000;});
+  if(sinEnt2List.length>0) alertas.push({tipo:"sinentregar",ico:"\uD83D\uDFE0",txt:sinEnt2List.length+" pedido"+(sinEnt2List.length!==1?"s":"")+" sin entregar hace +2 d\u00edas",col:"#9a3412",goto:"hoja",items:sinEnt2List});
+  if(riesgo.length>0) alertas.push({tipo:"riesgo",ico:"\u26A0\uFE0F",txt:riesgo.length+" cliente"+(riesgo.length!==1?"s":"")+" dejaron de comprar",col:"#854d0e",goto:"clientes",items:riesgo});
 
   // Alerta de stock: productos bajo umbral y/o en negativo
   try {
-    var stkBajo=0, stkNeg=0;
+    var stkBajoList=[], stkNegList=[];
     Object.keys(stockData||{}).forEach(function(cod){
       var qty = stockData[cod];
       if(typeof qty!=="number") return;
       var umb = (typeof stkUmbral==="function") ? stkUmbral(cod) : 5;
-      if(qty < 0) stkNeg++;
-      else if(qty <= umb) stkBajo++;
+      var prod = (dbStock||[]).find(function(p){return p.id===cod;});
+      var nom = prod ? prod.n : cod;
+      if(qty < 0) stkNegList.push({cod:cod,nom:nom,qty:qty});
+      else if(qty <= umb) stkBajoList.push({cod:cod,nom:nom,qty:qty});
     });
-    if(stkNeg>0) alertas.push({ico:"\uD83D\uDD3B",txt:stkNeg+" producto"+(stkNeg!==1?"s":"")+" en stock negativo",col:"#7f1d1d",goto:"stock"});
-    if(stkBajo>0) alertas.push({ico:"\uD83D\uDCE6",txt:stkBajo+" producto"+(stkBajo!==1?"s":"")+" con stock bajo",col:"#88571f",goto:"stock"});
+    if(stkNegList.length>0) alertas.push({tipo:"stockneg",ico:"\uD83D\uDD3B",txt:stkNegList.length+" producto"+(stkNegList.length!==1?"s":"")+" en stock negativo",col:"#7f1d1d",goto:"stock",items:stkNegList});
+    if(stkBajoList.length>0) alertas.push({tipo:"stockbajo",ico:"\uD83D\uDCE6",txt:stkBajoList.length+" producto"+(stkBajoList.length!==1?"s":"")+" con stock bajo",col:"#88571f",goto:"stock",items:stkBajoList});
   } catch(e){}
 
+  _dashAlertas = alertas;
   var elA=document.getElementById("dash-alertas");
-  if(elA) elA.innerHTML = alertas.length ? alertas.map(function(a){
-    var clickable = a.goto ? ' onclick="verTab(\''+a.goto+'\', document.getElementById(\'nav-'+a.goto+'\'))" style="cursor:pointer;display:flex;gap:8px;align-items:center;background:'+a.col+';color:#fff;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:600;margin-bottom:6px;transition:filter .15s,transform .1s" onmouseover="this.style.filter=\'brightness(1.12)\'" onmouseout="this.style.filter=\'none\'" onmousedown="this.style.transform=\'scale(.99)\'" onmouseup="this.style.transform=\'none\'"' : ' style="display:flex;gap:8px;align-items:center;background:'+a.col+';color:#fff;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:600;margin-bottom:6px"';
-    return '<div'+clickable+'>'+a.ico+' <span>'+a.txt+'</span>'+(a.goto?'<span style="margin-left:auto;opacity:.7;font-size:14px">\u203A</span>':'')+'</div>';
+  if(elA) elA.innerHTML = alertas.length ? alertas.map(function(a,idx){
+    return '<div onclick="_abrirAlertaModal('+idx+')" style="cursor:pointer;display:flex;gap:8px;align-items:center;background:'+a.col+';color:#fff;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:600;margin-bottom:6px;transition:filter .15s,transform .1s" onmouseover="this.style.filter=\'brightness(1.12)\'" onmouseout="this.style.filter=\'none\'" onmousedown="this.style.transform=\'scale(.99)\'" onmouseup="this.style.transform=\'none\'">'+a.ico+' <span>'+a.txt+'</span><span style="margin-left:auto;opacity:.7;font-size:14px">\u203A</span></div>';
   }).join("") : "";
 
   var cards=document.getElementById("dash-cards");
   if(cards){
     cards.innerHTML =
-      _dashCard("\uD83D\uDCB5","$"+fM(facturado),"facturado"+_cmp(facturado,facturadoPrev,cmpEtiq),"var(--text)") +
-      _dashCard("\uD83D\uDCB5","$"+fM(cobrado),"cobrado \u00b7 "+entregasN+" entrega"+(entregasN!==1?"s":"")+(cmpEtiq?_cmp(cobrado,cobradoPrev,cmpEtiq):""),"#0a7048") +
+      _dashCard("\uD83D\uDCB5","$"+fM(facturado),"facturado","var(--text)", _cmpPill(facturado,facturadoPrev,cmpEtiq)) +
+      _dashCard("\uD83D\uDCB5","$"+fM(cobrado),"cobrado \u00b7 "+entregasN+" entrega"+(entregasN!==1?"s":""),"#0a7048", cmpEtiq?_cmpPill(cobrado,cobradoPrev,cmpEtiq):"") +
       _dashCard("\uD83D\uDCB0","$"+fM(totalCalle),sinCobrar.length+" en la calle","var(--red)") +
       _dashCard("\uD83D\uDE9A",sinEntregar.length,"sin entregar"+(sinEntMonto?(" \u00b7 $"+fM(sinEntMonto)):""),sinEntregar.length?"#88571f":"#0a7048");
   }
@@ -7653,6 +7888,8 @@ function iniciarApp(){
   }, 1500);
   // Solo admin: chequear vencimiento de suscripción
   if(currentUser && currentUser.role==="admin") setTimeout(_checkSubVencimiento, 3000);
+  // Onboarding para distribuidoras nuevas (solo admin, empresa sin productos)
+  if(typeof _onbCheckAutoShow==="function") setTimeout(_onbCheckAutoShow, 2000);
 }
 
 function _checkSubVencimiento(){
@@ -7976,6 +8213,11 @@ function _abrirMenuCuenta(){
   var menuNotif = document.getElementById("cuenta-notif-btn");
   if(origNotif && menuNotif){
     menuNotif.style.display = (origNotif.style.display!=="none") ? "block" : "none";
+  }
+  // Botón "Primeros pasos": solo para admin
+  var onbBtn = document.getElementById("cuenta-onb-btn");
+  if(onbBtn){
+    onbBtn.style.display = (currentUser && currentUser.role==="admin") ? "block" : "none";
   }
   abrirModal("modal-cuenta");
 }
@@ -8926,10 +9168,10 @@ function _agregarFrecuente(btn){
   }
 }
 
-function limpiarCliente(t, noFocus){
+async function limpiarCliente(t, noFocus){
   // Al cambiar de cliente, el pedido ya no corresponde (otra lista de precios): vaciarlo
   if((ordenes[t]||[]).length>0){
-    if(!confirm("Tenés "+ordenes[t].length+" producto(s) cargados. Si cambiás de cliente se vacía el pedido.\n\n¿Querés continuar?")) return;
+    if(!(await _confirmar({icono:"⚠️",titulo:"Vaciar pedido",mensaje:"Tenés "+ordenes[t].length+" producto(s) cargados. Si cambiás de cliente se vacía el pedido.",ok:"Continuar",peligro:true}))) return;
     ordenes[t]=[];
     dscGen[t]=null;
     if(typeof _itemDscOpen!=="undefined") _itemDscOpen[t]=-1;
@@ -9177,29 +9419,32 @@ function filtrar(t){
       if(qty!==undefined){
         stkHtml='<span class="'+ddStkClass(p.id,qty)+'">'+stkBadgeLabel(qty)+'</span>';
       }
-      var promoHtml = (p.precioPromo && p.cantPromo)
+      var _ofVig = _ofVigente(p);
+      var _ofPV = _ofVig ? _ofPrecioLista(p, lista) : null;
+      var _tieneOf = _ofPV && _ofPV < pre;
+      var ofHtml = _tieneOf
+        ? '<span style="font-size:10px;background:oklch(93% 0.05 25);color:oklch(48% 0.16 25);padding:1px 6px;border-radius:10px;margin-left:4px;font-weight:700">🔥 OFERTA $'+fM(_ofPV)+'</span>'
+        : '';
+      var promoHtml = (!_tieneOf && p.precioPromo && p.cantPromo)
         ? '<span style="font-size:10px;background:oklch(93% 0.06 35);color:oklch(40% 0.12 35);padding:1px 6px;border-radius:10px;margin-left:4px;font-weight:700">🏷️ $'+fM(p.precioPromo)+' x'+p.cantPromo+'</span>'
         : '';
       var div=document.createElement("div");
       div.className="dd-item";
       div.innerHTML='<span class="dd-code">'+p.id+'</span>'+
-        '<span class="dd-name">'+p.n+(p.padre?'<span class="dd-grupo"> · '+p.padre+'</span>':'')+promoHtml+'</span>'+
+        '<span class="dd-name">'+p.n+(p.padre?'<span class="dd-grupo"> · '+p.padre+'</span>':'')+ofHtml+promoHtml+'</span>'+
         stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
       function _selProduct(usePromo){
         var precioFinal = (usePromo && p.precioPromo) ? p.precioPromo : pre;
         itemSel[t]=Object.assign({},p,{pre:precioFinal});
-        document.getElementById("bus-"+t).value=p.n+(usePromo?' [PROMO]':'');
+        document.getElementById("bus-"+t).value=p.n;
         box.classList.remove("open");
         box.innerHTML="";
         var cantInp=document.getElementById("cant-"+t);
         if(cantInp){ cantInp.focus(); cantInp.select(); }
-        // Mostrar/ocultar botón promo
+        // El precio promo ahora se aplica automáticamente en agregar() según la cantidad,
+        // con confirmación. Ya no se usa el botón manual.
         var promoBtnEl=document.getElementById("promo-btn-"+t);
         if(promoBtnEl) promoBtnEl.style.display="none";
-        // Si el producto tiene promo, mostrar el botón toggle
-        if(p.precioPromo && p.cantPromo && !usePromo){
-          _mostrarPromoBtn(t, p, pre);
-        }
       }
       var _touchStartY = 0;
       div.addEventListener("touchstart", function(e){
@@ -9336,15 +9581,18 @@ function _pgRender(){
     var qty=_pgQtyDe(p.id);
     var ofVig = _ofVigente(p);
     var ofPre = ofVig ? _ofPrecioLista(p, lista) : null;
+    var _tieneOf = ofVig && ofPre<pre;
+    var _tienePromo = !_tieneOf && p.precioPromo && p.cantPromo;
     var foto2=p.foto?'<img class="pg-foto" src="'+p.foto+'" loading="lazy" onerror="this.outerHTML=&quot;<div class=pg-foto-ph>📦</div>&quot;">':'<div class="pg-foto-ph">📦</div>';
     var stepper = qty>0
       ? '<div class="pg-step"><button onclick="_pgDelta(\''+p.id+'\',-1,event)">−</button><span>'+qty+'</span><button onclick="_pgDelta(\''+p.id+'\',1,event)">+</button></div>'
       : '<button class="pg-add" onclick="_pgDelta(\''+p.id+'\',1,event)">+ Agregar</button>';
-    var precioHtml = (ofVig && ofPre<pre)
+    var precioHtml = _tieneOf
       ? '<div class="pg-price"><span style="text-decoration:line-through;color:var(--muted);font-size:11px">$'+fM(pre)+'</span> <b style="color:#d9402b">$'+fM(ofPre)+'</b></div>'
-      : '<div class="pg-price">$'+fM(pre)+'</div>';
+      : '<div class="pg-price">$'+fM(pre)+'</div>'+(_tienePromo?'<div style="font-size:9.5px;color:oklch(50% 0.13 150);font-weight:700;margin-top:1px">🏷️ $'+fM(p.precioPromo)+' x'+p.cantPromo+'+</div>':'');
     return '<div class="pg-card'+(qty>0?' on':'')+'">'+
-      (ofVig?'<div style="position:absolute;top:5px;left:5px;z-index:2;background:#d9402b;color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">🔥 OFERTA</div>':'')+
+      (_tieneOf?'<div style="position:absolute;top:5px;left:5px;z-index:2;background:#d9402b;color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">🔥 OFERTA</div>':
+       (_tienePromo?'<div style="position:absolute;top:5px;left:5px;z-index:2;background:oklch(52% 0.13 150);color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">🏷️ PROMO</div>':''))+
       foto2+
       '<div class="pg-info"><div class="pg-nom">'+(p.n||"")+'</div>'+precioHtml+'</div>'+
       stepper+
@@ -9396,18 +9644,25 @@ function _pgDelta(id, d, e){
   var preNormal=_precioDe(p,lista);
   var ofPre = _ofPrecioLista(p, lista); // precio de oferta si vigente
   var tieneOf = ofPre && ofPre<preNormal;
-  // Precio efectivo: oferta aplicada por defecto (el vendedor puede cancelar)
-  var pre = tieneOf ? ofPre : preNormal;
-  var exist=(ordenes['ped']||[]).find(function(x){return x.id===p.id && x.p===pre;});
+  // Consolidar por producto (id), para evaluar la promo sobre la cantidad total
+  var exist=(ordenes['ped']||[]).find(function(x){return x.id===p.id;});
   if(d>0){
-    if(exist){ exist.c+=1; _cartRecalcSub(exist); }
+    if(exist){ exist.c+=1; }
     else {
-      var item = {id:p.id,n:p.n,p:pre,c:1,sub:pre};
-      if(tieneOf){ item.ofPrecio=ofPre; item.ofNormal=preNormal; item.ofAplicada=true; } // oferta aplicada por defecto
-      ordenes['ped'].push(item);
+      var pre = tieneOf ? ofPre : preNormal;
+      exist = {id:p.id,n:p.n,p:pre,c:1,sub:pre};
+      if(tieneOf){ exist.ofPrecio=ofPre; exist.ofNormal=preNormal; exist.ofAplicada=true; } // oferta aplicada por defecto
+      ordenes['ped'].push(exist);
     }
+    var _activo=_recalcPromoVigente(exist);
+    _cartRecalcSub(exist);
+    if(_activo) showNotif("🏷️ Precio promo aplicado: $"+fM(exist.p)+" c/u","ok");
   } else {
-    if(exist){ exist.c-=1; if(exist.c<=0){ ordenes['ped']=ordenes['ped'].filter(function(x){return x!==exist;}); } else _cartRecalcSub(exist); }
+    if(exist){
+      exist.c-=1;
+      if(exist.c<=0){ ordenes['ped']=ordenes['ped'].filter(function(x){return x!==exist;}); }
+      else { _recalcPromoVigente(exist); _cartRecalcSub(exist); }
+    }
   }
   renderItems('ped');
   _pgRender();
@@ -9594,6 +9849,28 @@ function _cartQuitarDsc(){
   _updateFloatFromCalc();
 }
 var _cartDscOpen = -1;
+// Aplica/saca la promo por cantidad a un item del pedido según su cantidad actual.
+// Respeta la oferta (si está aplicada, no toca nada). Devuelve true si RECIÉN se activó.
+function _recalcPromoVigente(it){
+  if(!it || it.ofAplicada) return false;           // la oferta tiene prioridad
+  var p=(dbStock||[]).find(function(x){return x.id===it.id;});
+  if(!p) return false;
+  var _pp=p.precioPromo, _cp=p.cantPromo;
+  if(!_pp || !_cp) return false;                    // sin promo configurada
+  var lista=tipoLista['ped']||"Clientes";
+  var preNormal=_precioDe(p,lista);
+  var aplica=(it.c||0)>=_cp;
+  var antes=!!it.promoAplicada;
+  if(aplica && !antes){
+    it.p=_pp; it.promoPrecio=_pp; it.promoNormal=preNormal; it.promoAplicada=true;
+    return true;
+  } else if(!aplica && antes){
+    it.p=preNormal; it.promoAplicada=false; delete it.promoPrecio; delete it.promoNormal;
+  } else if(aplica && antes){
+    it.p=_pp;                                        // mantener promo
+  }
+  return false;
+}
 function _cartRecalcSub(it){
   var base=(it.p||0)*(it.c||0);
   if(it.disc && it.disc.valor>0){
@@ -9637,7 +9914,11 @@ function _cartDelta(i,d){
   if(!it) return;
   it.c+=d;
   if(it.c<=0){ ordenes['ped'].splice(i,1); if(_cartDscOpen===i) _cartDscOpen=-1; }
-  else { _cartRecalcSub(it); }
+  else {
+    var _activo=_recalcPromoVigente(it);
+    _cartRecalcSub(it);
+    if(_activo) showNotif("🏷️ Precio promo aplicado: $"+fM(it.p)+" c/u","ok");
+  }
   renderItems('ped');
   _renderCartModal();
   _pgRender();
@@ -9654,7 +9935,7 @@ function _updateFloatFromCalc(){
   _updatePedFloatSummary(ordenes['ped'], c.total);
 }
 
-function agregar(t){
+async function agregar(t){
   var cant=parseFloat(document.getElementById("cant-"+t).value)||1;
   if(!itemSel[t]) return;
   // Oferta (solo en pedido): aplicar automáticamente si el producto tiene oferta vigente
@@ -9667,12 +9948,39 @@ function agregar(t){
       if(_op && _op<itemSel[t].pre){ _ofN=itemSel[t].pre; _ofP=_op; }
     }
   }
-  var _preEf = _ofP || itemSel[t].pre;
-  var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id&&x.p===_preEf;});
-  if(exist){ exist.c+=cant; exist.sub=exist.p*exist.c; }
-  else {
+  var _pp=itemSel[t].precioPromo, _cp=itemSel[t].cantPromo;
+  var _precioNormal=itemSel[t].pre;
+  // Consolidar por producto: ver si ya está en el pedido para sumar la cantidad total
+  var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id;});
+  var cantTotal=cant + (exist?exist.c:0);
+  // Promo por cantidad: si no hay oferta, hay promo y la cantidad TOTAL alcanza el mínimo,
+  // preguntar si aplicar el precio promo (la oferta tiene prioridad).
+  var usarPromo=false;
+  if(!_ofP && _pp && _cp && cantTotal>=_cp){
+    if(exist && exist.promoAplicada){ usarPromo=true; }
+    else {
+      var _ok=await _confirmar({
+        icono:"🏷️",
+        titulo:"Aplicar precio promo",
+        mensaje:'Vas a quedar con '+cantTotal+' u. de "'+itemSel[t].n+'", que tiene precio promo de $'+fM(_pp)+' c/u (desde '+_cp+' u.). ¿Aplicar el promo en vez de $'+fM(_precioNormal)+'?',
+        ok:"Aplicar promo", cancelar:"Dejar precio normal"
+      });
+      if(_ok) usarPromo=true;
+    }
+  }
+  // Precio efectivo: oferta > promo > normal
+  var _preEf = _ofP ? _ofP : (usarPromo ? _pp : _precioNormal);
+  if(exist){
+    exist.c=cantTotal;
+    exist.p=_preEf;
+    exist.sub=_preEf*cantTotal;
+    if(_ofP){ exist.ofPrecio=_ofP; exist.ofNormal=_ofN; exist.ofAplicada=true; exist.promoAplicada=false; }
+    else if(usarPromo){ exist.promoPrecio=_pp; exist.promoNormal=_precioNormal; exist.promoAplicada=true; exist.ofAplicada=false; }
+    else { exist.ofAplicada=false; exist.promoAplicada=false; }
+  } else {
     var _it={id:itemSel[t].id,n:itemSel[t].n,p:_preEf,c:cant,sub:_preEf*cant};
     if(_ofP){ _it.ofPrecio=_ofP; _it.ofNormal=_ofN; _it.ofAplicada=true; }
+    else if(usarPromo){ _it.promoPrecio=_pp; _it.promoNormal=_precioNormal; _it.promoAplicada=true; }
     ordenes[t].push(_it);
   }
   renderItems(t);
@@ -9778,7 +10086,10 @@ function renderItems(t){
         'oninput="editarCantItem(this)" '+
         'onfocus="this.select()" '+
         'style="width:48px;text-align:center;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:7px;padding:4px 6px;background:var(--s2);font-family:inherit;-moz-appearance:textfield">'+
-      '<span class="item-name">'+it.n+'</span>'+
+      '<span class="item-name">'+it.n+
+        (it.ofAplicada ? ' <span style="font-size:9px;font-weight:800;background:oklch(58% 0.13 25);color:#fff;padding:1px 5px;border-radius:8px;vertical-align:middle;white-space:nowrap">🔥 OFERTA</span>' : '')+
+        (it.promoAplicada ? ' <span style="font-size:9px;font-weight:800;background:oklch(52% 0.13 150);color:#fff;padding:1px 5px;border-radius:8px;vertical-align:middle;white-space:nowrap">🏷️ PROMO</span>' : '')+
+      '</span>'+
       stkBadge+
       '<span class="item-sub">'+
         (hasDsc ? '<span class="rem-item-precio-orig">$'+fM(subBase)+'</span> $'+fM(it.sub) : '$'+fM(it.sub))+
@@ -10121,28 +10432,30 @@ async function generarPDF(m){
 
   // Determinar si hay descuentos por ítem
   var tieneDescItemos = ordenes[t].some(function(i){ return i.disc && i.disc.valor>0; });
+  var hayOfPromo = ordenes[t].some(function(i){ return (i.ofAplicada&&i.ofNormal&&i.ofPrecio) || (i.promoAplicada&&i.promoNormal&&i.promoPrecio); });
   var head, body;
 
-  if(tieneDescItemos || hayDescuentos){
+  if(tieneDescItemos || hayDescuentos || hayOfPromo){
     // Tabla completa con columna de descuento
     head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
     body=ordenes[t].map(function(i){
       var hasDsc=i.disc&&i.disc.valor>0;
       var tieneOf=i.ofNormal&&i.ofPrecio&&i.ofAplicada;
-      var precioLista=tieneOf?i.ofNormal:i.p; // si hay oferta, lista = precio normal
+      var tienePromo=i.promoNormal&&i.promoPrecio&&i.promoAplicada;
+      var precioLista=tieneOf?i.ofNormal:(tienePromo?i.promoNormal:i.p); // precio "antes" si hay oferta/promo
       var dscLabel;
       if(tieneOf){ var ofD=Math.round((1-i.ofPrecio/i.ofNormal)*100); dscLabel="OFERTA -"+ofD+"%"; }
+      else if(tienePromo){ var prD=Math.round((1-i.promoPrecio/i.promoNormal)*100); dscLabel="PROMO -"+prD+"%"; }
       else if(hasDsc){ dscLabel=(i.disc.tipo==="%"?"-"+i.disc.valor+"%":"-$"+fM(i.disc.valor)); }
       else { dscLabel=""; }
       var precioFinal=Math.round(i.sub/i.c*100)/100;
-      return[i.n, i.c, "$"+fM(precioLista), dscLabel||"—", (hasDsc||tieneOf)?"$"+fM(precioFinal):"—", "$"+fM(i.sub)];
+      return[i.n, i.c, "$"+fM(precioLista), dscLabel||"—", (hasDsc||tieneOf||tienePromo)?"$"+fM(precioFinal):"—", "$"+fM(i.sub)];
     });
     var minRows2; (function(){
       var _rowH=7.4, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=72;
       var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9) / _rowH));
       minRows2=(ordenes[t].length <= _maxFit) ? _maxFit : 0;
     })();
-    while(body.length < minRows2) body.push(["","","","","",""]);
     doc.autoTable({
       startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
       headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
@@ -10150,8 +10463,8 @@ async function generarPDF(m){
       alternateRowStyles:{fillColor:[255,255,255]},
       columnStyles:{0:{cellWidth:70},1:{halign:"center",cellWidth:14},2:{halign:"right",cellWidth:24},3:{halign:"center",cellWidth:24},4:{halign:"right",cellWidth:22},5:{halign:"right",cellWidth:26}},
       didParseCell:function(d){
-        if(d.section==="body"&&d.column.index===3&&d.cell.raw&&(d.cell.raw.toString().indexOf("-")===0||d.cell.raw.toString().indexOf("OFERTA")!==-1)){
-          d.cell.styles.textColor=[180,60,0]; d.cell.styles.fontStyle="bold"; if(d.cell.raw.toString().indexOf("OFERTA")!==-1) d.cell.styles.fontSize=8.5;
+        if(d.section==="body"&&d.column.index===3&&d.cell.raw&&(d.cell.raw.toString().indexOf("-")===0||d.cell.raw.toString().indexOf("OFERTA")!==-1||d.cell.raw.toString().indexOf("PROMO")!==-1)){
+          d.cell.styles.textColor=[180,60,0]; d.cell.styles.fontStyle="bold"; if(d.cell.raw.toString().indexOf("OFERTA")!==-1||d.cell.raw.toString().indexOf("PROMO")!==-1) d.cell.styles.fontSize=8.5;
         }
       }
     });
@@ -10159,12 +10472,6 @@ async function generarPDF(m){
     // Tabla simple sin descuentos
     head=[["Descripción","Cant.","Precio","Subtotal"]];
     body=ordenes[t].map(function(i){ return[i.n, i.c, "$"+fM(i.p), "$"+fM(i.sub)]; });
-    var minRows3; (function(){
-      var _rowH=7.4, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=50;
-      var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9) / _rowH));
-      minRows3=(ordenes[t].length <= _maxFit) ? _maxFit : 0;
-    })();
-    while(body.length < minRows3) body.push(["","","",""]);
     doc.autoTable({
       startY:CY+2, margin:{left:10,right:10}, head:head, body:body, theme:"grid",
       headStyles:{fontStyle:"bold",fontSize:9,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:3,right:3}},
@@ -10175,7 +10482,12 @@ async function generarPDF(m){
   }
 
   // ── PIE: Observaciones + Totales ──
-  var yP=doc.lastAutoTable.finalY+4;
+  // Calcular alto del pie para decidir si entra en la página o pasa a otra hoja
+  var _filasTot=1; // total final
+  if(hayDescuentos){ _filasTot++; if(ahorroItems>0)_filasTot++; if(montoDscGen>0)_filasTot++; }
+  if(esFactura) _filasTot++;
+  var _altoPie=Math.max(showObs?29:0, 7+(_filasTot-1)*7+11)+4;
+  var yP=_pdfPieY(doc,4,_altoPie);
 
   // Observaciones (izquierda)
   if(showObs){
@@ -10609,8 +10921,8 @@ function _guardarProveedor(){
     cargarProveedores();
   }).catch(function(){ showNotif("Error al guardar","err"); });
 }
-function _eliminarProveedor(id){
-  if(!confirm("¿Eliminar este proveedor y todos sus movimientos?")) return;
+async function _eliminarProveedor(id){
+  if(!(await _confirmar({icono:"🗑️",titulo:"Eliminar proveedor",mensaje:"Se va a eliminar este proveedor y todos sus movimientos. No se puede deshacer.",ok:"Eliminar",peligro:true}))) return;
   _sbDelProveedor(id).then(function(){
     showNotif("Proveedor eliminado","ok");
     cerrarModal("modal-proveedor");
@@ -10676,8 +10988,8 @@ function _provRegistrar(tipo){
     cargarProveedores();
   }).catch(function(){ showNotif("Error al registrar","err"); });
 }
-function _borrarMovProv(id){
-  if(!confirm("¿Borrar este movimiento?")) return;
+async function _borrarMovProv(id){
+  if(!(await _confirmar({icono:"🗑️",titulo:"Borrar movimiento",mensaje:"¿Borrar este movimiento?",ok:"Borrar",peligro:true}))) return;
   _sbDelProvMov(id).then(function(){
     if(_provCuentaActual) _abrirCuentaProveedor(_provCuentaActual.id);
     cargarProveedores();
@@ -11503,7 +11815,7 @@ async function imprimirPedidosDeRuta(rk){
   if(!ruta){ showNotif("Ruta no encontrada","err"); return; }
   var clientes = Object.entries(ruta.clientes||{});
   if(!clientes.length){ showNotif("No hay pedidos en esta ruta","err"); return; }
-  if(!confirm("¿Generar un PDF con los "+clientes.length+" pedidos de esta ruta?")) return;
+  if(!(await _confirmar({icono:"🖨️",titulo:"Generar PDF",mensaje:"¿Generar un PDF con los "+clientes.length+" pedidos de esta ruta?",ok:"Generar"}))) return;
 
   var hrNum = ruta.hrNum || ruta.nombre || rk.slice(-6);
   var jsPDF = window.jspdf.jsPDF;
@@ -11606,13 +11918,8 @@ async function imprimirPedidosDeRuta(rk){
       var pF=(hasDsc||tieneOf)?Math.round(sub/(i.c||1)*100)/100:(i.p||0);
       return[i.n||"",i.c||1,"$"+fM(pL),dscLbl,"$"+fM(pF),"$"+fM(sub)];
     });
-    // ── Relleno con tope: nunca empujar los totales a otra hoja ──
-    (function(){
-      var _rowH=7.4, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=72;
-      var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9) / _rowH));
-      var _target=(items.length <= _maxFit) ? _maxFit : 0;
-      while(body.length < _target) body.push(["","","","","",""]);
-    })();
+    // Sin relleno de filas vacías: la tabla termina donde terminan los ítems y el
+    // pie va justo debajo (o salta de hoja si no entra). Evita páginas semivacías.
     doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
       headStyles:{fontStyle:"bold",fontSize:8,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
       bodyStyles:{fontSize:8.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3,bottom:2,left:2,right:2},minCellHeight:7},
@@ -11622,7 +11929,7 @@ async function imprimirPedidosDeRuta(rk){
     });
 
     // ── Pie: Obs + Totales (mismo layout que generarPDFDesdeBackup) ──
-    var yP=doc.lastAutoTable.finalY+4;
+    var yP=_pdfPieY(doc,4,50);
     var dsc=cli.descuentos||{};
     var total=cli.importe||0;
     var totalDsc=dsc.ahorroTotal||0;
@@ -11707,7 +12014,7 @@ async function crearNuevaRuta(){
     .then(function(key){ rutasData[key]=nv; rutaAbierta=key; renderRutas(); })
     .catch(function(){ alert("Error al crear ruta."); });
 }
-function borrarRuta(rk){ if(!confirm("¿Borrar esta hoja de ruta completa?"))return; fbDel("empresas/"+empresaKey+"/rutas/"+rk).then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();}).catch(function(){alert("Error al borrar.");}); }
+async function borrarRuta(rk){ if(!(await _confirmar({icono:"🗑️",titulo:"Borrar hoja de ruta",mensaje:"Se va a borrar esta hoja de ruta completa. No se puede deshacer.",ok:"Borrar",peligro:true})))return; fbDel("empresas/"+empresaKey+"/rutas/"+rk).then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();}).catch(function(){alert("Error al borrar.");}); }
 function calcRuta(ruta){
   var cl=Object.values(ruta.clientes||{});
   var tot=cl.reduce(function(s,c){return s+(c.importe||0);},0);
@@ -11914,7 +12221,7 @@ function renderRutas(){
       if(yaFinalizada){
         btnFin.style.cssText="background:#e8f5e9;color:#1b5e20;border-color:#a5d6a7;font-weight:700";
         btnFin.innerHTML="✅ Finalizada · "+(ruta.finalizadaEn?new Date(ruta.finalizadaEn).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"");
-        btnFin.onclick=function(){ if(confirm("¿Reabrir esta hoja de ruta?")) _toggleFinalizarRuta(rutaKey,false); };
+        btnFin.onclick=async function(){ if(await _confirmar({icono:"🔓",titulo:"Reabrir hoja de ruta",mensaje:"¿Reabrir esta hoja de ruta?",ok:"Reabrir"})) _toggleFinalizarRuta(rutaKey,false); };
       } else {
         btnFin.innerHTML="✅ Finalizar ruta";
         btnFin.onclick=function(){ _finalizarRuta(rutaKey); };
@@ -12031,7 +12338,7 @@ async function _rutaEliminarSeleccionados(rk){
   if(!sel || !sel.size){ showNotif("Seleccioná al menos un pedido","err"); return; }
   var ruta = rutasData[rk]; if(!ruta) return;
   var cant = sel.size;
-  if(!confirm("¿Eliminar "+cant+" pedido"+(cant!==1?"s":"")+" de esta ruta?\n\nEsta acción no se puede deshacer.")) return;
+  if(!(await _confirmar({icono:"🗑️",titulo:"Eliminar pedidos",mensaje:"¿Eliminar "+cant+" pedido"+(cant!==1?"s":"")+" de esta ruta? Esta acción no se puede deshacer.",ok:"Eliminar",peligro:true}))) return;
 
   var ids = Array.from(sel);
   var errores = 0;
@@ -12669,7 +12976,8 @@ function _descargarCierreCajaPDF(){
 
   // Firma
   y += 22;
-  if(y>270) y=270;
+  if(y + 12 > 285){ doc.addPage(); y = 25; }
+  else if(y>270) y=270;
   doc.setDrawColor(150,150,150); doc.setLineWidth(0.3);
   doc.line(20,y,90,y); doc.line(120,y,190,y);
   doc.setFontSize(8); doc.setTextColor(120,120,120);
@@ -12929,8 +13237,8 @@ function buildClienteRow(rutaKey, cliKey, cli){
   return row;
 }
 
-function marcarEntregado(rk, ck){
-  if(!confirm("¿Marcar este pedido como entregado?")) return;
+async function marcarEntregado(rk, ck){
+  if(!(await _confirmar({icono:"📦",titulo:"Marcar entregado",mensaje:"¿Marcar este pedido como entregado?",ok:"Entregado"}))) return;
   var ahora = new Date().toISOString();
   var patch = { entregado:true, entregadoEn:ahora };
   fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch)
@@ -13376,8 +13684,8 @@ function confirmarPagoAdicional(rk, ck){
     }).catch(function(){alert("Error al guardar pago.");});
 }
 
-function borrarPagoAdicional(rk,ck,idx){
-  if(!confirm("¿Borrar este pago?")) return;
+async function borrarPagoAdicional(rk,ck,idx){
+  if(!(await _confirmar({icono:"🗑️",titulo:"Borrar pago",mensaje:"¿Borrar este pago?",ok:"Borrar",peligro:true}))) return;
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(!cli) return;
   var pagos=(cli.pagosAdicionales||[]).slice();
@@ -13439,33 +13747,41 @@ function guardarPago(rk,ck){
   var efAnterior=cli.efectivo||0,trAnterior=cli.transferencia||0;
   cli.efectivo=ef;cli.transferencia=tr;clienteAbierto[rk]=ck;
 
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{efectivo:ef,transferencia:tr,modo:modo})
-    .then(function(){
-      // Sync payment to cuentas_corrientes
-      var pagoNuevoEf=ef-efAnterior, pagoNuevoTr=tr-trAnterior;
-      var pagoTotal=pagoNuevoEf+pagoNuevoTr;
-      if(Math.abs(pagoTotal)>0.01){
-        var concepto="Pago "+(modo==="mixto"?"mixto":modo==="transferencia"?"transferencia":"efectivo")+" — "+cli.nom;
-        var partes=[];
-        if(pagoNuevoEf>0.01) partes.push("Efectivo $"+fM(pagoNuevoEf));
-        if(pagoNuevoTr>0.01) partes.push("Transfer. $"+fM(pagoNuevoTr));
-        var mov={tipo:"pago",fecha:new Date().toISOString(),
-          concepto:concepto+(partes.length?" ("+partes.join(" + ")+")":""),
-          forma_pago:modo,debito:0,credito:pagoTotal,
-          usuario:currentUser?currentUser.id:"vendedor",
-          ref_ruta:rk,ref_cli:ck};
-        fbPush("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom+"/movimientos",mov).catch(function(){});
-        // Update saldo
-        fbGet("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom)
-          .then(function(ccData){
-            var saldoActual=(ccData&&ccData.saldo)||0;
-            var nuevoSaldo=saldoActual-pagoTotal;
-            fbPatch("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo:nuevoSaldo}).catch(function(){});
-          }).catch(function(){});
-      }
-      renderRutas();
-    })
-    .catch(function(){alert("Error al guardar.");});
+  // 1) Guardar el cobro en la parada (offline-aware: se encola si no hay señal)
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{efectivo:ef,transferencia:tr,modo:modo},"Cobro: "+(cli.nom||ck));
+
+  // 2) Registrar el movimiento en cuentas corrientes — SIEMPRE (no depende del éxito online)
+  var pagoNuevoEf=ef-efAnterior, pagoNuevoTr=tr-trAnterior;
+  var pagoTotal=pagoNuevoEf+pagoNuevoTr;
+  if(Math.abs(pagoTotal)>0.01){
+    var concepto="Pago "+(modo==="mixto"?"mixto":modo==="transferencia"?"transferencia":"efectivo")+" — "+cli.nom;
+    var partes=[];
+    if(pagoNuevoEf>0.01) partes.push("Efectivo $"+fM(pagoNuevoEf));
+    if(pagoNuevoTr>0.01) partes.push("Transfer. $"+fM(pagoNuevoTr));
+    var mov={tipo:"pago",fecha:new Date().toISOString(),
+      concepto:concepto+(partes.length?" ("+partes.join(" + ")+")":""),
+      forma_pago:modo,debito:0,credito:pagoTotal,
+      usuario:currentUser?currentUser.id:"vendedor",
+      ref_ruta:rk,ref_cli:ck};
+    fbPushQ("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom+"/movimientos",mov,"Mov. CC: "+cli.nom);
+    // Actualizar saldo: leer-modificar-escribir si hay señal; si no, encolar con el saldo local conocido
+    if(navigator.onLine){
+      fbGet("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom)
+        .then(function(ccData){
+          var saldoActual=(ccData&&ccData.saldo)||0;
+          var nuevoSaldo=saldoActual-pagoTotal;
+          fbPatchQ("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo:nuevoSaldo},"Saldo CC: "+cli.nom);
+        })
+        .catch(function(){
+          // Si falla la lectura, encolar el movimiento igual (el saldo se recalcula al sincronizar)
+          _enqueue("PATCH","empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo_delta:-pagoTotal},"Saldo CC (delta): "+cli.nom);
+        });
+    } else {
+      // Offline: registrar el cambio de saldo como delta (se resuelve al sincronizar)
+      _enqueue("PATCH","empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo_delta:-pagoTotal},"Saldo CC (delta): "+cli.nom);
+    }
+  }
+  renderRutas();
 }
 
 // RENOMBRAR
@@ -13473,7 +13789,7 @@ function abrirRenombrar(rk){ modalRutaKey=rk; document.getElementById("modal-rut
 function confirmarRenombrar(){ var nombre=document.getElementById("modal-ruta-nombre").value.trim(); if(!nombre||!modalRutaKey)return; fbPatch("empresas/"+empresaKey+"/rutas/"+modalRutaKey,{nombre:nombre}).then(function(){if(rutasData[modalRutaKey])rutasData[modalRutaKey].nombre=nombre;cerrarModal("modal-renombrar");renderRutas();}).catch(function(){alert("Error al renombrar.");}); }
 
 // BORRAR CLIENTE
-function borrarClienteRuta(rk,ck,nom){ if(!confirm("¿Quitar a "+(nom||"este cliente")+" de la ruta?"))return; fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck).then(function(){if(rutasData[rk]&&rutasData[rk].clientes)delete rutasData[rk].clientes[ck];if(clienteAbierto[rk]===ck)delete clienteAbierto[rk];renderRutas();}).catch(function(){alert("Error al borrar.");}); }
+async function borrarClienteRuta(rk,ck,nom){ if(!(await _confirmar({icono:"❌",titulo:"Quitar de la ruta",mensaje:"¿Quitar a "+(nom||"este cliente")+" de la ruta?",ok:"Quitar",peligro:true})))return; fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck).then(function(){if(rutasData[rk]&&rutasData[rk].clientes)delete rutasData[rk].clientes[ck];if(clienteAbierto[rk]===ck)delete clienteAbierto[rk];renderRutas();}).catch(function(){alert("Error al borrar.");}); }
 
 // MOVER CLIENTE
 function abrirMover(rk,ck){ var keys=Object.keys(rutasData).filter(function(k){return k!==rk;}); if(!keys.length){alert("No hay otras rutas. Creá una nueva primero.");return;} modalRutaKey=rk; modalCliKey=ck; var sel=document.getElementById("modal-mover-destino"); sel.innerHTML=keys.map(function(k){return'<option value="'+k+'">'+(rutasData[k].nombre||_fechaSegura(rutasData[k].fecha).toLocaleDateString("es-AR"))+'</option>';}).join(""); abrirModal("modal-mover"); }
@@ -14129,6 +14445,26 @@ async function _confirmarReasignar(){
       var nom = bk.clienteNom||"Mostrador";
       var items = bk.items||[];
       var total = _importeParaRuta(bk);   // ← incluye IVA 21% si es Factura A
+
+      // ── MOVER (no copiar): si el pedido ya estaba en otra ruta, quitarlo de ahí ──
+      // Busca la fila del pedido en la ruta anterior por cliente + importe y SOLO la
+      // borra si hay UNA coincidencia exacta. Si hay ambigüedad (0 o varias), no borra
+      // nada (evita borrar la fila equivocada); esos casos se limpian con el SQL.
+      var _oldRuta = bk.rutaVinculadaId || bk.ruta_vinculada_id;
+      if(_oldRuta && _oldRuta!==rutaDestKey){
+        try {
+          var _q = "select=id&ruta_id=eq."+_oldRuta+"&empresa_id=eq."+_sbEmpId+"&importe=eq."+total;
+          if(bk.clienteId) _q += "&cliente_id=eq."+encodeURIComponent(bk.clienteId);
+          var _matches = await sbGet("ruta_clientes", _q);
+          if(_matches && _matches.length===1){
+            await sbDel("ruta_clientes","id=eq."+_matches[0].id+"&empresa_id=eq."+_sbEmpId);
+            if(rutasData[_oldRuta] && rutasData[_oldRuta].clientes) delete rutasData[_oldRuta].clientes[_matches[0].id];
+          } else {
+            console.warn("[Reasignar] ruta anterior con "+(_matches?_matches.length:0)+" coincidencias para "+nom+"; no se borra (ambiguo)");
+          }
+        } catch(e){ console.warn("[Reasignar] no se pudo quitar de ruta anterior:", e.message); }
+      }
+
       var cliData = {
         nom:    nom,
         id:     bk.clienteId||"",
@@ -14438,7 +14774,7 @@ function renderBackup(){
       : bk.tipoComprobante === "remito"
         ? '<span style="font-size:10px;font-weight:600;background:var(--s3);color:var(--muted);padding:2px 8px;border-radius:20px;margin-left:4px">📄 remito</span>'
         : '';
-    var esTiendaBk = (bk.usuario === "tienda") || (bk.usuarioNom === "Tienda Online") || ((bk.obs||"").toLowerCase().indexOf("tienda online")>=0);
+    var esTiendaBk = _esPedidoTienda(bk);
     var _vendRealBk = (bk.usuario && bk.usuario!=="tienda" && bk.usuarioNom!=="Tienda Online") ? (bk.usuarioNom||bk.usuario) : "";
     var vndBadge = "";
     if(esTiendaBk) vndBadge += '<span style="font-size:10px;font-weight:800;background:#c9933a;color:#0a1628;padding:2px 8px;border-radius:20px;margin-left:4px">🛒 Pedido por tienda</span>';
@@ -14486,7 +14822,7 @@ function renderBackup(){
       ? '<span style="font-size:10px;background:#dbeafe;color:#1e40af;border-radius:5px;padding:2px 7px;font-weight:700;margin-left:6px">📅 '+(bk.diaEntrega?DL2[bk.diaEntrega]+' ':'')+new Date(bk.fechaEntrega+'T12:00:00').toLocaleDateString("es-AR",{day:"numeric",month:"short"})+'</span>'
       : '';
     // Badge de estado del pedido (solo para pedidos de la tienda online)
-    var _esTienda = (bk.usuario === "tienda" || bk.usuarioNom === "Tienda Online");
+    var _esTienda = _esPedidoTienda(bk);
     var _estadosBk = {
       recibido:  {txt:"📥 Recibido",  bg:"#e0e7ff", col:"#3730a3"},
       preparando:{txt:"📦 Preparando",bg:"#fef3c7", col:"#92400e"},
@@ -14696,11 +15032,29 @@ function renderBackup(){
       detail.appendChild(itemsDiv);
     } // end if items
 
-    /* Obs */
+    /* Obs (editable) */
+    var obs = document.createElement("div");
     if(bk.obs && bk.obs.trim()){
-      var obs = document.createElement("div");
       obs.className = "bk-card-obs";
-      obs.innerHTML = '💬 '+bk.obs;
+      obs.style.cssText = "display:flex;align-items:flex-start;gap:8px;justify-content:space-between";
+      var obsTxt = document.createElement("span");
+      obsTxt.style.flex = "1";
+      obsTxt.innerHTML = '💬 '+bk.obs;
+      var obsEdit = document.createElement("button");
+      obsEdit.innerHTML = "✏️";
+      obsEdit.title = "Editar observación";
+      obsEdit.style.cssText = "background:transparent;border:none;cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0;opacity:.7";
+      obsEdit.onclick = function(e){ e.stopPropagation(); _editarObsBackup(bk); };
+      obs.appendChild(obsTxt);
+      obs.appendChild(obsEdit);
+      detail.appendChild(obs);
+    } else {
+      obs.style.cssText = "padding:8px 16px;border-bottom:1px solid var(--border);background:var(--s3)";
+      var obsAdd = document.createElement("button");
+      obsAdd.innerHTML = "💬 Agregar observación";
+      obsAdd.style.cssText = "background:transparent;border:1px dashed var(--border);border-radius:7px;cursor:pointer;font-size:12px;color:var(--muted);padding:5px 10px;font-family:inherit";
+      obsAdd.onclick = function(e){ e.stopPropagation(); _editarObsBackup(bk); };
+      obs.appendChild(obsAdd);
       detail.appendChild(obs);
     }
 
@@ -14721,9 +15075,9 @@ function renderBackup(){
     var btnDel = document.createElement("button");
     btnDel.className = "bk-act-btn bk-act-del";
     btnDel.innerHTML = "🗑";
-    btnDel.onclick = function(e){
+    btnDel.onclick = async function(e){
       e.stopPropagation();
-      if(!confirm("¿Borrar este pedido del backup?")) return;
+      if(!(await _confirmar({icono:"🗑️",titulo:"Borrar pedido",mensaje:"Se va a borrar este pedido del backup. No se puede deshacer.",ok:"Borrar",peligro:true}))) return;
       var bkBackup = Object.assign({}, bk);
       var arr2 = getBackups().filter(function(x){return x.id!==bk.id;});
       saveBackups(arr2);
@@ -14825,7 +15179,7 @@ function renderBackup(){
       if(bk.aprobado!==false){ var btnRech=document.createElement("button"); btnRech.className="bk-act-btn"; btnRech.style.cssText="flex:1;background:#fff0f0;color:#b91c1c;border-color:#fca5a5;font-weight:700"; btnRech.innerHTML="✗ Rechazar"; btnRech.onclick=function(e){e.stopPropagation();_cambiarAprobacion(bk,false);}; aprobar.appendChild(btnRech); }
       if(aprobar.children.length) detail.appendChild(aprobar);
       // Selector de estado del pedido (solo para pedidos de la tienda online)
-      if(bk.usuario === "tienda" || bk.usuarioNom === "Tienda Online"){
+      if(_esPedidoTienda(bk)){
         var estadoWrap = document.createElement("div");
         estadoWrap.style.cssText = "padding:8px 16px 12px;border-top:1px solid var(--border2);";
         var _ests = [["recibido","📥 Recibido"],["preparando","📦 Preparando"],["enviado","🚚 Enviado"],["entregado","✅ Entregado"]];
@@ -15749,75 +16103,12 @@ async function confirmarBackupComoRemito(bkParam){
     await sbPost("ventas", ventaPayload);
   } catch(e){ console.warn("Error guardando venta en Supabase:", e); }
 
-  // 2) Agregar a hoja de ruta en Supabase
-  var hoy = ahora.toLocaleDateString("es-AR");
-  var rutaId = null;
-
-  // Buscar ruta abierta del día en Supabase
-  try {
-    var rutasHoy = await sbGet("rutas",
-      "empresa_id=eq."+_sbEmpId+"&finalizada=eq.false&order=fecha.desc&limit=5");
-    if(rutasHoy && rutasHoy.length){
-      // Preferir la que tenga fecha de hoy
-      var rutaHoyRow = rutasHoy.find(function(r){
-        return r.fecha && new Date(r.fecha).toLocaleDateString("es-AR")===hoy;
-      });
-      rutaId = (rutaHoyRow || rutasHoy[0]).id;
-    }
-  } catch(e){ console.warn("Error buscando ruta:", e); }
-
-  // Si no hay ruta, crear una nueva
-  if(!rutaId){
-    try {
-      var nn = "Ruta "+ahora.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
-      var nuevaRuta = await sbPost("rutas", {
-        empresa_id: _sbEmpId,
-        nombre: nn,
-        fecha: ahora.toISOString(),
-        repartidor_nom: "",
-        finalizada: false
-      });
-      if(nuevaRuta && nuevaRuta[0]) rutaId = nuevaRuta[0].id;
-    } catch(e){ console.warn("Error creando ruta:", e); }
-  }
-
-  // Agregar cliente a la ruta
-  if(rutaId){
-    // Payload SOLO con columnas reales de ruta_clientes (mandar columnas inexistentes hace fallar el insert)
-    var cd = {
-      ruta_id:         rutaId,
-      empresa_id:      _sbEmpId,
-      cliente_id:      bk.clienteId||"",
-      nom:             nom,
-      importe:         totalNum,
-      tipo_comprobante: bk.tipoComprobante || "remito",
-      efectivo:        0,
-      transferencia:   0,
-      modo:            "ninguno",
-      items:           itemsAprobados,
-      fecha:           ahora.toISOString(),
-      entregado:       false,
-      obs:             bk.obs   || "",
-      lista:           bk.lista || "Clientes"
-    };
-    // Campos extra que NO son columnas — solo para el objeto en memoria
-    var cdMem = Object.assign({}, cd, {
-      tipoComprobante: bk.tipoComprobante || "remito",
-      descuentos:      bk.descuentos      || null,
-      dscGeneral:      bk.dscGeneral      || null,
-      usuario:         vendedorId,
-      usuario_nom:     vendedorNom
-    });
-    try {
-      var rcRows = await sbPost("ruta_clientes", cd);
-      // Actualizar rutasData en memoria también
-      if(rcRows && rcRows[0]){
-        if(!rutasData[rutaId]) rutasData[rutaId] = {nombre:"Ruta",clientes:{}};
-        if(!rutasData[rutaId].clientes) rutasData[rutaId].clientes = {};
-        rutasData[rutaId].clientes[rcRows[0].id] = cdMem;
-      }
-    } catch(e){ console.warn("Error agregando cliente a ruta:", e); }
-  }
+  // 2) NOTA: La asignación a Hoja de Ruta ya NO es automática al aprobar.
+  // Antes, al aprobar se buscaba la ruta abierta del día y se agregaba el pedido,
+  // lo que duplicaba pedidos en varias rutas (la ruta "del día" cambia con el tiempo,
+  // y combinado con la reasignación manual el pedido quedaba en HR-0140 y HR-0141).
+  // Ahora la asignación es MANUAL: con el botón "Asignar a Ruta" de cada pedido o el
+  // selector general de Backup de Pedidos ("🔀 Reasignar a Ruta").
 
   // 3) Marcar el backup como convertido — NO crear un nuevo registro
   var sbId = bk._sbId || bk._fbKey || bk.id;
@@ -15834,7 +16125,7 @@ async function confirmarBackupComoRemito(bkParam){
 
   if(_editBkItem) cerrarModal("modal-editar-backup");
   renderBackup();
-  showNotif("🚚 Pedido enviado a Hoja de Ruta","ok");
+  showNotif("✅ Pedido aprobado y registrado","ok");
 }
 
 // Comparte un PDF de jsPDF: en la app nativa (Capacitor) usa los plugins de Archivos+Compartir;
@@ -15990,16 +16281,8 @@ function generarPDFDesdeBackup(bk, compartir){
     var pF = Math.round(subSin/(i.c||1)*100)/100;
     return[i.n||"", i.c||1, "$"+fM(pL), dscLbl, "$"+fM(pF), "$"+fM(subSin)];
   });
-  // ── Relleno con tope: nunca empujar los totales a otra hoja ──
-  // Si los productos entran en una hoja, rellena con filas vacías (aspecto de
-  // formulario) pero solo hasta donde quepa dejando lugar a obs+totales.
-  // Si hay más productos de los que entran, no rellena: la tabla pagina sola.
-  (function(){
-    var _rowH=9.3, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=72;
-    var _maxFit=Math.max(1, Math.floor((285 - _pie - _topY - 9.5) / _rowH));
-    var _target=(items.length <= _maxFit) ? _maxFit : 0;
-    while(body.length < _target) body.push(["","","","","",""]);
-  })();
+  // Sin relleno de filas vacías: la tabla termina donde terminan los ítems y el
+  // pie va justo debajo (o salta de hoja si no entra). Evita páginas semivacías.
   doc.autoTable({startY:CY+2,margin:{left:10,right:10},head:head,body:body,theme:"grid",
     headStyles:{fontStyle:"bold",fontSize:9.5,textColor:INK,fillColor:[255,255,255],lineWidth:0.4,lineColor:LINE,cellPadding:{top:3,bottom:3,left:2,right:2}},
     bodyStyles:{fontSize:10,textColor:INK,fillColor:[255,255,255],lineWidth:0.3,lineColor:LINE,cellPadding:{top:3.2,bottom:2.6,left:2,right:2},minCellHeight:8},
@@ -16717,8 +17000,8 @@ function renderPedidosAcum(){
 }
 
 
-function borrarDiaPedidos(diaKey){
-  if(!confirm("¿Borrar todos los pedidos de este día?")) return;
+async function borrarDiaPedidos(diaKey){
+  if(!(await _confirmar({icono:"🗑️",titulo:"Borrar pedidos del día",mensaje:"Se van a borrar todos los pedidos de este día. No se puede deshacer.",ok:"Borrar",peligro:true}))) return;
   var diaData = pedidosAcumData[diaKey]||{};
   var fbKeys  = Object.keys(diaData);
   // Borra cada pedido del día de backupPedidos
@@ -16747,7 +17030,7 @@ function descargarPDFDia(diaKey,fecha,prodList,obsItems,total){
     theme:"striped",headStyles:{fillColor:[13,27,42]}
   });
   if(obsItems.length){
-    var y=doc.lastAutoTable.finalY+10;
+    var y=_pdfPieY(doc,10,30);
     doc.setFont("helvetica","bold");doc.text("OBSERVACIONES:",14,y);
     doc.setFont("helvetica","normal");
     obsItems.forEach(function(p){
@@ -16828,7 +17111,7 @@ async function cargarVentasFirebase(f){
   poblarFiltros();
   renderResumen();
 }
-function borrarVenta(fbKey){ if(!confirm("¿Borrar este remito del resumen?"))return; fbDel("empresas/"+empresaKey+"/ventas/"+fbKey).then(function(){ventas=ventas.filter(function(v){return v.fbKey!==fbKey;});renderResumen();}).catch(function(){alert("Error al borrar.");}); }
+async function borrarVenta(fbKey){ if(!(await _confirmar({icono:"🗑️",titulo:"Borrar remito",mensaje:"Se va a borrar este remito del resumen. No se puede deshacer.",ok:"Borrar",peligro:true})))return; fbDel("empresas/"+empresaKey+"/ventas/"+fbKey).then(function(){ventas=ventas.filter(function(v){return v.fbKey!==fbKey;});renderResumen();}).catch(function(){alert("Error al borrar.");}); }
 function poblarFiltros(){ var now=new Date(),selA=document.getElementById("fil-anio"),anioAct=+selA.value||now.getFullYear(); var anioSet=new Set([now.getFullYear()]);ventas.forEach(function(v){anioSet.add(v.anio);}); selA.innerHTML=Array.from(anioSet).sort(function(a,b){return b-a;}).map(function(a){return'<option value="'+a+'"'+(a===anioAct?" selected":"")+'>'+a+'</option>';}).join(""); poblarMeses(); }
 function poblarMeses(){ var now=new Date(),anio=+document.getElementById("fil-anio").value||now.getFullYear(),selM=document.getElementById("fil-mes"),mesAct=selM.value!==""?+selM.value:now.getMonth(); var cd=new Set();ventas.filter(function(v){return v.anio===anio;}).forEach(function(v){cd.add(v.mes);});cd.add(now.getMonth()); selM.innerHTML=MESES.map(function(m,i){return'<option value="'+i+'"'+(i===mesAct?" selected":"")+'>'+m+(cd.has(i)?" ●":"")+'</option>';}).join(""); }
 
@@ -16909,7 +17192,7 @@ async function _congelarCostosViejos(){
   });
   if(!pendientes.length){ showNotif("Todos los pedidos ya tienen su costo congelado ✓","ok"); return; }
   // 4) Confirmar
-  if(!confirm("Se congelará el costo de "+pendientes.length+" pedido(s) sin foto, usando el costo actual de cada producto.\n\nNo se modifican precios ni totales.\n\n¿Continuar?")) return;
+  if(!(await _confirmar({icono:"❄️",titulo:"Congelar costos",mensaje:"Se congelará el costo de "+pendientes.length+" pedido(s) sin foto, usando el costo actual de cada producto. No se modifican precios ni totales.",ok:"Continuar"}))) return;
   // 5) Guardar uno por uno con progreso
   var ok=0, err=0;
   if(btn) btn.disabled=true;
@@ -17081,8 +17364,8 @@ function confirmarFirma() {
 }
 
 /* ── GPS SORT ── */
-function borrarFirma(rk, ck) {
-  if(!confirm("¿Borrar la firma de este cliente?")) return;
+async function borrarFirma(rk, ck) {
+  if(!(await _confirmar({icono:"✍️",titulo:"Borrar firma",mensaje:"¿Borrar la firma de este cliente?",ok:"Borrar",peligro:true}))) return;
   // Usar Supabase directamente (ck = Supabase UUID de ruta_clientes)
   var patchData = {firma:"", firmadoEn:""};
   fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patchData)
@@ -17854,21 +18137,21 @@ function _meGuardarCobro(i){
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(cli){ cli.modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo"); }
   _meInjectPagoInputs(rk,ck,ef,tr);
-  guardarPago(rk,ck); // patch + cuentas corrientes
+  guardarPago(rk,ck); // patch + cuentas corrientes (offline-aware)
   p.cli.efectivo=ef; p.cli.transferencia=tr;
   renderParadas(_mapaParadas);
-  showNotif("💰 Cobro guardado","ok");
+  showNotif(navigator.onLine ? "💰 Cobro guardado" : "💰 Cobro guardado (se subirá al volver la señal)","ok");
 }
-function _meEntregar(i){
+async function _meEntregar(i){
   var p=_mapaParadas[i]; if(!p) return;
-  if(!confirm("¿Marcar a "+(p.cli.nom||"este cliente")+" como entregado?")) return;
+  if(!(await _confirmar({icono:"📦",titulo:"Marcar entregado",mensaje:"¿Marcar a "+(p.cli.nom||"este cliente")+" como entregado?",ok:"Entregado"}))) return;
   var rk=_rutaMapaKey, ck=p.cliKey, ahora=new Date().toISOString();
   p.cli.entregado=true; p.cli.entregadoEn=ahora;
   if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].entregado=true; rutasData[rk].clientes[ck].entregadoEn=ahora; }
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora}).catch(function(){});
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(p.cli.nom||ck));
   renderParadas(_mapaParadas);
   if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setIcon){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
-  showNotif("✅ Entregado","ok");
+  showNotif(navigator.onLine ? "✅ Entregado" : "✅ Entregado (se subirá al volver la señal)","ok");
 }
 function _meAbrirRutaCompleta(){
   var pts=_mapaParadas.filter(function(p){return p.hasCoords && !p.cli.entregado;});
@@ -18358,7 +18641,12 @@ function _agregarCliAlDatalist(u) {
 async function _eliminarCliente(pushKey) {
   var u = _clientesDB[pushKey];
   if (!u) return;
-  if (!confirm('¿Eliminar al cliente "'+(u.name||u.id)+'"?')) return;
+  if (!(await _confirmar({
+    icono: "🗑️",
+    titulo: "Eliminar cliente",
+    mensaje: 'Se va a eliminar a "'+(u.name||u.id)+'". Esta acción no se puede deshacer.',
+    ok: "Eliminar", peligro: true
+  }))) return;
   try {
     var uid = u.id || u.uid || "";
     // Eliminar en Supabase
@@ -18850,6 +19138,282 @@ function showNotif(msg, cls) {
   setTimeout(function(){ setStatus("sync-msg","sync","☁️"); }, 3000);
 }
 
+/* ══════════════════════════════════════════════════════
+   _confirmar() — modal de confirmación con estilo propio
+   Reemplaza al confirm() nativo del navegador.
+   Uso:  if(await _confirmar({ ... })) { ...acción... }
+   Opciones:
+     titulo    (string)  encabezado
+     mensaje   (string)  texto (acepta \n)
+     ok        (string)  texto del botón confirmar  (def "Confirmar")
+     cancelar  (string)  texto del botón cancelar   (def "Cancelar")
+     peligro   (bool)    botón rojo para acciones destructivas
+     icono     (string)  emoji opcional arriba del título
+══════════════════════════════════════════════════════ */
+var _confirmarResolver = null;
+function _confirmar(opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    // Si ya hay uno abierto, lo resolvemos en false antes de abrir el nuevo
+    if(_confirmarResolver){ try{ _confirmarResolver(false); }catch(e){} _confirmarResolver = null; }
+
+    var ov = document.getElementById("confirm-overlay");
+    if(!ov){
+      ov = document.createElement("div");
+      ov.id = "confirm-overlay";
+      ov.className = "confirm-ov";
+      ov.innerHTML =
+        '<div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-titulo">'
+      +   '<div class="confirm-ico" id="confirm-ico"></div>'
+      +   '<div class="confirm-titulo" id="confirm-titulo"></div>'
+      +   '<div class="confirm-msg" id="confirm-msg"></div>'
+      +   '<div class="confirm-btns">'
+      +     '<button type="button" class="confirm-btn-cancel" id="confirm-cancel"></button>'
+      +     '<button type="button" class="confirm-btn-ok" id="confirm-ok"></button>'
+      +   '</div>'
+      + '</div>';
+      document.body.appendChild(ov);
+    }
+
+    var card   = ov.querySelector(".confirm-card");
+    var elIco  = ov.querySelector("#confirm-ico");
+    var elTit  = ov.querySelector("#confirm-titulo");
+    var elMsg  = ov.querySelector("#confirm-msg");
+    var btnOk  = ov.querySelector("#confirm-ok");
+    var btnCan = ov.querySelector("#confirm-cancel");
+
+    // Contenido
+    if(opts.icono){ elIco.textContent = opts.icono; elIco.style.display = "block"; }
+    else { elIco.style.display = "none"; }
+    elTit.textContent = opts.titulo || "¿Confirmás?";
+    elMsg.textContent = opts.mensaje || "";
+    elMsg.style.display = opts.mensaje ? "block" : "none";
+    btnOk.textContent  = opts.ok || "Confirmar";
+    btnCan.textContent = opts.cancelar || "Cancelar";
+    btnOk.className = "confirm-btn-ok" + (opts.peligro ? " peligro" : "");
+
+    function cerrar(val){
+      document.removeEventListener("keydown", onKey);
+      ov.classList.remove("show");
+      setTimeout(function(){ ov.style.display = "none"; }, 180);
+      _confirmarResolver = null;
+      resolve(val);
+    }
+    function onKey(e){
+      if(e.key === "Escape") cerrar(false);
+      else if(e.key === "Enter") cerrar(true);
+    }
+    _confirmarResolver = cerrar;
+
+    btnOk.onclick  = function(){ cerrar(true); };
+    btnCan.onclick = function(){ cerrar(false); };
+    ov.onclick = function(e){ if(e.target === ov) cerrar(false); };
+    document.addEventListener("keydown", onKey);
+
+    // Mostrar con animación
+    ov.style.display = "flex";
+    void ov.offsetWidth; // reflow
+    ov.classList.add("show");
+    setTimeout(function(){ try{ btnOk.focus(); }catch(e){} }, 60);
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   _editarObsBackup() — editar/agregar/quitar la observación
+   de un pedido del backup, con guardado local + Supabase.
+══════════════════════════════════════════════════════ */
+function _editarObsBackup(bk){
+  if(!bk) return;
+  var ov = document.getElementById("obsedit-overlay");
+  if(!ov){
+    ov = document.createElement("div");
+    ov.id = "obsedit-overlay";
+    ov.className = "confirm-ov";
+    ov.innerHTML =
+      '<div class="confirm-card" style="max-width:420px;text-align:left" role="dialog" aria-modal="true">'
+    +   '<div class="confirm-titulo" style="text-align:center">💬 Observación del pedido</div>'
+    +   '<textarea id="obsedit-txt" rows="4" placeholder="Escribí una observación para este pedido…" '
+    +     'style="width:100%;margin:6px 0 16px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;'
+    +     'background:var(--s2,transparent);color:var(--text);font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box"></textarea>'
+    +   '<div class="confirm-btns">'
+    +     '<button type="button" class="confirm-btn-cancel" id="obsedit-cancel">Cancelar</button>'
+    +     '<button type="button" class="confirm-btn-ok" id="obsedit-ok">Guardar</button>'
+    +   '</div>'
+    +   '<button type="button" id="obsedit-quitar" style="width:100%;margin-top:10px;padding:9px;background:transparent;'
+    +     'border:none;color:var(--red);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:none">🗑️ Quitar observación</button>'
+    + '</div>';
+    document.body.appendChild(ov);
+  }
+
+  var txt    = ov.querySelector("#obsedit-txt");
+  var btnOk  = ov.querySelector("#obsedit-ok");
+  var btnCan = ov.querySelector("#obsedit-cancel");
+  var btnQui = ov.querySelector("#obsedit-quitar");
+
+  txt.value = bk.obs || "";
+  btnQui.style.display = (bk.obs && bk.obs.trim()) ? "block" : "none";
+
+  function cerrar(){
+    ov.classList.remove("show");
+    setTimeout(function(){ ov.style.display = "none"; }, 180);
+  }
+
+  async function guardar(nuevoTexto){
+    var val = (nuevoTexto !== undefined ? nuevoTexto : txt.value).slice(0,500);
+    // 1) Local
+    try {
+      var arr = getBackups();
+      for(var i=0;i<arr.length;i++){ if(arr[i].id===bk.id){ arr[i].obs = val; break; } }
+      saveBackups(arr);
+    } catch(e){}
+    bk.obs = val;
+    // 2) Supabase (si el pedido ya está sincronizado)
+    var sbId = bk._sbId;
+    if(sbId){
+      try { await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, { obs: val }); }
+      catch(e){ showNotif("Guardado local, falta sincronizar","sync"); }
+    }
+    cerrar();
+    showNotif(val ? "✓ Observación guardada" : "✓ Observación quitada","ok");
+    try { _bkRefresh(); } catch(e){}
+  }
+
+  btnOk.onclick  = function(){ guardar(); };
+  btnQui.onclick = function(){ guardar(""); };
+  btnCan.onclick = cerrar;
+  ov.onclick = function(e){ if(e.target===ov) cerrar(); };
+
+  ov.style.display = "flex";
+  void ov.offsetWidth;
+  ov.classList.add("show");
+  setTimeout(function(){ try{ txt.focus(); }catch(e){} }, 60);
+}
+
+/* ══════════════════════════════════════════════════════
+   ONBOARDING — primeros pasos para nuevas distribuidoras.
+   Se muestra solo a admins, solo si la empresa está casi
+   vacía, y solo si no fue completado/omitido antes.
+══════════════════════════════════════════════════════ */
+function _onbKey(){
+  var emp = (empresaData && (empresaData.codigo || empresaData.id)) || _sbEmpId || "x";
+  return "dm_onboarding_" + emp;
+}
+function _onbHecho(){
+  // marca: completado u omitido => no volver a mostrar automáticamente.
+  // Prioridad al flag de la nube (vale para todos los dispositivos).
+  if(empresaData && empresaData.onboarding_done === true) return true;
+  try { return localStorage.getItem(_onbKey()) === "1"; } catch(e){ return false; }
+}
+// Detecta qué pasos ya están completos mirando los datos reales en memoria.
+function _onbEstado(){
+  var nombreReal = empresaData && empresaData.nombre && empresaData.nombre.trim()
+                   && empresaData.nombre.trim().toLowerCase() !== (empresaData.codigo||"").toLowerCase();
+  var tieneLogo  = !!(empresaData && empresaData.logo) || !!nombreReal;
+  var nProd = (typeof _prodData === "object" && _prodData) ? Object.keys(_prodData).length : 0;
+  var nCli  = 0;
+  if(typeof _clientesDB === "object" && _clientesDB){
+    Object.keys(_clientesDB).forEach(function(k){
+      var u = _clientesDB[k];
+      if(u && (u.role === "cliente" || !u.role)) nCli++;
+    });
+  }
+  var nPed = (typeof _backupCache !== "undefined" && _backupCache) ? _backupCache.length : 0;
+  return {
+    marca:    !!tieneLogo,
+    producto: nProd > 0,
+    cliente:  nCli > 0,
+    pedido:   nPed > 0
+  };
+}
+var _ONB_PASOS = [
+  { k:"marca",    emoji:"🎨", tit:"Configurá tu marca",        desc:"Subí tu logo, nombre y color de la empresa.", tab:"datos-empresa" },
+  { k:"producto", emoji:"📦", tit:"Cargá tu primer producto",  desc:"Agregá productos a tu catálogo (o importá un Excel).", tab:"productos" },
+  { k:"cliente",  emoji:"🧑", tit:"Cargá tu primer cliente",   desc:"Sumá los comercios a los que les vendés.", tab:"clientes" },
+  { k:"pedido",   emoji:"🛒", tit:"Armá tu primer pedido",     desc:"Probá el flujo completo de carga de un pedido.", tab:"pedido" }
+];
+function _onbRender(){
+  var est = _onbEstado();
+  var cont = document.getElementById("onb-pasos");
+  if(!cont) return;
+  var completados = 0;
+  cont.innerHTML = "";
+  _ONB_PASOS.forEach(function(p, i){
+    var hecho = !!est[p.k];
+    if(hecho) completados++;
+    var div = document.createElement("div");
+    div.className = "onb-paso" + (hecho ? " hecho" : "");
+    div.innerHTML =
+        '<div class="onb-paso-num">' + (hecho ? "✓" : (i+1)) + '</div>'
+      + '<div class="onb-paso-body">'
+      +   '<div class="onb-paso-tit">' + p.emoji + " " + p.tit + '</div>'
+      +   '<div class="onb-paso-desc">' + p.desc + '</div>'
+      + '</div>'
+      + '<div class="onb-paso-flecha">›</div>';
+    if(!hecho){ div.onclick = function(){ _onbIrA(p.tab); }; }
+    cont.appendChild(div);
+  });
+  // Barra de progreso
+  var pct = Math.round((completados / _ONB_PASOS.length) * 100);
+  var bar = document.getElementById("onb-prog-bar");
+  var txt = document.getElementById("onb-prog-txt");
+  if(bar) bar.style.width = pct + "%";
+  if(txt) txt.textContent = completados + " de " + _ONB_PASOS.length + " completados";
+  // Si completó todo, mensaje final + auto-marcar como hecho
+  if(completados === _ONB_PASOS.length){
+    var final = document.createElement("div");
+    final.className = "onb-final";
+    final.innerHTML = "🎉 ¡Todo listo! Tu distribuidora ya está configurada.";
+    cont.appendChild(final);
+    _onbMarcarHecho();
+  }
+}
+function _onbIrA(tab){
+  _onbCerrar(false); // cerrar sin marcar como omitido (para que vuelva a aparecer)
+  setTimeout(function(){ try { _bnGo(tab); } catch(e){ try{ verTab(tab); }catch(e2){} } }, 200);
+}
+function _onbAbrir(){
+  _onbRender();
+  var ov = document.getElementById("onboarding-ov");
+  if(!ov) return;
+  ov.style.display = "flex";
+  void ov.offsetWidth;
+  ov.classList.add("show");
+}
+function _onbCerrar(omitir){
+  var ov = document.getElementById("onboarding-ov");
+  if(!ov) return;
+  ov.classList.remove("show");
+  setTimeout(function(){ ov.style.display = "none"; }, 200);
+  if(omitir){ _onbMarcarHecho(); }
+}
+// Marca el onboarding como cerrado para siempre: localStorage + Supabase.
+function _onbMarcarHecho(){
+  try { localStorage.setItem(_onbKey(), "1"); } catch(e){}
+  if(empresaData) empresaData.onboarding_done = true;
+  // Persistir en la nube para que no reaparezca en NINGÚN dispositivo.
+  try {
+    if(_sbEmpId && typeof sbPatch==="function"){
+      sbPatch("empresas","id=eq."+_sbEmpId, { onboarding_done:true }).catch(function(){});
+    }
+  } catch(e){}
+}
+// Decide si mostrar el onboarding al iniciar la app (solo admin, empresa nueva).
+function _onbCheckAutoShow(){
+  if(!currentUser || currentUser.role !== "admin") return;   // solo admin
+  if(_onbHecho()) return;                                     // ya lo cerró/completó
+  var est = _onbEstado();
+  // Mostrar solo si NO tiene productos todavía (señal de empresa nueva)
+  if(est.producto) {
+    // Ya tiene productos: no hace falta el onboarding. Solo local
+    // (no tocamos la nube por si fue un tema de timing de carga).
+    try { localStorage.setItem(_onbKey(), "1"); } catch(e){}
+    return;
+  }
+  setTimeout(_onbAbrir, 1200); // dar tiempo a que cargue el catálogo
+}
+// Permite reabrirlo manualmente desde el menú de cuenta.
+function abrirOnboarding(){ _onbCerrar(false); _onbAbrir(); }
+
 // Confirmación visual destacada de guardado (✓ animado en el centro)
 var _savedTimer = null;
 function showSaved(msg){
@@ -18993,7 +19557,7 @@ async function compGuardarEnFB(rk, ck, base64, loaderEl) {
 
 async function compBorrar(rk, ck, tid, e) {
   e.stopPropagation();
-  if (!confirm("¿Borrar este comprobante?")) return;
+  if (!(await _confirmar({icono:"🗑️",titulo:"Borrar comprobante",mensaje:"¿Borrar este comprobante?",ok:"Borrar",peligro:true}))) return;
   try {
     await fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck+"/comprobantes/"+tid);
     if (rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]&&rutasData[rk].clientes[ck].comprobantes)
@@ -19215,6 +19779,20 @@ function csRenderProds() {
     var stkHtml = stk===undefined ? "" :
       stk<=0  ? '<div class="cs-var-stk cs-stk-0">Sin stock</div>' :
       stk<=5  ? '<div class="cs-var-stk cs-stk-low">'+stk+' u.</div>' : "";
+    // Oferta / promo
+    var _ofVig = _ofVigente(p);
+    var _ofPV = _ofVig ? _ofPrecioLista(p, lista) : null;
+    var _tieneOf = _ofPV && _ofPV < pre;
+    var _tienePromo = !_tieneOf && p.precioPromo && p.cantPromo;
+    var badgeInline = _tieneOf
+      ? ' <span style="font-size:9px;font-weight:800;background:oklch(58% 0.18 25);color:#fff;padding:1px 5px;border-radius:7px;white-space:nowrap;vertical-align:middle">🔥 OFERTA</span>'
+      : (_tienePromo ? ' <span style="font-size:9px;font-weight:800;background:oklch(52% 0.13 150);color:#fff;padding:1px 5px;border-radius:7px;white-space:nowrap;vertical-align:middle">🏷️ PROMO</span>' : '');
+    var priceHtml = _tieneOf
+      ? '<div class="cs-solo-price"><span style="text-decoration:line-through;color:var(--muted);font-size:11px;font-weight:500;margin-right:4px">$'+fM(pre)+'</span><span style="color:oklch(58% 0.18 25)">$'+fM(_ofPV)+'</span></div>'
+      : '<div class="cs-solo-price">$'+fM(pre)+'</div>';
+    var promoLineHtml = _tienePromo
+      ? '<div style="font-size:10.5px;color:oklch(50% 0.13 150);font-weight:600;margin-top:1px">🏷️ $'+fM(p.precioPromo)+' c/u llevando '+p.cantPromo+'+</div>'
+      : '';
     var fotoEl = p.foto
       ? '<img class="cs-solo-foto" src="'+p.foto+'" onclick="abrirProdLightbox(&quot;'+p.id+'&quot;,event)" onerror="this.outerHTML=\'<div class=cs-solo-foto-ph>📦</div>\'" loading="lazy">'
       : '<div class="cs-solo-foto-ph">📦</div>';
@@ -19224,10 +19802,11 @@ function csRenderProds() {
     el.innerHTML =
       fotoEl +
       '<div class="cs-solo-info">'+
-        '<div class="cs-solo-nom">'+p.n+'</div>'+
+        '<div class="cs-solo-nom">'+p.n+badgeInline+'</div>'+
         '<div class="cs-solo-cod">Cód: '+p.id+'</div>'+
         stkHtml+
-        '<div class="cs-solo-price">$'+fM(pre)+'</div>'+
+        priceHtml+
+        promoLineHtml+
       '</div>'+
       '<div class="cs-solo-step">'+csStepHtml(p.id, qty)+'</div>';
     body.appendChild(el);
@@ -19302,10 +19881,19 @@ function csConfirmar() {
     if (qty <= 0) return;
     var p = dbStock.find(function(x){ return x.id===pid; });
     if (!p) return;
-    var pre = lista==="Patagonia" ? p.pPat : p.pCli;
-    var exist = ordenes[_csT].find(function(x){ return x.id===pid && x.p===pre; });
-    if (exist) { exist.c+=qty; exist.sub=exist.p*exist.c; }
-    else ordenes[_csT].push({id:pid, n:p.n, p:pre, c:qty, sub:pre*qty});
+    var preNormal = lista==="Patagonia" ? p.pPat : p.pCli;
+    var ofPre = _ofPrecioLista(p, lista);
+    var tieneOf = ofPre && ofPre<preNormal;
+    // Consolidar por producto para evaluar la promo sobre la cantidad total
+    var exist = ordenes[_csT].find(function(x){ return x.id===pid; });
+    if (exist) { exist.c += qty; }
+    else {
+      exist = {id:pid, n:p.n, p:preNormal, c:qty, sub:preNormal*qty};
+      if(tieneOf){ exist.p=ofPre; exist.ofPrecio=ofPre; exist.ofNormal=preNormal; exist.ofAplicada=true; }
+      ordenes[_csT].push(exist);
+    }
+    _recalcPromoVigente(exist); // aplica promo por cantidad si corresponde (respeta oferta)
+    _cartRecalcSub(exist);
     added++;
   });
   renderItems(_csT);
@@ -20188,10 +20776,15 @@ function quitarFotoProducto() {
   _actualizarPrevFoto();
 }
 
-function eliminarProducto(key) {
+async function eliminarProducto(key) {
   var p = _prodData[key];
   if (!p) return;
-  if (!confirm("¿Eliminar el producto \"" + (p.nombre || key) + "\"?\nEsta acción no se puede deshacer.")) return;
+  if (!(await _confirmar({
+    icono: "🗑️",
+    titulo: "Eliminar producto",
+    mensaje: "¿Eliminar \"" + (p.nombre || key) + "\"?\nEsta acción no se puede deshacer.",
+    ok: "Eliminar", peligro: true
+  }))) return;
   sbDel("productos", "id=eq."+key+"&empresa_id=eq."+_sbEmpId).then(function() {
     delete _prodData[key];
     _bumpCatVer();
@@ -20279,8 +20872,8 @@ function _renderGestorListas(){
   }).join('');
 }
 
-function _eliminarListaEdit(id){
-  if(!confirm('¿Eliminar la lista "'+(_listasEdit[id]||{}).nombre+'"?\nLos productos que la usen quedarán sin precio para esta lista.')) return;
+async function _eliminarListaEdit(id){
+  if(!(await _confirmar({icono:"🗑️",titulo:"Eliminar lista",mensaje:'¿Eliminar la lista "'+(_listasEdit[id]||{}).nombre+'"? Los productos que la usen quedarán sin precio para esta lista.',ok:"Eliminar",peligro:true}))) return;
   delete _listasEdit[id];
   _renderGestorListas();
 }
@@ -20710,7 +21303,7 @@ async function _catMgrRenombrar(viejo){
 async function _catMgrEliminar(cat){
   var afectados=Object.entries(_prodData).filter(function(e){ return (e[1].categoria||"")===cat; });
   if(afectados.length){
-    if(!confirm('"'+cat+'" tiene '+afectados.length+' productos. Se moverán a "Sin categoría". ¿Continuar?')) return;
+    if(!(await _confirmar({icono:"📁",titulo:"Eliminar categoría",mensaje:'"'+cat+'" tiene '+afectados.length+' productos. Se moverán a "Sin categoría".',ok:"Continuar",peligro:true}))) return;
     try{
       for(var i=0;i<afectados.length;i++){
         await _sbPatchProducto(afectados[i][0], {categoria:"Sin categoría"});
@@ -20724,7 +21317,7 @@ async function _catMgrEliminar(cat){
 async function _catMgrLimpiarComillas(){
   var entradas=Object.entries(_prodData).filter(function(e){ return /"/.test(e[1].categoria||""); });
   if(!entradas.length){ showNotif("No hay categorías con comillas"); return; }
-  if(!confirm("Se van a limpiar las comillas de "+entradas.length+" productos (y fusionar duplicados como \"Electrónica\" + Electrónica). ¿Continuar?")) return;
+  if(!(await _confirmar({icono:"🧹",titulo:"Limpiar comillas",mensaje:'Se van a limpiar las comillas de '+entradas.length+' productos (y fusionar duplicados como "Electrónica" + Electrónica).',ok:"Continuar"}))) return;
   showNotif("Limpiando… puede tardar unos segundos");
   try{
     for(var i=0;i<entradas.length;i++){
@@ -21230,6 +21823,18 @@ async function importarProdCSV(){
 }
 // ══ MIS VENTAS (Vista del vendedor) ══
 // Asignar vendedor a un backup que no tenía uno
+// Detecta si un pedido proviene de la tienda online, de forma robusta:
+// usa marcas que NO cambian al reasignar el vendedor (obs, trackCode),
+// además del usuario/nombre original. Así los controles de la tienda
+// (estado del pedido, aviso al cliente) no desaparecen al cambiar vendedor.
+function _esPedidoTienda(bk){
+  if(!bk) return false;
+  if(bk.usuario === "tienda" || bk.usuarioNom === "Tienda Online") return true;
+  if(bk.trackCode && String(bk.trackCode).trim()) return true; // los pedidos de tienda traen código de seguimiento
+  if((bk.obs||"").toLowerCase().indexOf("tienda online") >= 0) return true;
+  return false;
+}
+
 async function _asignarVndBk(bkId, sel){
   var val = sel.value; // "uid|nombre"
   if(!val){ return; }
@@ -21268,7 +21873,7 @@ async function _cambiarEstadoPedido(bk, nuevoEstado){
 }
 
 // Abre WhatsApp con un mensaje pre-armado según el estado, al teléfono del cliente.
-function _ofrecerAvisoWhatsApp(bk, estado){
+async function _ofrecerAvisoWhatsApp(bk, estado){
   // El teléfono del cliente (tienda online) se guarda en clienteId
   var tel = (bk.clienteId || "").replace(/[^0-9]/g, "");
   if(tel.length < 8) return; // sin teléfono válido, no se puede avisar
@@ -21283,7 +21888,7 @@ function _ofrecerAvisoWhatsApp(bk, estado){
   var msg = msgs[estado] || msgs.recibido;
   var labels = {recibido:"📥 Recibido", preparando:"📦 Preparando", enviado:"🚚 Enviado", entregado:"✅ Entregado"};
   // Confirmación con el admin antes de abrir WhatsApp
-  if(confirm("¿Avisar al cliente por WhatsApp que su pedido pasó a \""+(labels[estado]||estado)+"\"?\n\nSe va a abrir WhatsApp con el mensaje listo para enviar.")){
+  if(await _confirmar({icono:"💬",titulo:"Avisar por WhatsApp",mensaje:'¿Avisar al cliente que su pedido pasó a "'+(labels[estado]||estado)+'"? Se va a abrir WhatsApp con el mensaje listo para enviar.',ok:"Abrir WhatsApp"})){
     var url = "https://wa.me/" + tel + "?text=" + encodeURIComponent(msg);
     window.open(url, "_blank");
   }
@@ -21332,7 +21937,7 @@ async function _cambiarAprobacion(bk, aprobado){
   }
 
   renderBackup();
-  showNotif(aprobado===true ? "✅ Pedido aprobado — stock descontado y agregado a Hoja de Ruta" : "❌ Pedido rechazado", aprobado?"ok":"err");
+  showNotif(aprobado===true ? "✅ Pedido aprobado — stock descontado. Asignalo a una ruta con \"Asignar a Ruta\"." : "❌ Pedido rechazado", aprobado?"ok":"err");
 }
 
 var META_VENTAS = 20000000;
@@ -21388,6 +21993,30 @@ function _renderMisVentas(){
   var prodMap={};
   mis.forEach(function(v){(v.items||[]).forEach(function(it){if(!prodMap[it.n])prodMap[it.n]={n:it.n,u:0,t:0};prodMap[it.n].u+=it.c||0;prodMap[it.n].t+=it.sub||(it.p*it.c)||0;});});
   var topProds=Object.values(prodMap).sort(function(a,b){return b.t-a.t;}).slice(0,5);
+  // Desglose de ventas con descuento (ofertas / promos) y ahorro dado a clientes
+  var vendidoOf=0, vendidoPromo=0, ahorroOf=0, ahorroPromo=0;
+  mis.forEach(function(v){(v.items||[]).forEach(function(it){
+    var sub = it.sub!=null ? it.sub : ((it.p*it.c)||0);
+    var c = it.c||0;
+    var esOf = it.ofAplicada || it.et==="OFERTA";
+    var esPromo = !esOf && (it.promoAplicada || it.et==="PROMO");
+    if(esOf){ vendidoOf+=sub; if(it.ofNormal&&it.ofPrecio) ahorroOf+=(it.ofNormal-it.ofPrecio)*c; }
+    else if(esPromo){ vendidoPromo+=sub; if(it.promoNormal&&it.promoPrecio) ahorroPromo+=(it.promoNormal-it.promoPrecio)*c; }
+  }); });
+  var hayDesc=(vendidoOf+vendidoPromo)>0;
+  var descHTML = hayDesc ?
+    '<div style="background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">'+
+      '<div class="mv-section-title" style="margin-bottom:10px">🏷️ Ventas con descuento</div>'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+        '<div style="flex:1;min-width:120px;background:oklch(96% 0.03 25);border:1px solid oklch(88% 0.06 25);border-radius:9px;padding:10px 12px">'+
+          '<div style="font-size:16px;font-weight:800;color:oklch(52% 0.16 25)">$'+fM(vendidoOf)+'</div>'+
+          '<div style="font-size:10.5px;color:var(--muted);font-weight:600">🔥 Vendido en ofertas</div></div>'+
+        '<div style="flex:1;min-width:120px;background:oklch(96% 0.03 150);border:1px solid oklch(88% 0.06 150);border-radius:9px;padding:10px 12px">'+
+          '<div style="font-size:16px;font-weight:800;color:oklch(48% 0.13 150)">$'+fM(vendidoPromo)+'</div>'+
+          '<div style="font-size:10.5px;color:var(--muted);font-weight:600">🏷️ Vendido en promos</div></div>'+
+      '</div>'+
+      ((ahorroOf+ahorroPromo)>0?'<div style="margin-top:8px;font-size:11.5px;color:var(--muted);text-align:center">Ahorro total que diste a tus clientes: <b style="color:var(--text)">$'+fM(ahorroOf+ahorroPromo)+'</b></div>':'')+
+    '</div>' : '';
   var chartHTML='';
   if(mes===null){
     var meses6=[]; for(var mi=5;mi>=0;mi--){var dd=new Date(anio,now.getMonth()-mi,1);meses6.push({mes:dd.getMonth(),anio:dd.getFullYear(),lbl:MESES[dd.getMonth()].substring(0,3)});}
@@ -21413,6 +22042,7 @@ function _renderMisVentas(){
       '<div class="mv-kpi"><div class="mv-kpi-val">$'+fM(ticketProm)+'</div><div class="mv-kpi-lbl">Ticket prom.</div></div>'+
     '</div>'+
     (chartHTML?'<div style="background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">'+chartHTML+'</div>':'')+
+    descHTML+
     (topProds.length?'<div style="background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px">'+
       '<div class="mv-section-title" style="margin-bottom:10px">🏅 Tus productos más vendidos</div>'+
       topProds.map(function(p,i){var bar=Math.round((p.t/topProds[0].t)*100);return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
@@ -21558,7 +22188,7 @@ async function guardarZona(){
 }
 
 async function borrarZona(id){
-  if(!confirm("¿Borrar esta zona?\nLos usuarios no se borrarán, solo se les quitará la zona.")) return;
+  if(!(await _confirmar({icono:"🗺️",titulo:"Borrar zona",mensaje:"¿Borrar esta zona? Los usuarios no se borrarán, solo se les quitará la zona.",ok:"Borrar",peligro:true}))) return;
   try { await sbDel("zonas","id=eq."+id+"&empresa_id=eq."+_sbEmpId); delete _zonasData[id]; renderZonas(); showNotif("Zona borrada","ok"); }
   catch(e){ showNotif("Error: "+e.message,"err"); }
 }
@@ -21854,8 +22484,8 @@ function _poblarSelectorVendedores(){
     }).join('');
 }
 
-function borrarVentaVnd(fbKey, vendorName, total){
-  if(!confirm('¿Eliminar este remito de '+vendorName+'?\n\nMonto: $'+fM(total)+'\n\nEsto afectará el total de ventas y la comisión de este vendedor.')) return;
+async function borrarVentaVnd(fbKey, vendorName, total){
+  if(!(await _confirmar({icono:"🗑️",titulo:"Eliminar remito",mensaje:'¿Eliminar este remito de '+vendorName+'? Monto: $'+fM(total)+'. Esto afectará el total de ventas y la comisión de este vendedor.',ok:"Eliminar",peligro:true}))) return;
   fbDel("empresas/"+empresaKey+"/ventas/"+fbKey)
     .then(function(){
       _vndVentas = _vndVentas.filter(function(v){ return v.fbKey!==fbKey; });
@@ -22477,7 +23107,25 @@ window.addEventListener('load', function(){
   _loadReadCache();
   _loadQueue();
   _updateBanner();
+  // Si arrancamos con señal y hay acciones pendientes (cobros/entregas de una
+  // sesión offline anterior), sincronizarlas ahora.
+  if(navigator.onLine && _offlineQueue && _offlineQueue.length){
+    setTimeout(function(){ if(typeof _syncQueue==="function") _syncQueue(); }, 3000);
+  }
 });
 </script>
+<!-- ══ ONBOARDING (primeros pasos para nuevas distribuidoras) ══ -->
+<div id="onboarding-ov" class="onb-ov">
+  <div class="onb-card" role="dialog" aria-modal="true" aria-labelledby="onb-titulo">
+    <button type="button" class="onb-x" onclick="_onbCerrar(false)" aria-label="Cerrar">✕</button>
+    <div class="onb-emoji">👋</div>
+    <div class="onb-titulo" id="onb-titulo">¡Bienvenido a CoreDistri!</div>
+    <div class="onb-sub">Configuremos tu distribuidora en 4 pasos rápidos.</div>
+    <div class="onb-prog"><div class="onb-prog-bar" id="onb-prog-bar"></div></div>
+    <div class="onb-prog-txt" id="onb-prog-txt">0 de 4 completados</div>
+    <div class="onb-pasos" id="onb-pasos"></div>
+    <button type="button" class="onb-skip" onclick="_onbCerrar(true)">Omitir por ahora</button>
+  </div>
+</div>
 </body>
 </html>
