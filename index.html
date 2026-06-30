@@ -6731,15 +6731,25 @@ function doLogin(){
       .then(function(u){ return {rpcOk:true, rpcUser:(u && u.id)?u:null}; })
       .catch(function(){ return {rpcOk:false, rpcUser:null}; })
       .then(function(_val){
+        // Login OK → setear el token ANTES de leer usuarios. La tabla usuarios ahora tiene
+        // RLS y solo devuelve filas si el token viaja en el request. Si el login falló,
+        // no leemos usuarios (devolvería vacío y daría un mensaje engañoso).
+        if(_val.rpcOk && _val.rpcUser && _val.rpcUser.token){
+          _empToken = _val.rpcUser.token;
+          try { localStorage.setItem("dm_emp_token", _val.rpcUser.token); } catch(e){}
+        }
+        if(!_val.rpcOk || !_val.rpcUser){
+          return {val:_val, usuarios:[]};
+        }
         return sbGet("usuarios","select=id,uid,name,role,roles,lista,catalogo,direccion,telefono,zona,recepciona,nota,loc_modo&empresa_id=eq."+emp.id)
           .then(function(usuarios){ return {val:_val, usuarios:usuarios||[]}; });
       })
     .then(function(ctx){
       var usuarios = ctx.usuarios;
-      if(!usuarios||!usuarios.length){ err.textContent="❌ No hay usuarios en esta empresa"; return; }
 
       // La validación de credenciales es 100% del lado del servidor (RPC verificar_login).
-      // El navegador ya NO recibe ni compara contraseñas.
+      // El navegador ya NO recibe ni compara contraseñas. Chequear credenciales PRIMERO,
+      // antes de mirar la lista de usuarios (que depende del token ya seteado).
       if(!ctx.val.rpcOk){
         err.textContent="⚠️ No se pudo validar el acceso. Revisá tu conexión e intentá de nuevo.";
         return;
@@ -6747,7 +6757,7 @@ function doLogin(){
       var found = ctx.val.rpcUser;
       if(!found){ err.textContent="❌ Usuario o contraseña incorrectos"; return; }
 
-      // Guardar el token de empresa (RLS). Viaja en cada request desde ahora.
+      // Token ya seteado arriba (antes de leer usuarios). Re-asegurar por las dudas.
       if(found.token){
         _empToken = found.token;
         try { localStorage.setItem("dm_emp_token", found.token); } catch(e){}
