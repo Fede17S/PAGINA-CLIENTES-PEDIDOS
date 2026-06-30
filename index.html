@@ -3754,6 +3754,45 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <button class="mbtn mbtn-primary" onclick="guardarDatosEmpresa()" style="padding:11px 24px">💾 Guardar datos de empresa</button>
     </div>
   </div>
+
+  <!-- ── LOGO Y COLOR DE MARCA ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">🎨 Logo y color de marca</span>
+      <span style="font-size:11px;color:var(--muted)">Aparecen en tu tienda y en los remitos</span>
+    </div>
+    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+      <div class="cli-field">
+        <label>Logo de la empresa</label>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+          <div id="de-logo-prev" style="width:72px;height:72px;border-radius:12px;border:1px solid var(--border);background:var(--s1);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+            <span style="font-size:11px;color:var(--muted)">Sin logo</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="display:inline-block;padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--s1);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;margin:0">
+              📷 Cambiar logo
+              <input type="file" id="de-logo-file" accept="image/*" style="display:none" onchange="_onLogoElegido(event)">
+            </label>
+            <button type="button" onclick="_quitarLogo()" style="padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">Quitar logo</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:7px">PNG o JPG, idealmente cuadrado.</div>
+      </div>
+      <div class="cli-field">
+        <label>Color principal</label>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+          <input type="color" id="de-color" value="#c9933a" style="width:54px;height:48px;border:1px solid var(--border);border-radius:10px;background:var(--s1);cursor:pointer;padding:3px;flex-shrink:0" oninput="_onColorElegido(this.value)">
+          <div>
+            <div id="de-color-hex" style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">#C9933A</div>
+            <div style="font-size:11px;color:var(--muted)">Se usa en tu tienda y remitos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" style="padding-top:0">
+      <button class="mbtn mbtn-primary" onclick="guardarMarca()" style="padding:11px 24px">💾 Guardar logo y color</button>
+    </div>
+  </div>
   </div><!-- end cfg-panel-empresa -->
 
   <!-- ═══ PANEL REMITO ═══ -->
@@ -4943,6 +4982,7 @@ var MED = ["g","s","b"];
 var empresaKey = "", empresaData = {}, currentUser = null;
 var stockData = {};
 var _dashStockCargando = false;
+var _dashStockIntentado = false;  // ya se intentó cargar el stock para el dashboard (evita loop si está vacío)
 var stockConfig = {}; // { [prodId]: { umbral: N } } — umbral de bajo stock por producto
 var dbStock = [], dbCli = [], ventas = [], rutasData = {};
 var rutaAbierta = null, clienteAbierto = {};
@@ -5740,7 +5780,7 @@ function sbUpsert(table, data, onConflict){
   if(onConflict) url += "?on_conflict="+encodeURIComponent(onConflict);
   return fetch(url, {
     method:"POST",
-    headers:Object.assign({},SB_HDR,{"Prefer":"resolution=merge-duplicates,return=representation"}),
+    headers:_sbHeaders({ "Content-Type":"application/json", "Prefer":"resolution=merge-duplicates,return=representation" }),
     body:JSON.stringify(data)
   }).then(function(r){ return r.ok||r.status===204 ? (r.status===204?null:r.json()) : r.text().then(function(t){throw new Error(t);}); });
 }
@@ -7166,6 +7206,24 @@ async function cargarDatosEmpresa(){
   document.querySelectorAll("#de-dias-entrega input[type=checkbox]").forEach(function(cb){
     cb.checked = diasGuardados.indexOf(cb.value) >= 0;
   });
+  // Logo y color (viven en la tabla empresas) — leer frescos
+  _logoNuevoDataURL = null;
+  try {
+    var er = await sbGet("empresas","select=logo,color&id=eq."+_sbEmpId);
+    if(er && er[0] && empresaData){ empresaData.logo = er[0].logo; empresaData.color = er[0].color; }
+  } catch(e){}
+  var _prev = document.getElementById("de-logo-prev");
+  if(_prev){
+    if(empresaData && empresaData.logo && empresaData.logo.length>10){
+      _prev.innerHTML = '<img src="'+empresaData.logo+'" style="width:100%;height:100%;object-fit:contain">';
+    } else {
+      _prev.innerHTML = '<span style="font-size:11px;color:var(--muted)">Sin logo</span>';
+    }
+  }
+  var _col = (empresaData && empresaData.color) || "#c9933a";
+  if(!/^#[0-9a-fA-F]{6}$/.test(_col)) _col = "#c9933a";
+  var _ci = document.getElementById("de-color"); if(_ci) _ci.value = _col;
+  var _ch = document.getElementById("de-color-hex"); if(_ch) _ch.textContent = _col.toUpperCase();
 }
 async function guardarDatosEmpresa(){
   if(!_sbEmpId){showNotif("Sin empresa activa","err");return;}
@@ -7179,6 +7237,53 @@ async function guardarDatosEmpresa(){
     Object.assign(empresaData._config,body);
     empresaData.diasEntrega = dias; // cache global
     showSaved("Datos guardados");
+  } catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+
+// ── Logo y color de marca (tabla empresas) ──
+var _logoNuevoDataURL = null;  // null = sin cambios; "" = quitar; dataURL = logo nuevo
+function _onLogoElegido(ev){
+  var file = ev.target.files && ev.target.files[0];
+  if(!file) return;
+  _comprimirImagen(file, 400, 0.85, function(dataURL){
+    _logoNuevoDataURL = dataURL;
+    var prev = document.getElementById("de-logo-prev");
+    if(prev) prev.innerHTML = '<img src="'+dataURL+'" style="width:100%;height:100%;object-fit:contain">';
+  });
+}
+function _quitarLogo(){
+  _logoNuevoDataURL = "";
+  var prev = document.getElementById("de-logo-prev");
+  if(prev) prev.innerHTML = '<span style="font-size:11px;color:var(--muted)">Sin logo</span>';
+}
+function _onColorElegido(val){
+  var hex = document.getElementById("de-color-hex");
+  if(hex) hex.textContent = (val||"").toUpperCase();
+  document.documentElement.style.setProperty("--emp-primary", val);  // preview en vivo
+}
+async function guardarMarca(){
+  if(!_sbEmpId){ showNotif("Sin empresa activa","err"); return; }
+  var ci = document.getElementById("de-color");
+  var color = ci ? ci.value : "";
+  try {
+    var patch = {};
+    if(color) patch.color = color;
+    if(_logoNuevoDataURL !== null){
+      if(_logoNuevoDataURL === ""){
+        patch.logo = "";
+      } else {
+        patch.logo = await _subirFotoStorage(_logoNuevoDataURL, "logo-"+((empresaData&&empresaData.codigo)||"emp"));
+      }
+    }
+    if(!Object.keys(patch).length){ showNotif("No hay cambios para guardar","err"); return; }
+    await sbPatch("empresas","id=eq."+_sbEmpId, patch);
+    if(empresaData){
+      if(patch.color!==undefined) empresaData.color = patch.color;
+      if(patch.logo!==undefined)  empresaData.logo  = patch.logo;
+    }
+    _logoNuevoDataURL = null;
+    if(typeof aplicarBranding==="function") aplicarBranding();
+    showSaved("Marca guardada");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 async function _nextHojaRutaNum(){
@@ -7692,6 +7797,7 @@ function _dashSetFiltro(k,v){ _dashFiltro[k]=v; _dashRender(); }
 
 async function renderDashboard(force){
   if(!_sbEmpId) return;
+  if(force) _dashStockIntentado = false;  // refresco manual → reintentar carga de stock
   _cargarNotifs();
   var saludo=document.getElementById("dash-saludo"), fechaEl=document.getElementById("dash-fecha");
   if(saludo) saludo.textContent="Hola, "+((currentUser&&currentUser.name)||"")+" \uD83D\uDC4B";
@@ -7710,15 +7816,18 @@ function _dashRender(){
     stockConfig = empresaData.stockConfig;
   }
   // Si aún no hay stock en memoria, traerlo de Supabase y re-renderizar una vez
-  if((!stockData || !Object.keys(stockData).length) && _sbEmpId && !_dashStockCargando){
+  if((!stockData || !Object.keys(stockData).length) && _sbEmpId && !_dashStockCargando && !_dashStockIntentado){
     _dashStockCargando = true;
     sbGet("stock","select=codigo,cantidad,umbral&empresa_id=eq."+_sbEmpId).then(function(rows){
       var sd={}, sc={};
       (rows||[]).forEach(function(s){ sd[s.codigo]=s.cantidad; sc[s.codigo]={umbral:s.umbral}; });
       stockData = sd; stockConfig = sc;
       _dashStockCargando = false;
-      if(document.getElementById("dashboard") && document.getElementById("dashboard").classList.contains("active")) _dashRender();
-    }).catch(function(){ _dashStockCargando = false; });
+      _dashStockIntentado = true;   // ya intentamos: no reintentar aunque el stock esté vacío (evita loop)
+      // Re-render SOLO si realmente trajimos stock. Si está vacío (empresa nueva), no hay
+      // nada nuevo que mostrar y re-renderizar dispararía el loop infinito.
+      if(rows && rows.length && document.getElementById("dashboard") && document.getElementById("dashboard").classList.contains("active")) _dashRender();
+    }).catch(function(){ _dashStockCargando = false; _dashStockIntentado = true; });
   }
   var ent=_dashCache.entregas||[], entIt=_dashCache.entItems||[], zc=_dashCache.zonaCli||{};
   var lim=_dashRangoLimites();
@@ -7883,6 +7992,7 @@ function _startDashAutoRefresh(){
 }
 
 function iniciarApp(){
+  _dashStockIntentado = false;  // estado limpio por empresa
   document.getElementById("login-screen").style.display="none";
   document.getElementById("app").classList.add("on");
   document.getElementById("sb-username").textContent=currentUser.name||currentUser.id;
@@ -21803,9 +21913,9 @@ async function importarProdCSV(){
   // Upsert stock de una vez
   if(updateStock && stockPatch.length){
     try {
-      await fetch(SB_URL+"/rest/v1/stock", {
+      await fetch(SB_URL+"/rest/v1/stock?on_conflict=empresa_id,codigo", {
         method:"POST",
-        headers: Object.assign({},SB_HDR,{"Prefer":"resolution=merge-duplicates,return=minimal"}),
+        headers: _sbHeaders({ "Content-Type":"application/json", "Prefer":"resolution=merge-duplicates,return=minimal" }),
         body: JSON.stringify(stockPatch)
       });
       _sincronizarDbStock && _sincronizarDbStock();
