@@ -3930,6 +3930,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
               📍 GPS
             </button>
           </div>
+          <button type="button" onclick="_pinAbrir('nc')" class="pin-open-btn">📍 Ajustar en el mapa</button>
           <input type="hidden" id="nc-lat">
           <input type="hidden" id="nc-lng">
           <div id="nc-dir-result" style="display:none;margin-top:4px"></div>
@@ -4099,6 +4100,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         </div>
         <div id="ec-dir-suggestions" style="display:none;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--s2);box-shadow:0 6px 20px rgba(0,0,0,.1);margin-bottom:4px;max-height:200px;overflow-y:auto;z-index:50;position:relative"></div>
         <div id="ec-dir-result" style="display:none;margin-top:4px;font-size:11.5px;padding:7px 10px;border-radius:7px"></div>
+        <button type="button" onclick="_pinAbrir('ec')" class="pin-open-btn">📍 Ajustar en el mapa</button>
         <input type="hidden" id="ec-lat">
         <input type="hidden" id="ec-lng">
       </div>
@@ -6153,14 +6155,14 @@ async function _sbGetProductos(force){
   if(!force && _ver){
     try { var _cc = await _idbGet(_ckey); if(_cc && _cc.ver === _ver && _cc.data) return _cc.data; } catch(e){}
   }
-  var SEL_NEW="select=id,codigo,nombre,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios";
+  var SEL_NEW="select=id,codigo,nombre,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo";
   var SEL_OLD="select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo";
   var rows;
   try { rows=await sbGet("productos",SEL_NEW+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
   catch(e){ rows=await sbGet("productos",SEL_OLD+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
-  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"unidad",unidadesBulto:p.unidades_bulto||1,minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
+  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"unidad",unidadesBulto:p.unidades_bulto||1,minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
 async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null}); _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
+async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
   var rows = await sbGet("usuarios","select=id,uid,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng,vendedor_asignado&empresa_id=eq."+_sbEmpId+"&order=name.asc");
@@ -9709,6 +9711,7 @@ function _pgRender(){
   var lista=tipoLista['ped']||"Clientes";
   var q=_pgQ;
   var arr=(dbStock||[]).filter(function(p){
+    if(p.activo===false) return false;
     if(_pgCat && (p.cat||"").trim()!==_pgCat) return false;
     if(!q) return true;
     return (p.n||"").toLowerCase().indexOf(q)!==-1 || (p.id||"").toLowerCase().indexOf(q)!==-1 || (((p.familia||"")+"").toLowerCase().indexOf(q)!==-1);
@@ -20223,7 +20226,7 @@ function _sincronizarDbStock() {
       preciosPorLista[lid] = (p.precios && p.precios[lid]!=null) ? p.precios[lid]
         : lid==="cli" ? pCli : lid==="pat" ? pPat : 0;
     });
-    var prod = { id:id, n:p.nombre, pCli:pCli, pPat:pPat, precios:preciosPorLista, cat:cat, familia:p.familia||null, foto:p.foto||"", unidadesBulto:p.unidadesBulto||1, esPortada:p.esPortada||false, precioPromo:p.precioPromo||null, cantPromo:p.cantPromo||null, ofertaPrecio:p.ofertaPrecio||null, ofertaActiva:p.ofertaActiva||false, ofertaHasta:p.ofertaHasta||null, ofertaTipo:p.ofertaTipo||"fijo", ofertaPct:p.ofertaPct||null, ofertaPrecios:p.ofertaPrecios||null };
+    var prod = { id:id, n:p.nombre, pCli:pCli, pPat:pPat, precios:preciosPorLista, cat:cat, familia:p.familia||null, foto:p.foto||"", unidadesBulto:p.unidadesBulto||1, esPortada:p.esPortada||false, precioPromo:p.precioPromo||null, cantPromo:p.cantPromo||null, ofertaPrecio:p.ofertaPrecio||null, ofertaActiva:p.ofertaActiva||false, ofertaHasta:p.ofertaHasta||null, ofertaTipo:p.ofertaTipo||"fijo", ofertaPct:p.ofertaPct||null, ofertaPrecios:p.ofertaPrecios||null, activo:p.activo!==false };
     dbStock.push(prod);
     if (!_catIndex[cat]) _catIndex[cat] = [];
     _catIndex[cat].push(prod);
@@ -20669,7 +20672,7 @@ function _buildCard(key, p) {
   }
 
   var card = document.createElement("div");
-  card.className = "prod-card" + (_prodSelMode ? " sel-mode" : "") + ((_prodSelMode && _prodSel[key]) ? " sel-on" : "");
+  card.className = "prod-card" + (_prodSelMode ? " sel-mode" : "") + ((_prodSelMode && _prodSel[key]) ? " sel-on" : "") + (p.activo===false ? " prod-inactivo" : "");
   var famBadge = p.familia
     ? '<div class="prod-card-fam" data-fam="'+(""+p.familia).replace(/"/g,"&quot;")+'">🗂️ '+p.familia+'</div>'
     : '';
@@ -20691,10 +20694,12 @@ function _buildCard(key, p) {
       promoBadge +
     '</div>' +
     '<div class="prod-card-actions">' +
+      '<button class="prod-card-btn prod-toggle '+(p.activo===false?'off':'on')+'" data-tk="' + key + '">'+(p.activo===false?'🚫 Oculto':'🟢 Activo')+'</button>' +
       '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
       '<button class="prod-card-btn danger" data-key="' + key + '">🗑</button>' +
     '</div>';
   card.querySelector('[data-key]').onclick = function(e) { e.stopPropagation(); abrirModalProducto(this.dataset.key); };
+  var _tgl=card.querySelector('.prod-toggle'); if(_tgl) _tgl.onclick=function(e){ e.stopPropagation(); _prodToggleActivo(this.dataset.tk); };
   card.querySelectorAll('[data-key]')[1].onclick = function(e) { e.stopPropagation(); eliminarProducto(this.dataset.key); };
   var famEl = card.querySelector('.prod-card-fam');
   if(famEl) famEl.onclick = function(e){ e.stopPropagation(); abrirModalFamilia(this.dataset.fam); };
@@ -23361,6 +23366,12 @@ window.addEventListener('load', function(){
 .me-dev-btn{width:100%;margin-top:8px;padding:9px;background:transparent;border:1px dashed var(--border);color:var(--muted);border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation}
 .me-dev-btn:active{background:var(--s3)}
 .me-dev-badge{display:inline-block;background:#f59e0b;color:#fff;border-radius:20px;padding:0 7px;font-size:11px;margin-left:4px}
+.pin-open-btn{display:inline-flex;align-items:center;gap:6px;margin:6px 0 2px;padding:8px 12px;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation}
+.pin-open-btn:hover{border-color:var(--gold,#c9933a)}
+.prod-inactivo{opacity:.5}
+.prod-inactivo .prod-card-img-wrap{filter:grayscale(.8)}
+.prod-toggle.on{color:#059669;font-weight:700}
+.prod-toggle.off{color:#dc2626;font-weight:700}
 </style>
 <!-- CORI -->
 <script>
@@ -24339,6 +24350,87 @@ function _devQuitar(idx){
 function _devPersistir(rk,ck,cli){
   if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]) rutasData[rk].clientes[ck].devoluciones=cli.devoluciones;
   fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{devoluciones:cli.devoluciones},"Devoluciones: "+(cli.nom||ck));
+}
+
+</script>
+
+<div id="pin-modal" class="dev-ov" style="display:none;z-index:100001" onclick="if(event.target===this)_pinCerrar()">
+  <div class="dev-card" style="max-width:520px">
+    <div class="dev-head">
+      <div><div class="dev-title">📍 Ubicación en el mapa</div><div class="dev-sub">Arrastrá el pin o tocá el mapa para marcar el punto exacto.</div></div>
+      <button class="dev-x" onclick="_pinCerrar()">✕</button>
+    </div>
+    <div id="pin-map" style="width:100%;height:52vh;min-height:300px;border-radius:12px;border:1px solid var(--border);overflow:hidden;background:var(--s3)"></div>
+    <div id="pin-coords" style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px"></div>
+    <button class="dev-add" onclick="_pinGuardar()">✓ Guardar ubicación</button>
+  </div>
+</div>
+
+<!-- Pin -->
+<script>
+/* ===== Ubicación manual con pin (mapa arrastrable) ===== */
+var _pinMap=null,_pinMarker=null,_pinPrefix=null;
+function _pinAbrir(prefix){
+  if(typeof L==="undefined"){ if(typeof showNotif==="function") showNotif("El mapa no está disponible","err"); return; }
+  _pinPrefix=prefix;
+  var latEl=document.getElementById(prefix+"-lat"), lngEl=document.getElementById(prefix+"-lng");
+  var lat=parseFloat(latEl&&latEl.value), lng=parseFloat(lngEl&&lngEl.value);
+  var m=document.getElementById("pin-modal"); if(!m) return;
+  m.style.display="flex";
+  var tiene=isFinite(lat)&&isFinite(lng)&&lat!==0&&lng!==0;
+  var start=tiene?[lat,lng]:[-42.7682,-65.0351];
+  setTimeout(function(){
+    if(!_pinMap){
+      _pinMap=L.map("pin-map").setView(start, tiene?16:13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_pinMap);
+      _pinMarker=L.marker(start,{draggable:true}).addTo(_pinMap);
+      _pinMap.on("click",function(e){ _pinMarker.setLatLng(e.latlng); _pinCoordText(); });
+      _pinMarker.on("dragend",_pinCoordText);
+    } else {
+      _pinMap.setView(start, tiene?16:13); _pinMarker.setLatLng(start);
+    }
+    _pinMap.invalidateSize(); _pinCoordText();
+    if(!tiene){
+      var dir=(document.getElementById(prefix+"-dir")||{}).value;
+      if(dir && typeof geocodeAddress==="function"){
+        geocodeAddress(dir).then(function(c){ if(c&&isFinite(c.lat)&&isFinite(c.lng)){ _pinMap.setView([c.lat,c.lng],16); _pinMarker.setLatLng([c.lat,c.lng]); _pinCoordText(); } }).catch(function(){});
+      }
+    }
+  },220);
+}
+function _pinCoordText(){
+  var el=document.getElementById("pin-coords"); if(!el||!_pinMarker) return;
+  var ll=_pinMarker.getLatLng();
+  el.textContent="📍 "+ll.lat.toFixed(6)+", "+ll.lng.toFixed(6);
+}
+function _pinGuardar(){
+  if(!_pinMarker||!_pinPrefix) return;
+  var ll=_pinMarker.getLatLng();
+  var latEl=document.getElementById(_pinPrefix+"-lat"), lngEl=document.getElementById(_pinPrefix+"-lng");
+  if(latEl) latEl.value=ll.lat.toFixed(6);
+  if(lngEl) lngEl.value=ll.lng.toFixed(6);
+  var res=document.getElementById(_pinPrefix+"-dir-result");
+  if(res){ res.style.display="block"; res.style.background="rgba(16,185,129,.12)"; res.style.color="#059669"; res.style.padding="7px 10px"; res.style.borderRadius="7px"; res.style.marginTop="4px"; res.textContent="📍 Ubicación fijada manualmente"; }
+  _pinCerrar();
+  if(typeof showNotif==="function") showNotif("📍 Ubicación fijada — acordate de Guardar","ok");
+}
+function _pinCerrar(){ var m=document.getElementById("pin-modal"); if(m) m.style.display="none"; }
+
+</script>
+
+<!-- Productos activo -->
+<script>
+/* ===== Habilitar / deshabilitar producto ===== */
+function _prodToggleActivo(key){
+  var d=(typeof _prodData!=="undefined" && _prodData)?_prodData[key]:null; if(!d) return;
+  var nuevo=(d.activo===false); // estaba oculto → activar; si no → ocultar
+  d.activo=nuevo;
+  if(typeof _sbPatchProducto==="function") _sbPatchProducto(key,{activo:nuevo});
+  // reflejar en dbStock (grilla de pedidos) al toque
+  if(typeof dbStock!=="undefined" && dbStock){ for(var i=0;i<dbStock.length;i++){ if(dbStock[i] && dbStock[i].id===key){ dbStock[i].activo=nuevo; break; } } }
+  if(typeof renderProductos==="function") renderProductos();
+  if(typeof _pgRender==="function") _pgRender();
+  if(typeof showNotif==="function") showNotif(nuevo?"🟢 Producto habilitado":"🚫 Oculto (no aparece en pedidos ni tienda)","ok");
 }
 
 </script>
