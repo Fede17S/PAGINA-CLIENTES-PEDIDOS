@@ -4636,6 +4636,17 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div><!-- /panel ofertas -->
 
     <div class="mprod-tab-panel" data-mppanel="tienda" data-titulo="📦 Tienda" style="display:none">
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:4px">🖼️ Fotos adicionales (galería)</label>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">El cliente va a poder deslizar para verlas en la tienda. La foto principal (pestaña Datos) va primero.</div>
+      <div id="mprod-galeria" class="mprod-galeria"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px" onclick="document.getElementById('mprod-gal-input').click()">📷 Agregar fotos</button>
+        <input type="file" id="mprod-gal-input" accept="image/*" multiple style="display:none" onchange="_galAgregarArchivo(this)">
+        <input id="mprod-gal-url" placeholder="o pegá una URL…" style="flex:1;min-width:110px;padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-size:12px;font-family:inherit">
+        <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_galAgregarURL()">➕ URL</button>
+      </div>
+    </div>
     <!-- Venta en la tienda: unidad / caja con precio automático -->
     <div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px">
       <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">📦 Venta en la tienda</div>
@@ -6206,14 +6217,14 @@ async function _sbGetProductos(force){
   if(!force && _ver){
     try { var _cc = await _idbGet(_ckey); if(_cc && _cc.ver === _ver && _cc.data) return _cc.data; } catch(e){}
   }
-  var SEL_NEW="select=id,codigo,nombre,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo";
+  var SEL_NEW="select=id,codigo,nombre,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo,fotos";
   var SEL_OLD="select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo";
   var rows;
   try { rows=await sbGet("productos",SEL_NEW+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
   catch(e){ rows=await sbGet("productos",SEL_OLD+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
-  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"unidad",unidadesBulto:p.unidades_bulto||1,minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
-async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null}); _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
+  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"unidad",unidadesBulto:p.unidades_bulto||1,minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[]};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
+async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null}); _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
+async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.fotos!==undefined)b.fotos=p.fotos;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
   var rows = await sbGet("usuarios","select=id,uid,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng,vendedor_asignado&empresa_id=eq."+_sbEmpId+"&order=name.asc");
@@ -20892,6 +20903,8 @@ function abrirModalProducto(key) {
   document.getElementById("mprod-categoria").value = p.categoria || "";
   // Foto
   _prodFotoB64 = p.foto || "";
+  _prodFotosExtra = Array.isArray(p.fotos) ? p.fotos.slice() : [];
+  if(typeof _galRender==="function") _galRender();
   // Inicializar URL input si la foto es URL
   var urlInp = document.getElementById("mprod-foto-url-input");
   if(urlInp) urlInp.value = (_prodFotoB64 && !_prodFotoB64.startsWith("data:")) ? _prodFotoB64 : "";
@@ -21659,7 +21672,8 @@ function guardarProducto() {
     ? (function(){ if(btn) btn.textContent="Subiendo foto…"; return _subirFotoStorage(_fotoRaw, codigo||nombre); })()
     : Promise.resolve(_fotoRaw);
 
-  _fotoProm.then(function(fotoFinal){
+  _fotoProm.then(async function(fotoFinal){
+  var _fotosGal = (typeof _galSubirTodas==="function") ? (await _galSubirTodas(codigo||nombre)) : [];
   var prodObj = {
     nombre: nombre,
     codigo: codigo || nombre.substring(0,4).toUpperCase(),
@@ -21677,6 +21691,7 @@ function guardarProducto() {
     precioClientes:  precioCli,
     precioPatagonia: precioPat,
     foto: fotoFinal || "",
+    fotos: _fotosGal,
     precioPromo: precioPromo,
     cantPromo:   cantPromo,
     unidadVenta:   unidadVenta,
@@ -25220,6 +25235,69 @@ function _sysIniciarHeartbeat(){
   _sysHbTimer=setInterval(beat, 60000);
 }
 function _sysPresenciaInit(){ _sysRegistrarLogin(); _sysIniciarHeartbeat(); }
+
+</script>
+
+<style>
+.mprod-galeria{display:flex;flex-wrap:wrap;gap:8px}
+.gal-thumb{position:relative;width:68px;height:68px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--s2)}
+.gal-thumb img{width:100%;height:100%;object-fit:contain}
+.gal-x{position:absolute;top:2px;right:2px;width:18px;height:18px;border:none;border-radius:50%;background:rgba(220,38,38,.92);color:#fff;font-size:10px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+.gal-mv{position:absolute;bottom:2px;left:2px;width:18px;height:18px;border:none;border-radius:4px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0}
+.gal-mv-r{left:auto;right:2px}
+</style>
+<!-- Galeria producto -->
+<script>
+/* ===== Galería de fotos por producto (Mis Productos) ===== */
+var _prodFotosExtra = [];
+function _galRender(){
+  var cont = document.getElementById("mprod-galeria"); if(!cont) return;
+  if(!_prodFotosExtra.length){
+    cont.innerHTML = '<div style="font-size:11.5px;color:var(--muted);padding:4px 0">Sin fotos adicionales todavía. Agregá fotos y el cliente va a poder deslizar para verlas en la tienda.</div>';
+    return;
+  }
+  cont.innerHTML = _prodFotosExtra.map(function(src,i){
+    return '<div class="gal-thumb">'
+      + '<img src="'+src+'" alt="" onerror="this.style.opacity=.3">'
+      + '<button type="button" class="gal-x" title="Quitar" onclick="_galQuitar('+i+')">✕</button>'
+      + (i>0?'<button type="button" class="gal-mv" title="Mover antes" onclick="_galMover('+i+',-1)">‹</button>':'')
+      + (i<_prodFotosExtra.length-1?'<button type="button" class="gal-mv gal-mv-r" title="Mover después" onclick="_galMover('+i+',1)">›</button>':'')
+      + '</div>';
+  }).join("");
+}
+function _galAgregarArchivo(input){
+  var files = input.files; if(!files || !files.length) return;
+  var pend = files.length;
+  Array.prototype.forEach.call(files, function(file){
+    var r = new FileReader();
+    r.onload  = function(e){ if(e.target.result) _prodFotosExtra.push(e.target.result); pend--; if(pend<=0) _galRender(); };
+    r.onerror = function(){ pend--; if(pend<=0) _galRender(); };
+    r.readAsDataURL(file);
+  });
+  input.value = "";
+}
+function _galAgregarURL(){
+  var inp = document.getElementById("mprod-gal-url"); if(!inp) return;
+  var u = (inp.value||"").trim(); if(!u) return;
+  _prodFotosExtra.push(u); inp.value=""; _galRender();
+}
+function _galQuitar(i){ _prodFotosExtra.splice(i,1); _galRender(); }
+function _galMover(i,dir){
+  var j=i+dir; if(j<0||j>=_prodFotosExtra.length) return;
+  var tmp=_prodFotosExtra[i]; _prodFotosExtra[i]=_prodFotosExtra[j]; _prodFotosExtra[j]=tmp; _galRender();
+}
+// Sube a Storage las que sean base64 y devuelve el array final de URLs
+async function _galSubirTodas(base){
+  var out=[];
+  for(var i=0;i<_prodFotosExtra.length;i++){
+    var src=_prodFotosExtra[i];
+    if(typeof src==="string" && src.indexOf("data:")===0 && typeof _subirFotoStorage==="function"){
+      try{ src = await _subirFotoStorage(src, (base||"p")+"-g"+(i+1)); }catch(e){}
+    }
+    if(src) out.push(src);
+  }
+  return out;
+}
 
 </script>
 </body>
