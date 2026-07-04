@@ -2733,7 +2733,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   var sp=document.getElementById('cd-splash'); if(!sp) return;
   try{ if(sessionStorage.getItem('cd_splash_v2')){ if(sp.parentNode) sp.parentNode.removeChild(sp); return; } sessionStorage.setItem('cd_splash_v2','1'); }catch(e){}
   try{ var nm=localStorage.getItem('cd_splash_name'); var b=sp.querySelector('.cds-brand'); if(b) b.textContent = nm ? (' — '+nm) : ''; }catch(e){}
-  var CD_VER='v1.4'; window.APP_VERSION=CD_VER;
+  var CD_VER='v1.5'; window.APP_VERSION=CD_VER;
   var vEl=sp.querySelector('.cds-ver'); if(vEl) vEl.textContent='Versión '+CD_VER;
   var LOOP=2500, BLACK=1100;
   setTimeout(function(){ sp.classList.add('cds-end'); }, LOOP);
@@ -5106,7 +5106,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <button id="nav-fab" type="button" onclick="_toggleNavFab()" aria-label="Menú de secciones" aria-expanded="false">
   <span class="nav-fab-ico" aria-hidden="true">☰</span>
 </button>
-<div id="nav-fab-back" onclick="_closeNavFab()" aria-hidden="true"></div>
+<div id="nav-fab-back" onclick="_closeNavFab()" ontouchend="_closeNavFab()" aria-hidden="true"></div>
 <div id="nav-fab-panel" role="menu" aria-label="Secciones">
   <div class="nav-fab-handle" aria-hidden="true"></div>
   <div class="nav-fab-title">Secciones</div>
