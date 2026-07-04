@@ -904,7 +904,7 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 }
 
 .section { display:none }
-.section.active { display:block; animation:fadeIn .22s ease both; height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch }
+.section.active { display:block; animation:fadeIn .22s ease both; height:100%; overflow-y:auto; }
 @media (prefers-reduced-motion: reduce){ .section.active { animation:none } }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 .section.me-root.active { display:flex }
@@ -1966,7 +1966,7 @@ select option { background:var(--s2); color:var(--text) }
 .btn-add-cli:hover { background:#000 }
 .cli-list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px }
 .cli-list-title { font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted) }
-.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; margin-bottom:7px; transition:border-color .15s }
+.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; margin-bottom:7px; transition:border-color .15s; content-visibility:auto; contain-intrinsic-size:0 66px; }
 .cli-card:hover { border-color:var(--muted2) }
 .cli-avatar { width:38px; height:38px; border-radius:50%; background:var(--s3); color:var(--text); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex-shrink:0 }
 .cli-info { flex:1; min-width:0 }
@@ -2171,7 +2171,7 @@ html[data-theme="dark"] .prod-toolbar {
 /* ===== Familia + selección múltiple en Mis Productos ===== */
 .prod-card-fam { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:var(--gold,#c9933a); background:rgba(201,147,58,.12); border:1px solid rgba(201,147,58,.3); padding:2px 7px; border-radius:7px; cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .prod-card-fam:hover { background:rgba(201,147,58,.22); }
-.prod-card { position:relative; }
+.prod-card { position:relative; content-visibility:auto; contain-intrinsic-size:0 230px; }
 .prod-card.sel-mode { cursor:pointer; }
 .prod-card.sel-mode .prod-card-actions { display:none; }
 .prod-card.sel-on { outline:2.5px solid var(--gold,#c9933a); outline-offset:-1px; }
@@ -2997,6 +2997,27 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
   <button id="hdr-cuenta-btn" onclick="_abrirMenuCuenta()" aria-label="Cuenta" title="Cuenta">👤</button>
 </header>
+<script>
+/* Fallback de safe-area para iPhone: si env(safe-area-inset-top) devuelve 0 en un
+   iPhone con notch/Dynamic Island, forzamos --safe-top para que el header no quede
+   tapado por la isla (bug de Safari/webapp). */
+(function(){
+  try{
+    var probe=document.createElement("div");
+    probe.style.cssText="position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);";
+    document.body.appendChild(probe);
+    var inset=probe.getBoundingClientRect().height||probe.offsetHeight||0;
+    document.body.removeChild(probe);
+    var ua=navigator.userAgent||"";
+    var isIOS=/iPhone|iPod/.test(ua) || (/iPad|Macintosh/.test(ua) && navigator.maxTouchPoints>1);
+    var maxD=window.screen ? Math.max(window.screen.width||0, window.screen.height||0) : 0;
+    if(isIOS && inset < 20 && maxD >= 812){
+      var top = maxD >= 850 ? 55 : 47;   // Dynamic Island vs notch clásico
+      document.documentElement.style.setProperty("--safe-top", top+"px");
+    }
+  }catch(e){}
+})();
+</script>
 
 <!-- BUSCADOR GLOBAL -->
 <div class="modal-bg" id="modal-buscador" onclick="if(event.target===this)cerrarBuscadorGlobal()" style="align-items:flex-start">
@@ -8517,7 +8538,7 @@ var _navFabOpen = false;
 var _searchTimers = {};
 function _debSearch(key, fn, arg){
   clearTimeout(_searchTimers[key]);
-  _searchTimers[key] = setTimeout(function(){ try{ fn(arg); }catch(e){ console.warn("[search]", e); } }, 200);
+  _searchTimers[key] = setTimeout(function(){ try{ fn(arg); }catch(e){ console.warn("[search]", e); } }, 300);
 }
 function _toggleNavFab(){ _navFabOpen ? _closeNavFab() : _openNavFab(); }
 function _openNavFab(){
@@ -19101,7 +19122,9 @@ function _renderClientesList(){
   var isArmadorCli = currentUser && currentUser.role === "armador";
 
   var _vmapCli={}; Object.values(_clientesDB||{}).forEach(function(_u){ if(_u.role==="vendedor") _vmapCli[_u.id]=_u.name||_u.id; });
-  body.innerHTML = entries.map(function(e){
+  var _cliTot = entries.length, _CLI_MAX = 80, _cliTrunc = _cliTot > _CLI_MAX;
+  if(_cliTrunc) entries = entries.slice(0, _CLI_MAX);
+  body.innerHTML = (_cliTrunc ? '<div style="text-align:center;padding:9px 10px;color:var(--muted);font-size:12px;background:var(--s2);border-radius:8px;margin-bottom:8px">Mostrando '+_CLI_MAX+' de '+_cliTot+' — afiná la búsqueda para ver más</div>' : '') + entries.map(function(e){
     var pk=e[0], u=e[1];
     var rol = u.role||"cliente", col = RC[rol]||"#059669";
     var nom = u.name||u.nombre||u.id||u.uid||"?";
@@ -20551,6 +20574,7 @@ var _prodModo = "listas";
 var _prodFotoB64 = "";
 var _prodPage = 0;
 var _PROD_PER_PAGE = 24;
+var _prodCatsSig = null;
 var _prodFiltered = []; // cache del filtrado actual
 
 async function confirmarBorrarCatalogo(){
@@ -21166,10 +21190,14 @@ function renderProductos() {
 
   // Poblar el filtro de categorías (manteniendo la selección actual)
   var catSel = document.getElementById("prod-cat-filtro");
+  var _catsArr = Array.from(cats).filter(Boolean).sort(function(a, b) { return a.localeCompare(b); });
+  var _catsSig = _catsArr.join("|");
+  var _catsChanged = (_catsSig !== _prodCatsSig);
   if (catSel) {
-    var catsArr = Array.from(cats).filter(Boolean).sort(function(a, b) { return a.localeCompare(b); });
-    catSel.innerHTML = '<option value="">📂 Todas las categorías</option>' +
-      catsArr.map(function(c) { return '<option value="' + c.replace(/"/g, "&quot;") + '">' + c + '</option>'; }).join("");
+    if (_catsChanged) {
+      catSel.innerHTML = '<option value="">📂 Todas las categorías</option>' +
+        _catsArr.map(function(c) { return '<option value="' + c.replace(/"/g, "&quot;") + '">' + c + '</option>'; }).join("");
+    }
     catSel.value = _prodCatFiltro;
   }
 
@@ -21186,9 +21214,10 @@ function renderProductos() {
     }
   }
 
-  // Datalist categorías para el modal
+  // Datalist categorías para el modal (solo si cambiaron las categorías)
   var dl = document.getElementById("mprod-cats-dl");
-  if (dl) dl.innerHTML = Array.from(cats).filter(Boolean).map(function(c){return '<option value="'+c+'">';}).join("");
+  if (dl && _catsChanged) dl.innerHTML = _catsArr.map(function(c){return '<option value="'+c+'">';}).join("");
+  _prodCatsSig = _catsSig;
 
   // Orden estable alfabético (evita que cambie el orden al guardar/editar)
   _prodFiltered.sort(function(a, b) { return (a[1].nombre || "").localeCompare(b[1].nombre || ""); });
