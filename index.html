@@ -2101,6 +2101,13 @@ html[data-theme="dark"] .prod-toolbar {
 }
 .prod-toolbar input[type=text]:focus { border-color:var(--accent); }
 .prod-toolbar-btns { display:flex; gap:7px; flex-shrink:0; align-items:center; }
+/* Barra de busqueda: solo el buscador queda fijo al scrollear */
+.prod-searchbar {
+  position:sticky; top:0; z-index:20;
+  background:var(--bg);
+  padding:8px 16px; margin:0 -16px 8px;
+  box-shadow:0 1px 0 var(--border), 0 6px 12px -8px rgba(0,0,0,.18);
+}
 /* Botones de la toolbar */
 .ptb {
   display:inline-flex; align-items:center; gap:5px;
@@ -2132,11 +2139,11 @@ html[data-theme="dark"] .prod-toolbar {
 .ptb-menu-sep { height:1px; background:var(--border); margin:5px 4px; }
 /* Mobile: buscador full, botones abajo */
 @media (max-width: 600px) {
-  .prod-search-wrap { flex-basis:100%; order:-1; }
-  .prod-cat-sel { flex:1; max-width:none; }
-  .prod-toolbar-btns { width:100%; justify-content:flex-end; flex-wrap:wrap; }
+  .prod-cat-sel { flex-basis:100%; max-width:none; }
+  .prod-toolbar-btns { width:100%; gap:6px; }
+  .prod-toolbar-btns > .ptb, .prod-toolbar-btns > .ptb-menu-wrap { flex:1; }
+  .prod-toolbar-btns .ptb { width:100%; justify-content:center; padding:10px 6px; }
   .ptb span { display:none; }
-  .ptb { padding:9px 11px; }
   .ptb-primary span, .ptb#btn-sel-prod span { display:inline; }
 }
 
@@ -4364,11 +4371,13 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
      SECCIÓN: MIS PRODUCTOS
 ══════════════════════════════════ -->
 <div id="productos" class="section">
-  <div class="prod-toolbar">
+  <div class="prod-searchbar">
     <div class="prod-search-wrap">
       <span class="prod-search-ic">🔍</span>
       <form onsubmit="return false;" autocomplete="off" style="display:contents"><input type="text" id="prod-buscar" placeholder="Buscar producto o código…" oninput="_debSearch('prod', filtrarProductos)" autocomplete="off" autocorrect="off" spellcheck="false"></form>
     </div>
+  </div>
+  <div class="prod-toolbar">
     <select id="prod-cat-filtro" onchange="_setProdCatFiltro(this.value)" title="Filtrar por categoría" class="prod-cat-sel">
       <option value="">📂 Todas las categorías</option>
     </select>
