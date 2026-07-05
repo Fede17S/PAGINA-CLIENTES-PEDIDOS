@@ -2072,15 +2072,12 @@ label.rol-chk:has(.ec-rol-multi:checked) {
 /* Toolbar sticky dentro de la sección */
 .prod-toolbar {
   display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-  position:sticky; top:0; z-index:10;
-  background: var(--bg);
-  padding:10px 16px 12px; margin-bottom:4px;
-  border-bottom: 1px solid var(--border);
-  margin-left:-16px; margin-right:-16px;
+  background: transparent;
+  padding:0 0 10px;
+  margin-bottom:6px;
 }
 html[data-theme="dark"] .prod-toolbar {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  background: transparent;
 }
 .prod-toolbar input[type=text] {
   font-size:16px; /* 16px evita el zoom automático en iOS */
@@ -8537,29 +8534,6 @@ function _debSearch(key, fn, arg){
   clearTimeout(_searchTimers[key]);
   _searchTimers[key] = setTimeout(function(){ try{ fn(arg); }catch(e){ console.warn("[search]", e); } }, 300);
 }
-var _perfT0 = 0, _perfRaf = -1;
-function _perfBadge(txt, warn){
-  var dbg = document.getElementById("_perfdbg");
-  if(!dbg){ dbg = document.createElement("div"); dbg.id="_perfdbg";
-    dbg.style.cssText = "position:fixed;top:calc(var(--safe-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:2147483647;background:#dc2626;color:#fff;padding:9px 15px;border-radius:12px;font:800 14px/1.3 system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.5);pointer-events:none;white-space:nowrap;text-align:center;max-width:94vw";
-    document.body.appendChild(dbg); }
-  dbg.style.background = warn ? "#dc2626" : "#0a7048";
-  dbg.textContent = txt; dbg.style.display = "block";
-  clearTimeout(dbg._t); dbg._t = setTimeout(function(){ dbg.style.display = "none"; }, 9000);
-}
-function _instrumentarBuscador(id){
-  var el = document.getElementById(id); if(!el || el._instr) return; el._instr = true;
-  el.addEventListener("focus", function(){
-    _perfT0 = performance.now(); _perfRaf = -1;
-    requestAnimationFrame(function(){ if(_perfT0) _perfRaf = Math.round(performance.now() - _perfT0); });
-  });
-}
-if(window.visualViewport){ window.visualViewport.addEventListener("resize", function(){
-  if(_perfT0){ var kb = Math.round(performance.now() - _perfT0); var raf = _perfRaf; _perfT0 = 0;
-    _perfBadge("hilo(rAF): " + (raf<0?"?":raf) + " ms  ·  teclado: " + kb + " ms", kb>1500);
-  }
-}); }
-try{ setTimeout(function(){ _instrumentarBuscador("cli-search-input"); _instrumentarBuscador("prod-buscar"); }, 1500); }catch(e){}
 function _toggleNavFab(){ _navFabOpen ? _closeNavFab() : _openNavFab(); }
 function _openNavFab(){
   _navFabOpen = true;
