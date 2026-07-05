@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>DistriMax Central</title>
 
 <!-- PWA: manifest e íconos -->
@@ -145,7 +145,8 @@ html[data-theme="dark"] .sb-item.active { background:var(--accent); color:#fff; 
 html[data-theme="dark"] .bn-item.active { background:var(--accent); color:#fff; }
 
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent }
-html, body { height:100% }
+html, body { height:100%; overflow-x:hidden; max-width:100%; }
+img, video, canvas { max-width:100%; }
 body {
   font-family:"Inter", system-ui, sans-serif;
   background:var(--bg); color:var(--text);
@@ -807,8 +808,8 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 
 /* ===== Dashboard responsive ===== */
 .main > #dashboard.section { max-width:none; }
-.dash-wrap { padding:16px; max-width:560px; margin:0 auto; }
-.dash-cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
+.dash-wrap { padding:16px; max-width:560px; margin:0 auto; overflow-x:hidden; }
+.dash-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:18px; }
 .dash-card { background:var(--s2); border:1px solid var(--border); border-radius:var(--radius); padding:14px; transition:transform .18s ease, box-shadow .18s ease; animation:dashCardIn .4s cubic-bezier(.16,1,.3,1) both; }
 .dash-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
 .dash-card:nth-child(1){ animation-delay:.02s } .dash-card:nth-child(2){ animation-delay:.07s }
@@ -819,15 +820,15 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 .dash-card-val { font-size:21px; font-weight:800; margin-top:5px; font-variant-numeric:tabular-nums; line-height:1.1; }
 .dash-card-lbl { font-size:11px; color:var(--muted); margin-top:3px; }
 .dash-cmp-pill { display:inline-flex; align-items:center; gap:3px; margin-top:7px; padding:3px 8px; border-radius:7px; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
-.dash-grid { display:grid; grid-template-columns:1fr; gap:14px; }
+.dash-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
 .dash-block-tit { font-size:13px; font-weight:700; margin-bottom:8px; }
-.dash-pair { display:grid; grid-template-columns:1fr; gap:12px; }
+.dash-pair { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; }
 @media (min-width:880px){
-  .dash-wrap { max-width:1180px; padding:22px; }
-  .dash-cards { grid-template-columns:repeat(4,1fr); gap:12px; }
-  .dash-grid { grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  .dash-wrap { max-width:1040px; padding:22px; }
+  .dash-cards { grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  .dash-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
   .dash-grid .dash-full { grid-column:1 / -1; }
-  .dash-pair { grid-template-columns:1fr 1fr; }
+  .dash-pair { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width:560px){
   .dash-wrap { padding:11px; }
@@ -1966,7 +1967,7 @@ select option { background:var(--s2); color:var(--text) }
 .btn-add-cli:hover { background:#000 }
 .cli-list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px }
 .cli-list-title { font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted) }
-.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; margin-bottom:7px; transition:border-color .15s; content-visibility:auto; contain-intrinsic-size:0 66px; }
+.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; margin-bottom:7px; transition:border-color .15s; }
 .cli-card:hover { border-color:var(--muted2) }
 .cli-avatar { width:38px; height:38px; border-radius:50%; background:var(--s3); color:var(--text); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex-shrink:0 }
 .cli-info { flex:1; min-width:0 }
@@ -2072,16 +2073,14 @@ label.rol-chk:has(.ec-rol-multi:checked) {
 .prod-toolbar {
   display:flex; flex-wrap:wrap; gap:8px; align-items:center;
   position:sticky; top:0; z-index:10;
-  background: var(--s1);
-  padding:10px 16px 10px; margin-bottom:2px;
+  background: var(--bg);
+  padding:10px 16px 12px; margin-bottom:4px;
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 20px rgba(0,0,0,0.06);
   margin-left:-16px; margin-right:-16px;
 }
 html[data-theme="dark"] .prod-toolbar {
-  background: rgba(22,28,36,0.78);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 1px 20px rgba(0,0,0,0.25);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 .prod-toolbar input[type=text] {
   font-size:16px; /* 16px evita el zoom automático en iOS */
@@ -2169,7 +2168,7 @@ html[data-theme="dark"] .prod-toolbar {
 /* ===== Familia + selección múltiple en Mis Productos ===== */
 .prod-card-fam { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:var(--gold,#c9933a); background:rgba(201,147,58,.12); border:1px solid rgba(201,147,58,.3); padding:2px 7px; border-radius:7px; cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .prod-card-fam:hover { background:rgba(201,147,58,.22); }
-.prod-card { position:relative; content-visibility:auto; contain-intrinsic-size:0 230px; }
+.prod-card { position:relative; }
 .prod-card.sel-mode { cursor:pointer; }
 .prod-card.sel-mode .prod-card-actions { display:none; }
 .prod-card.sel-on { outline:2.5px solid var(--gold,#c9933a); outline-offset:-1px; }
@@ -8538,6 +8537,17 @@ function _debSearch(key, fn, arg){
   clearTimeout(_searchTimers[key]);
   _searchTimers[key] = setTimeout(function(){ try{ fn(arg); }catch(e){ console.warn("[search]", e); } }, 300);
 }
+function _instrumentarBuscador(id){
+  var el = document.getElementById(id); if(!el || el._instr) return; el._instr = true;
+  var t0 = 0;
+  el.addEventListener("focus", function(){ t0 = performance.now(); });
+  el.addEventListener("input", function(){
+    if(t0){ var d = Math.round(performance.now() - t0); t0 = 0;
+      if(typeof showNotif === "function") showNotif("⏱ Tardó " + d + " ms en reaccionar", d > 1500 ? "err" : "ok");
+    }
+  });
+}
+try{ setTimeout(function(){ _instrumentarBuscador("cli-search-input"); _instrumentarBuscador("prod-buscar"); }, 1500); }catch(e){}
 function _toggleNavFab(){ _navFabOpen ? _closeNavFab() : _openNavFab(); }
 function _openNavFab(){
   _navFabOpen = true;
