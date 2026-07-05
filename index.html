@@ -8550,7 +8550,13 @@ function _perfShow(label){
 }
 function _instrumentarBuscador(id){
   var el = document.getElementById(id); if(!el || el._instr) return; el._instr = true;
-  el.addEventListener("focus", function(){ _perfT0 = performance.now(); });
+  el.addEventListener("focus", function(){
+    _perfT0 = performance.now();
+    // Reducir el DOM ANTES de que abra el teclado (iOS reacomoda todo al abrirlo)
+    try{
+      if(id==="prod-buscar" && typeof renderProductos==="function"){ _prodPage = 0; renderProductos(); }
+    }catch(e){}
+  });
   el.addEventListener("input", function(){ if(_perfT0) _perfShow("foco→tipeo"); });
 }
 if(window.visualViewport){ window.visualViewport.addEventListener("resize", function(){ if(_perfT0) _perfShow("foco→teclado"); }); }
@@ -19137,7 +19143,7 @@ function _renderClientesList(){
   var isArmadorCli = currentUser && currentUser.role === "armador";
 
   var _vmapCli={}; Object.values(_clientesDB||{}).forEach(function(_u){ if(_u.role==="vendedor") _vmapCli[_u.id]=_u.name||_u.id; });
-  var _cliTot = entries.length, _CLI_MAX = 80, _cliTrunc = _cliTot > _CLI_MAX;
+  var _cliTot = entries.length, _CLI_MAX = 30, _cliTrunc = _cliTot > _CLI_MAX;
   if(_cliTrunc) entries = entries.slice(0, _CLI_MAX);
   body.innerHTML = (_cliTrunc ? '<div style="text-align:center;padding:9px 10px;color:var(--muted);font-size:12px;background:var(--s2);border-radius:8px;margin-bottom:8px">Mostrando '+_CLI_MAX+' de '+_cliTot+' — afiná la búsqueda para ver más</div>' : '') + entries.map(function(e){
     var pk=e[0], u=e[1];
@@ -20588,7 +20594,7 @@ function _setProdCatFiltro(v){ _prodCatFiltro = v || ""; _prodPage = 0; renderPr
 var _prodModo = "listas";
 var _prodFotoB64 = "";
 var _prodPage = 0;
-var _PROD_PER_PAGE = 24;
+var _PROD_PER_PAGE = 15;
 var _prodCatsSig = null;
 var _prodFiltered = []; // cache del filtrado actual
 
