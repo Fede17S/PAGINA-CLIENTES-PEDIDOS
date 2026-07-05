@@ -1967,7 +1967,7 @@ select option { background:var(--s2); color:var(--text) }
 .btn-add-cli:hover { background:#000 }
 .cli-list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px }
 .cli-list-title { font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted) }
-.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; margin-bottom:7px; transition:border-color .15s; }
+.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; margin-bottom:7px; transition:border-color .15s; content-visibility:auto; contain-intrinsic-size:0 66px; }
 .cli-card:hover { border-color:var(--muted2) }
 .cli-avatar { width:38px; height:38px; border-radius:50%; background:var(--s3); color:var(--text); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex-shrink:0 }
 .cli-info { flex:1; min-width:0 }
@@ -2168,7 +2168,7 @@ html[data-theme="dark"] .prod-toolbar {
 /* ===== Familia + selección múltiple en Mis Productos ===== */
 .prod-card-fam { display:inline-block; margin-top:4px; font-size:10px; font-weight:700; color:var(--gold,#c9933a); background:rgba(201,147,58,.12); border:1px solid rgba(201,147,58,.3); padding:2px 7px; border-radius:7px; cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .prod-card-fam:hover { background:rgba(201,147,58,.22); }
-.prod-card { position:relative; }
+.prod-card { position:relative; content-visibility:auto; contain-intrinsic-size:0 230px; }
 .prod-card.sel-mode { cursor:pointer; }
 .prod-card.sel-mode .prod-card-actions { display:none; }
 .prod-card.sel-on { outline:2.5px solid var(--gold,#c9933a); outline-offset:-1px; }
@@ -8537,16 +8537,23 @@ function _debSearch(key, fn, arg){
   clearTimeout(_searchTimers[key]);
   _searchTimers[key] = setTimeout(function(){ try{ fn(arg); }catch(e){ console.warn("[search]", e); } }, 300);
 }
+var _perfT0 = 0;
+function _perfShow(label){
+  if(!_perfT0) return; var d = Math.round(performance.now() - _perfT0); _perfT0 = 0;
+  var dbg = document.getElementById("_perfdbg");
+  if(!dbg){ dbg = document.createElement("div"); dbg.id="_perfdbg";
+    dbg.style.cssText = "position:fixed;top:calc(var(--safe-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:2147483647;background:#dc2626;color:#fff;padding:9px 16px;border-radius:12px;font:800 15px/1 system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.5);pointer-events:none;white-space:nowrap";
+    document.body.appendChild(dbg); }
+  dbg.textContent = "⏱ " + label + ": " + d + " ms";
+  dbg.style.display = "block";
+  clearTimeout(dbg._t); dbg._t = setTimeout(function(){ dbg.style.display = "none"; }, 7000);
+}
 function _instrumentarBuscador(id){
   var el = document.getElementById(id); if(!el || el._instr) return; el._instr = true;
-  var t0 = 0;
-  el.addEventListener("focus", function(){ t0 = performance.now(); });
-  el.addEventListener("input", function(){
-    if(t0){ var d = Math.round(performance.now() - t0); t0 = 0;
-      if(typeof showNotif === "function") showNotif("⏱ Tardó " + d + " ms en reaccionar", d > 1500 ? "err" : "ok");
-    }
-  });
+  el.addEventListener("focus", function(){ _perfT0 = performance.now(); });
+  el.addEventListener("input", function(){ if(_perfT0) _perfShow("foco→tipeo"); });
 }
+if(window.visualViewport){ window.visualViewport.addEventListener("resize", function(){ if(_perfT0) _perfShow("foco→teclado"); }); }
 try{ setTimeout(function(){ _instrumentarBuscador("cli-search-input"); _instrumentarBuscador("prod-buscar"); }, 1500); }catch(e){}
 function _toggleNavFab(){ _navFabOpen ? _closeNavFab() : _openNavFab(); }
 function _openNavFab(){
@@ -21590,6 +21597,13 @@ async function guardarListasConfig(){
 }
 
 // ── Modal de producto — precios dinámicos ──
+function _mprodSyncPct(priceInp){
+  var base = parseFloat((document.getElementById("mprod-precio-base")||{}).value)||0;
+  var precio = parseFloat(priceInp.value)||0;
+  var row = priceInp.closest(".mprod-lista-row");
+  var pctInp = row ? row.querySelector(".mprod-pct-inp") : null;
+  if(pctInp && base>0 && precio>0){ pctInp.value = Math.round((precio/base - 1)*1000)/10; }
+}
 function _renderListasRows(preciosGuardados, baseGuardada){
   var rows = document.getElementById("mprod-listas-rows");
   if(!rows) return;
@@ -21601,16 +21615,18 @@ function _renderListasRows(preciosGuardados, baseGuardada){
     if(precioGuardado===null && id==="cli" && preciosGuardados && preciosGuardados._cli!=null) precioGuardado=preciosGuardados._cli;
     if(precioGuardado===null && id==="pat" && preciosGuardados && preciosGuardados._pat!=null) precioGuardado=preciosGuardados._pat;
     var isManual = precioGuardado!==null; // Si había precio guardado explícito, lo tratamos como manual inicialmente
+    // El markup se DERIVA del precio guardado y el costo, así queda persistido (no vuelve al global)
+    var _pctMostrar = (precioGuardado!=null && baseGuardada>0) ? (Math.round((precioGuardado/baseGuardada - 1)*1000)/10) : (l.pct||0);
     return '<div class="mprod-lista-row" data-lid="'+id+'">' +
       '<div class="mprod-lista-row-name">'+escHtml(l.nombre)+'</div>' +
       '<div class="mprod-lista-pct-wrap" title="Markup % para esta lista">'+
-        '<input type="number" class="mprod-pct-inp" data-lid="'+id+'" value="'+(l.pct||0)+'" step="0.1" min="-100" oninput="recalcularPrecios(\''+id+'\')" placeholder="0">'+
+        '<input type="number" class="mprod-pct-inp" data-lid="'+id+'" value="'+_pctMostrar+'" step="0.1" min="-100" oninput="recalcularPrecios(\''+id+'\')" placeholder="0">'+
         '<span>%</span>'+
       '</div>'+
       '<input type="number" class="mprod-lista-price-inp'+(isManual?" manual":"")+'" data-lid="'+id+'" '+
         'value="'+(precioGuardado!=null?precioGuardado:"")+'" '+
         'placeholder="Auto" min="0" step="0.01" '+
-        'oninput="this.classList.add(\'manual\')" '+
+        'oninput="this.classList.add(\'manual\'); _mprodSyncPct(this)" '+
         'onfocus="this.select()">'+
       '<button title="Recalcular desde base" onclick="recalcularPrecio(\''+id+'\')" style="background:none;border:1px solid var(--border);border-radius:7px;padding:6px 9px;cursor:pointer;font-size:14px;color:var(--muted)" title="↺">↺</button>'+
     '</div>';
@@ -21638,7 +21654,7 @@ function recalcularPrecios(changedListaId){
     var pct = parseFloat(pctInp.value)||0;
     var isManual = priceInp.classList.contains("manual");
     // Si el usuario cambió el markup de ESTA lista → recalcular su precio
-    if(id===changedListaId || (auto && !isManual)){
+    if(!changedListaId || id===changedListaId || (auto && !isManual)){
       var calc = base>0 ? Math.round(base*(1+pct/100)*100)/100 : 0;
       priceInp.value = base>0 ? calc : "";
       priceInp.classList.remove("manual");
