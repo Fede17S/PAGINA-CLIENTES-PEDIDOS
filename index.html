@@ -8552,6 +8552,20 @@ function _instrumentarBuscador(id){
   el.addEventListener("focus", function(){
     _perfT0 = performance.now(); _perfRaf = -1;
     requestAnimationFrame(function(){ if(_perfT0) _perfRaf = Math.round(performance.now() - _perfT0); });
+    // Vaciar la lista al enfocar: iOS no reacomoda nada -> teclado instantaneo. Al escribir se re-renderiza.
+    try{
+      if(id==="prod-buscar"){ var g=document.getElementById("prod-grid"); if(g) g.innerHTML=""; }
+      if(id==="cli-search-input"){ var b=document.getElementById("cli-list-body"); if(b) b.innerHTML=""; }
+    }catch(e){}
+  });
+  // Al perder foco con búsqueda vacía, restaurar la lista
+  el.addEventListener("blur", function(){
+    try{
+      if(!el.value){
+        if(id==="prod-buscar" && typeof renderProductos==="function"){ _prodPage=0; renderProductos(); }
+        if(id==="cli-search-input" && typeof _filtrarClientes==="function"){ _filtrarClientes(""); }
+      }
+    }catch(e){}
   });
 }
 if(window.visualViewport){ window.visualViewport.addEventListener("resize", function(){
