@@ -481,6 +481,8 @@ html[data-theme="dark"] .theme-toggle-thumb {
     display:grid; grid-template-columns:repeat(4, 1fr); gap:9px;
   }
   .nav-fab-sep { grid-column:1 / -1; height:1px; background:var(--border); margin:5px 2px; opacity:.6; }
+.nav-fab-grupo { grid-column:1 / -1; font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:12px 3px 3px; }
+.nav-fab-grupo:first-child { margin-top:2px; }
   .nav-fab-tile {
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
     padding:12px 4px; border-radius:14px;
@@ -1967,9 +1969,25 @@ select option { background:var(--s2); color:var(--text) }
 .btn-add-cli:hover { background:#000 }
 .cli-list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px }
 .cli-list-title { font-size:10.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted) }
-.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:12px; margin-bottom:7px; transition:border-color .15s; content-visibility:auto; contain-intrinsic-size:0 66px; }
+.cli-card { background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:10px 13px; display:flex; align-items:flex-start; gap:11px; margin-bottom:7px; transition:border-color .15s; content-visibility:auto; contain-intrinsic-size:0 62px; }
 .cli-card:hover { border-color:var(--muted2) }
-.cli-avatar { width:38px; height:38px; border-radius:50%; background:var(--s3); color:var(--text); display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex-shrink:0 }
+.cli-fil-sel { flex:1; min-width:150px; padding:9px 12px; border:1px solid var(--border); border-radius:9px; background:var(--s2); color:var(--text); font-size:13px; font-family:inherit; cursor:pointer; }
+.cli-acc-icon { display:inline-flex; align-items:center; justify-content:center; padding:9px 11px; border:1px solid var(--border); border-radius:9px; background:var(--s2); color:var(--text); cursor:pointer; }
+.cli-acc-icon:hover { border-color:var(--accent); }
+.cli-acc-wrap { position:relative; }
+.cli-acc-btn { padding:9px 15px; background:var(--accent); color:#fff; border:none; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.cli-acc-btn:hover { filter:brightness(1.06); }
+.cli-acc-menu { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:60; min-width:220px; background:var(--s1); border:1px solid var(--border); border-radius:12px; box-shadow:0 12px 34px rgba(0,0,0,.22); overflow:hidden; padding:5px; }
+.cli-acc-menu.open { display:block; }
+.cli-acc-menu button { display:block; width:100%; text-align:left; border:none; background:none; font-size:13.5px; font-family:inherit; color:var(--text); padding:11px 12px; border-radius:8px; cursor:pointer; }
+.cli-acc-menu button:hover { background:var(--s2); }
+/* Lavado de cara: grilla de 2 columnas en pantalla ancha (mejor uso del espacio) */
+@media (min-width:760px){
+  #cli-list-body { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; align-content:start; }
+  #cli-list-body > .cli-card { margin-bottom:0; }
+  #cli-list-body > div:not(.cli-card) { grid-column:1 / -1; }
+}
+.cli-avatar { width:34px; height:34px; border-radius:50%; background:var(--s3); color:var(--text); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; flex-shrink:0 }
 .cli-info { flex:1; min-width:0 }
 .cli-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; line-height:1.35 }
 .cli-zona-tag { font-size:10.5px; color:var(--muted); font-weight:500 }
@@ -2103,11 +2121,17 @@ html[data-theme="dark"] .prod-toolbar {
 .prod-toolbar-btns { display:flex; gap:7px; flex-shrink:0; align-items:center; }
 /* Barra de busqueda: solo el buscador queda fijo al scrollear */
 .prod-searchbar {
-  position:sticky; top:0; z-index:20;
   background:var(--bg);
   padding:8px 16px; margin:0 -16px 8px;
-  box-shadow:0 1px 0 var(--border), 0 6px 12px -8px rgba(0,0,0,.18);
 }
+.prod-searchbar.stuck {
+  position:fixed;
+  top:calc(var(--header-h) + var(--safe-top));
+  z-index:150; margin:0;
+  box-shadow:0 5px 14px -7px rgba(0,0,0,.3);
+  box-sizing:border-box;
+}
+.prod-searchbar-ph { flex:none; }
 /* Botones de la toolbar */
 .ptb {
   display:inline-flex; align-items:center; gap:5px;
@@ -2139,12 +2163,13 @@ html[data-theme="dark"] .prod-toolbar {
 .ptb-menu-sep { height:1px; background:var(--border); margin:5px 4px; }
 /* Mobile: buscador full, botones abajo */
 @media (max-width: 600px) {
-  .prod-cat-sel { flex-basis:100%; max-width:none; }
-  .prod-toolbar-btns { width:100%; gap:6px; }
-  .prod-toolbar-btns > .ptb, .prod-toolbar-btns > .ptb-menu-wrap { flex:1; }
-  .prod-toolbar-btns .ptb { width:100%; justify-content:center; padding:10px 6px; }
-  .ptb span { display:none; }
-  .ptb-primary span, .ptb#btn-sel-prod span { display:inline; }
+  .prod-toolbar { flex-direction:column; align-items:stretch; gap:9px; }
+  .prod-cat-sel { width:100%; max-width:none; flex:none; padding:12px 14px; font-size:14px; }
+  .prod-toolbar-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; }
+  .prod-toolbar-btns > .ptb, .prod-toolbar-btns > .ptb-menu-wrap { width:100%; min-width:0; }
+  .prod-toolbar-btns .ptb { width:100%; justify-content:center; gap:6px; padding:12px 8px; font-size:13px; }
+  .ptb span { display:inline; }
+  .ptb-menu-wrap .ptb-menu { left:0; right:auto; min-width:200px; }
 }
 
 /* Stats */
@@ -2468,7 +2493,7 @@ html[data-theme="dark"] .prod-toolbar {
 .bk-tab.active { border-color:var(--accent);background:var(--accent-bg);color:var(--accent); }
 .bk-tab.green.active { border-color:#0f8a4a;background:var(--green-bg);color:var(--green); }
 .bk-tab.red.active { border-color:#b91c1c;background:var(--red-bg);color:var(--red); }
-.bk-tab-cnt { font-size:10px;background:currentColor;color:#fff;border-radius:20px;padding:1px 6px;margin-left:3px;opacity:.85; }
+.bk-tab-cnt { font-size:10px;font-weight:800;background:var(--accent);color:#fff;border-radius:20px;padding:1px 7px;margin-left:5px;min-width:18px;display:inline-block;text-align:center;line-height:1.5; }
 /* Estado en card */
 .bk-card-estado { display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;font-weight:700;border-top:1px solid var(--border2); }
 .bk-card.estado-aprobado { border-left:4px solid #0f8a4a; }
@@ -2795,7 +2820,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="sb-item active" id="nav-pedido" onclick="verTab('pedido',this)">
       <span class="sb-icon">📝</span>Nuevo Pedido
     </button>
-    <button class="sb-item" id="nav-remito" onclick="verTab('remito',this)">
+    <button class="sb-item" id="nav-remito" onclick="verTab('remito',this)" style="display:none">
       <span class="sb-icon">🚚</span>Nuevo Remito
     </button>
     <button class="sb-item" id="nav-inicio-rep" onclick="verTab('inicio-rep',this)" style="display:none">
@@ -4197,13 +4222,18 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
   <!-- Acciones -->
   <div id="cli-acciones-bar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-    <select id="cli-fil-zona" onchange="_setCliZonaFilter(this.value)" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer"><option value="">🗺 Todas las zonas</option></select>
-    <select id="cli-fil-vend" onchange="_setCliVendFilter(this.value)" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer"><option value="">👤 Todos los vendedores</option></select>
-    <button onclick="_cliForceReload()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:13px;cursor:pointer;font-family:inherit;touch-action:manipulation;color:var(--text)" class="rfa"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg> Recargar</button>
-    <button onclick="abrirPanelZonas()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">🗺️ Zonas</button>
-    <button onclick="abrirResumenDeudores()" style="padding:7px 14px;background:#b91c1c;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">💰 Deudores</button>
-    <button onclick="exportarClientesXLSX()" style="padding:7px 14px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">📊 Excel</button>
-    <button onclick="abrirAsignarVendedores()" style="padding:7px 14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation">👥 Asignar vendedor</button>
+    <select id="cli-fil-zona" onchange="_setCliZonaFilter(this.value)" class="cli-fil-sel"><option value="">🗺 Todas las zonas</option></select>
+    <select id="cli-fil-vend" onchange="_setCliVendFilter(this.value)" class="cli-fil-sel"><option value="">👤 Todos los vendedores</option></select>
+    <button onclick="_cliForceReload()" class="cli-acc-icon rfa" title="Recargar"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></button>
+    <div class="cli-acc-wrap">
+      <button onclick="_cliToggleAccMenu(event)" class="cli-acc-btn">⚙️ Acciones ▾</button>
+      <div class="cli-acc-menu" id="cli-acc-menu" role="menu">
+        <button onclick="abrirPanelZonas();_cliCloseAccMenu()">🗺️ Gestionar zonas</button>
+        <button onclick="abrirResumenDeudores();_cliCloseAccMenu()">💰 Ver deudores</button>
+        <button onclick="exportarClientesXLSX();_cliCloseAccMenu()">📊 Exportar a Excel</button>
+        <button onclick="abrirAsignarVendedores();_cliCloseAccMenu()">👥 Asignar vendedor</button>
+      </div>
+    </div>
     <span style="font-size:12px;color:var(--muted);margin-left:auto"><b id="cli-count">0</b> clientes</span>
   </div>
 
@@ -8374,7 +8404,7 @@ function aplicarRol(){
     var show = false;
     // Combinar las secciones de TODOS los roles del usuario (no excluyente).
     if (isAdmin) {
-      show = (id !== "nav-mis-ventas" && id !== "nav-inicio-rep" && id !== "nav-inicio-arm" && id !== "nav-mis-clientes");  // admin ve todo excepto mis-ventas y los inicios de rol
+      show = (id !== "nav-mis-ventas" && id !== "nav-inicio-rep" && id !== "nav-inicio-arm" && id !== "nav-mis-clientes" && id !== "nav-remito");  // admin ve todo excepto mis-ventas y los inicios de rol
     } else {
       // Sumar las secciones de cada rol que tenga
       if (isVendedor   && (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup" || id === "nav-mis-clientes")) show = true;
@@ -8450,25 +8480,26 @@ function aplicarRol(){
 function _buildBottomNav(role){
   var TABS_POR_ROL = {
     admin:      [
+      {grupo:"Ventas y reparto"},
       {id:"dashboard",    ico:"🏠", lbl:"Inicio"},
       {id:"pedido",       ico:"📝", lbl:"Pedido"},
-      {id:"remito",       ico:"🚚", lbl:"Remito"},
       {id:"hoja",         ico:"📋", lbl:"Ruta"},
       {id:"mapa-entregas",ico:"🗺️", lbl:"Mapa"},
-      {sep:true},
-      {id:"resumen",      ico:"📊", lbl:"Resumen"},
-      {id:"vendedores",   ico:"🏆", lbl:"Vendedores"},
-      {sep:true},
-      {id:"stock",        ico:"📦", lbl:"Stock"},
+      {grupo:"Catálogo"},
       {id:"productos",    ico:"🏪", lbl:"Productos"},
-      {sep:true},
+      {id:"catalogo",     ico:"📒", lbl:"Catálogo"},
+      {id:"stock",        ico:"📦", lbl:"Stock"},
+      {grupo:"Depósito"},
       {id:"backup",       ico:"💾", lbl:"Backup"},
-      {id:"armadores",    ico:"📦", lbl:"Armadores"},
+      {id:"armadores",    ico:"📥", lbl:"Armadores"},
+      {grupo:"Compras"},
       {id:"pedidos-acum", ico:"🛒", lbl:"Ped. Prov."},
       {id:"proveedores",  ico:"🏭", lbl:"Proveedores"},
+      {grupo:"Gestión"},
       {id:"clientes",     ico:"👥", lbl:"Clientes"},
-      {id:"catalogo",     ico:"📒", lbl:"Catálogo"},
-      {sep:true},
+      {id:"vendedores",   ico:"🏆", lbl:"Vendedores"},
+      {id:"resumen",      ico:"📊", lbl:"Resumen"},
+      {grupo:"Ajustes"},
       {id:"datos-empresa",ico:"⚙️", lbl:"Config"}
     ],
     vendedor:   [
@@ -8503,7 +8534,7 @@ function _buildBottomNav(role){
       var t = TABS_POR_ROL[r];
       if(!t) return;
       t.forEach(function(item){
-        if(item.sep) return; // los separadores se rearman después
+        if(item.sep || item.grupo) return; // los separadores se rearman después
         if(!_vistos[item.id]){ _vistos[item.id]=1; tabs.push(item); }
       });
     });
@@ -8523,6 +8554,7 @@ function _buildBottomNav(role){
 
   var idx = 0;
   grid.innerHTML = tabs.map(function(t){
+    if(t.grupo) return '<div class="nav-fab-grupo">'+t.grupo+'</div>';
     if(t.sep) return '<div class="nav-fab-sep" aria-hidden="true"></div>';
     var delay = (idx++ * 28); // animación en cascada
     return '<button class="nav-fab-tile" role="menuitem" data-tab="'+t.id+'" '+
@@ -8543,6 +8575,37 @@ function _debSearch(key, fn, arg){
   clearTimeout(_searchTimers[key]);
   _searchTimers[key] = setTimeout(function(){ try{ fn(arg); }catch(e){ console.warn("[search]", e); } }, 300);
 }
+function _prodStickyPos(sec, bar){
+  var r = sec.getBoundingClientRect();
+  bar.style.left  = r.left + "px";
+  bar.style.width = sec.clientWidth + "px";
+}
+function _prodStickyInit(){
+  var sec = document.getElementById("productos");
+  var bar = sec && sec.querySelector(".prod-searchbar");
+  if(!sec || !bar || bar._stickyInit) return;
+  bar._stickyInit = true;
+  var ph = document.createElement("div"); ph.className = "prod-searchbar-ph"; ph.style.display = "none";
+  bar.parentNode.insertBefore(ph, bar.nextSibling);
+  function onScroll(){
+    if(sec.scrollTop > 4){
+      if(!bar.classList.contains("stuck")){
+        ph.style.height = bar.offsetHeight + "px";
+        ph.style.display = "block";
+        bar.classList.add("stuck");
+        _prodStickyPos(sec, bar);
+      }
+    } else if(bar.classList.contains("stuck")){
+      bar.classList.remove("stuck");
+      ph.style.display = "none";
+      bar.style.left = ""; bar.style.width = "";
+    }
+  }
+  sec.addEventListener("scroll", onScroll, {passive:true});
+  window.addEventListener("resize", function(){ if(bar.classList.contains("stuck")) _prodStickyPos(sec, bar); });
+  onScroll();
+}
+try{ setTimeout(_prodStickyInit, 1200); }catch(e){}
 function _toggleNavFab(){ _navFabOpen ? _closeNavFab() : _openNavFab(); }
 function _openNavFab(){
   _navFabOpen = true;
@@ -15295,11 +15358,12 @@ function renderBackup(){
   });
   ["todos","espera","aprobados","rechazados"].forEach(function(k){
     var el=document.getElementById("bk-cnt-"+k);
-    if(el) el.textContent = cnt[k]||"";
+    if(el){ el.textContent = cnt[k]; el.style.display = cnt[k]>0 ? "inline-block" : "none"; }
   });
   var _cArm=all.filter(function(bk){ return !!(bk.armadoEn)||bk.estado==="enviado"||bk.estado==="entregado"; }).length;
-  var _eArm=document.getElementById("bk-cnt-armados"); if(_eArm) _eArm.textContent=_cArm||"";
-  var _eSin=document.getElementById("bk-cnt-sinarmar"); if(_eSin) _eSin.textContent=(all.length-_cArm)||"";
+  var _cSin=all.length-_cArm;
+  var _eArm=document.getElementById("bk-cnt-armados"); if(_eArm){ _eArm.textContent=_cArm; _eArm.style.display=_cArm>0?"inline-block":"none"; }
+  var _eSin=document.getElementById("bk-cnt-sinarmar"); if(_eSin){ _eSin.textContent=_cSin; _eSin.style.display=_cSin>0?"inline-block":"none"; }
   // Renderizar tabs de días de entrega
   _renderBkDiasTabs(all);
 
@@ -17203,6 +17267,7 @@ function _paRenderConsolEnModal(prods, nDias, obsList){
   document.getElementById("modal-consol-sel").classList.add("open");
 }
 
+function _paProvHue(id){ if(!id) return 210; var h=0,str=String(id); for(var i=0;i<str.length;i++){ h=str.charCodeAt(i)+((h<<5)-h); } return Math.abs(h)%360; }
 function _paPintarConsol(){
   var body = document.getElementById("consol-sel-body");
   if(!body) return;
@@ -17256,9 +17321,12 @@ function _paPintarConsol(){
   html += '<div class="pa-table" style="background:var(--s2);border:1px solid var(--border);border-radius:11px;overflow:hidden">';
   html += '<div class="pa-th"><span class="pa-th-cod">Código</span><span class="pa-th-name">Producto</span><span class="pa-th-cant">Cant.</span><span class="pa-th-sub">Subtotal</span></div>';
   prods.forEach(function(p){
-    html += '<div class="pa-tr">'+
+    var _provNom = p.provId ? (mapa.provNombre[p.provId]||"Proveedor") : "";
+    var _ph = _paProvHue(p.provId);
+    var _pcol = p.provId ? ("hsl("+_ph+",48%,47%)") : "#9ca3af";
+    html += '<div class="pa-tr" style="border-left:3px solid '+_pcol+'">'+
       '<span class="pa-td-cod">'+(p.id||"—")+'</span>'+
-      '<span class="pa-td-name">'+escHtml(p.n)+'</span>'+
+      '<span class="pa-td-name">'+escHtml(p.n)+(_provNom?('<span style="display:inline-block;font-size:9.5px;font-weight:700;color:#fff;padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:middle;white-space:nowrap;background:'+_pcol+'">🏭 '+escHtml(_provNom)+'</span>'):'')+'</span>'+
       '<span class="pa-td-cant">×'+p.cant+'</span>'+
       '<span class="pa-td-sub">$'+fM(p.total)+'</span>'+
     '</div>';
@@ -17926,12 +17994,14 @@ var firmaDataURL = null;
 function inicializarFirma() {
   var canvas = document.getElementById("firma-canvas");
   if (!canvas) return;
-  canvas.width = canvas.offsetWidth;
+  canvas.width = canvas.offsetWidth || 400;
   firmaCtx = canvas.getContext("2d");
   firmaCtx.strokeStyle = "#0d1b2a";
   firmaCtx.lineWidth = 2.5;
   firmaCtx.lineCap = "round";
   firmaCtx.lineJoin = "round";
+  if (canvas._firmaInit) return;
+  canvas._firmaInit = true;
 
   function getPos(e) {
     var r = canvas.getBoundingClientRect();
@@ -17948,16 +18018,25 @@ function inicializarFirma() {
 
 function abrirFirma(rk, ck) {
   firmaRutaKey = rk; firmaCliKey = ck;
-  var nom = rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck] ? rutasData[rk].clientes[ck].nom : "";
-  document.getElementById("firma-cliente-nom").textContent = nom;
+  var cli = (rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]) ? rutasData[rk].clientes[ck] : null;
+  document.getElementById("firma-cliente-nom").textContent = cli ? (cli.nom||"") : "";
   abrirModal("modal-firma");
-  setTimeout(inicializarFirma, 100);
+  setTimeout(function(){
+    inicializarFirma();
+    if(cli && cli.firma && firmaCtx){
+      var c=document.getElementById("firma-canvas");
+      var img=new Image();
+      img.onload=function(){ try{ firmaCtx.drawImage(img,0,0,c.width,c.height); }catch(e){} };
+      img.src=cli.firma;
+    }
+  }, 120);
 }
 
 function limpiarFirma() {
-  if (!firmaCtx) return;
   var c = document.getElementById("firma-canvas");
-  firmaCtx.clearRect(0,0,c.width,c.height);
+  if(!c) return;
+  var ctx = firmaCtx || c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
 }
 
 function confirmarFirma() {
@@ -17976,7 +18055,7 @@ function confirmarFirma() {
   if(!hasDrawing){ alert("El cliente tiene que firmar antes de confirmar."); return; }
   firmaDataURL = small.toDataURL("image/jpeg", 0.5); // JPEG 50% quality = ~10-20KB
   if (firmaRutaKey && firmaCliKey) {
-    fbPatch("empresas/"+empresaKey+"/rutas/"+firmaRutaKey+"/clientes/"+firmaCliKey, {firma: firmaDataURL, firmadoEn: new Date().toISOString()})
+    sbPatch("ruta_clientes","id=eq."+firmaCliKey+"&empresa_id=eq."+_sbEmpId, {firma: firmaDataURL, firmado_en: new Date().toISOString()})
       .then(function(){
         if(rutasData[firmaRutaKey]&&rutasData[firmaRutaKey].clientes&&rutasData[firmaRutaKey].clientes[firmaCliKey]){
           rutasData[firmaRutaKey].clientes[firmaCliKey].firma = firmaDataURL;
@@ -17992,8 +18071,8 @@ function confirmarFirma() {
 async function borrarFirma(rk, ck) {
   if(!(await _confirmar({icono:"✍️",titulo:"Borrar firma",mensaje:"¿Borrar la firma de este cliente?",ok:"Borrar",peligro:true}))) return;
   // Usar Supabase directamente (ck = Supabase UUID de ruta_clientes)
-  var patchData = {firma:"", firmadoEn:""};
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patchData)
+  var patchData = {firma:"", firmado_en:null};
+  sbPatch("ruta_clientes","id=eq."+ck+"&empresa_id=eq."+_sbEmpId, patchData)
     .then(function(){
       if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
         rutasData[rk].clientes[ck].firma="";
@@ -19170,9 +19249,13 @@ function _filtrarClientes(q){
   _renderClientesList();
 }
 
+function _cliToggleAccMenu(e){ if(e){ e.stopPropagation(); } var m=document.getElementById("cli-acc-menu"); if(m) m.classList.toggle("open"); }
+function _cliCloseAccMenu(){ var m=document.getElementById("cli-acc-menu"); if(m) m.classList.remove("open"); }
+document.addEventListener("click", function(e){ var w=e.target && e.target.closest ? e.target.closest(".cli-acc-wrap") : null; if(!w) _cliCloseAccMenu(); });
 function _setRolFilter(rol, btn){
   _cliRolFilter = rol;
-  document.querySelectorAll("#cli-filter-roles .bk-tab").forEach(function(b){ b.classList.remove("active"); });
+  var cont = (btn && btn.parentNode) || document.querySelector(".cli-role-tabs");
+  if(cont) cont.querySelectorAll(".bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
   _renderClientesList();
 }
