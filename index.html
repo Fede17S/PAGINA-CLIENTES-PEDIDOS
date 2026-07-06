@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>DistriMax Central</title>
+<title>CoreDistri Central · Panel</title>
 
 <!-- PWA: manifest e íconos -->
 <link rel="manifest" href="manifest.json">
@@ -1981,6 +1981,45 @@ select option { background:var(--s2); color:var(--text) }
 .cli-acc-menu.open { display:block; }
 .cli-acc-menu button { display:block; width:100%; text-align:left; border:none; background:none; font-size:13.5px; font-family:inherit; color:var(--text); padding:11px 12px; border-radius:8px; cursor:pointer; }
 .cli-acc-menu button:hover { background:var(--s2); }
+/* ═══ Rediseño Configuración ═══ */
+#cfg-tabs .bk-tab { flex-shrink:0; white-space:nowrap; }
+.cfg-card { background:var(--s2); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:15px; }
+.cfg-card-h { display:flex; align-items:center; gap:9px; font-size:15px; font-weight:800; color:var(--text); margin:0 0 4px; }
+.cfg-card-sub { font-size:12.5px; color:var(--muted); margin:0 0 16px; line-height:1.45; }
+.cfg-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:620px){ .cfg-grid { grid-template-columns:1fr; } }
+.cfg-field { display:flex; flex-direction:column; gap:5px; }
+.cfg-field.full { grid-column:1 / -1; }
+.cfg-label { font-size:12px; font-weight:700; color:var(--muted); }
+.cfg-input, .cfg-select, .cfg-area { width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:10px; background:var(--s1); color:var(--text); font-size:14px; font-family:inherit; box-sizing:border-box; }
+.cfg-input:focus, .cfg-select:focus, .cfg-area:focus { outline:none; border-color:var(--accent); }
+.cfg-area { resize:vertical; min-height:66px; line-height:1.45; }
+.cfg-hint { font-size:11px; color:var(--muted); }
+.cfg-save { width:100%; padding:13px; margin-top:2px; background:var(--accent); color:#fff; border:none; border-radius:11px; font-size:14px; font-weight:800; cursor:pointer; font-family:inherit; }
+.cfg-save:hover { filter:brightness(1.06); }
+.cfg-tool-btn { display:flex; align-items:center; gap:12px; width:100%; padding:14px 16px; background:var(--s1); border:1px solid var(--border); border-radius:12px; cursor:pointer; font-family:inherit; text-align:left; margin-bottom:10px; transition:border-color .15s; }
+.cfg-tool-btn:hover { border-color:var(--accent); }
+.cfg-tool-ico { font-size:22px; flex-shrink:0; line-height:1; }
+.cfg-tool-txt { flex:1; }
+.cfg-tool-t { font-size:14px; font-weight:700; color:var(--text); }
+.cfg-tool-d { font-size:12px; color:var(--muted); margin-top:2px; }
+/* Remito: toggles (switch) y sliders lindos (el CSS global rompe los nativos) */
+#cfg-panel-remito input[type="checkbox"]{
+  appearance:none; -webkit-appearance:none; margin:0; padding:0;
+  width:40px; height:23px; min-width:40px; border-radius:20px; background:var(--s3);
+  border:1px solid var(--border); position:relative; cursor:pointer; flex-shrink:0;
+  transition:background .2s, border-color .2s; box-sizing:border-box;
+}
+#cfg-panel-remito input[type="checkbox"]::after{
+  content:""; position:absolute; top:2px; left:2px; width:17px; height:17px; border-radius:50%;
+  background:#fff; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3);
+}
+#cfg-panel-remito input[type="checkbox"]:checked{ background:var(--accent); border-color:var(--accent); }
+#cfg-panel-remito input[type="checkbox"]:checked::after{ transform:translateX(17px); }
+#cfg-panel-remito input[type="range"]{
+  appearance:auto; -webkit-appearance:auto; width:150px; height:auto; padding:0; margin:0;
+  background:transparent; border:none; accent-color:var(--accent); cursor:pointer; box-shadow:none;
+}
 /* Lavado de cara: grilla de 2 columnas en pantalla ancha (mejor uso del espacio) */
 @media (min-width:760px){
   #cli-list-body { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; align-content:start; }
@@ -3930,9 +3969,12 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <div id="datos-empresa" class="section">
 
   <!-- Tabs -->
-  <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0" id="cfg-tabs">
+  <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch" id="cfg-tabs">
     <button class="bk-tab active" id="cfg-tab-empresa" onclick="setCfgTab('empresa',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🏢 Datos empresa</button>
     <button class="bk-tab" id="cfg-tab-remito" onclick="setCfgTab('remito',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🎨 Remito</button>
+    <button class="bk-tab" id="cfg-tab-facturacion" onclick="setCfgTab('facturacion',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">💳 Facturación</button>
+    <button class="bk-tab" id="cfg-tab-whatsapp" onclick="setCfgTab('whatsapp',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">📱 WhatsApp</button>
+    <button class="bk-tab" id="cfg-tab-tools" onclick="setCfgTab('tools',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🛠️ Herramientas</button>
     <button class="bk-tab" id="cfg-tab-cupones" onclick="setCfgTab('cupones',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🎟️ Cupones</button>
   </div>
 
@@ -4010,6 +4052,118 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
   </div>
   </div><!-- end cfg-panel-empresa -->
+  <div id="cfg-panel-facturacion" style="display:none">
+    <div class="cfg-card">
+      <div class="cfg-card-h">🧾 Datos fiscales</div>
+      <div class="cfg-card-sub">Se usan para la facturación y el cálculo de IVA en tus comprobantes.</div>
+      <div class="cfg-grid">
+        <div class="cfg-field">
+          <label class="cfg-label">Condición frente al IVA</label>
+          <select id="fac-cond-iva" class="cfg-select">
+            <option value="">— Seleccionar —</option>
+            <option value="ri">Responsable Inscripto</option>
+            <option value="mono">Monotributo</option>
+            <option value="exento">Exento</option>
+            <option value="cf">Consumidor Final</option>
+          </select>
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">Punto de venta</label>
+          <input type="text" id="fac-punto-venta" class="cfg-input" placeholder="ej: 0001">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">IVA por defecto (%)</label>
+          <input type="number" id="fac-iva-pct" class="cfg-input" placeholder="21" step="0.5" min="0">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">Ingresos Brutos</label>
+          <input type="text" id="fac-iibb" class="cfg-input" placeholder="ej: 904-123456-7">
+        </div>
+      </div>
+    </div>
+    <div class="cfg-card">
+      <div class="cfg-card-h">💰 Medios de cobro</div>
+      <div class="cfg-card-sub">Datos para que tus clientes te paguen por transferencia o Mercado Pago.</div>
+      <div class="cfg-grid">
+        <div class="cfg-field">
+          <label class="cfg-label">Alias</label>
+          <input type="text" id="fac-alias" class="cfg-input" placeholder="ej: DISTRI.MADRYN">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">CBU / CVU</label>
+          <input type="text" id="fac-cbu" class="cfg-input" placeholder="22 dígitos">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">Titular de la cuenta</label>
+          <input type="text" id="fac-titular" class="cfg-input" placeholder="ej: Juan Pérez">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">Link de Mercado Pago</label>
+          <input type="text" id="fac-mp-link" class="cfg-input" placeholder="https://mpago.la/...">
+        </div>
+      </div>
+    </div>
+    <button class="cfg-save" onclick="guardarFacturacion()">💾 Guardar facturación y pagos</button>
+  </div>
+  <div id="cfg-panel-whatsapp" style="display:none">
+    <div class="cfg-card">
+      <div class="cfg-card-h">📱 WhatsApp de la empresa</div>
+      <div class="cfg-card-sub">Número desde el que comunicás los pedidos y avisos a tus clientes.</div>
+      <div class="cfg-field full">
+        <label class="cfg-label">Número (con código de país)</label>
+        <input type="tel" id="wa-numero" class="cfg-input" placeholder="ej: 5492804123456">
+        <span class="cfg-hint">Sin espacios ni signos. Ej: 549 + característica sin 0 + número sin 15.</span>
+      </div>
+    </div>
+    <div class="cfg-card">
+      <div class="cfg-card-h">💬 Plantillas de mensajes</div>
+      <div class="cfg-card-sub">Podés usar <b>{cliente}</b>, <b>{codigo}</b> y <b>{total}</b>: se reemplazan solos al enviar.</div>
+      <div class="cfg-field full" style="margin-bottom:14px">
+        <label class="cfg-label">✅ Pedido confirmado</label>
+        <textarea id="wa-msg-confirmado" class="cfg-area" placeholder="Hola {cliente}! Tu pedido {codigo} fue confirmado. Total: {total}. ¡Gracias!"></textarea>
+      </div>
+      <div class="cfg-field full" style="margin-bottom:14px">
+        <label class="cfg-label">🚚 En reparto</label>
+        <textarea id="wa-msg-reparto" class="cfg-area" placeholder="Hola {cliente}, tu pedido {codigo} ya salió para entrega. ¡Está en camino!"></textarea>
+      </div>
+      <div class="cfg-field full">
+        <label class="cfg-label">📦 Entregado</label>
+        <textarea id="wa-msg-entregado" class="cfg-area" placeholder="Hola {cliente}, tu pedido {codigo} fue entregado. ¡Gracias por tu compra!"></textarea>
+      </div>
+    </div>
+    <button class="cfg-save" onclick="guardarWhatsApp()">💾 Guardar WhatsApp</button>
+  </div>
+  <div id="cfg-panel-tools" style="display:none">
+    <div class="cfg-card">
+      <div class="cfg-card-h">📤 Exportar datos</div>
+      <div class="cfg-card-sub">Descargá una copia de tu base en Excel para respaldo o análisis.</div>
+      <button class="cfg-tool-btn" onclick="exportarClientesXLSX()">
+        <span class="cfg-tool-ico">👥</span>
+        <span class="cfg-tool-txt"><div class="cfg-tool-t">Exportar clientes</div><div class="cfg-tool-d">Toda tu base de clientes a Excel (.xlsx)</div></span>
+        <span style="color:var(--muted);font-size:18px">›</span>
+      </button>
+      <button class="cfg-tool-btn" onclick="exportarProductosXLSX()">
+        <span class="cfg-tool-ico">📦</span>
+        <span class="cfg-tool-txt"><div class="cfg-tool-t">Exportar productos</div><div class="cfg-tool-d">Todo tu catálogo a Excel (.xlsx)</div></span>
+        <span style="color:var(--muted);font-size:18px">›</span>
+      </button>
+    </div>
+    <div class="cfg-card">
+      <div class="cfg-card-h">🔒 Seguridad</div>
+      <div class="cfg-card-sub">Cambiá la contraseña de tu cuenta.</div>
+      <div class="cfg-grid">
+        <div class="cfg-field">
+          <label class="cfg-label">Nueva contraseña</label>
+          <input type="password" id="sec-pass1" class="cfg-input" placeholder="mínimo 4 caracteres" autocomplete="new-password">
+        </div>
+        <div class="cfg-field">
+          <label class="cfg-label">Repetir contraseña</label>
+          <input type="password" id="sec-pass2" class="cfg-input" placeholder="repetir" autocomplete="new-password">
+        </div>
+      </div>
+      <button class="cfg-save" style="margin-top:12px" onclick="cambiarPassword()">🔑 Cambiar contraseña</button>
+    </div>
+  </div>
 
   <!-- ═══ PANEL REMITO ═══ -->
   <div id="cfg-panel-remito" style="display:none">
@@ -6063,7 +6217,7 @@ function sbUpsert(table, data, onConflict){
   if(onConflict) url += "?on_conflict="+encodeURIComponent(onConflict);
   return fetch(url, {
     method:"POST",
-    headers:Object.assign({},SB_HDR,{"Prefer":"resolution=merge-duplicates,return=representation"}),
+    headers:_sbHeaders({"Content-Type":"application/json","Prefer":"resolution=merge-duplicates,return=representation"}),
     body:JSON.stringify(data)
   }).then(function(r){ return r.ok||r.status===204 ? (r.status===204?null:r.json()) : r.text().then(function(t){throw new Error(t);}); });
 }
@@ -6211,7 +6365,8 @@ async function _sbGetEmpresa(empId){
   listas.forEach(function(l){lMap[l.lista_key]={nombre:l.nombre,pct:l.pct,orden:l.orden};});
   // Cargar días de entrega desde empresas_config
   var cfgRows = null;
-  try { cfgRows = await sbGet("empresas_config","select=dias_entrega,emp_prefijo,emp_contador&empresa_id=eq."+empId); } catch(e){}
+  try { cfgRows = await sbGet("empresas_config","select=dias_entrega,emp_prefijo,emp_contador,extra_config&empresa_id=eq."+empId); } catch(e){}
+  try { window._empExtraCfg = (cfgRows&&cfgRows[0]&&cfgRows[0].extra_config)||{}; } catch(e){}
   var diasEntrega = (cfgRows&&cfgRows[0]&&cfgRows[0].dias_entrega)||[];
   return Object.assign({},e,{usuarios:uMap,productos:pMap,stock:sMap,stockConfig:scMap,listasPrecios:Object.keys(lMap).length?lMap:null,diasEntrega:diasEntrega});
 }
@@ -7127,6 +7282,7 @@ function doLogin(){
 
       // 4. Cargar el resto de la empresa
       empresaData = Object.assign({}, emp, { usuarios: {} });
+      _setPanelBranding();
       usuarios.forEach(function(u){
         empresaData.usuarios[u.id] = {id:u.uid,_sbId:u.id,name:u.name,role:u.role,roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),lista:u.lista,catalogo:u.catalogo,direccion:u.direccion||"",tel:u.telefono||"",zona:u.zona||"",rec:u.recepciona||"",nota:u.nota||""};
       });
@@ -7219,6 +7375,10 @@ var _pdfConfig = {};
 // devuelve la Y del tope. Así la tabla pagina sola y el pie nunca se corta ni se
 // encima. Si los ítems entran en una hoja, queda todo en una sola.
 function _pdfTxt(t){ return (t==null) ? "" : String(t).replace(/[^\x00-\xFF]/g,"").replace(/\s{2,}/g," ").trim(); }
+function _getEmpExtra(){
+  if(empresaData && empresaData._config && empresaData._config.extra_config) return empresaData._config.extra_config;
+  try{ return window._empExtraCfg || {}; }catch(e){ return {}; }
+}
 function _pdfPieY(doc, gap, altoPie){
   var fin = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : 0;
   var y = fin + (gap||4);
@@ -7474,25 +7634,87 @@ async function _borrarCupon(id, codigo){
 }
 
 function setCfgTab(tab, btn){
-  // El tab de cupones abre un modal (no un panel inline, por problemas de layout)
-  if(tab==="cupones"){
-    // No marcar como activo el tab cupones; volver al tab que estaba
-    abrirModal("modal-cupones");
-    cargarCupones();
-    return;
-  }
+  if(tab==="cupones"){ abrirModal("modal-cupones"); cargarCupones(); return; }
   document.querySelectorAll("#cfg-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
-  var pEmp = document.getElementById("cfg-panel-empresa");
-  var pRem = document.getElementById("cfg-panel-remito");
-  if(pEmp) pEmp.style.setProperty("display", tab==="empresa"?"block":"none", "important");
-  if(pRem) pRem.style.setProperty("display", tab==="remito"?"block":"none", "important");
-  if(tab==="empresa")  cargarDatosEmpresa();
-  if(tab==="remito")   cargarDisenoRemito();
-  if(tab==="cupones")  cargarCupones();
-  // Llevar el scroll de la sección arriba al cambiar de tab (evita quedar al fondo)
+  var panes = {empresa:"cfg-panel-empresa", remito:"cfg-panel-remito", facturacion:"cfg-panel-facturacion", whatsapp:"cfg-panel-whatsapp", tools:"cfg-panel-tools"};
+  var shown = null;
+  Object.keys(panes).forEach(function(k){
+    var el = document.getElementById(panes[k]); if(!el) return;
+    if(tab===k){ el.style.setProperty("display","block","important"); shown = el; }
+    else { el.style.setProperty("display","none","important"); }
+  });
+  if(tab==="empresa")     cargarDatosEmpresa();
+  if(tab==="remito")      cargarDisenoRemito();
+  if(tab==="facturacion") cargarFacturacion();
+  if(tab==="whatsapp")    cargarWhatsApp();
   var _sec = document.getElementById("datos-empresa");
-  if(_sec && _sec.scrollTo) _sec.scrollTo({top:0, behavior:"auto"});
+  if(_sec){ try{ _sec.scrollTop = 0; }catch(e){} }
+  if(shown){ setTimeout(function(){ try{ shown.scrollIntoView({block:"start"}); }catch(e){} }, 40); }
+}
+async function _cargarExtraConfig(){
+  if(empresaData && empresaData._config && empresaData._config.extra_config) return empresaData._config.extra_config;
+  try {
+    var rows = await sbGet("empresas_config","select=extra_config&empresa_id=eq."+_sbEmpId);
+    if(rows&&rows[0]&&rows[0].extra_config){
+      if(!empresaData._config) empresaData._config={};
+      empresaData._config.extra_config = rows[0].extra_config;
+      return rows[0].extra_config;
+    }
+  } catch(e){}
+  return {};
+}
+async function _guardarExtra(patch, okMsg){
+  if(!_sbEmpId){ showNotif("Sin empresa activa","err"); return; }
+  var x = (empresaData && empresaData._config && empresaData._config.extra_config) || {};
+  Object.assign(x, patch);
+  try {
+    await sbUpsert("empresas_config",{ empresa_id:_sbEmpId, extra_config: x });
+    if(!empresaData._config) empresaData._config={};
+    empresaData._config.extra_config = x;
+    showSaved(okMsg||"Guardado");
+  } catch(e){
+    var _m = (e && e.message) || "";
+    console.error("guardarExtra error:", _m);
+    if(/extra_config|column|does not exist|schema cache|PGRST/i.test(_m)){
+      showNotif("Falta crear la columna 'extra_config' en Supabase (correr el SQL).","err");
+    } else {
+      showNotif("Error al guardar: "+(_m||"desconocido"),"err");
+    }
+  }
+}
+async function cargarFacturacion(){
+  var x = await _cargarExtraConfig();
+  var s=function(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?"":v);};
+  s("fac-cond-iva",x.condIva); s("fac-punto-venta",x.puntoVenta); s("fac-iva-pct",x.ivaPct); s("fac-iibb",x.iibb);
+  s("fac-alias",x.alias); s("fac-cbu",x.cbu); s("fac-titular",x.titular); s("fac-mp-link",x.mpLink);
+}
+function guardarFacturacion(){
+  var g=function(id){return (document.getElementById(id)||{value:""}).value.trim();};
+  _guardarExtra({ condIva:g("fac-cond-iva"), puntoVenta:g("fac-punto-venta"), ivaPct:g("fac-iva-pct"), iibb:g("fac-iibb"),
+    alias:g("fac-alias"), cbu:g("fac-cbu"), titular:g("fac-titular"), mpLink:g("fac-mp-link") }, "Facturación y pagos guardados");
+}
+async function cargarWhatsApp(){
+  var x = await _cargarExtraConfig();
+  var s=function(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?"":v);};
+  s("wa-numero",x.waNumero); s("wa-msg-confirmado",x.waMsgConfirmado); s("wa-msg-reparto",x.waMsgReparto); s("wa-msg-entregado",x.waMsgEntregado);
+}
+function guardarWhatsApp(){
+  var g=function(id){return (document.getElementById(id)||{value:""}).value.trim();};
+  _guardarExtra({ waNumero:g("wa-numero"), waMsgConfirmado:g("wa-msg-confirmado"), waMsgReparto:g("wa-msg-reparto"), waMsgEntregado:g("wa-msg-entregado") }, "WhatsApp guardado");
+}
+async function cambiarPassword(){
+  var p1=(document.getElementById("sec-pass1")||{value:""}).value;
+  var p2=(document.getElementById("sec-pass2")||{value:""}).value;
+  if(!p1 || p1.length<4){ showNotif("La contraseña debe tener al menos 4 caracteres","err"); return; }
+  if(p1!==p2){ showNotif("Las contraseñas no coinciden","err"); return; }
+  if(!currentUser || !currentUser.id){ showNotif("No hay usuario activo","err"); return; }
+  try {
+    await sbPatch("usuarios","id=eq."+encodeURIComponent(currentUser.id)+"&empresa_id=eq."+_sbEmpId, {pass:p1});
+    var e1=document.getElementById("sec-pass1"), e2=document.getElementById("sec-pass2");
+    if(e1)e1.value=""; if(e2)e2.value="";
+    showSaved("Contraseña cambiada");
+  } catch(e){ showNotif("Error al cambiar contraseña: "+(e.message||""),"err"); }
 }
 
 async function cargarDatosEmpresa(){
@@ -8317,6 +8539,19 @@ function _startDashAutoRefresh(){
   }, 90000);
 }
 
+function _setPanelBranding(){
+  try {
+    var nom = (typeof empresaData!=="undefined" && empresaData && empresaData.nombre) ? empresaData.nombre : "";
+    document.title = (nom ? nom + " \u00b7 " : "") + "Panel";
+    var li = document.querySelector("img.login-logo");
+    var logo = (li && li.src) ? li.src : null;
+    if(logo){
+      var link = document.querySelector("link[rel='icon']");
+      if(!link){ link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
+      link.href = logo;
+    }
+  } catch(e){}
+}
 function iniciarApp(){
   _dashStockIntentado = false;  // estado limpio por empresa
   document.getElementById("login-screen").style.display="none";
@@ -11023,6 +11258,31 @@ async function generarPDF(m){
       doc.text(doc.splitTextToSize(_pdfTxt(obs),84),12,yP+13);
     }
   }
+  // Datos fiscales + formas de cobro (desde Config)
+  (function(){
+    var ex = _getEmpExtra(); if(!ex) ex={};
+    var CIVA = {ri:"Responsable Inscripto", mono:"Monotributo", exento:"Exento", cf:"Consumidor Final"};
+    var py = yP + 31;
+    doc.setTextColor.apply(doc, INK);
+    var fisc = [];
+    if(ex.condIva && CIVA[ex.condIva]) fisc.push(CIVA[ex.condIva]);
+    if(ex.puntoVenta) fisc.push("Pto. Vta: " + ex.puntoVenta);
+    if(fisc.length){
+      doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+      doc.text(_pdfTxt(fisc.join("   -   ")), 10, py); py += 4.5;
+    }
+    var pagos = [];
+    if(ex.alias)   pagos.push("Alias: " + ex.alias);
+    if(ex.cbu)     pagos.push("CBU: " + ex.cbu);
+    if(ex.titular) pagos.push("Titular: " + ex.titular);
+    if(ex.mpLink)  pagos.push("MP: " + ex.mpLink);
+    if(pagos.length){
+      doc.setFont("helvetica","bold"); doc.setFontSize(8);
+      doc.text("Formas de pago:", 10, py); py += 4;
+      doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+      doc.text(doc.splitTextToSize(_pdfTxt(pagos.join("     ")), 90), 10, py);
+    }
+  })();
 
   // Totales (derecha) — desglose completo
   var tX=102, tW=98;
@@ -22708,7 +22968,18 @@ async function _ofrecerAvisoWhatsApp(bk, estado){
     enviado:    "🚚 ¡Tu pedido" + track + " de " + nombreNeg + " ya está en camino! Pronto lo vas a recibir.",
     entregado:  "✅ Tu pedido" + track + " de " + nombreNeg + " fue entregado. ¡Esperamos que disfrutes tu compra! Gracias por elegirnos. 🙌"
   };
-  var msg = msgs[estado] || msgs.recibido;
+  // Plantillas personalizadas de Config (Facturacion/WhatsApp). Si estan cargadas, se usan con variables.
+  var _ex = (typeof _getEmpExtra==="function" ? (_getEmpExtra()||{}) : {});
+  var _tpl = ({ recibido:_ex.waMsgConfirmado, preparando:_ex.waMsgConfirmado, enviado:_ex.waMsgReparto, entregado:_ex.waMsgEntregado })[estado];
+  var msg;
+  if(_tpl && _tpl.trim()){
+    var _cli = bk.clienteNom || bk.cliente_nom || bk.cliente || "";
+    var _cod = bk.trackCode || "";
+    var _tot = (bk.total!=null && bk.total!=="") ? ("$"+fM(bk.total)) : "";
+    msg = String(_tpl).replace(/\{cliente\}/g,_cli).replace(/\{codigo\}/g,_cod).replace(/\{total\}/g,_tot);
+  } else {
+    msg = msgs[estado] || msgs.recibido;
+  }
   var labels = {recibido:"📥 Recibido", preparando:"📦 Preparando", enviado:"🚚 Enviado", entregado:"✅ Entregado"};
   // Confirmación con el admin antes de abrir WhatsApp
   if(await _confirmar({icono:"💬",titulo:"Avisar por WhatsApp",mensaje:'¿Avisar al cliente que su pedido pasó a "'+(labels[estado]||estado)+'"? Se va a abrir WhatsApp con el mensaje listo para enviar.',ok:"Abrir WhatsApp"})){
