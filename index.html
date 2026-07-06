@@ -4988,6 +4988,20 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
             style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--s1)">
         </div>
       </div>
+      <div style="margin-top:12px">
+        <label style="font-size:10.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">Unidad de medida (nombre del bulto)</label>
+        <input type="hidden" id="mprod-unidad-bulto" value="bulto">
+        <div id="mprod-um-chips" style="display:flex;flex-wrap:wrap;gap:5px">
+          <button type="button" class="mprod-um-btn" data-um="unidad" onclick="_mprodSetUM('unidad')">Unidad</button>
+          <button type="button" class="mprod-um-btn on" data-um="bulto" onclick="_mprodSetUM('bulto')">Bulto</button>
+          <button type="button" class="mprod-um-btn" data-um="caja" onclick="_mprodSetUM('caja')">Caja</button>
+          <button type="button" class="mprod-um-btn" data-um="blister" onclick="_mprodSetUM('blister')">Blister</button>
+          <button type="button" class="mprod-um-btn" data-um="paquete" onclick="_mprodSetUM('paquete')">Paquete</button>
+          <button type="button" class="mprod-um-btn" data-um="display" onclick="_mprodSetUM('display')">Display</button>
+          <button type="button" class="mprod-um-btn" data-um="plancha" onclick="_mprodSetUM('plancha')">Plancha</button>
+          <button type="button" class="mprod-um-btn" data-um="docena" onclick="_mprodSetUM('docena')">Docena</button>
+        </div>
+      </div>
       <input type="hidden" id="mprod-unidad-venta" value="ambos">
       <div style="margin-top:12px">
         <label style="font-size:10.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">¿Cómo se vende por defecto?</label>
@@ -4998,7 +5012,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         </div>
         <div id="mprod-precio-leyenda" style="font-size:11.5px;color:var(--accent);font-weight:700;margin-top:8px;min-height:16px"></div>
       </div>
-      <style>.mprod-venta-btn.on{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}</style>
+      <style>.mprod-venta-btn.on{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+.mprod-um-btn{padding:6px 11px;border:1px solid var(--border);border-radius:7px;background:var(--s3);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.mprod-um-btn.on{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}</style>
       <div style="font-size:10.5px;color:var(--muted);margin-top:6px">El precio unitario es el de venta de arriba. El precio por caja podés dejarlo automático (unitario × unidades) o ponerle uno propio.</div>
     </div>
     </div><!-- /panel tienda -->
@@ -6581,9 +6597,9 @@ async function _sbGetProductos(force){
   var rows;
   try { rows=await sbGet("productos",SEL_NEW+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
   catch(e){ rows=await sbGet("productos",SEL_OLD+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
-  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[]};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
+  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[]};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
 async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null}); _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
+async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
   var rows = await sbGet("usuarios","select=id,uid,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng,vendedor_asignado&empresa_id=eq."+_sbEmpId+"&order=name.asc");
@@ -7852,6 +7868,8 @@ async function _nextRemitoNum(){
 function aplicarBranding(){
   var d = empresaData;
   if(!d) return;
+  // Capturar el logo CoreDistri original (para el favicon del panel) antes de reemplazarlo
+  if(!window._coreLogoSrc){ var _cl0=document.querySelector("img.login-logo"); if(_cl0&&_cl0.src) window._coreLogoSrc=_cl0.src; }
   // Logo
   if(d.logo&&d.logo.length>100){
     var ll=document.getElementById("login-logo"); if(ll) ll.src=d.logo;
@@ -7860,7 +7878,15 @@ function aplicarBranding(){
   // App name
   var appName = d.appname||d.nombre||"RutaApp";
   var sn=document.getElementById("sb-emp-name"); if(sn) sn.textContent=d.nombre||"";
-  document.title = appName;
+  document.title = (d.nombre||appName) + " \u00b7 Panel";
+  try {
+    var _oldIcons = document.querySelectorAll("link[rel='icon'],link[rel='shortcut icon']");
+    for(var _i=0;_i<_oldIcons.length;_i++){ _oldIcons[_i].parentNode.removeChild(_oldIcons[_i]); }
+    if(window._coreLogoSrc){
+      var _nl=document.createElement("link"); _nl.rel="icon"; _nl.type="image/png"; _nl.href=window._coreLogoSrc;
+      document.head.appendChild(_nl);
+    }
+  } catch(_e){}
   var lTitle=document.getElementById("login-app-title"); if(lTitle) lTitle.textContent=appName;
   // Color primary
   if(d.color){ document.documentElement.style.setProperty("--emp-primary", d.color); }
@@ -21494,12 +21520,16 @@ function _buildCard(key, p) {
       ofertaBadge +
       promoBadge +
     '</div>' +
-    '<div class="prod-card-actions">' +
-      '<button class="prod-card-btn" data-key="' + key + '">✏️ Editar</button>' +
+    '<div class="prod-card-actions" style="flex-wrap:wrap">' +
+      '<button class="prod-card-btn" data-toggle="' + key + '" style="flex-basis:100%;font-weight:800;' + (p.activo===false ? 'background:#4c1414;color:#fca5a5' : 'background:#0f3d24;color:#86efac') + '">' + (p.activo===false ? '🚫 No disponible' : '✅ Disponible') + '</button>' +
+      '<button class="prod-card-btn" data-key="' + key + '" style="flex:1">✏️ Editar</button>' +
       '<button class="prod-card-btn danger" data-key="' + key + '">🗑</button>' +
     '</div>';
   card.querySelector('[data-key]').onclick = function(e) { e.stopPropagation(); abrirModalProducto(this.dataset.key); };
   card.querySelectorAll('[data-key]')[1].onclick = function(e) { e.stopPropagation(); eliminarProducto(this.dataset.key); };
+  var _togEl = card.querySelector('[data-toggle]');
+  if(_togEl) _togEl.onclick = function(e){ e.stopPropagation(); _prodToggleActivo(this.dataset.toggle); };
+  if(p.activo===false){ card.style.opacity='0.6'; }
   var famEl = card.querySelector('.prod-card-fam');
   if(famEl) famEl.onclick = function(e){ e.stopPropagation(); abrirModalFamilia(this.dataset.fam); };
   card.onclick = function() {
@@ -21641,6 +21671,7 @@ function abrirModalProducto(key) {
   var uvEl=document.getElementById("mprod-unidad-venta"); if(uvEl) uvEl.value = p.unidadVenta || "unidad";
   var pcEl=document.getElementById("mprod-precio-caja"); if(pcEl) pcEl.value = (p.precioCaja!=null && p.precioCaja>0) ? p.precioCaja : "";
   if(typeof _mprodSetVenta==="function") _mprodSetVenta(p.unidadVenta || "unidad");
+  if(typeof _mprodSetUM==="function") _mprodSetUM(p.unidadBulto || "bulto");
   var ubEl=document.getElementById("mprod-unidades-bulto"); if(ubEl) ubEl.value = p.unidadesBulto || 1;
   var mcEl=document.getElementById("mprod-min-compra"); if(mcEl) mcEl.value = p.minCompra || 1;
   var cdEl=document.getElementById("mprod-cant-default"); if(cdEl) cdEl.value = p.cantDefault || 1;
@@ -22069,6 +22100,7 @@ function abrirModalProducto(key) {
   var uvEl=document.getElementById("mprod-unidad-venta"); if(uvEl) uvEl.value = p.unidadVenta || "unidad";
   var pcEl=document.getElementById("mprod-precio-caja"); if(pcEl) pcEl.value = (p.precioCaja!=null && p.precioCaja>0) ? p.precioCaja : "";
   if(typeof _mprodSetVenta==="function") _mprodSetVenta(p.unidadVenta || "unidad");
+  if(typeof _mprodSetUM==="function") _mprodSetUM(p.unidadBulto || "bulto");
   var ubEl=document.getElementById("mprod-unidades-bulto"); if(ubEl) ubEl.value = p.unidadesBulto || 1;
   var mcEl=document.getElementById("mprod-min-compra"); if(mcEl) mcEl.value = p.minCompra || 1;
   var cdEl=document.getElementById("mprod-cant-default"); if(cdEl) cdEl.value = p.cantDefault || 1;
@@ -22273,6 +22305,13 @@ function _mprodSetVenta(modo){
   if(ba) ba.classList.toggle("on", modo==="ambos");
   _mprodCalcCaja();
 }
+function _mprodSetUM(um){
+  var h=document.getElementById("mprod-unidad-bulto"); if(h) h.value=um;
+  var chips=document.querySelectorAll("#mprod-um-chips .mprod-um-btn");
+  for(var i=0;i<chips.length;i++){ chips[i].classList.toggle("on", chips[i].getAttribute("data-um")===um); }
+  var bb=document.getElementById("mprod-venta-bulto");
+  if(bb){ bb.textContent = um.charAt(0).toUpperCase()+um.slice(1); }
+}
 
 // ───── CATEGORÍAS: helpers + gestor ─────
 function _catsExtra(){ try { return JSON.parse(localStorage.getItem("cats_extra_"+_sbEmpId)||"[]"); } catch(e){ return []; } }
@@ -22425,6 +22464,7 @@ function guardarProducto() {
   var precioPromo = parseFloat((document.getElementById("mprod-precio-promo")||{value:""}).value)||null;
   var cantPromo   = parseInt((document.getElementById("mprod-cant-promo")||{value:""}).value)||null;
   var unidadVenta   = (document.getElementById("mprod-unidad-venta")||{value:"unidad"}).value || "unidad";
+  var unidadBulto   = (document.getElementById("mprod-unidad-bulto")||{value:"bulto"}).value || "bulto";
   var unidadesBulto = parseInt((document.getElementById("mprod-unidades-bulto")||{value:"1"}).value)||1;
   var minCompra     = parseInt((document.getElementById("mprod-min-compra")||{value:"1"}).value)||1;
 var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}).value)||0;
@@ -22483,6 +22523,7 @@ var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}
     precioPromo: precioPromo,
     cantPromo:   cantPromo,
     unidadVenta:   unidadVenta,
+    unidadBulto:   unidadBulto,
     unidadesBulto: unidadesBulto,
     precioCaja:    precioCaja,
     minCompra:     minCompra,
