@@ -7418,10 +7418,13 @@ document.addEventListener("visibilitychange", function(){
   if(document.visibilityState === "visible") _initTrackingUbicacion();
 });
 
-// ===== 2FA — configuración desde Ajustes (solo admin, restringido a habilitados) =====
-// Igual que el rastreo, arranca solo para tu empresa; después es agregar el id a la lista.
+// ===== 2FA — configuración desde Ajustes (solo admin) =====
+// _2FA_TODAS = true → habilitado para TODAS las distribuidoras.
+// Si algún día querés volver a restringir, poné _2FA_TODAS=false y usá la lista.
 var _2FA_EMPRESAS_OK = ["6eabe598-6bdc-4319-96bd-f5eb6bdc6eab"];
+var _2FA_TODAS = true;
 function _2faHabilitadoParaEmpresa(){
+  if(_2FA_TODAS) return true;
   return _2FA_EMPRESAS_OK.indexOf(String(_sbEmpId||"")) !== -1;
 }
 // Muestra u oculta la card de 2FA y su estado actual. Se llama al abrir Ajustes.
@@ -7439,8 +7442,22 @@ function _2faRefrescarCard(){
       var setup = document.getElementById("cfg-2fa-setup");
       if(hab===true){
         est.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--green);font-weight:700;font-size:14px">✅ 2FA activado</div>'+
-          '<button class="cfg-save" style="margin-top:12px;background:transparent;color:var(--red);border:1px solid var(--border)" onclick="_2faDesactivar()">Desactivar 2FA</button>';
+          '<div id="cfg-2fa-recovery-info" style="font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.5">Cargando códigos de recuperación…</div>'+
+          '<button class="cfg-save" style="margin-top:10px;background:transparent;color:var(--text);border:1px solid var(--border)" onclick="_2faRegenerarRecovery()">🔑 Regenerar códigos de recuperación</button>'+
+          '<button class="cfg-save" style="margin-top:8px;background:transparent;color:var(--red);border:1px solid var(--border)" onclick="_2faDesactivar()">Desactivar 2FA</button>';
         if(setup) setup.style.display="none";
+        // Traer cuántos códigos de recuperación quedan sin usar
+        sbFetch("POST","/rest/v1/rpc/totp_recovery_count",{ p_empresa_id:_sbEmpId, p_uid:uid })
+          .then(function(n){
+            var info = document.getElementById("cfg-2fa-recovery-info");
+            if(!info) return;
+            n = (typeof n==="number") ? n : parseInt(n||0,10);
+            if(n>0){ info.innerHTML = "Te quedan <b>"+n+"</b> código(s) de recuperación sin usar."; }
+            else { info.innerHTML = '<span style="color:var(--red)">⚠️ No te quedan códigos de recuperación. Regenerá unos nuevos.</span>'; }
+          }).catch(function(){
+            var info = document.getElementById("cfg-2fa-recovery-info");
+            if(info) info.textContent = "";
+          });
       } else {
         est.innerHTML = '<div style="font-size:13px;color:var(--muted)">Tu cuenta todavía no tiene 2FA.</div>'+
           '<button class="cfg-save" style="margin-top:12px" onclick="_2faIniciarSetup()">Configurar 2FA</button>';
@@ -7451,10 +7468,9 @@ function _2faRefrescarCard(){
 // Genera un secreto nuevo y muestra el QR
 function _2faIniciarSetup(){
   var uid = currentUser.uid || currentUser.id;
-  showNotif("Generando 2FA... (emp: "+String(_sbEmpId).slice(0,8)+", uid: "+uid+")","ok");
   sbFetch("POST","/rest/v1/rpc/totp_iniciar_setup",{ p_empresa_id:_sbEmpId, p_uid:uid })
     .then(function(secret){
-      if(!secret){ showNotif("El servidor no devolvió secreto (¿corriste el SQL totp_2fa.sql?)","err"); return; }
+      if(!secret){ showNotif("No se pudo generar el 2FA. ¿Corriste el SQL?","err"); return; }
       var setup = document.getElementById("cfg-2fa-setup");
       document.getElementById("cfg-2fa-secret").textContent = secret;
       // Armar la URI otpauth y el QR (vía servicio de imagen QR)
@@ -7465,7 +7481,7 @@ function _2faIniciarSetup(){
       setup.style.display = "block";
       document.getElementById("cfg-2fa-codigo").value = "";
       document.getElementById("cfg-2fa-error").textContent = "";
-    }).catch(function(e){ showNotif("Error 2FA: "+(e && (e.message||e) || "desconocido"),"err"); console.error("2FA setup:", e); });
+    }).catch(function(e){ showNotif("Error 2FA","err"); console.error("2FA setup:", e); });
 }
 // Confirma el primer código y activa el 2FA
 function _2faConfirmarSetup(){
@@ -7475,7 +7491,14 @@ function _2faConfirmarSetup(){
   if(cod.length!==6){ errEl.textContent="Ingresá los 6 dígitos."; return; }
   sbFetch("POST","/rest/v1/rpc/totp_confirmar",{ p_empresa_id:_sbEmpId, p_uid:uid, p_codigo:cod })
     .then(function(ok){
-      if(ok===true){ showNotif("🔐 2FA activado","ok"); _2faRefrescarCard(); }
+      if(ok===true){
+        showNotif("🔐 2FA activado","ok");
+        // Generar y mostrar los códigos de recuperación (se ven una sola vez)
+        sbFetch("POST","/rest/v1/rpc/totp_generar_recovery",{ p_empresa_id:_sbEmpId, p_uid:uid })
+          .then(function(codes){ _2faMostrarRecovery(codes, true); })
+          .catch(function(e){ console.error("recovery:", e); })
+          .then(function(){ _2faRefrescarCard(); });
+      }
       else { errEl.textContent="Código incorrecto. Revisá la hora de tu celular y probá de nuevo."; }
     }).catch(function(e){ errEl.textContent="Error: "+(e.message||e); });
 }
@@ -7488,6 +7511,54 @@ function _2faDesactivar(){
       .then(function(){ showNotif("2FA desactivado","ok"); _2faRefrescarCard(); })
       .catch(function(e){ showNotif("Error: "+(e.message||e),"err"); });
   });
+}
+
+// ===== 2FA — Códigos de recuperación =====
+// Regenera los códigos (invalida los anteriores) y los muestra una vez.
+function _2faRegenerarRecovery(){
+  _confirmar({icono:"🔑",titulo:"Regenerar códigos",mensaje:"Se crean códigos nuevos y los anteriores dejan de servir. ¿Seguir?",ok:"Regenerar"}).then(function(si){
+    if(!si) return;
+    var uid = currentUser.uid || currentUser.id;
+    sbFetch("POST","/rest/v1/rpc/totp_generar_recovery",{ p_empresa_id:_sbEmpId, p_uid:uid })
+      .then(function(codes){ _2faMostrarRecovery(codes, false); _2faRefrescarCard(); })
+      .catch(function(e){ showNotif("Error: "+(e.message||e),"err"); });
+  });
+}
+// Modal que muestra los códigos de recuperación (visibles una sola vez).
+function _2faMostrarRecovery(codes, esActivacion){
+  if(!codes || !codes.length){ return; }
+  var lista = codes.map(function(c){ return '<div style="padding:6px 0;letter-spacing:2px">'+c+'</div>'; }).join("");
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(6,12,24,.9);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML =
+    '<div style="background:var(--s1,#0f1826);border:1px solid var(--border,#22344f);border-radius:16px;padding:24px 22px;max-width:360px;width:100%;text-align:center">'+
+      '<div style="font-size:32px;margin-bottom:6px">🔑</div>'+
+      '<div style="font-size:16px;font-weight:800;color:var(--text,#e8eef7);margin-bottom:6px">'+(esActivacion?"¡2FA activado!":"Códigos nuevos")+'</div>'+
+      '<div style="font-size:12.5px;color:var(--muted,#8fa1bd);margin-bottom:14px;line-height:1.5">Guardá estos códigos en un lugar seguro. Si perdés el teléfono, cada uno te deja entrar <b>una sola vez</b>. No los vas a poder volver a ver.</div>'+
+      '<div id="recovery-lista" style="font-family:monospace;font-size:16px;font-weight:700;color:var(--text,#e8eef7);background:var(--s3,#0c1524);border-radius:10px;padding:12px;margin-bottom:14px">'+lista+'</div>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button id="btn-recovery-copy" style="flex:1;padding:11px;border:1px solid var(--border,#22344f);border-radius:10px;background:transparent;color:var(--text,#e8eef7);font-size:13px;font-weight:700;cursor:pointer">📋 Copiar</button>'+
+        '<button id="btn-recovery-ok" style="flex:1;padding:11px;border:none;border-radius:10px;background:var(--accent,#c9933a);color:#fff;font-size:13px;font-weight:800;cursor:pointer">Ya los guardé</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(ov);
+  var texto = codes.join("\n");
+  document.getElementById("btn-recovery-copy").onclick = function(){
+    var okMsg = function(){ showNotif("Códigos copiados","ok"); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(texto).then(okMsg).catch(function(){ _2faCopyFallback(texto); okMsg(); });
+    } else { _2faCopyFallback(texto); okMsg(); }
+  };
+  document.getElementById("btn-recovery-ok").onclick = function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); };
+}
+// Copia de respaldo para webviews sin navigator.clipboard (iOS/Android viejo).
+function _2faCopyFallback(texto){
+  try{
+    var ta = document.createElement("textarea");
+    ta.value = texto; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta);
+  }catch(e){}
 }
 
 // ===== 2FA (TOTP) — verificación en el login =====
@@ -7515,6 +7586,31 @@ function _login2FAChequeo(found){
 }
 
 var _2faResolver = null;
+var _2faModoRecovery = false;
+// Alterna el modal entre "código de la app (6 dígitos)" y "código de recuperación".
+function _2faSetModoRecovery(on){
+  _2faModoRecovery = !!on;
+  var inp = document.getElementById("input-2fa-codigo");
+  var link = document.getElementById("link-2fa-recovery");
+  if(!inp) return;
+  inp.value = "";
+  if(_2faModoRecovery){
+    inp.setAttribute("maxlength","13");
+    inp.setAttribute("inputmode","text");
+    inp.style.letterSpacing = "3px";
+    inp.style.fontSize = "20px";
+    inp.placeholder = "XXXXX-XXXXX";
+    if(link) link.textContent = "← Volver al código de la app";
+  } else {
+    inp.setAttribute("maxlength","6");
+    inp.setAttribute("inputmode","numeric");
+    inp.style.letterSpacing = "8px";
+    inp.style.fontSize = "26px";
+    inp.placeholder = "000000";
+    if(link) link.textContent = "¿Perdiste el teléfono? Usá un código de recuperación";
+  }
+  var err = document.getElementById("error-2fa"); if(err) err.textContent = "";
+}
 function _mostrarModal2FA(cb){
   _2faResolver = cb;
   var ov = document.getElementById("modal-2fa-login");
@@ -7528,7 +7624,8 @@ function _mostrarModal2FA(cb){
         '<div style="font-size:16px;font-weight:800;color:var(--text,#e8eef7);margin-bottom:4px">Verificación en dos pasos</div>'+
         '<div style="font-size:12.5px;color:var(--muted,#8fa1bd);margin-bottom:16px;line-height:1.4">Ingresá el código de 6 dígitos de tu app de autenticación (Google Authenticator).</div>'+
         '<input id="input-2fa-codigo" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;box-sizing:border-box;text-align:center;font-size:26px;letter-spacing:8px;font-weight:700;padding:12px;border:1px solid var(--border,#22344f);border-radius:10px;background:var(--s2,#16233a);color:var(--text,#e8eef7);margin-bottom:8px" />'+
-        '<div id="error-2fa" style="font-size:12px;color:#f87171;min-height:16px;margin-bottom:10px"></div>'+
+        '<div id="error-2fa" style="font-size:12px;color:#f87171;min-height:16px;margin-bottom:8px"></div>'+
+        '<div id="link-2fa-recovery" style="font-size:12px;color:var(--accent,#c9933a);cursor:pointer;margin-bottom:12px;text-decoration:underline">¿Perdiste el teléfono? Usá un código de recuperación</div>'+
         '<div style="display:flex;gap:8px">'+
           '<button id="btn-2fa-cancel" style="flex:1;padding:12px;border:1px solid var(--border,#22344f);border-radius:10px;background:transparent;color:var(--muted,#8fa1bd);font-size:14px;font-weight:700;cursor:pointer">Cancelar</button>'+
           '<button id="btn-2fa-ok" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--accent,#c9933a);color:#fff;font-size:14px;font-weight:800;cursor:pointer">Verificar</button>'+
@@ -7537,16 +7634,27 @@ function _mostrarModal2FA(cb){
     document.body.appendChild(ov);
     var inp = document.getElementById("input-2fa-codigo");
     document.getElementById("btn-2fa-ok").onclick = function(){
-      var v = (inp.value||"").replace(/[^0-9]/g,"");
-      if(v.length!==6){ _2faError("Ingresá los 6 dígitos."); return; }
-      _cerrarModal2FA(); if(_2faResolver) _2faResolver(v);
+      var raw = (inp.value||"");
+      if(_2faModoRecovery){
+        var rc = raw.replace(/[^A-Za-z0-9]/g,"");
+        if(rc.length < 8){ _2faError("Ingresá un código de recuperación válido."); return; }
+        _cerrarModal2FA(); if(_2faResolver) _2faResolver(raw.trim());
+      } else {
+        var v = raw.replace(/[^0-9]/g,"");
+        if(v.length!==6){ _2faError("Ingresá los 6 dígitos."); return; }
+        _cerrarModal2FA(); if(_2faResolver) _2faResolver(v);
+      }
     };
     document.getElementById("btn-2fa-cancel").onclick = function(){
       _cerrarModal2FA(); if(_2faResolver) _2faResolver(null);
     };
+    document.getElementById("link-2fa-recovery").onclick = function(){
+      _2faSetModoRecovery(!_2faModoRecovery);
+    };
     inp.addEventListener("keydown", function(e){ if(e.key==="Enter") document.getElementById("btn-2fa-ok").click(); });
   }
   ov.style.display = "flex";
+  _2faSetModoRecovery(false);   // arrancar siempre en modo código normal
   var inp2 = document.getElementById("input-2fa-codigo");
   inp2.value = ""; document.getElementById("error-2fa").textContent = "";
   setTimeout(function(){ inp2.focus(); }, 100);
