@@ -3086,24 +3086,35 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <button id="hdr-cuenta-btn" onclick="_abrirMenuCuenta()" aria-label="Cuenta" title="Cuenta">👤</button>
 </header>
 <script>
-/* Fallback de safe-area para iPhone: si env(safe-area-inset-top) devuelve 0 en un
-   iPhone con notch/Dynamic Island, forzamos --safe-top para que el header no quede
-   tapado por la isla (bug de Safari/webapp). */
+/* Fallback de safe-area: si env(safe-area-inset-top) devuelve 0 pero hay barra de
+   estado encima (bug del WebView en iPhone con notch y en la app Android), forzamos
+   --safe-top para que el header/banner no queden tapados. En la web normal no toca nada. */
 (function(){
-  try{
-    var probe=document.createElement("div");
-    probe.style.cssText="position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);";
-    document.body.appendChild(probe);
-    var inset=probe.getBoundingClientRect().height||probe.offsetHeight||0;
-    document.body.removeChild(probe);
-    var ua=navigator.userAgent||"";
-    var isIOS=/iPhone|iPod/.test(ua) || (/iPad|Macintosh/.test(ua) && navigator.maxTouchPoints>1);
-    var maxD=window.screen ? Math.max(window.screen.width||0, window.screen.height||0) : 0;
-    if(isIOS && inset < 20 && maxD >= 812){
-      var top = maxD >= 850 ? 55 : 47;   // Dynamic Island vs notch clásico
-      document.documentElement.style.setProperty("--safe-top", top+"px");
-    }
-  }catch(e){}
+  function _ajustarSafeTop(){
+    try{
+      var probe=document.createElement("div");
+      probe.style.cssText="position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);";
+      document.body.appendChild(probe);
+      var inset=probe.getBoundingClientRect().height||probe.offsetHeight||0;
+      document.body.removeChild(probe);
+      if(inset >= 20) return;   // el sistema ya reporta bien el safe-area
+      var ua=navigator.userAgent||"";
+      var isIOS=/iPhone|iPod/.test(ua) || (/iPad|Macintosh/.test(ua) && navigator.maxTouchPoints>1);
+      var esAppNativa=!!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+      var maxD=window.screen ? Math.max(window.screen.width||0, window.screen.height||0) : 0;
+      if(isIOS && maxD >= 812){
+        var top = maxD >= 850 ? 55 : 47;   // Dynamic Island vs notch clásico
+        document.documentElement.style.setProperty("--safe-top", top+"px");
+      } else if(esAppNativa && /Android/.test(ua)){
+        // El WebView de Android reporta env(safe-area-inset-top)=0 aunque haya barra
+        // de estado encima. Le damos un alto razonable para no quedar tapados.
+        document.documentElement.style.setProperty("--safe-top", "28px");
+      }
+    }catch(e){}
+  }
+  _ajustarSafeTop();
+  // Reintento por si Capacitor todavía no había inyectado window.Capacitor
+  setTimeout(_ajustarSafeTop, 500);
 })();
 </script>
 
@@ -5625,6 +5636,33 @@ var _TABLAS_CRITICAS = ["usuarios","productos","backup_pedidos","listas_precios"
 function _sbCacheKey(table){ return "dm_sbv2_"+(_sbEmpId||"x")+"_"+table; }
 function _sbCacheKeyLegacy(table, params){ return "dm_sb_"+_sbEmpId+"_"+table+"_"+(params||""); }
 
+// Saca campos pesados (fotos, firmas en base64) antes de guardar en localStorage.
+// Esos campos revientan la cuota (~5MB) y hacen que el guardado falle EN SILENCIO,
+// dejando las tablas vacías offline. En memoria se conserva el dato completo (con fotos);
+// solo se aliviana la copia que persiste en disco para el arranque offline en frío.
+function _slimParaCache(table, data){
+  if(!Array.isArray(data)) return data;
+  if(table === "productos"){
+    return data.map(function(p){ var q={}; for(var k in p){ if(k!=="foto") q[k]=p[k]; } return q; });
+  }
+  if(table === "ruta_clientes" || table === "backup_pedidos"){
+    return data.map(function(r){ var q={}; for(var k in r){ if(k!=="firma") q[k]=r[k]; } return q; });
+  }
+  return data;
+}
+
+// Guarda en localStorage con manejo de cuota: si está lleno, limpia lo viejo y reintenta.
+function _guardarLS(key, data){
+  try{
+    localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data}));
+    return true;
+  }catch(e){
+    _limpiarCacheViejo();
+    try{ localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data})); return true; }
+    catch(e2){ console.warn("[Cache] localStorage sin espacio, no se guardó:", key); return false; }
+  }
+}
+
 function _sbCacheSave(table, params, data){
   // Guardar siempre con key simple por tabla (ignora params para el cache)
   var key = _sbCacheKey(table);
@@ -5637,15 +5675,11 @@ function _sbCacheSave(table, params, data){
       var esCompleta = !params || params.includes("select=*") || !params.includes("select=");
       if(!esCompleta) { _sbOfflineCache[_sbCacheKeyLegacy(table,params)] = data; return; }
     }
-    _sbOfflineCache[key] = data;
-    try{ localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data})); }catch(e){
-      // localStorage lleno — limpiar caches viejos
-      _limpiarCacheViejo();
-      try{ localStorage.setItem(key, JSON.stringify({ts:Date.now(), data:data})); }catch(e2){}
-    }
+    _sbOfflineCache[key] = data;                     // memoria: completo (con fotos/firmas)
+    _guardarLS(key, _slimParaCache(table, data));    // disco: sin campos pesados
   } else {
     _sbOfflineCache[_sbCacheKeyLegacy(table,params)] = data;
-    try{ localStorage.setItem(_sbCacheKeyLegacy(table,params), JSON.stringify({ts:Date.now(), data:data})); }catch(e){}
+    _guardarLS(_sbCacheKeyLegacy(table,params), _slimParaCache(table, data));
   }
 }
 
@@ -7180,10 +7214,10 @@ window.onload = function(){
     _locModo = (currentUser && currentUser.loc_modo) || "momentos";
     aplicarBranding();
     // Re-verificar estado desde Supabase (puede haber cambiado desde el último login)
-    sbGet("empresas","select=id,estado,vence,plan,loc_hora_ini,loc_hora_fin&id=eq."+_sbEmpId).then(function(emps){
+    sbGet("empresas","select=id,estado,vence,plan,loc_hora_ini,loc_hora_fin,clientes_compartidos&id=eq."+_sbEmpId).then(function(emps){
       var empActual = (emps && emps[0]) ? emps[0] : (s.empresaData||{});
       if(!checkEmpresaAccess(empActual)){ localStorage.removeItem("dm_session"); document.documentElement.classList.remove("has-session"); return; }
-      if(emps && emps[0]){ empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan; empresaData.loc_hora_ini=emps[0].loc_hora_ini; empresaData.loc_hora_fin=emps[0].loc_hora_fin; }
+      if(emps && emps[0]){ empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan; empresaData.loc_hora_ini=emps[0].loc_hora_ini; empresaData.loc_hora_fin=emps[0].loc_hora_fin; empresaData.clientes_compartidos=emps[0].clientes_compartidos; }
       _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
       aplicarRestricciones(); cargarListasPrecios();
       // Precalentar cache offline 8s después del login para no bloquear la UI
@@ -7299,10 +7333,10 @@ function _rastreoHabilitado(){
 function _initTrackingUbicacion(){
   if(!_rastreoHabilitado()) return;   // desactivado para el resto de las distribuidoras
   try {
-    // App nativa: usar seguimiento en segundo plano (respeta horario) además del normal
+    // App nativa: el servicio nativo se mantiene vivo y prende/apaga el GPS
+    // solo según el horario laboral (todo lo maneja Java, no depende del JS).
     if(typeof _bgGeoDisponible==="function" && _bgGeoDisponible() && _locModo !== "off"){
-      if(typeof _dentroDeHorario==="function" && _dentroDeHorario()){ _bgGeoIniciar(); }
-      _bgGeoAutoHorario();
+      _bgGeoIniciar();
     }
     if(_locModo === "vivo"){
       if(_dentroDeHorario()) _enviarUbicacion();   // una inmediata
@@ -7325,75 +7359,51 @@ function _initTrackingUbicacion(){
 var _bgWatcherId = null;
 
 function _bgGeoDisponible(){
+  // Ahora usamos nuestro servicio nativo propio (plugin LocTracker), que postea
+  // la ubicación a Supabase desde código Java y sobrevive a la pantalla bloqueada.
   return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()
-    && window.Capacitor.Plugins && window.Capacitor.Plugins.BackgroundGeolocation);
+    && window.Capacitor.Plugins && window.Capacitor.Plugins.LocTracker);
 }
 
 async function _bgGeoIniciar(){
   if(typeof _rastreoHabilitado==="function" && !_rastreoHabilitado()) return false;  // solo empresas habilitadas
-  if(!_bgGeoDisponible()) return false;           // solo en app nativa con el plugin
-  if(_locModo === "off") return false;             // el vendedor lo tiene apagado
+  if(!_bgGeoDisponible()) return false;           // solo en app nativa con el plugin LocTracker
+  if(_locModo === "off") return false;             // el usuario lo tiene apagado
   if(_bgWatcherId) return true;                    // ya está corriendo
+  if(!currentUser || !currentUser._sbId || !_sbEmpId) return false;
   try {
-    var Bg = window.Capacitor.Plugins.BackgroundGeolocation;
-    _bgWatcherId = await Bg.addWatcher(
-      {
-        // Texto de la notificación persistente que Android exige mostrar
-        backgroundMessage: "CoreDistri activo",
-        backgroundTitle: "CoreDistri activo",
-        requestPermissions: true,
-        stale: false,
-        distanceFilter: 10           // reporta al moverse ~10 m
-      },
-      function(location, error){
-        if(error){
-          if(error.code === "NOT_AUTHORIZED"){ /* el vendedor debe habilitar "Permitir siempre" */ }
-          return;
-        }
-        if(!location) return;
-        _bgUltimaPos = { lat: location.latitude, lng: location.longitude, t: Date.now() };
-        // Solo reportar dentro del horario laboral
-        if(typeof _dentroDeHorario === "function" && !_dentroDeHorario()) return;
-        if(!currentUser || !currentUser._sbId || !_sbEmpId) return;
-        try {
-          sbPatch("usuarios", "id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId, {
-            last_lat:    location.latitude,
-            last_lng:    location.longitude,
-            last_loc_at: new Date().toISOString()
-          }).catch(function(e){ console.warn("bg-ubic:", e.message); });
-          _lastLocSent = Date.now();
-        } catch(e){}
-      }
-    );
-    // Latido: aunque esté quieto (sin movimiento que dispare el watcher), forzar una lectura cada 2 min
-    if(_bgHeartbeat) clearInterval(_bgHeartbeat);
-    _bgHeartbeat = setInterval(function(){ _bgGeoReportarAhora(); }, 120000);
+    var uid = currentUser.uid || currentUser.id;
+    // 1) Pedir el token de ubicación del usuario (lo crea la primera vez).
+    //    El servicio nativo lo usa para autenticarse en la RPC sin romper el RLS.
+    var token = await sbFetch("POST","/rest/v1/rpc/loc_get_token",{ p_empresa_id:_sbEmpId, p_uid:uid });
+    if(!token){ console.warn("[nat-geo] no se obtuvo el token de ubicación"); return false; }
+    // 2) Arrancar el servicio nativo. De acá en más, el envío lo hace Java directo
+    //    a Supabase, aunque el celu esté bloqueado y la app en segundo plano.
+    await window.Capacitor.Plugins.LocTracker.start({
+      sbUrl:     SB_URL,
+      anonKey:   SB_KEY,
+      empresaId: String(_sbEmpId),
+      uid:       String(uid),
+      token:     String(token),
+      horaIni:   (empresaData && empresaData.loc_hora_ini) || "",
+      horaFin:   (empresaData && empresaData.loc_hora_fin) || ""
+    });
+    _bgWatcherId = "nativo";   // marca de "servicio activo"
     return true;
-  } catch(e){ console.warn("[BG-Geo] no se pudo iniciar:", e); return false; }
+  } catch(e){ console.warn("[nat-geo] no se pudo iniciar:", e); return false; }
 }
 
-// Fuerza una lectura y reporte de la ubicación AHORA (usado por el latido y por el botón del panel)
+// (Se mantienen por compatibilidad; el servicio nativo ya no depende de estos.)
 var _bgHeartbeat = null;
-// Latido: re-envía la ÚLTIMA posición que captó el watcher, aunque el vendedor esté quieto.
-// (El watcher del plugin mantiene _bgUltimaPos fresca; en background no podemos pedir GPS nuevo desde JS.)
 var _bgUltimaPos = null;
-async function _bgGeoReportarAhora(){
-  if(_locModo === "off") return;
-  if(typeof _dentroDeHorario === "function" && !_dentroDeHorario()) return;
-  if(!currentUser || !currentUser._sbId || !_sbEmpId) return;
-  if(!_bgUltimaPos) return;   // todavía no hubo ninguna lectura del watcher
-  try {
-    await sbPatch("usuarios", "id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId, {
-      last_lat: _bgUltimaPos.lat, last_lng: _bgUltimaPos.lng, last_loc_at: new Date().toISOString()
-    });
-    _lastLocSent = Date.now();
-  } catch(e){ console.warn("reportarAhora:", e && e.message); }
-}
+async function _bgGeoReportarAhora(){ /* el servicio nativo maneja el latido por su cuenta */ }
 
 async function _bgGeoDetener(){
-  if(!_bgGeoDisponible() || !_bgWatcherId) return;
+  if(!_bgWatcherId) return;
   try {
-    await window.Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id: _bgWatcherId });
+    if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocTracker){
+      await window.Capacitor.Plugins.LocTracker.stop();
+    }
   } catch(e){}
   _bgWatcherId = null;
   if(_bgHeartbeat){ clearInterval(_bgHeartbeat); _bgHeartbeat = null; }
@@ -7681,7 +7691,7 @@ function doLogin(){
   err.textContent="🔄 Conectando…";
 
   // 1. Buscar empresa por código en Supabase
-  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin,onboarding_done&codigo=eq."+encodeURIComponent(empCod))
+  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin,clientes_compartidos,onboarding_done&codigo=eq."+encodeURIComponent(empCod))
   .then(function(emps){
     if(!emps||!emps.length){ err.textContent="❌ Empresa '"+empCod+"' no encontrada"; return; }
     var emp = emps[0];
@@ -8232,9 +8242,12 @@ async function cambiarPassword(){
   var p2=(document.getElementById("sec-pass2")||{value:""}).value;
   if(!p1 || p1.length<4){ showNotif("La contraseña debe tener al menos 4 caracteres","err"); return; }
   if(p1!==p2){ showNotif("Las contraseñas no coinciden","err"); return; }
-  if(!currentUser || !currentUser.id){ showNotif("No hay usuario activo","err"); return; }
+  if(!currentUser || !currentUser._sbId){ showNotif("No hay usuario activo","err"); return; }
   try {
-    await sbPatch("usuarios","id=eq."+encodeURIComponent(currentUser.id)+"&empresa_id=eq."+_sbEmpId, {pass:p1});
+    // Usamos el RPC seguro (igual que cuando el admin cambia la clave de otro usuario):
+    // el PATCH directo a "usuarios" lo bloquea el RLS, y además hay que usar el UUID
+    // (_sbId), no currentUser.id, que es el login ("federico") y no matchea la fila.
+    await sbFetch("POST","/rest/v1/rpc/cambiar_pass_seguro",{ p_usuario_id: currentUser._sbId, p_empresa_id: _sbEmpId, p_pass: p1 });
     var e1=document.getElementById("sec-pass1"), e2=document.getElementById("sec-pass2");
     if(e1)e1.value=""; if(e2)e2.value="";
     showSaved("Contraseña cambiada");
@@ -9138,7 +9151,7 @@ function _checkSubVencimiento(){
     msg = "📅 Tu suscripción vence el "+vd.toLocaleDateString("es-AR",{day:"numeric",month:"long"})+". Quedan "+diasRestantes+" días. · Tocá para cerrar";
     bg = "#1e3a5f"; color = "#93c5fd";
   }
-  banner.style.cssText="display:block;padding:10px 16px;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:249;cursor:pointer;text-align:center;background:"+bg+";color:"+color;
+  banner.style.cssText="display:block;padding:calc(10px + var(--safe-top)) 16px 10px;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:249;cursor:pointer;text-align:center;background:"+bg+";color:"+color;
   banner.textContent = msg;
   banner.onclick = function(){ banner.style.display="none"; };
 }
@@ -10163,9 +10176,33 @@ function _distanciaMetros(lat1, lng1, lat2, lng2){
 
 var _RADIO_DETECCION = 50; // metros — radio para considerar que estás "en" el negocio
 
-function detectarClienteCercano(t, btn){
-  if(!navigator.geolocation){ showNotif("Tu dispositivo no tiene GPS disponible","err"); return; }
+// Obtiene la ubicación actual UNA vez. En la app nativa usa el GPS nativo
+// (el navigator.geolocation del WebView se cuelga en silencio en Android).
+// En la web, usa el navegador normal.
+function _obtenerUbicacionActual(){
+  return new Promise(function(resolve, reject){
+    var nativo = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()
+      && window.Capacitor.Plugins && window.Capacitor.Plugins.LocTracker
+      && window.Capacitor.Plugins.LocTracker.getOnce;
+    if(nativo){
+      window.Capacitor.Plugins.LocTracker.getOnce()
+        .then(function(r){ resolve({ lat: r.lat, lng: r.lng }); })
+        .catch(function(e){
+          var msg = (e && (e.message || e.code)) || "";
+          reject({ code: (msg==="sin_permiso") ? 1 : 2 });
+        });
+      return;
+    }
+    if(!navigator.geolocation){ reject({ code:2 }); return; }
+    navigator.geolocation.getCurrentPosition(
+      function(pos){ resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      function(err){ reject({ code: err.code }); },
+      { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+    );
+  });
+}
 
+function detectarClienteCercano(t, btn){
   // Clientes con coordenadas cargadas
   var conCoords = Object.values(_clientesDB||{}).filter(function(c){
     return c.lat && c.lng && (c.role==="cliente" || !c.role);
@@ -10178,43 +10215,35 @@ function detectarClienteCercano(t, btn){
   var lblOrig = btn ? btn.innerHTML : "";
   if(btn){ btn.disabled=true; btn.innerHTML="📡 Buscando tu ubicación…"; }
 
-  navigator.geolocation.getCurrentPosition(
-    function(pos){
-      var miLat = pos.coords.latitude, miLng = pos.coords.longitude;
-      // Calcular distancia a cada cliente
-      var conDist = conCoords.map(function(c){
-        return { c:c, dist:_distanciaMetros(miLat, miLng, parseFloat(c.lat), parseFloat(c.lng)) };
-      }).sort(function(a,b){ return a.dist - b.dist; });
+  _obtenerUbicacionActual().then(function(mi){
+    var miLat = mi.lat, miLng = mi.lng;
+    var conDist = conCoords.map(function(c){
+      return { c:c, dist:_distanciaMetros(miLat, miLng, parseFloat(c.lat), parseFloat(c.lng)) };
+    }).sort(function(a,b){ return a.dist - b.dist; });
 
-      if(btn){ btn.disabled=false; btn.innerHTML=lblOrig; }
+    if(btn){ btn.disabled=false; btn.innerHTML=lblOrig; }
 
-      // Clientes dentro del radio
-      var cercanos = conDist.filter(function(x){ return x.dist <= _RADIO_DETECCION; });
+    var cercanos = conDist.filter(function(x){ return x.dist <= _RADIO_DETECCION; });
 
-      if(!cercanos.length){
-        var masCerca = conDist[0];
-        showNotif("📍 No hay clientes acá. El más cercano está a "+Math.round(masCerca.dist)+"m","err");
-        return;
-      }
+    if(!cercanos.length){
+      var masCerca = conDist[0];
+      showNotif("📍 No hay clientes acá. El más cercano está a "+Math.round(masCerca.dist)+"m","err");
+      return;
+    }
 
-      if(cercanos.length===1){
-        // Auto-seleccionar directamente
-        var c = cercanos[0].c;
-        _elegirCliente(t, { id:c.id||"", nombre:c.name||"", lista:c.lista||"Clientes" });
-        showSaved("Cliente detectado");
-        showNotif("✓ "+(c.name||"Cliente")+" — a "+Math.round(cercanos[0].dist)+"m","ok");
-      } else {
-        // Varios candidatos: mostrar para elegir
-        _mostrarCandidatosCercanos(t, cercanos);
-      }
-    },
-    function(err){
-      if(btn){ btn.disabled=false; btn.innerHTML=lblOrig; }
-      if(err.code===1) showNotif("Activá el permiso de ubicación para usar esta función","err");
-      else showNotif("No se pudo obtener tu ubicación, probá de nuevo","err");
-    },
-    { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
-  );
+    if(cercanos.length===1){
+      var c = cercanos[0].c;
+      _elegirCliente(t, { id:c.id||"", nombre:c.name||"", lista:c.lista||"Clientes" });
+      showSaved("Cliente detectado");
+      showNotif("✓ "+(c.name||"Cliente")+" — a "+Math.round(cercanos[0].dist)+"m","ok");
+    } else {
+      _mostrarCandidatosCercanos(t, cercanos);
+    }
+  }).catch(function(err){
+    if(btn){ btn.disabled=false; btn.innerHTML=lblOrig; }
+    if(err && err.code===1) showNotif("Activá el permiso de ubicación para usar esta función","err");
+    else showNotif("No se pudo obtener tu ubicación, probá de nuevo","err");
+  });
 }
 
 // Si hay varios clientes cerca, mostrar lista para elegir
@@ -15250,6 +15279,17 @@ function _parseImporte(val){
   return isNaN(n) ? 0 : Math.round(n * 100) / 100;
 }
 
+// Registra un pago en la cuenta corriente de forma IDEMPOTENTE (a prueba de cortes).
+// Online: llama a la RPC cc_registrar_pago. Offline: encola la MISMA operación con su
+// op_id estable, así al sincronizar se aplica exactamente una vez aunque se reintente.
+function _registrarPagoCC(payload){
+  if(!navigator.onLine){
+    return _enqueue("RPC","/rest/v1/rpc/cc_registrar_pago",payload,"Pago CC: "+(payload.p_cliente_nom||""));
+  }
+  return sbFetch("POST","/rest/v1/rpc/cc_registrar_pago",payload)
+    .catch(function(){ return _enqueue("RPC","/rest/v1/rpc/cc_registrar_pago",payload,"Pago CC: "+(payload.p_cliente_nom||"")); });
+}
+
 function guardarPago(rk,ck){
   if(!rutasData[rk]||!rutasData[rk].clientes||!rutasData[rk].clientes[ck])return;
   var cli=rutasData[rk].clientes[ck],modo=cli.modo||"ninguno";
@@ -15262,7 +15302,9 @@ function guardarPago(rk,ck){
   // 1) Guardar el cobro en la parada (offline-aware: se encola si no hay señal)
   fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{efectivo:ef,transferencia:tr,modo:modo},"Cobro: "+(cli.nom||ck));
 
-  // 2) Registrar el movimiento en cuentas corrientes — SIEMPRE (no depende del éxito online)
+  // 2) Registrar el pago en la cuenta corriente — de forma IDEMPOTENTE.
+  //    Un solo op con id ESTABLE: aunque se reintente por cortes de conexión,
+  //    el movimiento y el saldo se aplican UNA sola vez (lo garantiza la RPC).
   var pagoNuevoEf=ef-efAnterior, pagoNuevoTr=tr-trAnterior;
   var pagoTotal=pagoNuevoEf+pagoNuevoTr;
   if(Math.abs(pagoTotal)>0.01){
@@ -15270,28 +15312,18 @@ function guardarPago(rk,ck){
     var partes=[];
     if(pagoNuevoEf>0.01) partes.push("Efectivo $"+fM(pagoNuevoEf));
     if(pagoNuevoTr>0.01) partes.push("Transfer. $"+fM(pagoNuevoTr));
-    var mov={tipo:"pago",fecha:new Date().toISOString(),
-      concepto:concepto+(partes.length?" ("+partes.join(" + ")+")":""),
-      forma_pago:modo,debito:0,credito:pagoTotal,
-      usuario:currentUser?currentUser.id:"vendedor",
-      ref_ruta:rk,ref_cli:ck};
-    fbPushQ("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom+"/movimientos",mov,"Mov. CC: "+cli.nom);
-    // Actualizar saldo: leer-modificar-escribir si hay señal; si no, encolar con el saldo local conocido
-    if(navigator.onLine){
-      fbGet("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom)
-        .then(function(ccData){
-          var saldoActual=(ccData&&ccData.saldo)||0;
-          var nuevoSaldo=saldoActual-pagoTotal;
-          fbPatchQ("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo:nuevoSaldo},"Saldo CC: "+cli.nom);
-        })
-        .catch(function(){
-          // Si falla la lectura, encolar el movimiento igual (el saldo se recalcula al sincronizar)
-          _enqueue("PATCH","empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo_delta:-pagoTotal},"Saldo CC (delta): "+cli.nom);
-        });
-    } else {
-      // Offline: registrar el cambio de saldo como delta (se resuelve al sincronizar)
-      _enqueue("PATCH","empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo_delta:-pagoTotal},"Saldo CC (delta): "+cli.nom);
-    }
+    var _opId = "pay_"+rk+"_"+ck+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,6);
+    _registrarPagoCC({
+      p_op_id:       _opId,
+      p_empresa_id:  _sbEmpId,
+      p_cliente_nom: cli.nom,
+      p_delta:       -pagoTotal,      // un pago RESTA saldo
+      p_monto:       pagoTotal,
+      p_forma:       modo,
+      p_nota:        concepto+(partes.length?" ("+partes.join(" + ")+")":""),
+      p_usuario:     currentUser?currentUser.id:"vendedor",
+      p_fecha:       new Date().toISOString()
+    });
   }
   renderRutas();
 }
@@ -18021,11 +18053,13 @@ function generarPDFDesdeBackup(bk, compartir){
 
   var nomSafe=nom.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g,"").replace(/\s+/g,"_").slice(0,25);
   var hrTag=hrNum?hrNum.replace("-","")+"_":"";
-  var fname=(esFactura?"FactA":"Remito")+"_"+hrTag+"N"+remitoNum+"_"+nomSafe+".pdf";
+  // El archivo SIEMPRE se llama "Remito" (aunque el pedido sea modo Factura A),
+  // para no confundir con una Factura A oficial de ARCA.
+  var fname="Remito_"+hrTag+"N"+remitoNum+"_"+nomSafe+".pdf";
   var _esNativo = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   if(compartir || _esNativo){
     // En la app nativa doc.save() no descarga nada, así que siempre usamos compartir (Archivos + Share)
-    _compartirPDF(doc, fname, (esFactura?"Factura":"Remito")+" "+nom);
+    _compartirPDF(doc, fname, "Remito "+nom);
   } else {
     doc.save(fname);
   }
@@ -19041,7 +19075,27 @@ function _loadQueue(){
   try { _offlineQueue = JSON.parse(localStorage.getItem(_ofKey())||"[]"); } catch(e){ _offlineQueue=[]; }
 }
 function _saveQueue(){
-  try { localStorage.setItem(_ofKey(), JSON.stringify(_offlineQueue)); } catch(e){}
+  var payload;
+  try { payload = JSON.stringify(_offlineQueue); } catch(e){ return; }
+  try {
+    localStorage.setItem(_ofKey(), payload);
+  } catch(e){
+    // localStorage lleno: la COLA es SAGRADA (tiene plata). Liberamos espacio
+    // borrando los caches de LECTURA (que se regeneran solos al reconectar) y
+    // reintentamos guardar la cola. Nunca se sacrifica la cola por el cache.
+    try {
+      Object.keys(localStorage).forEach(function(k){
+        if(k.indexOf("dm_sbv2_")===0 || k.indexOf("dm_sb_")===0 || k.indexOf("dm_rcache_")===0){
+          localStorage.removeItem(k);
+        }
+      });
+      localStorage.setItem(_ofKey(), payload);
+    } catch(e2){
+      // Si AÚN no entra, avisar FUERTE para que no se pierda plata en silencio.
+      try{ showNotif("⚠️ Sin espacio para guardar operaciones pendientes. Conectate a internet cuanto antes para no perder cobros.","err"); }catch(_){}
+      console.error("[Offline] CRÍTICO: no se pudo persistir la cola de operaciones pendientes.");
+    }
+  }
 }
 
 /* ─ Cache de lecturas ─ */
@@ -19110,7 +19164,8 @@ function _syncQueue(){
   ops.forEach(function(op){
     // Replay through the Supabase layer
     var prom;
-    if(op.method==="POST")        prom = fbPush(op.path, op.data);
+    if(op.method==="RPC")         prom = sbFetch("POST", op.path, op.data);
+    else if(op.method==="POST")   prom = fbPush(op.path, op.data);
     else if(op.method==="PATCH")  prom = fbPatch(op.path, op.data);
     else if(op.method==="DELETE") prom = fbDel(op.path);
     else prom = Promise.resolve();
@@ -20182,7 +20237,10 @@ function _renderClientesList(){
   });
   if(window._cliZonaFilter) entries = entries.filter(function(e){ return (e[1].zona||"")===window._cliZonaFilter; });
   if(window._cliVendFilter){ if(window._cliVendFilter==="__none__") entries = entries.filter(function(e){ return !e[1].vendedor_asignado; }); else entries = entries.filter(function(e){ return e[1].vendedor_asignado===window._cliVendFilter; }); }
-  if(typeof currentUser!=="undefined" && currentUser && currentUser.role!=="admin" && currentUser.id){
+  // Los vendedores ven solo SUS clientes asignados — salvo que la empresa tenga
+  // los clientes compartidos (clientes_compartidos), en cuyo caso ven todos.
+  var _clientesCompartidos = !!(empresaData && empresaData.clientes_compartidos);
+  if(typeof currentUser!=="undefined" && currentUser && currentUser.role!=="admin" && currentUser.id && !_clientesCompartidos){
     var _mios = entries.filter(function(e){ return e[1].vendedor_asignado===currentUser.id; });
     if(_mios.length) entries = _mios;
   }
@@ -24488,6 +24546,16 @@ async function _setLocModo(sbId, modo){
   try {
     await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {loc_modo:modo});
     showNotif("✅ Modo actualizado","ok");
+    // Si estoy cambiando MI propio modo en este mismo celular, aplicarlo en vivo:
+    // apagar detiene el servicio nativo; en vivo/momentos lo (re)arranca.
+    if(currentUser && currentUser._sbId === sbId){
+      _locModo = modo;
+      if(modo === "off"){
+        if(typeof _bgGeoDetener === "function") _bgGeoDetener();
+      } else {
+        if(typeof _initTrackingUbicacion === "function") _initTrackingUbicacion();
+      }
+    }
   } catch(e){ showNotif("Error: "+(e.message||e),"err"); }
 }
 
