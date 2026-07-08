@@ -4202,6 +4202,29 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </div>
       <button class="cfg-save" style="margin-top:12px" onclick="cambiarPassword()">🔑 Cambiar contraseña</button>
     </div>
+
+    <div class="cfg-card" id="cfg-2fa-card" style="display:none">
+      <div class="cfg-card-h">🔐 Verificación en dos pasos (2FA)</div>
+      <div class="cfg-card-sub">Protegé tu cuenta con un código que cambia cada 30 segundos, usando Google Authenticator u otra app similar.</div>
+      <div id="cfg-2fa-estado" style="margin-top:10px"></div>
+      <div id="cfg-2fa-setup" style="display:none;margin-top:14px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">
+          1. Abrí tu app de autenticación (Google Authenticator, Authy…).<br>
+          2. Escaneá este código QR o cargá la clave manual.<br>
+          3. Ingresá el código de 6 dígitos que te muestra la app.
+        </div>
+        <div style="text-align:center;margin-bottom:12px">
+          <img id="cfg-2fa-qr" alt="Código QR" style="width:180px;height:180px;border-radius:12px;background:#fff;padding:8px;box-sizing:border-box" />
+        </div>
+        <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:4px">Clave manual (si no podés escanear):</div>
+        <div id="cfg-2fa-secret" style="font-family:monospace;font-size:13px;text-align:center;background:var(--s3);padding:8px;border-radius:8px;margin-bottom:14px;word-break:break-all"></div>
+        <div class="cfg-field">
+          <input inputmode="numeric" maxlength="6" id="cfg-2fa-codigo" class="cfg-input" placeholder="Código de 6 dígitos" style="text-align:center;letter-spacing:4px;font-size:18px" />
+        </div>
+        <div id="cfg-2fa-error" style="font-size:12px;color:var(--red);min-height:16px;margin-top:6px"></div>
+        <button class="cfg-save" style="margin-top:8px" onclick="_2faConfirmarSetup()">✅ Activar 2FA</button>
+      </div>
+    </div>
   </div>
 
   <!-- ═══ PANEL REMITO ═══ -->
@@ -7395,6 +7418,150 @@ document.addEventListener("visibilitychange", function(){
   if(document.visibilityState === "visible") _initTrackingUbicacion();
 });
 
+// ===== 2FA — configuración desde Ajustes (solo admin, restringido a habilitados) =====
+// Igual que el rastreo, arranca solo para tu empresa; después es agregar el id a la lista.
+var _2FA_EMPRESAS_OK = ["6eabe598-6bdc-4319-96bd-f5eb6bdc6eab"];
+function _2faHabilitadoParaEmpresa(){
+  return _2FA_EMPRESAS_OK.indexOf(String(_sbEmpId||"")) !== -1;
+}
+// Muestra u oculta la card de 2FA y su estado actual. Se llama al abrir Ajustes.
+function _2faRefrescarCard(){
+  var card = document.getElementById("cfg-2fa-card");
+  if(!card) return;
+  // Solo admins de empresas habilitadas ven la opción
+  var esAdmin = currentUser && (currentUser.role==="admin" || (currentUser.roles && currentUser.roles.indexOf("admin")>=0));
+  if(!esAdmin || !_2faHabilitadoParaEmpresa()){ card.style.display="none"; return; }
+  card.style.display = "block";
+  var uid = currentUser.uid || currentUser.id;
+  sbFetch("POST","/rest/v1/rpc/totp_estado",{ p_empresa_id:_sbEmpId, p_uid:uid })
+    .then(function(hab){
+      var est = document.getElementById("cfg-2fa-estado");
+      var setup = document.getElementById("cfg-2fa-setup");
+      if(hab===true){
+        est.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--green);font-weight:700;font-size:14px">✅ 2FA activado</div>'+
+          '<button class="cfg-save" style="margin-top:12px;background:transparent;color:var(--red);border:1px solid var(--border)" onclick="_2faDesactivar()">Desactivar 2FA</button>';
+        if(setup) setup.style.display="none";
+      } else {
+        est.innerHTML = '<div style="font-size:13px;color:var(--muted)">Tu cuenta todavía no tiene 2FA.</div>'+
+          '<button class="cfg-save" style="margin-top:12px" onclick="_2faIniciarSetup()">Configurar 2FA</button>';
+        if(setup) setup.style.display="none";
+      }
+    }).catch(function(){});
+}
+// Genera un secreto nuevo y muestra el QR
+function _2faIniciarSetup(){
+  var uid = currentUser.uid || currentUser.id;
+  showNotif("Generando 2FA... (emp: "+String(_sbEmpId).slice(0,8)+", uid: "+uid+")","ok");
+  sbFetch("POST","/rest/v1/rpc/totp_iniciar_setup",{ p_empresa_id:_sbEmpId, p_uid:uid })
+    .then(function(secret){
+      if(!secret){ showNotif("El servidor no devolvió secreto (¿corriste el SQL totp_2fa.sql?)","err"); return; }
+      var setup = document.getElementById("cfg-2fa-setup");
+      document.getElementById("cfg-2fa-secret").textContent = secret;
+      // Armar la URI otpauth y el QR (vía servicio de imagen QR)
+      var emp = (empresaData && empresaData.nombre) ? empresaData.nombre : "CoreDistri";
+      var label = encodeURIComponent(emp + " (" + (currentUser.name||uid) + ")");
+      var otpauth = "otpauth://totp/" + label + "?secret=" + secret + "&issuer=" + encodeURIComponent("CoreDistri");
+      document.getElementById("cfg-2fa-qr").src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(otpauth);
+      setup.style.display = "block";
+      document.getElementById("cfg-2fa-codigo").value = "";
+      document.getElementById("cfg-2fa-error").textContent = "";
+    }).catch(function(e){ showNotif("Error 2FA: "+(e && (e.message||e) || "desconocido"),"err"); console.error("2FA setup:", e); });
+}
+// Confirma el primer código y activa el 2FA
+function _2faConfirmarSetup(){
+  var uid = currentUser.uid || currentUser.id;
+  var cod = (document.getElementById("cfg-2fa-codigo").value||"").replace(/[^0-9]/g,"");
+  var errEl = document.getElementById("cfg-2fa-error");
+  if(cod.length!==6){ errEl.textContent="Ingresá los 6 dígitos."; return; }
+  sbFetch("POST","/rest/v1/rpc/totp_confirmar",{ p_empresa_id:_sbEmpId, p_uid:uid, p_codigo:cod })
+    .then(function(ok){
+      if(ok===true){ showNotif("🔐 2FA activado","ok"); _2faRefrescarCard(); }
+      else { errEl.textContent="Código incorrecto. Revisá la hora de tu celular y probá de nuevo."; }
+    }).catch(function(e){ errEl.textContent="Error: "+(e.message||e); });
+}
+// Desactiva el 2FA (para el propio admin logueado)
+function _2faDesactivar(){
+  _confirmar({icono:"🔓",titulo:"Desactivar 2FA",mensaje:"Vas a quitar la verificación en dos pasos de tu cuenta. ¿Seguro?",ok:"Desactivar",peligro:true}).then(function(si){
+    if(!si) return;
+    var uid = currentUser.uid || currentUser.id;
+    sbFetch("POST","/rest/v1/rpc/totp_desactivar",{ p_empresa_id:_sbEmpId, p_uid:uid })
+      .then(function(){ showNotif("2FA desactivado","ok"); _2faRefrescarCard(); })
+      .catch(function(e){ showNotif("Error: "+(e.message||e),"err"); });
+  });
+}
+
+// ===== 2FA (TOTP) — verificación en el login =====
+// Si el usuario tiene doble factor habilitado, pide el código de 6 dígitos.
+// Resuelve la promesa si el código es correcto; la rechaza si cancela o falla.
+function _login2FAChequeo(found){
+  return new Promise(function(resolve, reject){
+    // Consultar si este usuario tiene 2FA habilitado
+    sbFetch("POST","/rest/v1/rpc/totp_estado",{ p_empresa_id:_sbEmpId, p_uid:(found.uid||found.id) })
+      .then(function(hab){
+        if(hab !== true){ resolve(true); return; }   // sin 2FA: seguir normal
+        // Tiene 2FA: pedir el código
+        _mostrarModal2FA(function(codigo){
+          if(codigo===null){ reject(new Error("2FA cancelado")); return; }
+          sbFetch("POST","/rest/v1/rpc/totp_verificar",{ p_empresa_id:_sbEmpId, p_uid:(found.uid||found.id), p_codigo:codigo })
+            .then(function(ok){
+              if(ok===true){ resolve(true); }
+              else { _2faError("Código incorrecto. Probá de nuevo."); reject(new Error("2FA incorrecto")); }
+            })
+            .catch(function(){ reject(new Error("2FA error de red")); });
+        });
+      })
+      .catch(function(){ resolve(true); });  // si el chequeo falla (función no existe), no bloquear
+  });
+}
+
+var _2faResolver = null;
+function _mostrarModal2FA(cb){
+  _2faResolver = cb;
+  var ov = document.getElementById("modal-2fa-login");
+  if(!ov){
+    ov = document.createElement("div");
+    ov.id = "modal-2fa-login";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(6,12,24,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+    ov.innerHTML =
+      '<div style="background:var(--s1,#0f1826);border:1px solid var(--border,#22344f);border-radius:16px;padding:26px 22px;max-width:340px;width:100%;text-align:center">'+
+        '<div style="font-size:34px;margin-bottom:6px">🔐</div>'+
+        '<div style="font-size:16px;font-weight:800;color:var(--text,#e8eef7);margin-bottom:4px">Verificación en dos pasos</div>'+
+        '<div style="font-size:12.5px;color:var(--muted,#8fa1bd);margin-bottom:16px;line-height:1.4">Ingresá el código de 6 dígitos de tu app de autenticación (Google Authenticator).</div>'+
+        '<input id="input-2fa-codigo" inputmode="numeric" maxlength="6" placeholder="000000" style="width:100%;box-sizing:border-box;text-align:center;font-size:26px;letter-spacing:8px;font-weight:700;padding:12px;border:1px solid var(--border,#22344f);border-radius:10px;background:var(--s2,#16233a);color:var(--text,#e8eef7);margin-bottom:8px" />'+
+        '<div id="error-2fa" style="font-size:12px;color:#f87171;min-height:16px;margin-bottom:10px"></div>'+
+        '<div style="display:flex;gap:8px">'+
+          '<button id="btn-2fa-cancel" style="flex:1;padding:12px;border:1px solid var(--border,#22344f);border-radius:10px;background:transparent;color:var(--muted,#8fa1bd);font-size:14px;font-weight:700;cursor:pointer">Cancelar</button>'+
+          '<button id="btn-2fa-ok" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--accent,#c9933a);color:#fff;font-size:14px;font-weight:800;cursor:pointer">Verificar</button>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(ov);
+    var inp = document.getElementById("input-2fa-codigo");
+    document.getElementById("btn-2fa-ok").onclick = function(){
+      var v = (inp.value||"").replace(/[^0-9]/g,"");
+      if(v.length!==6){ _2faError("Ingresá los 6 dígitos."); return; }
+      _cerrarModal2FA(); if(_2faResolver) _2faResolver(v);
+    };
+    document.getElementById("btn-2fa-cancel").onclick = function(){
+      _cerrarModal2FA(); if(_2faResolver) _2faResolver(null);
+    };
+    inp.addEventListener("keydown", function(e){ if(e.key==="Enter") document.getElementById("btn-2fa-ok").click(); });
+  }
+  ov.style.display = "flex";
+  var inp2 = document.getElementById("input-2fa-codigo");
+  inp2.value = ""; document.getElementById("error-2fa").textContent = "";
+  setTimeout(function(){ inp2.focus(); }, 100);
+}
+function _cerrarModal2FA(){
+  var ov = document.getElementById("modal-2fa-login");
+  if(ov) ov.style.display = "none";
+}
+function _2faError(msg){
+  var e = document.getElementById("error-2fa");
+  if(e) e.textContent = msg;
+  var ov = document.getElementById("modal-2fa-login");
+  if(ov) ov.style.display = "flex";
+}
+
 function doLogin(){
   var empCod = document.getElementById("l-empresa").value.trim().toLowerCase();
   var uid    = document.getElementById("l-user").value.trim();
@@ -7497,6 +7664,15 @@ function doLogin(){
         _empToken = found.token;
         try { localStorage.setItem("dm_emp_token", found.token); } catch(e){}
       }
+
+      // === 2FA: si el usuario tiene doble factor habilitado, pedir el código ahora ===
+      // _login2FAChequeo devuelve una promesa que resuelve true (siga) o rechaza (abortar).
+      return _login2FAChequeo(found).then(function(){
+        return { found: found, usuarios: usuarios, ctx: ctx };
+      });
+    }).then(function(_paso){
+      if(!_paso) return;   // login abortado en un paso anterior
+      var found = _paso.found, usuarios = _paso.usuarios, ctx = _paso.ctx;
 
       // 3. Setear currentUser con datos directos de Supabase
       // El RPC verificar_login no devuelve 'roles', así que lo buscamos en la lista de usuarios.
@@ -7884,6 +8060,7 @@ function setCfgTab(tab, btn){
     else { el.style.setProperty("display","none","important"); }
   });
   if(tab==="empresa")     cargarDatosEmpresa();
+  if(tab==="empresa" && typeof _2faRefrescarCard==="function") _2faRefrescarCard();
   if(tab==="remito")      cargarDisenoRemito();
   if(tab==="facturacion") cargarFacturacion();
   if(tab==="whatsapp")    cargarWhatsApp();
