@@ -2269,6 +2269,34 @@ html[data-theme="dark"] .prod-toolbar {
 .famv-base input { width:100%; padding:7px 8px; border:1px solid var(--border,#22344f); border-radius:8px; background:var(--s1,#fff); color:var(--text,#e8eef7); font-size:13px; box-sizing:border-box; }
 .famv-edit { flex-shrink:0; background:var(--s2,rgba(255,255,255,.06)); border:1px solid var(--border,#22344f); border-radius:9px; width:38px; height:38px; cursor:pointer; font-size:15px; }
 .famv-save { width:100%; padding:11px; border:none; border-radius:11px; background:var(--gold,#c9933a); color:#0a1628; font-size:14px; font-weight:800; cursor:pointer; }
+/* ===== Catálogo en vivo (kiosco, espejo de la tienda) ===== */
+#catalogo-vivo { display:none; position:fixed; inset:0; z-index:100000; background:var(--bg); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.cv-head { position:sticky; top:0; z-index:5; background:var(--s1); border-bottom:1px solid var(--border); padding:calc(9px + var(--safe-top)) 12px 9px; display:flex; flex-direction:column; gap:9px; }
+.cv-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:12px; }
+@media (min-width:600px){ .cv-grid { grid-template-columns:repeat(3,1fr); } }
+@media (min-width:900px){ .cv-grid { grid-template-columns:repeat(4,1fr); gap:12px; } }
+.cv-card { background:var(--s2); border:1px solid var(--border); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.06); transition:transform .15s ease, box-shadow .15s ease; }
+.cv-card:active { transform:scale(.985); }
+.cv-foto { height:150px; background:#fff; display:flex; align-items:center; justify-content:center; position:relative; }
+@media (min-width:600px){ .cv-foto { height:180px; } }
+.cv-foto img { width:100%; height:100%; object-fit:contain; padding:5px; }
+.cv-foto-ph { font-size:46px; }
+.cv-body { padding:10px; display:flex; flex-direction:column; gap:6px; }
+.cv-nom { font-size:13px; font-weight:600; line-height:1.25; min-height:2.4em; color:var(--text); }
+.cv-price { display:inline-block; align-self:flex-start; background:var(--accent); color:#fff; font-size:16px; font-weight:800; padding:5px 12px; border-radius:10px; font-variant-numeric:tabular-nums; }
+.cv-of-tag { display:inline-flex; flex-direction:column; align-items:flex-start; }
+.cv-of-lbl { background:#d9402b; color:#fff; font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:7px 7px 0 0; letter-spacing:.3px; }
+.cv-of-box { background:#d9402b; color:#fff; padding:3px 9px; border-radius:0 7px 7px 7px; display:flex; align-items:baseline; gap:6px; }
+.cv-of-box b { font-size:18px; font-weight:800; }
+.cv-of-box s { font-size:11px; opacity:.85; }
+.cv-sub { font-size:11px; color:var(--muted); }
+.cv-badge-of { position:absolute; top:6px; left:6px; background:#d9402b; color:#fff; font-size:9px; font-weight:800; padding:3px 7px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+.cv-badge-fam { position:absolute; top:6px; right:6px; background:var(--accent); color:#fff; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+.cv-cat-chip { flex-shrink:0; background:var(--s3); border:1px solid var(--border); color:var(--text); border-radius:20px; padding:6px 13px; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.cv-cat-chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+.cv-cat-hd { grid-column:1/-1; font-size:17px; font-weight:800; color:#fff; background:var(--accent); padding:12px 16px; border-radius:11px; margin:18px 0 8px; box-shadow:0 2px 10px rgba(0,0,0,.14); display:flex; align-items:center; gap:9px; letter-spacing:.3px; }
+.cv-cat-hd::before { content:"📁"; font-size:18px; }
+
 /* ===== Grilla de productos del pedido (Fase 3) ===== */
 .ped-grilla { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; margin-top:12px; }
 @media (min-width:560px){ .ped-grilla { grid-template-columns:repeat(3,1fr); } }
@@ -2917,6 +2945,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="sb-item" id="nav-catalogo" onclick="verTab('catalogo',this)">
       <span class="sb-icon">📒</span>Catálogo PDF
     </button>
+    <button class="sb-item" id="nav-catalogo-vivo" onclick="_cvIniciar()">
+      <span class="sb-icon">📖</span>Catálogo en vivo
+    </button>
     <div class="sb-group-lbl" id="nav-admin-section">Admin</div>
     <button class="sb-item" id="nav-datos-empresa" onclick="verTab('datos-empresa',this)">
       <span class="sb-icon">⚙️</span>Configuración
@@ -3205,6 +3236,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <div class="dash-block-tit">💸 Plata en la calle</div>
         <div id="dash-antiguedad" style="background:var(--s2);border:1px solid var(--border);border-radius:var(--radius);padding:14px"></div>
       </div>
+      <div class="dash-full" id="dash-nc-wrap" style="display:none">
+        <div class="dash-block-tit">🧾 Notas de crédito</div>
+        <div id="dash-nc" style="background:var(--s2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden"></div>
+      </div>
       <div class="dash-pair dash-full">
         <div>
           <div class="dash-block-tit">🏆 Top clientes</div>
@@ -3298,6 +3333,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           Ver todos los productos
         </button>
+        <div id="caja-toggle-ped" style="display:none"></div>
         <div class="add-row mt-8">
           <input type="number" id="cant-ped" value="1" min="1">
           <button class="btn btn-primary" style="flex:1" onclick="agregar('ped')">+ Agregar</button>
@@ -3369,6 +3405,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         Ver todos los productos
       </button>
       <div class="add-row mt-8">
+        <div id="caja-toggle-rem" style="display:none"></div>
         <input type="number" id="cant-rem" value="1" min="1">
         <button class="btn btn-primary" style="flex:1" onclick="agregar('rem')">+ Agregar</button>
       </div>
@@ -3542,6 +3579,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
   <div class="card" style="padding:0;overflow:visible">
     <div class="backup-split">
+      <div id="bk-nc-aviso"></div>
       <div id="backup-list"></div>
       <div id="backup-detail-panel" class="backup-detail-panel"></div>
     </div>
@@ -4082,6 +4120,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
               <input type="file" id="de-logo-file" accept="image/*" style="display:none" onchange="_onLogoElegido(event)">
             </label>
             <button type="button" onclick="_quitarLogo()" style="padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit">Quitar logo</button>
+            <div style="font-size:11px;color:var(--muted);line-height:1.4;max-width:220px">💡 Ideal: <b>PNG con fondo transparente</b>, apaisado (aprox. <b>400×140px</b>). Se muestra chico en la barra, así que que se lea bien.</div>
           </div>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:7px">PNG o JPG, idealmente cuadrado.</div>
@@ -4100,6 +4139,19 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="card-body" style="padding-top:0">
       <button class="mbtn mbtn-primary" onclick="guardarMarca()" style="padding:11px 24px">💾 Guardar logo y color</button>
     </div>
+  </div>
+  <div class="cfg-card" style="margin-top:14px">
+    <div class="cfg-card-h">💳 Pago online (Mercado Pago)</div>
+    <div class="cfg-card-sub">Opcional. Si lo activás, tus clientes pueden pagar online desde la tienda y el cobro se confirma solo. Podés darles un descuento por pagar así.</div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:8px 0 14px">
+      <input type="checkbox" id="de-pago-online" style="width:18px;height:18px">
+      <span style="font-size:14px;font-weight:600;color:var(--text)">Habilitar pago con Mercado Pago en la tienda</span>
+    </label>
+    <div class="cli-field"><label>Descuento por pagar con MP (%)</label><input type="number" id="de-mp-descuento" min="0" max="90" step="0.5" placeholder="ej: 5" autocomplete="off" style="max-width:160px"></div>
+    <div class="cli-field"><label>Public Key de Mercado Pago</label><input type="text" id="de-mp-pubkey" placeholder="APP_USR-..." autocomplete="off"></div>
+    <div class="cli-field"><label>Access Token <span style="font-weight:400;color:var(--muted);font-size:11px">(secreto · dejalo vacío si no lo querés cambiar)</span></label><input type="password" id="de-mp-token" placeholder="Pegá tu Access Token de producción" autocomplete="off"></div>
+    <div style="font-size:11.5px;color:var(--muted);line-height:1.5;margin:4px 0 12px">Las credenciales se sacan en Mercado Pago → <b>Tus integraciones → Credenciales de producción</b>. El Access Token es secreto (no se muestra una vez guardado). El cobro automático requiere tener deployadas las funciones de servidor (ver instrucciones).</div>
+    <button class="mbtn mbtn-primary" onclick="guardarPagoOnline()" style="padding:11px 24px">💾 Guardar pago online</button>
   </div>
   </div><!-- end cfg-panel-empresa -->
   <div id="cfg-panel-facturacion" style="display:none">
@@ -4868,6 +4920,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
         <img id="mprod-foto-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:8px">
       </div>
       <input type="file" id="mprod-foto-input" accept="image/*" style="display:none" onchange="subirFotoProducto(this)">
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4">💡 Ideal: imagen <b>cuadrada 800×800px</b> (relación 1:1) con <b>fondo blanco</b>. Así llena perfecto el recuadro en la tienda y el catálogo, sin bordes ni espacios vacíos.</div>
       <!-- Tabs archivo / URL -->
       <div style="display:flex;gap:0;margin-top:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
         <button id="tab-foto-archivo" onclick="setFotoTab('archivo')"
@@ -4914,6 +4967,10 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <div class="mprod-field full">
         <label>Nombre del producto *</label>
         <input type="text" id="mprod-nombre" placeholder="ej: Agua mineral 500ml">
+      </div>
+      <div class="mprod-field full">
+        <label>Detalles / características <span style="font-weight:400;color:var(--muted);font-size:11px">(se muestran en la tienda y al hacer el pedido · opcional)</span></label>
+        <textarea id="mprod-detalles" rows="3" placeholder="ej: Sin TACC · Presentación 6 unidades · Ideal para reventa" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--s1);color:var(--text);resize:vertical"></textarea>
       </div>
       <div class="mprod-field full">
         <label>Familia <span style="font-weight:400;color:var(--muted);font-size:11px">(para agrupar variantes/sabores · opcional)</span></label>
@@ -5496,8 +5553,50 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div class="plb-cap">
     <div class="plb-nom" id="plb-nom"></div>
     <div class="plb-sub" id="plb-sub"></div>
+    <div id="plb-detalles" style="display:none;font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5;white-space:pre-wrap;text-align:left;max-width:520px"></div>
   </div>
   <div class="plb-hint">Tocá fuera de la imagen para cerrar</div>
+</div>
+
+<!-- Selector de cliente del catálogo en vivo -->
+<div id="cv-cliente-modal" style="display:none;position:fixed;inset:0;z-index:100000;background:var(--bg);flex-direction:column">
+  <div class="cv-head">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-weight:800;font-size:16px;color:var(--accent);flex:1">📖 Catálogo en vivo</div>
+      <button onclick="_cvCliCancelar()" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">✕ Cerrar</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--muted)">Elegí el cliente para mostrar SU lista de precios, o entrá sin cliente.</div>
+    <button onclick="_cvSinCliente()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">👥 Sin cliente · lista general</button>
+    <input type="text" id="cv-cli-buscar" placeholder="🔍 Buscar cliente por nombre o código…" oninput="_cvCliBuscar(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:11px;font-family:inherit;font-size:15px;background:var(--s2);color:var(--text);outline:none">
+  </div>
+  <div id="cv-cli-lista" style="flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch"></div>
+</div>
+
+<!-- CATÁLOGO EN VIVO (kiosco / espejo de la tienda) -->
+<div id="catalogo-vivo">
+  <div class="cv-head">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="cv-logo" style="font-weight:800;font-size:16px;color:var(--accent);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Catálogo</div>
+      <button onclick="_cvIntentarSalir()" style="background:var(--s3);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">🔒 Salir</button>
+    </div>
+    <div id="cv-cli-info" style="font-size:12px;color:var(--muted);font-weight:600"></div>
+    <input type="text" id="cv-buscar" placeholder="🔍 Buscar producto…" oninput="_cvBuscar(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:11px;font-family:inherit;font-size:15px;background:var(--s2);color:var(--text);outline:none">
+    <div id="cv-cats" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px"></div>
+  </div>
+  <div id="cv-grid" class="cv-grid"></div>
+  <div id="cv-salir-confirm" style="display:none;position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:22px" onclick="if(event.target===this)_cvCancelarSalir()">
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:22px;max-width:340px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.4)">
+      <div style="font-size:34px;margin-bottom:6px">🔒</div>
+      <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:5px">Salir del catálogo</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Ingresá tu contraseña para volver al panel.</div>
+      <input type="password" id="cv-salir-pass" placeholder="Contraseña" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key==='Enter')_cvConfirmarSalir()" style="width:100%;padding:12px 13px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:15px;background:var(--s2);color:var(--text);outline:none;text-align:center">
+      <div id="cv-salir-err" style="display:none;color:#dc2626;font-size:12px;font-weight:700;margin-top:8px"></div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button onclick="_cvCancelarSalir()" style="flex:1;padding:12px;border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit">Cancelar</button>
+        <button id="cv-salir-btn" onclick="_cvConfirmarSalir()" style="flex:1;padding:12px;border:none;background:var(--accent);color:#fff;border-radius:10px;font-weight:800;cursor:pointer;font-family:inherit">Salir</button>
+      </div>
+    </div>
+  </div>
 </div>
 <script>
 
@@ -6728,14 +6827,14 @@ async function _sbGetProductos(force){
   if(!force && _ver){
     try { var _cc = await _idbGet(_ckey); if(_cc && _cc.ver === _ver && _cc.data) return _cc.data; } catch(e){}
   }
-  var SEL_NEW="select=id,codigo,nombre,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo,fotos";
+  var SEL_NEW="select=id,codigo,nombre,detalles,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo,fotos";
   var SEL_OLD="select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo";
   var rows;
   try { rows=await sbGet("productos",SEL_NEW+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
   catch(e){ rows=await sbGet("productos",SEL_OLD+"&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"); }
-  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",vendePor:p.vende_por||"unidad",pesoDisplay:p.peso_display||"kg",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[]};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
-async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null}); _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.vendePor!==undefined)b.vende_por=p.vendePor;if(p.pesoDisplay!==undefined)b.peso_display=p.pesoDisplay;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
+  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",vendePor:p.vende_por||"unidad",pesoDisplay:p.peso_display||"kg",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[]};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
+async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null}); _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
+async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.detalles!==undefined)b.detalles=p.detalles;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.vendePor!==undefined)b.vende_por=p.vendePor;if(p.pesoDisplay!==undefined)b.peso_display=p.pesoDisplay;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
   var rows = await sbGet("usuarios","select=id,uid,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng,vendedor_asignado&empresa_id=eq."+_sbEmpId+"&order=name.asc");
@@ -7193,7 +7292,7 @@ function _skeletonCards(n, variante){
 function parseLocalFloat(v){ if(!v)return 0; var s=v.toString().trim().replace(/"/g,""); if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",","."); else if(s.includes(","))s=s.replace(",","."); return parseFloat(s)||0; }
 function splitCSV(row,sep){ var res=[],w="",q=false; for(var i=0;i<row.length;i++){var c=row[i];if(c==='"')q=!q;else if(c===sep&&!q){res.push(w);w="";}else w+=c;} res.push(w); return res.map(function(v){return v.trim().replace(/"/g,"");}); }
 function setStatus(id,cls,txt){ var el=document.getElementById(id); if(el){el.className="fb-pill "+cls;el.textContent=txt;} }
-function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; ordenes[t]=[]; dscGen[t]=null; if(t==="rem")dscGenRem=null; _itemDscOpen[t]=-1; var _p=document.getElementById("dsc-panel-"+t); if(_p)_p.style.display="none"; var _b=document.getElementById("btn-dsc-"+t); if(_b)_b.classList.remove("active"); var _v=document.getElementById("dsc-"+t+"-val"); if(_v)_v.value=""; renderItems(t); }
+function limpiarFormulario(t){ ["idCli","nomCli","bus","obs"].forEach(function(f){var el=document.getElementById(f+"-"+t);if(el)el.value="";}); document.getElementById("badge-"+t).textContent="📋 Clientes"; document.getElementById("cant-"+t).value="1"; document.getElementById("res-"+t).classList.remove("open"); tipoLista[t]="Clientes"; itemSel[t]=null; if(typeof _modoCaja!=="undefined"){_modoCaja[t]=false;} if(typeof _renderCajaToggle==="function")_renderCajaToggle(t); ordenes[t]=[]; dscGen[t]=null; if(t==="rem")dscGenRem=null; _itemDscOpen[t]=-1; var _p=document.getElementById("dsc-panel-"+t); if(_p)_p.style.display="none"; var _b=document.getElementById("btn-dsc-"+t); if(_b)_b.classList.remove("active"); var _v=document.getElementById("dsc-"+t+"-val"); if(_v)_v.value=""; renderItems(t); }
 function cerrarModal(id){ document.getElementById(id).classList.remove("open"); }
 function abrirModal(id){ document.getElementById(id).classList.add("open"); }
 
@@ -7691,7 +7790,7 @@ function doLogin(){
   err.textContent="🔄 Conectando…";
 
   // 1. Buscar empresa por código en Supabase
-  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin,clientes_compartidos,onboarding_done&codigo=eq."+encodeURIComponent(empCod))
+  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin,clientes_compartidos,cat_orden,pago_online,mp_descuento,mp_public_key,onboarding_done&codigo=eq."+encodeURIComponent(empCod))
   .then(function(emps){
     if(!emps||!emps.length){ err.textContent="❌ Empresa '"+empCod+"' no encontrada"; return; }
     var emp = emps[0];
@@ -8272,8 +8371,8 @@ async function cargarDatosEmpresa(){
   // Logo y color (viven en la tabla empresas) — leer frescos
   _logoNuevoDataURL = null;
   try {
-    var er = await sbGet("empresas","select=logo,color&id=eq."+_sbEmpId);
-    if(er && er[0] && empresaData){ empresaData.logo = er[0].logo; empresaData.color = er[0].color; }
+    var er = await sbGet("empresas","select=logo,color,pago_online,mp_descuento,mp_public_key&id=eq."+_sbEmpId);
+    if(er && er[0] && empresaData){ empresaData.logo = er[0].logo; empresaData.color = er[0].color; empresaData.pago_online = er[0].pago_online; empresaData.mp_descuento = er[0].mp_descuento; empresaData.mp_public_key = er[0].mp_public_key; }
   } catch(e){}
   var _prev = document.getElementById("de-logo-prev");
   if(_prev){
@@ -8287,6 +8386,7 @@ async function cargarDatosEmpresa(){
   if(!/^#[0-9a-fA-F]{6}$/.test(_col)) _col = "#c9933a";
   var _ci = document.getElementById("de-color"); if(_ci) _ci.value = _col;
   var _ch = document.getElementById("de-color-hex"); if(_ch) _ch.textContent = _col.toUpperCase();
+  try { _cargarPagoOnline(); } catch(e){}
 }
 async function guardarDatosEmpresa(){
   if(!_sbEmpId){showNotif("Sin empresa activa","err");return;}
@@ -8348,6 +8448,34 @@ async function guardarMarca(){
     if(typeof aplicarBranding==="function") aplicarBranding();
     showSaved("Marca guardada");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
+}
+// ── Pago online (Mercado Pago) — tabla empresas ──
+function _cargarPagoOnline(){
+  if(!empresaData) return;
+  var on=document.getElementById("de-pago-online"); if(on) on.checked = !!empresaData.pago_online;
+  var pct=document.getElementById("de-mp-descuento"); if(pct) pct.value = (empresaData.mp_descuento!=null && empresaData.mp_descuento>0) ? empresaData.mp_descuento : "";
+  var pub=document.getElementById("de-mp-pubkey"); if(pub) pub.value = empresaData.mp_public_key || "";
+  var tok=document.getElementById("de-mp-token"); if(tok) tok.value = "";  // el token nunca se precarga (secreto)
+}
+async function guardarPagoOnline(){
+  if(!_sbEmpId){ showNotif("Sin empresa activa","err"); return; }
+  var on = !!(document.getElementById("de-pago-online")||{}).checked;
+  var pct = parseFloat((document.getElementById("de-mp-descuento")||{}).value)||0;
+  if(pct<0) pct=0; if(pct>90) pct=90;
+  var pub = ((document.getElementById("de-mp-pubkey")||{}).value||"").trim();
+  var token = ((document.getElementById("de-mp-token")||{}).value||"").trim();
+  var patch = { pago_online:on, mp_descuento:pct, mp_public_key:pub };
+  if(token) patch.mp_access_token = token;  // solo se actualiza si escribieron algo
+  if(on && !token && !empresaData.mp_public_key && !pub){
+    // Ayuda: si activan sin credenciales, avisar
+    showNotif("Cargá tu Public Key y Access Token de Mercado Pago para poder cobrar","err");
+  }
+  try {
+    await sbPatch("empresas","id=eq."+_sbEmpId, patch);
+    if(empresaData){ empresaData.pago_online=on; empresaData.mp_descuento=pct; empresaData.mp_public_key=pub; }
+    var tok=document.getElementById("de-mp-token"); if(tok) tok.value="";
+    showSaved("Pago online guardado");
+  } catch(e){ showNotif("Error: "+(e.message||"")+" — ¿corriste el SQL de mp_pago_online?","err"); }
 }
 function _hrNumInt(v){
   if(v==null) return 0;
@@ -8889,6 +9017,7 @@ async function renderDashboard(force){
 }
 
 function _dashRender(){
+  try { if(typeof _ncDashRender==="function") _ncDashRender(); } catch(e){}
   // Asegurar stockData cargado para las alertas de stock (sin entrar a la sección)
   if((!stockData || !Object.keys(stockData).length) && empresaData && empresaData.stock && Object.keys(empresaData.stock).length){
     stockData = empresaData.stock;
@@ -10765,11 +10894,18 @@ function filtrar(t){
       function _selProduct(usePromo){
         var precioFinal = (usePromo && p.precioPromo) ? p.precioPromo : pre;
         itemSel[t]=Object.assign({},p,{pre:precioFinal});
+        _modoCaja[t] = _soloCajaP(itemSel[t]);   // si solo se vende por caja, arranca en caja
+        _renderCajaToggle(t);
         document.getElementById("bus-"+t).value=p.n;
         box.classList.remove("open");
         box.innerHTML="";
         var cantInp=document.getElementById("cant-"+t);
-        if(cantInp){ cantInp.focus(); cantInp.select(); }
+        if(cantInp){
+          var _mc = _modoCaja[t] ? 1 : Math.max(itemSel[t].minCompra||1, itemSel[t].cantDefault||1);
+          cantInp.value = _mc;
+          cantInp.min = _modoCaja[t] ? 1 : (itemSel[t].minCompra||1);
+          cantInp.focus(); cantInp.select();
+        }
         // El precio promo ahora se aplica automáticamente en agregar() según la cantidad,
         // con confirmación. Ya no se usa el botón manual.
         var promoBtnEl=document.getElementById("promo-btn-"+t);
@@ -10815,6 +10951,276 @@ function _mostrarPromoBtn(t, p, precioNormal){
   btnCancelar.textContent = "Mantener precio normal ($"+fM(precioNormal)+")";
   btnCancelar.onclick = function(){ wrap.style.display="none"; };
   wrap.appendChild(btnCancelar);
+}
+
+// ===== CAJA / UNIDAD — misma lógica que la tienda =====
+function _puedeCajaP(p){ return !!(p && p.unidadVenta!=="unidad" && (p.unidadesBulto||1)>1); }
+function _puedeUnidadP(p){ return !!(p && p.unidadVenta!=="caja" && p.unidadVenta!=="bulto"); }
+function _soloCajaP(p){ return !!(p && (p.unidadVenta==="caja" || p.unidadVenta==="bulto")); }
+function _cajaLbl(p){ var l=(p&&p.unidadBulto)||"caja"; return l.charAt(0).toUpperCase()+l.slice(1); }
+// Precio POR UNIDAD cuando se compra por caja: precioCaja/unidades, o el unitario si no hay precio de caja
+function _cajaPrecioUnit(p, precioUnit){ var ub=(p&&p.unidadesBulto)||1; return (p&&p.precioCaja>0) ? (p.precioCaja/ub) : precioUnit; }
+
+// Modo caja/unidad del método CLÁSICO (por selección actual)
+var _modoCaja = { ped:false, rem:false };
+function _renderCajaToggle(t){
+  var cont=document.getElementById("caja-toggle-"+t);
+  if(!cont) return;
+  var p=itemSel[t];
+  if(!p || !_puedeCajaP(p)){ cont.innerHTML=""; cont.style.display="none"; return; }
+  var pu=p.pre||0, ub=p.unidadesBulto||1;
+  var pc=_cajaPrecioUnit(p,pu)*ub;
+  var puedeU=_puedeUnidadP(p);
+  var base="flex:1;padding:8px 6px;border-radius:9px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:center;line-height:1.35;";
+  var on="background:var(--accent);color:#fff;border:1.5px solid var(--accent);";
+  var off="background:var(--s2);color:var(--text);border:1.5px solid var(--border);";
+  cont.style.display="block";
+  cont.innerHTML='<div style="font-size:11px;color:var(--muted);margin:8px 0 5px;font-weight:600">¿Cómo lo cargás?</div>'+
+    '<div style="display:flex;gap:8px">'+
+    (puedeU?'<button type="button" onclick="_setModoCaja(\''+t+'\',false)" style="'+base+(!_modoCaja[t]?on:off)+'">Por unidad<br><b>$'+fM(pu)+'</b></button>':'')+
+    '<button type="button" onclick="_setModoCaja(\''+t+'\',true)" style="'+base+(_modoCaja[t]?on:off)+'">'+_cajaLbl(p)+' x'+ub+'<br><b>$'+fM(pc)+'</b></button>'+
+    '</div>';
+}
+function _setModoCaja(t, on){
+  _modoCaja[t]=!!on; _renderCajaToggle(t);
+  var p=itemSel[t], ci=document.getElementById("cant-"+t);
+  if(p && ci){
+    var mc = on ? 1 : Math.max(p.minCompra||1, p.cantDefault||1);
+    ci.value = mc; ci.min = on ? 1 : (p.minCompra||1);
+  }
+}
+
+// Modo caja/unidad de la GRILLA (por producto)
+var _pgModos = {};
+function _pgModoDe(p){ return _pgModos[p.id] || (_soloCajaP(p)?"caja":"unidad"); }
+function _pgSetModo(id, modo, e){ if(e) e.stopPropagation(); _pgModos[id]=modo; _pgRender(); }
+function _pgLinea(id, esCaja){ return (ordenes['ped']||[]).find(function(x){ return x.id===id && (!!x._esCaja)===(!!esCaja); }); }
+function _pgQtyUnid(id){ var l=_pgLinea(id,false); return l?l.c:0; }
+function _pgQtyCajas(id){ var l=_pgLinea(id,true); return l?Math.round(l.c/(l._ub||1)):0; }
+
+// ===== CATÁLOGO EN VIVO (kiosco / espejo de la tienda) =====
+var _cvQ="", _cvCat="", _cvFam=null, _cvBackHandle=null;
+var _cvLista="Clientes", _cvCliNombre="", _cvCliActual=[];
+var _cvCeldas=[], _cvShown=0, _CV_BATCH=24;
+function _cvBackGuard(){ var ov=document.getElementById("catalogo-vivo"); if(ov && ov.style.display!=="none"){ try{ history.pushState({cv:1},""); }catch(e){} } }
+// ── Selector de cliente (se muestra al abrir el catálogo) ──
+function _cvIniciar(){
+  var m=document.getElementById("cv-cliente-modal"); if(!m) return;
+  var bi=document.getElementById("cv-cli-buscar"); if(bi) bi.value="";
+  m.style.display="flex";
+  document.body.style.overflow="hidden";
+  _cvCliRender((typeof dbCli!=="undefined"?dbCli:[]||[]).slice(0,50));
+  setTimeout(function(){ if(bi) bi.focus(); }, 80);
+}
+function _cvCliCancelar(){ var m=document.getElementById("cv-cliente-modal"); if(m) m.style.display="none"; document.body.style.overflow=""; }
+function _cvCliBuscar(q){
+  q=(q||"").toLowerCase().trim();
+  var base=(typeof dbCli!=="undefined"?dbCli:[])||[];
+  var hits = q ? base.filter(function(c){ return ((c.nombre||c.name||"").toLowerCase().indexOf(q)!==-1) || ((c.id||"").toLowerCase().indexOf(q)!==-1); }).slice(0,50) : base.slice(0,50);
+  _cvCliRender(hits);
+}
+function _cvCliRender(list){
+  var cont=document.getElementById("cv-cli-lista"); if(!cont) return;
+  _cvCliActual=list||[];
+  if(!_cvCliActual.length){ cont.innerHTML='<div style="text-align:center;color:var(--muted);padding:30px 12px">Sin clientes para mostrar</div>'; return; }
+  cont.innerHTML=_cvCliActual.map(function(c,i){
+    return '<div onclick="_cvElegirClienteIdx('+i+')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;cursor:pointer;background:var(--s2)">'+
+      '<div style="min-width:0"><b style="font-size:14px">'+escHtml(c.nombre||c.name||"(sin nombre)")+'</b>'+(c.id?'<div style="font-size:11px;color:var(--muted)">'+escHtml(c.id)+'</div>':'')+'</div>'+
+      '<span style="flex-shrink:0;font-size:11px;font-weight:700;background:var(--s3);color:var(--text2);padding:3px 9px;border-radius:20px">'+escHtml(c.lista||"Clientes")+'</span>'+
+    '</div>';
+  }).join("");
+}
+function _cvElegirClienteIdx(i){
+  var c=_cvCliActual[i]; if(!c) return;
+  _cvLista=c.lista||"Clientes"; _cvCliNombre=c.nombre||c.name||"";
+  _cvCliCancelar(); _cvAbrir();
+}
+function _cvSinCliente(){ _cvLista="Clientes"; _cvCliNombre=""; _cvCliCancelar(); _cvAbrir(); }
+// Asegura que dbStock tenga ofertas/promos/precios por lista (igual que la tienda).
+// Si el catálogo se abrió directo del menú, dbStock puede ser una versión mínima sin esos datos.
+function _cvAsegurarDatos(cb){
+  var yaTiene = (dbStock||[]).some(function(p){ return p && p.ofertaActiva!==undefined; });
+  if(yaTiene){ if(cb)cb(); return; }
+  if(_prodData && Object.keys(_prodData).length){ if(typeof _sincronizarDbStock==="function")_sincronizarDbStock(); if(cb)cb(); return; }
+  if(typeof _sbGetProductos==="function" && _sbEmpId){
+    _sbGetProductos(true).then(function(sbData){
+      if(sbData && Object.keys(sbData).length){ _prodData=sbData; if(typeof _sincronizarDbStock==="function")_sincronizarDbStock(); }
+      if(cb)cb();
+    }).catch(function(){ if(cb)cb(); });
+  } else { if(cb)cb(); }
+}
+function _cvOnScroll(){
+  var ov=document.getElementById("catalogo-vivo"); if(!ov) return;
+  if(_cvShown>=_cvCeldas.length) return;
+  if(ov.scrollTop + ov.clientHeight >= ov.scrollHeight - 700) _cvAppend();
+}
+function _cvAbrir(){
+  var ov=document.getElementById("catalogo-vivo"); if(!ov) return;
+  var logo=document.getElementById("cv-logo"); if(logo) logo.textContent=(empresaData&&(empresaData.appname||empresaData.nombre))||"Catálogo";
+  var info=document.getElementById("cv-cli-info");
+  if(info) info.textContent = _cvCliNombre ? ("👤 "+_cvCliNombre+" · lista "+_cvLista) : ("Lista general ("+_cvLista+")");
+  _cvFam=null; _cvQ=""; _cvCat="";
+  var bi=document.getElementById("cv-buscar"); if(bi) bi.value="";
+  _cvCancelarSalir();
+  ov.style.display="block";
+  document.body.style.overflow="hidden";
+  ov.scrollTop=0;
+  _cvRenderCats(); _cvRender();
+  _cvAsegurarDatos(function(){ _cvRenderCats(); _cvRender(); });
+  ov.removeEventListener("scroll", _cvOnScroll);
+  ov.addEventListener("scroll", _cvOnScroll, {passive:true});
+  // Bloquear el "atrás" para que el cliente no salga ni navegue el panel
+  try{ history.pushState({cv:1},""); }catch(e){}
+  window.addEventListener("popstate", _cvBackGuard);
+  try{
+    if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App){
+      _cvBackHandle = window.Capacitor.Plugins.App.addListener("backButton", function(){ /* no-op en catálogo */ });
+    }
+  }catch(e){}
+}
+function _cvCerrar(){
+  var ov=document.getElementById("catalogo-vivo"); if(ov){ ov.style.display="none"; ov.removeEventListener("scroll", _cvOnScroll); }
+  _cvCancelarSalir();
+  document.body.style.overflow="";
+  window.removeEventListener("popstate", _cvBackGuard);
+  try{ if(_cvBackHandle && _cvBackHandle.remove) _cvBackHandle.remove(); _cvBackHandle=null; }catch(e){}
+}
+function _cvIntentarSalir(){
+  var d=document.getElementById("cv-salir-confirm"); if(!d) return;
+  var inp=document.getElementById("cv-salir-pass"); if(inp) inp.value="";
+  var er=document.getElementById("cv-salir-err"); if(er){ er.style.display="none"; er.textContent=""; }
+  d.style.display="flex";
+  setTimeout(function(){ if(inp) inp.focus(); }, 80);
+}
+function _cvCancelarSalir(){ var d=document.getElementById("cv-salir-confirm"); if(d) d.style.display="none"; }
+function _cvConfirmarSalir(){
+  var inp=document.getElementById("cv-salir-pass");
+  var er=document.getElementById("cv-salir-err");
+  var btn=document.getElementById("cv-salir-btn");
+  var pass=inp?inp.value:"";
+  function _fail(msg){ if(er){ er.textContent=msg; er.style.display="block"; } if(inp){ inp.value=""; inp.focus(); } }
+  if(!pass){ _fail("Ingresá la contraseña"); return; }
+  var empCod=(empresaData&&empresaData.codigo)||"";
+  var uid=(currentUser&&(currentUser.uid||currentUser.id))||"";
+  if(btn){ btn.disabled=true; btn.textContent="Verificando…"; }
+  sbFetch("POST","/rest/v1/rpc/verificar_login",{p_emp_codigo:empCod,p_uid:uid,p_pass:pass})
+    .then(function(u){
+      var ok = u && (u.id || (Array.isArray(u) && u[0] && u[0].id) || (u.ok && u.usuario));
+      if(ok){ _cvCerrar(); }
+      else { _fail("Contraseña incorrecta"); }
+    })
+    .catch(function(){ _fail("No se pudo verificar. Probá de nuevo."); })
+    .then(function(){ if(btn){ btn.disabled=false; btn.textContent="Salir"; } });
+}
+function _cvBuscar(v){ _cvQ=(v||"").toLowerCase().trim(); _cvFam=null; _cvRender(); }
+function _cvSetCat(c){ _cvCat=c; _cvFam=null; _cvRenderCats(); _cvRender(); }
+function _cvAbrirFam(fam){ _cvFam=fam; _cvRender(); var ov=document.getElementById("catalogo-vivo"); if(ov) ov.scrollTop=0; }
+function _cvRenderCats(){
+  var cont=document.getElementById("cv-cats"); if(!cont) return;
+  var cats={}; (dbStock||[]).forEach(function(p){ var c=(p.cat||"").trim(); if(c) cats[c]=1; });
+  var arr=Object.keys(cats).sort(function(a,b){return a.localeCompare(b);});
+  var html='<button class="cv-cat-chip'+(_cvCat===""?" on":"")+'" onclick="_cvSetCat(\'\')">Todas</button>';
+  html+=arr.map(function(c){ var ce=(""+c).replace(/'/g,"\\'").replace(/"/g,"&quot;"); return '<button class="cv-cat-chip'+(_cvCat===c?" on":"")+'" onclick="_cvSetCat(\''+ce+'\')">'+escHtml(c)+'</button>'; }).join("");
+  cont.innerHTML=html;
+}
+function _cvCardProd(p, lista){
+  var pre=_precioDe(p,lista);
+  var ofVig=(typeof _ofVigente==="function")?_ofVigente(p):false;
+  var ofPre=ofVig?_ofPrecioLista(p,lista):null;
+  var tieneOf=ofVig && ofPre!=null && ofPre<pre;
+  var foto=p.foto?'<img src="'+p.foto+'" loading="lazy" decoding="async" onerror="this.outerHTML=&quot;<div class=cv-foto-ph>📦</div>&quot;">':'<div class="cv-foto-ph">📦</div>';
+  var priceHtml;
+  if(tieneOf){
+    var off=pre>0?Math.round((1-ofPre/pre)*100):0;
+    priceHtml='<div class="cv-of-tag"><span class="cv-of-lbl">🔥 OFERTÓN'+(off>0?' -'+off+'%':'')+'</span><span class="cv-of-box"><b>$'+fM(ofPre)+'</b><s>$'+fM(pre)+'</s></span></div>';
+  } else { priceHtml='<div class="cv-price">$'+fM(pre)+'</div>'; }
+  var cajaHtml = (p.unidadesBulto>1) ? '<div class="cv-sub">📦 '+(p.unidadBulto||"caja")+' x'+p.unidadesBulto+': $'+fM((_cajaPrecioUnit(p, tieneOf?ofPre:pre))*p.unidadesBulto)+'</div>' : '';
+  var minHtml = (p.minCompra>1) ? '<div class="cv-sub">mínimo '+p.minCompra+' u.</div>' : '';
+  var _tienePromo = !tieneOf && p.precioPromo && p.cantPromo;
+  var promoHtml = _tienePromo ? '<div class="cv-sub" style="color:oklch(50% 0.13 150);font-weight:700">🏷️ $'+fM(p.precioPromo)+' c/u llevando '+p.cantPromo+'+</div>' : '';
+  var badge = tieneOf ? '<span class="cv-badge-of">🔥 OFERTA</span>' : (_tienePromo ? '<span class="cv-badge-of" style="background:oklch(52% 0.13 150)">🏷️ PROMO</span>' : '');
+  return '<div class="cv-card" onclick="abrirProdLightbox(\''+p.id+'\',event)">'+
+    '<div class="cv-foto">'+foto+badge+'</div>'+
+    '<div class="cv-body"><div class="cv-nom">'+escHtml(p.n||"")+(p.detalles?' ℹ️':'')+'</div>'+priceHtml+cajaHtml+minHtml+promoHtml+'</div>'+
+  '</div>';
+}
+function _cvFamCardHtml(cel, lista){
+  var prods=cel.prods;
+  var port=(typeof _portadaDe==="function")?_portadaDe(cel.fam):null;
+  var fotoSrc=(port&&port.foto)?port.foto:(prods.find(function(x){return x.foto;})||{}).foto;
+  var foto=fotoSrc?'<img src="'+fotoSrc+'" loading="lazy" decoding="async" onerror="this.outerHTML=&quot;<div class=cv-foto-ph>📦</div>&quot;">':'<div class="cv-foto-ph">📦</div>';
+  var titulo=(port&&port.titulo)?port.titulo:cel.fam;
+  var precios=prods.map(function(x){return _precioDe(x,lista);}).filter(function(v){return v>0;});
+  var minP=precios.length?Math.min.apply(null,precios):0;
+  var famEsc=(""+cel.fam).replace(/'/g,"\\'").replace(/"/g,"&quot;");
+  return '<div class="cv-card" onclick="_cvAbrirFam(\''+famEsc+'\')">'+
+    '<div class="cv-foto">'+foto+'<span class="cv-badge-fam">🗂️ '+prods.length+'</span></div>'+
+    '<div class="cv-body"><div class="cv-nom">'+escHtml(titulo)+'</div><div class="cv-price">desde $'+fM(minP)+'</div><div class="cv-sub">Tocá para ver variedades</div></div>'+
+  '</div>';
+}
+function _cvCellHtml(cel, lista){
+  if(cel.tipo==="cat") return '<div class="cv-cat-hd">'+escHtml(cel.nombre)+'</div>';
+  return cel.tipo==="fam" ? _cvFamCardHtml(cel, lista) : _cvCardProd(cel.p, lista);
+}
+function _cvAppend(){
+  var cont=document.getElementById("cv-grid"); if(!cont) return;
+  var lista=_cvLista||"Clientes";
+  var next=_cvCeldas.slice(_cvShown, _cvShown+_CV_BATCH);
+  if(!next.length) return;
+  cont.insertAdjacentHTML("beforeend", next.map(function(cel){ return _cvCellHtml(cel, lista); }).join(""));
+  _cvShown += next.length;
+}
+function _cvRender(){
+  var cont=document.getElementById("cv-grid"); if(!cont) return;
+  var lista=_cvLista||"Clientes";
+  var q=_cvQ;
+  var ov=document.getElementById("catalogo-vivo"); if(ov) ov.scrollTop=0;
+  // Drill-in: variedades de una familia (pocas, se muestran todas)
+  if(_cvFam){
+    var prodsF=(dbStock||[]).filter(function(p){return p.familia===_cvFam && p.activo!==false;}).sort(function(a,b){return (a.n||"").localeCompare(b.n||"");});
+    var port=(typeof _portadaDe==="function")?_portadaDe(_cvFam):null;
+    var tit=(port&&port.titulo)?port.titulo:_cvFam;
+    _cvCeldas=[]; _cvShown=0;
+    cont.innerHTML='<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:2px">'+
+      '<button onclick="_cvFam=null;_cvRender()" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">← Volver</button>'+
+      '<b style="font-size:15px">'+escHtml(tit)+'</b></div>'+
+      prodsF.map(function(p){return _cvCardProd(p,lista);}).join("");
+    return;
+  }
+  var arr=(dbStock||[]).filter(function(p){
+    if(p.activo===false) return false;
+    if(_cvCat && (p.cat||"").trim()!==_cvCat) return false;
+    if(!q) return true;
+    return (p.n||"").toLowerCase().indexOf(q)!==-1 || (p.id||"").toLowerCase().indexOf(q)!==-1 || (((p.familia||"")+"").toLowerCase().indexOf(q)!==-1);
+  });
+  // Agrupar por CATEGORÍA, en el orden definido en Mis Productos (A-Z por defecto).
+  // Dentro de cada categoría: familias agrupadas + sueltos, ordenados A-Z.
+  var porCat={};
+  arr.forEach(function(p){ var c=((p.cat||"").trim())||"Sin categoría"; (porCat[c]=porCat[c]||[]).push(p); });
+  var ordenCats=[];
+  // Orden de categorías: primero el orden guardado (empresaData.cat_orden), luego el resto A-Z.
+  // Se basa SOLO en el orden guardado + las categorías presentes en el catálogo, así funciona
+  // aunque no hayas entrado a Mis Productos (no depende de _prodData).
+  var _catsPresentes=Object.keys(porCat);
+  var _ordConf=(empresaData && Array.isArray(empresaData.cat_orden)) ? empresaData.cat_orden : [];
+  _ordConf.forEach(function(c){ if(_catsPresentes.indexOf(c)>=0 && ordenCats.indexOf(c)<0) ordenCats.push(c); });
+  _catsPresentes.slice().sort(function(a,b){ return a.localeCompare(b); }).forEach(function(c){ if(ordenCats.indexOf(c)<0) ordenCats.push(c); });
+  var celdas=[];
+  ordenCats.forEach(function(cat){
+    var prods=porCat[cat]; if(!prods||!prods.length) return;
+    var familias={}, cells=[];
+    prods.forEach(function(p){
+      if(p.familia){ if(!familias[p.familia]){ familias[p.familia]=[]; cells.push({tipo:"fam",fam:p.familia,prods:familias[p.familia]}); } familias[p.familia].push(p); }
+      else cells.push({tipo:"prod",p:p});
+    });
+    cells.sort(function(a,b){ var an=a.tipo==="fam"?a.fam:(a.p.n||""); var bn=b.tipo==="fam"?b.fam:(b.p.n||""); return an.localeCompare(bn); });
+    if(!_cvCat) celdas.push({tipo:"cat", nombre:cat});   // encabezado de categoría
+    celdas=celdas.concat(cells);
+  });
+  _cvCeldas=celdas; _cvShown=0;
+  if(!celdas.length){ cont.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px 12px">Sin productos para mostrar</div>'; return; }
+  cont.innerHTML="";
+  _cvAppend();   // primera tanda; el resto se carga al bajar (_cvOnScroll)
 }
 
 // === GRILLA DE PRODUCTOS DEL PEDIDO (Fase 3) ===
@@ -10907,11 +11313,14 @@ function _pgRender(){
     }
     var p=cel.p;
     var pre=_precioDe(p,lista);
-    var qty=_pgQtyDe(p.id);
     var ofVig = _ofVigente(p);
     var ofPre = ofVig ? _ofPrecioLista(p, lista) : null;
     var _tieneOf = ofVig && ofPre<pre;
     var _tienePromo = !_tieneOf && p.precioPromo && p.cantPromo;
+    var _cajaCap = _puedeCajaP(p) && p.vendePor!=="peso";
+    var _esC = _cajaCap && _pgModoDe(p)==="caja";
+    var _ubg = p.unidadesBulto||1;
+    var qty = p.vendePor==="peso" ? _pgQtyDe(p.id) : (_esC ? _pgQtyCajas(p.id) : _pgQtyUnid(p.id));
     var foto2=p.foto?'<img class="pg-foto" src="'+p.foto+'" loading="lazy" style="cursor:zoom-in" onclick="abrirProdLightbox(\''+p.id+'\',event)" onerror="this.outerHTML=&quot;<div class=pg-foto-ph>📦</div>&quot;">':'<div class="pg-foto-ph">📦</div>';
     var stepper;
     if(p.vendePor==="peso"){
@@ -10921,17 +11330,32 @@ function _pgRender(){
         : '<button class="pg-add" onclick="_pgPesoPrompt(\''+p.id+'\',event)">⚖️ Peso</button>';
     } else {
       stepper = qty>0
-        ? '<div class="pg-step"><button onclick="_pgDelta(\''+p.id+'\',-1,event)">−</button><span>'+qty+'</span><button onclick="_pgDelta(\''+p.id+'\',1,event)">+</button></div>'
+        ? '<div class="pg-step"><button onclick="_pgDelta(\''+p.id+'\',-1,event)">−</button><span>'+qty+(_esC?' cj':'')+'</span><button onclick="_pgDelta(\''+p.id+'\',1,event)">+</button></div>'
         : '<button class="pg-add" onclick="_pgDelta(\''+p.id+'\',1,event)">+ Agregar</button>';
     }
-    var precioHtml = _tieneOf
-      ? '<div class="pg-price"><span style="text-decoration:line-through;color:var(--muted);font-size:11px">$'+fM(pre)+'</span> <b style="color:#d9402b">$'+fM(ofPre)+'</b></div>'
-      : '<div class="pg-price">$'+fM(pre)+'</div>'+(_tienePromo?'<div style="font-size:9.5px;color:oklch(50% 0.13 150);font-weight:700;margin-top:1px">🏷️ $'+fM(p.precioPromo)+' x'+p.cantPromo+'+</div>':'');
+    // Precio mostrado según el modo (unidad: precio unitario; caja: precio de la caja entera)
+    var _preUnitCaja = _cajaPrecioUnit(p, _tieneOf?ofPre:pre);
+    var precioHtml = _esC
+      ? '<div class="pg-price">$'+fM(_preUnitCaja*_ubg)+' <span style="font-size:10px;color:var(--muted)">/'+(p.unidadBulto||"caja")+'</span></div>'
+      : (_tieneOf
+        ? '<div class="pg-price"><span style="text-decoration:line-through;color:var(--muted);font-size:11px">$'+fM(pre)+'</span> <b style="color:#d9402b">$'+fM(ofPre)+'</b></div>'
+        : '<div class="pg-price">$'+fM(pre)+'</div>'+(_tienePromo?'<div style="font-size:9.5px;color:oklch(50% 0.13 150);font-weight:700;margin-top:1px">🏷️ $'+fM(p.precioPromo)+' x'+p.cantPromo+'+</div>':''));
+    // Toggle Unidad / Caja (solo si el producto admite caja)
+    var _tgOn="border:1px solid var(--accent);background:var(--accent);color:#fff;";
+    var _tgOff="border:1px solid var(--border);background:transparent;color:var(--muted);";
+    var _tgBase="flex:1;padding:3px 2px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;";
+    var toggleHtml = _cajaCap
+      ? '<div style="display:flex;gap:4px;margin:4px 0 2px">'+
+          (_puedeUnidadP(p)?'<button onclick="_pgSetModo(\''+p.id+'\',\'unidad\',event)" style="'+_tgBase+(!_esC?_tgOn:_tgOff)+'">Unidad</button>':'')+
+          '<button onclick="_pgSetModo(\''+p.id+'\',\'caja\',event)" style="'+_tgBase+(_esC?_tgOn:_tgOff)+'">'+_cajaLbl(p)+' x'+_ubg+'</button>'+
+        '</div>'
+      : '';
     return '<div class="pg-card'+(qty>0?' on':'')+'">'+
       (_tieneOf?'<div style="position:absolute;top:5px;left:5px;z-index:2;background:#d9402b;color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">🔥 OFERTA</div>':
        (_tienePromo?'<div style="position:absolute;top:5px;left:5px;z-index:2;background:oklch(52% 0.13 150);color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">🏷️ PROMO</div>':''))+
       foto2+
-      '<div class="pg-info"><div class="pg-nom">'+(p.n||"")+'</div>'+precioHtml+'</div>'+
+      '<div class="pg-info"><div class="pg-nom">'+(p.n||"")+(p.detalles?' <span onclick="abrirProdLightbox(\''+p.id+'\',event)" style="cursor:pointer" title="Ver detalles">ℹ️</span>':'')+'</div>'+precioHtml+'</div>'+
+      toggleHtml+
       stepper+
     '</div>';
   }).join("")+(celdas.length>lim.length?'<div class="pg-more">Seguí escribiendo para filtrar ('+celdas.length+' en total)</div>':'');
@@ -11015,13 +11439,33 @@ function _pgDelta(id, d, e){
   var preNormal=_precioDe(p,lista);
   var ofPre = _ofPrecioLista(p, lista); // precio de oferta si vigente
   var tieneOf = ofPre && ofPre<preNormal;
-  // Consolidar por producto (id), para evaluar la promo sobre la cantidad total
-  var exist=(ordenes['ped']||[]).find(function(x){return x.id===p.id;});
+  var esCaja = (_pgModoDe(p)==="caja") && _puedeCajaP(p);
+  if(esCaja){
+    // Línea de CAJA: se guarda en unidades totales, con nombre "(caja xN)" y precio unitario de la caja
+    var ub=p.unidadesBulto||1;
+    var preU=_cajaPrecioUnit(p, tieneOf?ofPre:preNormal);
+    var lc=_pgLinea(id,true);
+    if(d>0){
+      if(lc){ lc.c+=ub; }
+      else { lc={id:p.id, n:(p.n||"")+" ("+(p.unidadBulto||"caja")+" x"+ub+")", p:preU, c:ub, sub:0, _esCaja:true, _ub:ub}; ordenes['ped'].push(lc); }
+      lc.sub=lc.p*lc.c;
+    } else if(lc){
+      lc.c-=ub;
+      if(lc.c<=0){ ordenes['ped']=ordenes['ped'].filter(function(x){return x!==lc;}); }
+      else lc.sub=lc.p*lc.c;
+    }
+    renderItems('ped');
+    _pgRender();
+    return;
+  }
+  // Consolidar por producto (id) SIN mezclar con líneas de caja
+  var minU=p.minCompra||1;
+  var exist=(ordenes['ped']||[]).find(function(x){return x.id===p.id && !x._esCaja;});
   if(d>0){
     if(exist){ exist.c+=1; }
     else {
       var pre = tieneOf ? ofPre : preNormal;
-      exist = {id:p.id,n:p.n,p:pre,c:1,sub:pre};
+      exist = {id:p.id,n:p.n,p:pre,c:minU,sub:pre*minU};   // arranca en la cantidad mínima
       if(tieneOf){ exist.ofPrecio=ofPre; exist.ofNormal=preNormal; exist.ofAplicada=true; } // oferta aplicada por defecto
       ordenes['ped'].push(exist);
     }
@@ -11030,9 +11474,9 @@ function _pgDelta(id, d, e){
     if(_activo) showNotif("🏷️ Precio promo aplicado: $"+fM(exist.p)+" c/u","ok");
   } else {
     if(exist){
-      exist.c-=1;
-      if(exist.c<=0){ ordenes['ped']=ordenes['ped'].filter(function(x){return x!==exist;}); }
-      else { _recalcPromoVigente(exist); _cartRecalcSub(exist); }
+      // No permitir bajar del mínimo: si baja de ahí, se saca del pedido
+      if(exist.c-1 < minU){ ordenes['ped']=ordenes['ped'].filter(function(x){return x!==exist;}); }
+      else { exist.c-=1; _recalcPromoVigente(exist); _cartRecalcSub(exist); }
     }
   }
   renderItems('ped');
@@ -11309,6 +11753,23 @@ function _updateFloatFromCalc(){
 async function agregar(t){
   var cant=parseFloat(document.getElementById("cant-"+t).value)||1;
   if(!itemSel[t]) return;
+  // ── CAJA: si está en modo caja, guardar igual que la tienda (unidades totales,
+  //    nombre "(caja xN)", precio unitario de la caja) ──
+  if(_modoCaja[t] && _puedeCajaP(itemSel[t])){
+    var _pc=itemSel[t], _ubc=_pc.unidadesBulto||1;
+    var _preUc=_cajaPrecioUnit(_pc, _pc.pre||0);
+    var _cantUc=cant*_ubc;
+    var _nomc=(_pc.n||"")+" ("+(_pc.unidadBulto||"caja")+" x"+_ubc+")";
+    var _existC=ordenes[t].find(function(x){return x.id===_pc.id && x._esCaja;});
+    if(_existC){ _existC.c+=_cantUc; _existC.sub=_existC.p*_existC.c; }
+    else { ordenes[t].push({id:_pc.id, n:_nomc, p:_preUc, c:_cantUc, sub:_preUc*_cantUc, _esCaja:true, _ub:_ubc}); }
+    renderItems(t);
+    document.getElementById("bus-"+t).value="";
+    document.getElementById("cant-"+t).value="1";
+    itemSel[t]=null; _modoCaja[t]=false; _renderCajaToggle(t);
+    var _bic=document.getElementById("bus-"+t); if(_bic) _bic.focus();
+    return;
+  }
   // Oferta (solo en pedido): aplicar automáticamente si el producto tiene oferta vigente
   var _ofN=null, _ofP=null;
   if(t==="ped"){
@@ -11322,8 +11783,11 @@ async function agregar(t){
   var _pp=itemSel[t].precioPromo, _cp=itemSel[t].cantPromo;
   var _precioNormal=itemSel[t].pre;
   // Consolidar por producto: ver si ya está en el pedido para sumar la cantidad total
-  var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id;});
+  var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id && !x._esCaja;});
   var cantTotal=cant + (exist?exist.c:0);
+  // Respetar la cantidad mínima del producto (modo unidad)
+  var _minU = itemSel[t].minCompra||1;
+  if(cantTotal < _minU){ cant = _minU - (exist?exist.c:0); cantTotal = _minU; showNotif("Mínimo "+_minU+" u. para \""+(itemSel[t].n||"")+"\" — se ajustó","err"); }
   // Promo por cantidad: si no hay oferta, hay promo y la cantidad TOTAL alcanza el mínimo,
   // preguntar si aplicar el precio promo (la oferta tiene prioridad).
   var usarPromo=false;
@@ -13542,9 +14006,29 @@ async function crearNuevaRuta(){
   });
 }
 async function borrarRuta(rk){ if(!(await _confirmar({icono:"🗑️",titulo:"Borrar hoja de ruta",mensaje:"Se va a borrar esta hoja de ruta completa. No se puede deshacer.",ok:"Borrar",peligro:true})))return; _auditar("borrar","ruta",rk,"Borró la hoja de ruta: "+((rutasData[rk]&&rutasData[rk].nombre)||rk)); fbDel("empresas/"+empresaKey+"/rutas/"+rk).then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();}).catch(function(){alert("Error al borrar.");}); }
+// ===== NOTAS DE CRÉDITO — estados, roles e historial =====
+// Conviven con el sistema de devoluciones/roturas/faltantes. Cada nota puede estar
+// 'notificada' (repartidor), 'aplicada' (vendedor/admin) o 'rechazada' (admin).
+// Las notas VIEJAS (sin estado) cuentan como 'aplicada' para no cambiar los totales existentes.
+function _devEstado(d){ return (d && d.estado) ? d.estado : 'aplicada'; }
+function _devEstadoLabel(e){ return {notificada:'🟡 Notificada', aplicada:'🟢 Aplicada', rechazada:'🔴 Rechazada'}[e]||e; }
+function _ncTieneRol(r){
+  if(!currentUser) return false;
+  if(currentUser.role===r) return true;
+  return Array.isArray(currentUser.roles) && currentUser.roles.indexOf(r)>=0;
+}
+function _ncPuedeAplicar(){ return _ncTieneRol('admin') || _ncTieneRol('vendedor'); }
+function _ncPuedeRechazar(){ return _ncTieneRol('admin'); }
+function _ncLog(d, accion, extra){
+  if(!d.historial) d.historial=[];
+  d.historial.push({ accion:accion, por:(currentUser?currentUser.id:''), rol:(currentUser&&currentUser.role)||'', ts:new Date().toISOString(), nota:extra||'' });
+}
+
 function _devDescuentoCli(c){
-  // Suma de devoluciones/faltantes que descuentan del importe (rotura NO descuenta)
+  // Suma de notas de crédito que descuentan del importe. SOLO las APLICADAS restan.
+  // (rotura NO descuenta; devolución y faltante sí, si están aplicadas)
   return ((c.devoluciones||[]).reduce(function(sd,d){
+    if(_devEstado(d)!=='aplicada') return sd;
     var desc = (d.descuenta!==undefined) ? d.descuenta : (d.motivo==="devolucion"||d.motivo==="faltante");
     return sd + (desc ? (d.monto||0) : 0);
   },0));
@@ -14579,7 +15063,13 @@ function buildClienteRow(rutaKey, cliKey, cli){
       '</div>'+
     '</div>'+
     estadoHtml+
-    ((cli.devoluciones&&cli.devoluciones.length)?'<span class="rc-badge" style="background:#fef3c7;color:#b45309;cursor:pointer" onclick="event.stopPropagation();_devAdminVer(\''+rutaKey+'\',\''+cliKey+'\')">↩️ '+cli.devoluciones.length+'</span>':'')+
+    (function(){ var ds=cli.devoluciones||[]; if(!ds.length) return '';
+      var pend=ds.filter(function(d){return _devEstado(d)==='notificada';}).length;
+      var apl=ds.filter(function(d){return _devEstado(d)==='aplicada';}).length;
+      var col = pend>0 ? 'background:#fef3c7;color:#b45309' : 'background:#dcfce7;color:#166534';
+      var txt = pend>0 ? ('🟡 '+pend+' a revisar') : ('🟢 '+apl);
+      return '<span class="rc-badge" style="'+col+';cursor:pointer" onclick="event.stopPropagation();_devAdminVer(\''+rutaKey+'\',\''+cliKey+'\')">↩️ '+txt+'</span>';
+    })()+
     '<button class="rc-print-btn" title="Imprimir remito">🖨️</button>'+
     '<span class="rc-caret">'+(isCO?"▲":"▼")+'</span>';
   head.onclick=function(){toggleCliente(rutaKey,cliKey);};
@@ -16261,9 +16751,37 @@ function irAPedidoPendiente(id){
   }, 150);
 }
 
+// Aviso en Backups Pedido: clientes con notas de crédito PENDIENTES de revisar (solo admin)
+function _ncBackupAviso(){
+  var cont=document.getElementById("bk-nc-aviso");
+  if(!cont) return;
+  var esAdmin = currentUser && (currentUser.role==="admin" || (Array.isArray(currentUser.roles)&&currentUser.roles.indexOf("admin")>=0));
+  if(!esAdmin){ cont.innerHTML=""; return; }
+  var pend=[];
+  Object.keys(rutasData||{}).forEach(function(rk){
+    var r=rutasData[rk], cls=(r&&r.clientes)||{};
+    Object.keys(cls).forEach(function(ck){
+      var c=cls[ck];
+      var n=(c.devoluciones||[]).filter(function(d){return _devEstado(d)==='notificada';}).length;
+      if(n>0) pend.push({nom:c.nom||ck, n:n, rk:rk, ck:ck});
+    });
+  });
+  if(!pend.length){ cont.innerHTML=""; return; }
+  var chips=pend.slice(0,12).map(function(x){
+    return '<button onclick="_devAdminVer(\''+x.rk+'\',\''+x.ck+'\')" style="border:1px solid #f59e0b;background:#fffbeb;color:#b45309;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">'+_devEsc(x.nom)+' · '+x.n+'</button>';
+  }).join(" ");
+  var totalCli=pend.length;
+  cont.innerHTML='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;margin-bottom:12px">'+
+    '<div style="font-size:13px;font-weight:800;color:#b45309;margin-bottom:4px">🧾 '+totalCli+' cliente'+(totalCli!==1?'s':'')+' con notas de crédito pendientes de revisar</div>'+
+    '<div style="font-size:11.5px;color:#92400e;margin-bottom:8px">Tocá un cliente para aplicar o rechazar sus notas.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px">'+chips+(pend.length>12?'<span style="font-size:11px;color:#92400e;align-self:center">+'+(pend.length-12)+' más</span>':'')+'</div>'+
+  '</div>';
+}
+
 function renderBackup(){
   var wrap = document.getElementById("backup-list");
   if(!wrap) return;
+  try { _ncBackupAviso(); } catch(e){}
   var all = getBackups();
   var isAdminBk = currentUser && (currentUser.role === "admin" || currentUser.role === "armador");
   var isVendedorBk = currentUser && (currentUser.role === "vendedor" || !currentUser.role);
@@ -21628,13 +22146,13 @@ function abrirProdLightbox(pid, ev){
   if(ev){ ev.stopPropagation(); ev.preventDefault(); }
   // Buscar el producto en los grupos del selector
   var p = (_csGroups||[]).find(function(x){ return x.id===pid; }) || ((typeof dbStock!=="undefined"?dbStock:[])||[]).find(function(x){ return x.id===pid; });
-  if(!p || !p.foto) return;
+  if(!p || (!p.foto && !p.detalles)) return;
   var lb  = document.getElementById("prod-lightbox");
   var img = document.getElementById("plb-img");
   var nom = document.getElementById("plb-nom");
   var sub = document.getElementById("plb-sub");
   if(!lb||!img) return;
-  img.src = p.foto;
+  if(p.foto){ img.src = p.foto; img.style.display=""; } else { img.style.display="none"; }
   img.alt = p.n||"";
   if(nom) nom.textContent = p.n||"";
   if(sub){
@@ -21642,6 +22160,8 @@ function abrirProdLightbox(pid, ev){
     var pre = _precioDe(p, lista);
     sub.textContent = "Cód: "+p.id + (pre!=null ? "  ·  $"+fM(pre) : "");
   }
+  var dtl = document.getElementById("plb-detalles");
+  if(dtl){ if(p.detalles){ dtl.textContent = p.detalles; dtl.style.display="block"; } else { dtl.style.display="none"; } }
   lb.classList.add("open");
 }
 function cerrarProdLightbox(){
@@ -21833,7 +22353,7 @@ function _sincronizarDbStock() {
       preciosPorLista[lid] = (p.precios && p.precios[lid]!=null) ? p.precios[lid]
         : lid==="cli" ? pCli : lid==="pat" ? pPat : 0;
     });
-    var prod = { id:id, n:p.nombre, pCli:pCli, pPat:pPat, precios:preciosPorLista, cat:cat, familia:p.familia||null, foto:p.foto||"", unidadesBulto:p.unidadesBulto||1, unidadBulto:p.unidadBulto||"bulto", vendePor:p.vendePor||"unidad", pesoDisplay:p.pesoDisplay||"kg", esPortada:p.esPortada||false, precioPromo:p.precioPromo||null, cantPromo:p.cantPromo||null, ofertaPrecio:p.ofertaPrecio||null, ofertaActiva:p.ofertaActiva||false, ofertaHasta:p.ofertaHasta||null, ofertaTipo:p.ofertaTipo||"fijo", ofertaPct:p.ofertaPct||null, ofertaPrecios:p.ofertaPrecios||null, activo:p.activo!==false };
+    var prod = { id:id, n:p.nombre, detalles:p.detalles||"", pCli:pCli, pPat:pPat, precios:preciosPorLista, cat:cat, familia:p.familia||null, foto:p.foto||"", unidadesBulto:p.unidadesBulto||1, unidadBulto:p.unidadBulto||"bulto", unidadVenta:p.unidadVenta||"ambos", precioCaja:p.precioCaja||null, minCompra:p.minCompra||1, cantDefault:p.cantDefault||1, vendePor:p.vendePor||"unidad", pesoDisplay:p.pesoDisplay||"kg", esPortada:p.esPortada||false, precioPromo:p.precioPromo||null, cantPromo:p.cantPromo||null, ofertaPrecio:p.ofertaPrecio||null, ofertaActiva:p.ofertaActiva||false, ofertaHasta:p.ofertaHasta||null, ofertaTipo:p.ofertaTipo||"fijo", ofertaPct:p.ofertaPct||null, ofertaPrecios:p.ofertaPrecios||null, activo:p.activo!==false };
     dbStock.push(prod);
     if (!_catIndex[cat]) _catIndex[cat] = [];
     _catIndex[cat].push(prod);
@@ -22066,6 +22586,7 @@ function abrirModalFamilia(fam, desdeProducto){
         '<button onclick="_famQuitarFoto()" style="font-size:11px;padding:6px 11px;background:var(--s2);border:1px solid var(--border);border-radius:7px;cursor:pointer;color:var(--red);font-family:inherit">🗑 Quitar</button>'+
         '<span style="font-size:10px;color:var(--muted)">Se guarda en la base (ocupa espacio)</span>'+
       '</div>'+
+      '<div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4">💡 Ideal: imagen <b>cuadrada 800×800px</b> con <b>fondo blanco</b>, para que llene perfecto la tarjeta en la tienda y el catálogo.</div>'+
       // Panel URL
       '<div id="fam-panel-url" style="margin-top:8px;display:none">'+
         '<div style="display:flex;gap:6px">'+
@@ -22428,6 +22949,7 @@ function abrirModalProducto(key) {
   document.getElementById("mprod-key").value = key || "";
   document.getElementById("mprod-codigo").value = p.codigo || "";
   document.getElementById("mprod-nombre").value = p.nombre || "";
+  var _dtl=document.getElementById("mprod-detalles"); if(_dtl) _dtl.value = p.detalles || "";
   document.getElementById("mprod-familia").value = p.familia || "";
   // Poblar selector de proveedores
   var _provVal = p.proveedorId || p.proveedor_id || "";
@@ -22841,6 +23363,7 @@ function abrirModalProducto(key) {
   document.getElementById("mprod-key").value = key || "";
   document.getElementById("mprod-codigo").value = p.codigo || "";
   document.getElementById("mprod-nombre").value = p.nombre || "";
+  var _dtl=document.getElementById("mprod-detalles"); if(_dtl) _dtl.value = p.detalles || "";
   document.getElementById("mprod-categoria").value = p.categoria || "";
   // Familia y proveedor
   var _famEl = document.getElementById("mprod-familia");
@@ -23161,22 +23684,51 @@ function abrirGestorCategorias(){
   '</div>';
   _catMgrRenderLista();
 }
+// Orden de categorías (definido desde Mis Productos, usado por el catálogo en vivo)
+function _catOrden(){
+  var cats=_categoriasDisponibles();
+  var ord=(empresaData && Array.isArray(empresaData.cat_orden)) ? empresaData.cat_orden : [];
+  var out=[];
+  ord.forEach(function(c){ if(cats.indexOf(c)>=0 && out.indexOf(c)<0) out.push(c); });
+  cats.slice().sort(function(a,b){ return a.localeCompare(b); }).forEach(function(c){ if(out.indexOf(c)<0) out.push(c); });
+  return out;
+}
+function _catOrdenGuardar(arr){
+  if(!empresaData) return;
+  empresaData.cat_orden = arr.slice();
+  try{ sbPatch("empresas","id=eq."+_sbEmpId, {cat_orden:arr}); }catch(e){}
+}
+function _catOrdenMover(cat, dir){
+  var arr=_catOrden(); var i=arr.indexOf(cat); if(i<0) return;
+  var j=i+dir; if(j<0||j>=arr.length) return;
+  var t=arr[i]; arr[i]=arr[j]; arr[j]=t;
+  _catOrdenGuardar(arr);
+  _catMgrRenderLista();
+  if(typeof renderProductos==="function") renderProductos();
+}
 function _catMgrConteo(){
   var c={}; Object.values(_prodData||{}).forEach(function(p){ if(p&&p.categoria) c[p.categoria]=(c[p.categoria]||0)+1; }); return c;
 }
 function _catMgrRenderLista(){
   var cont=document.getElementById("cat-mgr-lista"); if(!cont) return;
-  var conteo=_catMgrConteo(); var cats=_categoriasDisponibles();
+  var conteo=_catMgrConteo(); var cats=_catOrden();
   if(!cats.length){ cont.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px">No hay categorías todavía. Creá una arriba.</div>'; return; }
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-  cont.innerHTML=cats.map(function(c){
+  cont.innerHTML='<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">Con ↑ ↓ ordenás cómo aparecen en el catálogo en vivo (de la primera a la última).</div>'+
+    cats.map(function(c,idx){
     var n=conteo[c]||0;
     return '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">'+
+      '<div style="display:flex;flex-direction:column;gap:2px">'+
+        '<button class="cat-up" data-cat="'+esc(c)+'" '+(idx===0?'disabled':'')+' style="border:none;background:none;cursor:pointer;font-size:12px;line-height:1;color:'+(idx===0?'var(--border)':'var(--accent)')+'">▲</button>'+
+        '<button class="cat-down" data-cat="'+esc(c)+'" '+(idx===cats.length-1?'disabled':'')+' style="border:none;background:none;cursor:pointer;font-size:12px;line-height:1;color:'+(idx===cats.length-1?'var(--border)':'var(--accent)')+'">▼</button>'+
+      '</div>'+
       '<span style="flex:1;font-size:14px;color:var(--text)">'+esc(c)+' <span style="color:var(--muted);font-size:12px">('+n+')</span></span>'+
       '<button class="btn btn-ghost btn-sm cat-edit" data-cat="'+esc(c)+'" title="Renombrar">✏️</button>'+
       '<button class="btn btn-ghost btn-sm cat-del" data-cat="'+esc(c)+'" title="Eliminar">🗑️</button>'+
     '</div>';
   }).join("");
+  cont.querySelectorAll(".cat-up").forEach(function(b){ b.onclick=function(){ _catOrdenMover(this.dataset.cat,-1); }; });
+  cont.querySelectorAll(".cat-down").forEach(function(b){ b.onclick=function(){ _catOrdenMover(this.dataset.cat,1); }; });
   cont.querySelectorAll(".cat-edit").forEach(function(b){ b.onclick=function(){ _catMgrRenombrar(this.dataset.cat); }; });
   cont.querySelectorAll(".cat-del").forEach(function(b){ b.onclick=function(){ _catMgrEliminar(this.dataset.cat); }; });
 }
@@ -23308,6 +23860,7 @@ var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}
   var _fotosGal = (typeof _galSubirTodas==="function") ? (await _galSubirTodas(codigo||nombre)) : [];
   var prodObj = {
     nombre: nombre,
+    detalles: (document.getElementById("mprod-detalles")||{value:""}).value || "",
     codigo: codigo || nombre.substring(0,4).toUpperCase(),
     categoria: categoria || "Sin categoría",
     familia: familia || null,
@@ -26515,8 +27068,8 @@ function _devAbrir(i){
 function _devAdminVer(rk,ck){
   var cli=(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck])||null; if(!cli) return;
   if(!cli.devoluciones) cli.devoluciones=[];
-  _devTarget={ cli:cli, readonly:true, persist:function(){} };
-  _devMostrar((cli.nom||"")+" · solo lectura");
+  _devTarget={ cli:cli, readonly:true, persist:function(){ _devPersistir(rk, ck, cli); if(typeof renderRutas==="function") renderRutas(); if(typeof _ncDashRender==="function") _ncDashRender(); } };
+  _devMostrar((cli.nom||"")+" · notas de crédito");
 }
 function _devMostrar(sub){
   var m=document.getElementById("dev-modal"); if(!m||!_devTarget) return;
@@ -26553,13 +27106,91 @@ function _devCerrar(){ var m=document.getElementById("dev-modal"); if(m) m.style
 function _devRenderList(){
   var el=document.getElementById("dev-list"); if(!el||!_devTarget) return;
   var arr=_devTarget.cli.devoluciones||[]; var ro=_devTarget.readonly;
-  if(!arr.length){ el.innerHTML='<div class="dev-empty">Sin devoluciones ni roturas.</div>'; return; }
+  if(!arr.length){ el.innerHTML='<div class="dev-empty">Sin notas de crédito ni devoluciones.</div>'; return; }
   el.innerHTML=arr.map(function(d,idx){
+    var est=_devEstado(d);
     var fecha=d.ts?new Date(d.ts).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
-    return '<div class="dev-item"><div style="flex:1"><b>'+_devEsc(d.producto)+'</b> ×'+(d.cantidad||1)+
-      '<div class="dev-item-sub">'+_devMotivoLabel(d.motivo)+(d.nota?' · '+_devEsc(d.nota):'')+(fecha?' · '+fecha:'')+'</div></div>'+
-      (ro?'':'<button class="dev-del" onclick="_devQuitar('+idx+')" title="Quitar">🗑</button>')+'</div>';
+    var col = est==='aplicada'?'#16a34a':(est==='rechazada'?'#dc2626':'#d97706');
+    var montoTxt = (d.monto>0)?(' · <b>-$'+fM(d.monto)+'</b>'):'';
+    // Historial (registro de quién hizo qué)
+    var hist=(d.historial||[]).map(function(h){
+      var hf=h.ts?new Date(h.ts).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+      var acc = {notificada:"Notificada",aplicada:"Aplicada",rechazada:"Rechazada"}[h.accion]||h.accion;
+      return '<div style="font-size:10px;color:var(--muted)">• '+_devEsc(acc)+' por '+_devEsc(h.por||'?')+(h.rol?' ('+_devEsc(h.rol)+')':'')+(hf?' · '+hf:'')+(h.nota?' — '+_devEsc(h.nota):'')+'</div>';
+    }).join("");
+    // Acciones según rol y estado
+    var acc='';
+    if(est==='notificada' && _ncPuedeAplicar()) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px" onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
+    if(est==='notificada' && _ncPuedeRechazar()) acc+='<button class="dev-del" style="background:#dc2626;color:#fff;width:auto;padding:0 8px" onclick="_ncRechazar('+idx+')">✕ Rechazar</button>';
+    if(est==='rechazada' && _ncPuedeAplicar()) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px" onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
+    var puedeBorrar = (!ro) || _ncTieneRol('admin');
+    return '<div class="dev-item" style="flex-wrap:wrap"><div style="flex:1;min-width:150px"><b>'+_devEsc(d.producto)+'</b> ×'+(d.cantidad||1)+montoTxt+
+      '<div class="dev-item-sub">'+_devMotivoLabel(d.motivo)+' · <span style="color:'+col+';font-weight:700">'+_devEstadoLabel(est)+'</span>'+(d.nota?' · '+_devEsc(d.nota):'')+(fecha?' · '+fecha:'')+'</div>'+
+      (hist?'<div style="margin-top:3px">'+hist+'</div>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:5px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end">'+acc+
+      (puedeBorrar?'<button class="dev-del" onclick="_devQuitar('+idx+')" title="Quitar">🗑</button>':'')+
+      '</div></div>';
   }).join("");
+}
+// Aplicar una nota de crédito (vendedor o admin)
+function _ncAplicar(idx){
+  if(!_devTarget) return;
+  var d=(_devTarget.cli.devoluciones||[])[idx]; if(!d) return;
+  if(!_ncPuedeAplicar()){ if(typeof showNotif==="function") showNotif("No tenés permiso para aplicar","err"); return; }
+  d.estado='aplicada';
+  _ncLog(d,'aplicada');
+  _devTarget.persist(); _devRenderList();
+  if(typeof showNotif==="function") showNotif("🟢 Nota de crédito aplicada","ok");
+}
+// Rechazar una nota de crédito (solo admin)
+function _ncRechazar(idx){
+  if(!_devTarget) return;
+  var d=(_devTarget.cli.devoluciones||[])[idx]; if(!d) return;
+  if(!_ncPuedeRechazar()){ if(typeof showNotif==="function") showNotif("Solo el admin puede rechazar","err"); return; }
+  _confirmar({icono:"🔴",titulo:"Rechazar nota de crédito",mensaje:"Queda registrada pero NO descuenta del importe. ¿Rechazar?",ok:"Rechazar",peligro:true}).then(function(ok){
+    if(!ok) return;
+    d.estado='rechazada';
+    _ncLog(d,'rechazada');
+    _devTarget.persist(); _devRenderList();
+    if(typeof showNotif==="function") showNotif("🔴 Nota de crédito rechazada","ok");
+  });
+}
+// Resumen de notas de crédito en el inicio (solo admin): pendientes, aplicadas ($) y rechazadas
+function _ncDashRender(){
+  var wrap=document.getElementById("dash-nc-wrap"), cont=document.getElementById("dash-nc");
+  if(!wrap||!cont) return;
+  if(!_ncTieneRol('admin')){ wrap.style.display="none"; return; }
+  var pend=[], aplicadasTot=0, rechTot=0;
+  Object.keys(rutasData||{}).forEach(function(rk){
+    var r=rutasData[rk]; var cls=(r&&r.clientes)||{};
+    Object.keys(cls).forEach(function(ck){
+      var c=cls[ck];
+      (c.devoluciones||[]).forEach(function(d){
+        var est=_devEstado(d);
+        if(est==='notificada') pend.push({nom:c.nom||ck, d:d, rk:rk, ck:ck});
+        else if(est==='aplicada') aplicadasTot += (d.monto||0);
+        else if(est==='rechazada') rechTot++;
+      });
+    });
+  });
+  if(!pend.length && aplicadasTot===0 && rechTot===0){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  var html='<div style="display:flex">'+
+    '<div style="flex:1;padding:12px;text-align:center"><div style="font-size:19px;font-weight:800;color:#d97706">'+pend.length+'</div><div style="font-size:11px;color:var(--muted)">Pendientes</div></div>'+
+    '<div style="flex:1;padding:12px;text-align:center;border-left:1px solid var(--border)"><div style="font-size:19px;font-weight:800;color:#16a34a">$'+fM(aplicadasTot)+'</div><div style="font-size:11px;color:var(--muted)">Aplicadas</div></div>'+
+    '<div style="flex:1;padding:12px;text-align:center;border-left:1px solid var(--border)"><div style="font-size:19px;font-weight:800;color:#dc2626">'+rechTot+'</div><div style="font-size:11px;color:var(--muted)">Rechazadas</div></div>'+
+  '</div>';
+  if(pend.length){
+    html+=pend.slice(0,8).map(function(x){
+      return '<div style="padding:9px 12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" onclick="_devAdminVer(\''+x.rk+'\',\''+x.ck+'\')">'+
+        '<div style="min-width:0"><b style="font-size:13px">'+_devEsc(x.nom)+'</b><div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_devEsc(x.d.producto||'')+' · '+_devMotivoLabel(x.d.motivo)+(x.d.monto>0?' · -$'+fM(x.d.monto):'')+'</div></div>'+
+        '<span class="rc-badge" style="background:#fef3c7;color:#b45309;flex-shrink:0">🟡 revisar</span>'+
+      '</div>';
+    }).join("");
+    if(pend.length>8) html+='<div style="padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);text-align:center">+'+(pend.length-8)+' más…</div>';
+  }
+  cont.innerHTML=html;
 }
 function _devAgregar(){
   if(!_devTarget||_devTarget.readonly) return;
@@ -26578,7 +27209,12 @@ function _devAgregar(){
   // Solo devolucion y faltante descuentan del importe (rotura la absorbe la empresa)
   var _descuenta=(motivo==="devolucion"||motivo==="faltante");
   var _monto=_descuenta ? Math.round(_pu*cant*100)/100 : 0;
-  _devTarget.cli.devoluciones.push({producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,ts:new Date().toISOString()});
+  // Estado inicial: el repartidor NOTIFICA (queda pendiente); vendedor/admin la crean ya APLICADA.
+  var _estIni = _ncPuedeAplicar() ? 'aplicada' : 'notificada';
+  var _d = {producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,ts:new Date().toISOString(), estado:_estIni, historial:[]};
+  _ncLog(_d,'notificada');
+  if(_estIni==='aplicada') _ncLog(_d,'aplicada');
+  _devTarget.cli.devoluciones.push(_d);
   _devTarget.persist();
   if(sel) sel.value=""; var otro=document.getElementById("dev-prod-otro"); if(otro){ otro.value=""; otro.style.display="none"; }
   document.getElementById("dev-cant").value="1"; document.getElementById("dev-nota").value="";
