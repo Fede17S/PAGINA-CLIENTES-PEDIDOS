@@ -3005,7 +3005,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.10-fin10</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.10-fin17</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -3875,6 +3875,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 
   <div id="fin-balance" class="fin-balance"></div>
   <div id="fin-resultado"></div>
+  <div id="fin-tendencia"></div>
 
   <div class="fin-actions">
     <button class="fin-act fin-act-in"  onclick="_finAbrirMov('ingreso')">＋ Ingreso</button>
@@ -7186,28 +7187,35 @@ async function _sbDelComprobante(rutaId,cliId,tid){ var rows=await sbGet("ruta_c
 var _famPortadas = {}; // { [nombreFamilia]: {id, familia, titulo, foto} }
 async function _sbGetFamilias(){
   try {
-    var rows = await sbGet("familias", "select=id,familia,titulo,foto&empresa_id=eq."+_sbEmpId);
+    var rows = await sbGet("familias", "select=id,familia,titulo,foto,descripcion&empresa_id=eq."+_sbEmpId);
     var m = {};
-    (rows||[]).forEach(function(f){ m[f.familia] = {id:f.id, familia:f.familia, titulo:f.titulo||"", foto:f.foto||""}; });
+    (rows||[]).forEach(function(f){ m[f.familia] = {id:f.id, familia:f.familia, titulo:f.titulo||"", foto:f.foto||"", descripcion:f.descripcion||""}; });
     return m;
-  } catch(e){ return {}; }
+  } catch(e){
+    try {
+      var rows2 = await sbGet("familias", "select=id,familia,titulo,foto&empresa_id=eq."+_sbEmpId);
+      var m2 = {};
+      (rows2||[]).forEach(function(f){ m2[f.familia] = {id:f.id, familia:f.familia, titulo:f.titulo||"", foto:f.foto||"", descripcion:""}; });
+      return m2;
+    } catch(e2){ return {}; }
+  }
 }
 async function _cargarFamPortadas(){
   _famPortadas = await _sbGetFamilias();
   return _famPortadas;
 }
 // Guardar (insert o update) la portada de una familia
-async function _sbGuardarPortadaFamilia(familia, titulo, foto){
+async function _sbGuardarPortadaFamilia(familia, titulo, foto, descripcion){
   var existente = _famPortadas[familia];
-  var body = { empresa_id:_sbEmpId, familia:familia, titulo:titulo||null, foto:foto||null };
+  var body = { empresa_id:_sbEmpId, familia:familia, titulo:titulo||null, foto:foto||null, descripcion:descripcion||null };
   try {
     if(existente && existente.id){
-      await sbPatch("familias", "id=eq."+existente.id+"&empresa_id=eq."+_sbEmpId, {titulo:titulo||null, foto:foto||null});
-      _famPortadas[familia] = {id:existente.id, familia:familia, titulo:titulo||"", foto:foto||""};
+      await sbPatch("familias", "id=eq."+existente.id+"&empresa_id=eq."+_sbEmpId, {titulo:titulo||null, foto:foto||null, descripcion:descripcion||null});
+      _famPortadas[familia] = {id:existente.id, familia:familia, titulo:titulo||"", foto:foto||"", descripcion:descripcion||""};
     } else {
       var rows = await sbPost("familias", body);
       var nid = rows && rows[0] ? rows[0].id : null;
-      _famPortadas[familia] = {id:nid, familia:familia, titulo:titulo||"", foto:foto||""};
+      _famPortadas[familia] = {id:nid, familia:familia, titulo:titulo||"", foto:foto||"", descripcion:descripcion||""};
     }
     return true;
   } catch(e){ console.warn("Guardar portada familia:", e); return false; }
@@ -8687,7 +8695,10 @@ function _peekHojaRutaNum(){
   var maxActual = 0;
   Object.keys(rutasData||{}).forEach(function(k){
     var r = rutasData[k]; if(!r) return;
-    var n = _hrNumInt(r.hrNum||r.hr_num||r.nombre);
+    // Preferir el número que SE MUESTRA (el del nombre); si el nombre no tiene HR, usar el hrNum.
+    var mn = String(r.nombre||"").match(/HR-?0*(\d+)/i);
+    var mh = String(r.hrNum||r.hr_num||"").match(/HR-?0*(\d+)/i);
+    var n = mn ? parseInt(mn[1],10) : (mh ? parseInt(mh[1],10) : 0);
     if(n>maxActual) maxActual = n;
   });
   return Math.max(minInicial, maxActual+1);
@@ -10664,16 +10675,9 @@ function _abrirClienteRapido(){
   setTimeout(function(){ var n=document.getElementById("cr-nombre"); if(n) n.focus(); }, 80);
 }
 
-// Generar un ID de cliente único (formato CLxxxx)
+// Generar un ID de cliente único (formato CLxxxx) — secuencial, más bajo disponible
 function _genClienteId(){
-  var existentes = {};
-  Object.values(_clientesDB||{}).forEach(function(u){ if(u && u.id) existentes[u.id]=true; });
-  var intento, n=0;
-  do {
-    intento = "CL" + Math.floor(1000 + Math.random()*9000);
-    n++;
-  } while(existentes[intento] && n<50);
-  return intento;
+  return _generarSiguienteId();
 }
 
 async function _guardarClienteRapido(){
@@ -11276,6 +11280,7 @@ async function _finCargar(){
     if(_finSyncHizoCambios){ _finMovs = await sbGet("fin_movimientos","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc,creado_en.desc&limit=1000") || []; }
     _finRender();
     _finResultado();
+    _finTendencia();
   }catch(e){ if(typeof showNotif==="function") showNotif("Error cargando finanzas: "+(e.message||"")+" (¿corriste finanzas.sql y finanzas_rls.sql?)","err"); }
 }
 function _finRender(){
@@ -11388,6 +11393,38 @@ async function _finResultado(){
   _finAlertas(neto);
 }
 function _finFmtP(cent){ return (Math.abs(cent||0)/100).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+async function _finTendencia(){
+  var cont=document.getElementById("fin-tendencia"); if(!cont) return;
+  var now=new Date(); var meses=[];
+  for(var i=5;i>=0;i--){ var d=new Date(now.getFullYear(), now.getMonth()-i, 1); meses.push({y:d.getFullYear(), m:d.getMonth(), lbl:d.toLocaleDateString("es-AR",{month:"short"}), ventas:0, gastos:0}); }
+  var d6=new Date(now.getFullYear(), now.getMonth()-5, 1);
+  var desdeStr=d6.getFullYear()+"-"+String(d6.getMonth()+1).padStart(2,"0")+"-01";
+  try{
+    var ent=await sbGet("ruta_clientes","select=efectivo,transferencia,pagos_adicionales,fecha,entregado&empresa_id=eq."+_sbEmpId+"&entregado=eq.true&fecha=gte."+desdeStr+"&limit=8000")||[];
+    ent.forEach(function(c){ var f=new Date(c.fecha); var sl=meses.find(function(x){return x.y===f.getFullYear()&&x.m===f.getMonth();}); if(!sl)return; var adic=(c.pagos_adicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0); sl.ventas += Math.round(((c.efectivo||0)+(c.transferencia||0)+adic)*100); });
+  }catch(e){}
+  try{
+    var gm=await sbGet("fin_movimientos","select=tipo,monto_cent,fecha,anulado&empresa_id=eq."+_sbEmpId+"&tipo=eq.egreso&fecha=gte."+desdeStr+"&limit=8000")||[];
+    gm.forEach(function(m){ if(m.anulado)return; var f=new Date((m.fecha||"")+"T12:00:00"); var sl=meses.find(function(x){return x.y===f.getFullYear()&&x.m===f.getMonth();}); if(!sl)return; sl.gastos += (m.monto_cent||0); });
+  }catch(e){}
+  var max=1; meses.forEach(function(x){ max=Math.max(max, x.ventas, x.gastos); });
+  if(!meses.some(function(x){return x.ventas>0||x.gastos>0;})){ cont.innerHTML='<div style="background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;color:var(--muted);font-size:13px">📈 Todavía no hay datos suficientes para la tendencia.</div>'; return; }
+  var W=340, H=170, padB=26, padT=10, chartH=H-padB-padT, slotW=W/meses.length, bw=Math.min(20, slotW/3.2);
+  var bars="", labels="";
+  meses.forEach(function(x,i){
+    var cx=i*slotW+slotW/2;
+    var hv=Math.round(x.ventas/max*chartH), hg=Math.round(x.gastos/max*chartH);
+    bars += '<rect x="'+(cx-bw-1)+'" y="'+(padT+chartH-hv)+'" width="'+bw+'" height="'+hv+'" rx="3" fill="#3fae6e"></rect>';
+    bars += '<rect x="'+(cx+1)+'" y="'+(padT+chartH-hg)+'" width="'+bw+'" height="'+hg+'" rx="3" fill="#e2685f"></rect>';
+    labels += '<text x="'+cx+'" y="'+(H-9)+'" text-anchor="middle" font-size="11" style="fill:var(--muted);text-transform:capitalize">'+x.lbl+'</text>';
+  });
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><line x1="0" y1="'+(padT+chartH)+'" x2="'+W+'" y2="'+(padT+chartH)+'" style="stroke:var(--border)" stroke-width="1"></line>'+bars+labels+'</svg>';
+  var filas=meses.map(function(x){ var neto=x.ventas-x.gastos; return '<div style="display:flex;justify-content:space-between;font-size:11.5px;padding:2px 0"><span style="color:var(--muted);text-transform:capitalize">'+x.lbl+'</span><span style="font-weight:700;color:'+(neto<0?"#c0392b":"#0f8a4a")+'">'+_finFmt(neto)+'</span></div>'; }).join("");
+  cont.innerHTML='<div style="background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:16px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div style="font-size:13px;font-weight:800">📈 Tendencia (6 meses)</div>'+
+    '<div style="font-size:11px;color:var(--muted)"><span style="color:#3fae6e">■</span> Ventas &nbsp;<span style="color:#e2685f">■</span> Gastos</div></div>'+
+    svg+'<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px"><div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:3px">NETO POR MES (ventas − gastos)</div>'+filas+'</div></div>';
+}
 
 function _finSetPeriodo(p, btn){
   _finPeriodo=p;
@@ -11919,6 +11956,7 @@ function _cvRender(){
     cont.innerHTML='<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:2px">'+
       '<button onclick="_cvVolver()" style="background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">← Volver</button>'+
       '<b style="font-size:15px">'+escHtml(tit)+'</b></div>'+
+      ((port&&port.descripcion)?'<div style="grid-column:1/-1;background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:11px 14px;margin-bottom:8px;font-size:13px;color:var(--text2);line-height:1.5;white-space:pre-wrap">'+escHtml(port.descripcion)+'</div>':'')+
       prodsF.map(function(p){return _cvCardProd(p,lista);}).join("");
     return;
   }
@@ -15130,7 +15168,7 @@ async function _rutaReasignar(rkOrigen){
     .map(function(e){
       var rk=e[0], r=e[1];
       var cnt=Object.keys(r.clientes||{}).length;
-      var hrTag=r.hrNum?r.hrNum+' — ':'';
+      var hrTag=(r.hrNum && !/HR-?\d/i.test(String(r.nombre||"")))?r.hrNum+' — ':'';
       return '<option value="'+rk+'">'+hrTag+(r.nombre||rk.slice(-6))+' ('+cnt+' pedidos)</option>';
     }).join('');
 
@@ -17119,7 +17157,7 @@ async function _bkReasignar(){
   var rutaOpts = rutas.map(function(e){
     var rk=e[0], r=e[1];
     var cnt=Object.keys(r.clientes||{}).length;
-    var hrTag=r.hrNum?r.hrNum+' — ':'';
+    var hrTag=(r.hrNum && !/HR-?\d/i.test(String(r.nombre||"")))?r.hrNum+' — ':'';
     return '<option value="'+rk+'">'+hrTag+(r.nombre||rk.slice(-6))+' ('+cnt+' pedidos)</option>';
   }).join('');
 
@@ -21603,49 +21641,26 @@ function _setRolFilter(rol, btn){
 
 
 function _generarSiguienteId(){
-  // Extraer todos los IDs existentes de _clientesDB
   var todos = Object.values(_clientesDB||{}).map(function(u){ return u.id||""; }).filter(Boolean);
   if(!todos.length) return "CL001";
 
-  // Detectar el prefijo más común (letras al inicio) y el mayor número
-  var maxNum = 0;
-  var prefijo = "CL";
-
-  todos.forEach(function(id){
-    // Separar prefijo (letras) del número
-    var match = id.match(/^([A-Za-z]*)(\d+)$/);
-    if(!match) return;
-    var num = parseInt(match[2], 10);
-    if(num > maxNum){
-      maxNum = num;
-      prefijo = match[1] || "CL";
-    }
-  });
-
-  // Determinar el prefijo más frecuente
+  // Prefijo más frecuente (letras al inicio)
   var prefCount = {};
   todos.forEach(function(id){
     var match = id.match(/^([A-Za-z]+)\d+$/);
     if(match){ var p=match[1]; prefCount[p]=(prefCount[p]||0)+1; }
   });
-  var prefMasFrecuente = prefijo;
-  var maxC = 0;
-  Object.entries(prefCount).forEach(function(e){
-    if(e[1]>maxC){ maxC=e[1]; prefMasFrecuente=e[0]; }
-  });
+  var prefijo = "CL", maxC = 0;
+  Object.entries(prefCount).forEach(function(e){ if(e[1]>maxC){ maxC=e[1]; prefijo=e[0]; } });
 
-  // Usar el prefijo más frecuente, con el número más alto de TODOS los ids (con o sin ese prefijo)
-  var maxGlobal = 0;
-  todos.forEach(function(id){
-    var match = id.match(/^[A-Za-z]*(\d+)$/);
-    if(match){ var n=parseInt(match[1],10); if(n>maxGlobal) maxGlobal=n; }
-  });
+  // Números ya usados con ese prefijo
+  var usados = {};
+  var re = new RegExp("^"+prefijo+"0*(\\d+)$","i");
+  todos.forEach(function(id){ var m=id.match(re); if(m) usados[parseInt(m[1],10)]=true; });
 
-  // Formatear con ceros a la izquierda del mismo ancho que el número más largo
-  var siguiente = maxGlobal + 1;
-  var anchoRef = String(maxGlobal).length;
-  var anchoFinal = Math.max(anchoRef, 3);
-  return prefMasFrecuente + String(siguiente).padStart(anchoFinal, "0");
+  // Sugerir el número más BAJO disponible (así ignora IDs altos sueltos de la carga rápida vieja)
+  var n=1; while(usados[n]) n++;
+  return prefijo + String(n).padStart(3,"0");
 }
 
 async function guardarNuevoCliente() {
@@ -21811,6 +21826,13 @@ function abrirEditCliente(pushKey) {
   document.getElementById("ec-lista").value = u.lista || "Clientes";
   document.getElementById("ec-tel").value   = u.tel   || "";
   document.getElementById("ec-dir").value   = u.direccion || "";
+  // Precargar coordenadas guardadas para que el pin del mapa aparezca donde está el cliente
+  var _ecLat=document.getElementById("ec-lat"), _ecLng=document.getElementById("ec-lng");
+  if(_ecLat) _ecLat.value = (u.lat!=null && u.lat!=="") ? u.lat : "";
+  if(_ecLng) _ecLng.value = (u.lng!=null && u.lng!=="") ? u.lng : "";
+  // Indicar en el botón si ya tiene ubicación fijada
+  var _ecPinBtn=document.querySelector('button[onclick="_pinAbrir(\'ec\')"]');
+  if(_ecPinBtn){ var _tienePin=(u.lat!=null && u.lat!=="" && u.lng!=null && u.lng!==""); _ecPinBtn.innerHTML = _tienePin ? "📍 Ver / ajustar en el mapa ✓" : "📍 Ajustar en el mapa"; }
   document.getElementById("ec-nota").value  = u.nota  || "";
   // Zona — cargar el selector con zona_id o buscar por nombre
   var zonaEl = document.getElementById("ec-zona");
@@ -23334,6 +23356,12 @@ function abrirModalFamilia(fam, desdeProducto){
           '<div style="font-size:10.5px;color:var(--muted);margin-top:5px;line-height:1.4">Si lo dejás vacío, se muestra "<b>'+escHtml(fam)+'</b>".</div>'+
         '</div>'+
       '</div>'+
+      // Descripción general (se muestra al cliente al entrar a la familia)
+      '<div style="margin-top:12px">'+
+        '<label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📝 Descripción general (opcional)</label>'+
+        '<textarea id="fam-portada-desc" rows="3" placeholder="ej: Desodorantes AXE en aerosol 150ml. Elegí abajo tu variedad." style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;background:var(--s2);color:var(--text);outline:none;box-sizing:border-box;resize:vertical">'+escHtml(portada.descripcion||"")+'</textarea>'+
+        '<div style="font-size:10.5px;color:var(--muted);margin-top:5px;line-height:1.4">Se le muestra al cliente cuando entra a la familia a elegir la variedad.</div>'+
+      '</div>'+
       // Tabs Archivo / URL
       '<div style="display:flex;gap:0;margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden">'+
         '<button id="fam-tab-archivo" onclick="_famFotoTab(\'archivo\')" style="flex:1;padding:7px 10px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:inherit">📁 Archivo</button>'+
@@ -23438,11 +23466,13 @@ function _famQuitarFoto(){
   if(area) area.innerHTML = '<span style="font-size:30px;color:var(--muted)">🖼️</span>';
 }
 async function _guardarFamiliaCostos(){
-  // 1) Guardar portada (foto + título) de la familia
+  // 1) Guardar portada (foto + título + descripción) de la familia
   var tituloEl = document.getElementById("fam-portada-titulo");
   var titulo = tituloEl ? (tituloEl.value||"").trim() : "";
-  if(_famActual && (titulo || _famFotoB64 || _portadaDe(_famActual))){
-    try { await _sbGuardarPortadaFamilia(_famActual, titulo, _famFotoB64); } catch(e){}
+  var descEl = document.getElementById("fam-portada-desc");
+  var descripcion = descEl ? (descEl.value||"").trim() : "";
+  if(_famActual && (titulo || descripcion || _famFotoB64 || _portadaDe(_famActual))){
+    try { await _sbGuardarPortadaFamilia(_famActual, titulo, _famFotoB64, descripcion); } catch(e){}
   }
   // 2) Guardar costos cambiados
   var inputs=[].slice.call(document.querySelectorAll('#fam-overlay-body input[data-fkey]'));
@@ -28025,11 +28055,12 @@ function _devPersistir(rk,ck,cli){
 <div id="pin-modal" class="dev-ov" style="display:none;z-index:100001" onclick="if(event.target===this)_pinCerrar()">
   <div class="dev-card" style="max-width:520px">
     <div class="dev-head">
-      <div><div class="dev-title">📍 Ubicación en el mapa</div><div class="dev-sub">Arrastrá el pin o tocá el mapa para marcar el punto exacto.</div></div>
+      <div><div class="dev-title">📍 Ubicación en el mapa</div><div class="dev-sub">Arrastrá el pin o tocá el mapa. Se detecta la dirección sola.</div></div>
       <button class="dev-x" onclick="_pinCerrar()">✕</button>
     </div>
     <div id="pin-map" style="width:100%;height:52vh;min-height:300px;border-radius:12px;border:1px solid var(--border);overflow:hidden;background:var(--s3)"></div>
-    <div id="pin-coords" style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px"></div>
+    <div id="pin-addr" style="text-align:center;font-size:13px;color:var(--text);font-weight:600;margin-top:8px;min-height:18px"></div>
+    <div id="pin-coords" style="text-align:center;font-size:12px;color:var(--muted);margin-top:2px"></div>
     <button class="dev-add" onclick="_pinGuardar()">✓ Guardar ubicación</button>
   </div>
 </div>
@@ -28037,10 +28068,35 @@ function _devPersistir(rk,ck,cli){
 <!-- Pin -->
 <script>
 /* ===== Ubicación manual con pin (mapa arrastrable) ===== */
-var _pinMap=null,_pinMarker=null,_pinPrefix=null;
+var _pinMap=null,_pinMarker=null,_pinPrefix=null,_pinDetectedAddr="",_pinRevSeq=0;
+// Geocodificación inversa: coords → nombre de la dirección (Nominatim, mismo servicio que geocodeAddress)
+async function _reverseGeocode(lat,lng){
+  try{
+    var url="https://nominatim.openstreetmap.org/reverse?lat="+lat+"&lon="+lng+"&format=json&accept-language=es";
+    var r=await fetch(url,{headers:{"Accept-Language":"es"}});
+    var data=await r.json();
+    var addr=(data&&data.address)||{};
+    var parts=[addr.road,addr.house_number,addr.city||addr.town||addr.village||addr.suburb,addr.state].filter(Boolean);
+    return parts.join(", ");
+  }catch(e){ return ""; }
+}
+// Detectar la dirección del pin y mostrarla en el modal
+function _pinDetectarDir(){
+  if(!_pinMarker) return;
+  var ll=_pinMarker.getLatLng();
+  var seq=++_pinRevSeq;
+  var el=document.getElementById("pin-addr");
+  if(el) el.innerHTML='<span style="color:var(--muted);font-weight:500">🔎 Detectando dirección…</span>';
+  _reverseGeocode(ll.lat,ll.lng).then(function(dir){
+    if(seq!==_pinRevSeq) return; // llegó una detección más nueva, ignorar esta
+    _pinDetectedAddr=dir||"";
+    if(el) el.textContent = dir ? ("📫 "+dir) : "";
+  });
+}
 function _pinAbrir(prefix){
   if(typeof L==="undefined"){ if(typeof showNotif==="function") showNotif("El mapa no está disponible","err"); return; }
-  _pinPrefix=prefix;
+  _pinPrefix=prefix; _pinDetectedAddr="";
+  var _pa=document.getElementById("pin-addr"); if(_pa) _pa.textContent="";
   var latEl=document.getElementById(prefix+"-lat"), lngEl=document.getElementById(prefix+"-lng");
   var lat=parseFloat(latEl&&latEl.value), lng=parseFloat(lngEl&&lngEl.value);
   var m=document.getElementById("pin-modal"); if(!m) return;
@@ -28052,16 +28108,17 @@ function _pinAbrir(prefix){
       _pinMap=L.map("pin-map").setView(start, tiene?16:13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_pinMap);
       _pinMarker=L.marker(start,{draggable:true}).addTo(_pinMap);
-      _pinMap.on("click",function(e){ _pinMarker.setLatLng(e.latlng); _pinCoordText(); });
-      _pinMarker.on("dragend",_pinCoordText);
+      _pinMap.on("click",function(e){ _pinMarker.setLatLng(e.latlng); _pinCoordText(); _pinDetectarDir(); });
+      _pinMarker.on("dragend",function(){ _pinCoordText(); _pinDetectarDir(); });
     } else {
       _pinMap.setView(start, tiene?16:13); _pinMarker.setLatLng(start);
     }
     _pinMap.invalidateSize(); _pinCoordText();
+    if(tiene){ _pinDetectarDir(); }
     if(!tiene){
       var dir=(document.getElementById(prefix+"-dir")||{}).value;
       if(dir && typeof geocodeAddress==="function"){
-        geocodeAddress(dir).then(function(c){ if(c&&isFinite(c.lat)&&isFinite(c.lng)){ _pinMap.setView([c.lat,c.lng],16); _pinMarker.setLatLng([c.lat,c.lng]); _pinCoordText(); } }).catch(function(){});
+        geocodeAddress(dir).then(function(c){ if(c&&isFinite(c.lat)&&isFinite(c.lng)){ _pinMap.setView([c.lat,c.lng],16); _pinMarker.setLatLng([c.lat,c.lng]); _pinCoordText(); _pinDetectarDir(); } }).catch(function(){});
       }
     }
   },220);
@@ -28077,8 +28134,13 @@ function _pinGuardar(){
   var latEl=document.getElementById(_pinPrefix+"-lat"), lngEl=document.getElementById(_pinPrefix+"-lng");
   if(latEl) latEl.value=ll.lat.toFixed(6);
   if(lngEl) lngEl.value=ll.lng.toFixed(6);
+  // Autocompletar la dirección con el nombre detectado del punto
+  if(_pinDetectedAddr){
+    var dirEl=document.getElementById(_pinPrefix+"-dir");
+    if(dirEl) dirEl.value=_pinDetectedAddr;
+  }
   var res=document.getElementById(_pinPrefix+"-dir-result");
-  if(res){ res.style.display="block"; res.style.background="rgba(16,185,129,.12)"; res.style.color="#059669"; res.style.padding="7px 10px"; res.style.borderRadius="7px"; res.style.marginTop="4px"; res.textContent="📍 Ubicación fijada manualmente"; }
+  if(res){ res.style.display="block"; res.style.background="rgba(16,185,129,.12)"; res.style.color="#059669"; res.style.padding="7px 10px"; res.style.borderRadius="7px"; res.style.marginTop="4px"; res.textContent = _pinDetectedAddr ? ("📍 "+_pinDetectedAddr) : "📍 Ubicación fijada manualmente"; }
   _pinCerrar();
   if(typeof showNotif==="function") showNotif("📍 Ubicación fijada — acordate de Guardar","ok");
 }
