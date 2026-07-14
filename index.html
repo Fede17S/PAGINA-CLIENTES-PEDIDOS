@@ -3008,7 +3008,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.10-fin27</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.10-fin28</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -12062,7 +12062,7 @@ function _cvRender(){
   var q=_cvQ;
   // Drill-in: variedades de una familia (pocas, se muestran todas)
   if(_cvFam){
-    var prodsF=(dbStock||[]).filter(function(p){return p.familia===_cvFam && p.activo!==false;}).sort(function(a,b){return (a.n||"").localeCompare(b.n||"");});
+    var prodsF=(dbStock||[]).filter(function(p){return p.familia===_cvFam && p.activo!==false && !_sinStock(p.id);}).sort(function(a,b){return (a.n||"").localeCompare(b.n||"");});
     var port=(typeof _portadaDe==="function")?_portadaDe(_cvFam):null;
     var tit=(port&&port.titulo)?port.titulo:_cvFam;
     _cvCeldas=[]; _cvShown=0;
@@ -12075,6 +12075,7 @@ function _cvRender(){
   }
   var arr=(dbStock||[]).filter(function(p){
     if(p.activo===false) return false;
+    if(_sinStock(p.id)) return false;   // control de stock activo → no se muestra al cliente
     if(_cvCat && (p.cat||"").trim()!==_cvCat) return false;
     if(!q) return true;
     return (p.n||"").toLowerCase().indexOf(q)!==-1 || (p.id||"").toLowerCase().indexOf(q)!==-1 || (((p.familia||"")+"").toLowerCase().indexOf(q)!==-1);
@@ -26570,6 +26571,7 @@ function actualizarPreviewCatalogo(){
   var prods = dbStock.filter(function(p){
     if(filtro && p.cat !== filtro) return false;
     if(soloStock && (stockData[p.id]||0) <= 0) return false;
+    if(_sinStock(p.id)) return false;   // control de stock activo
     return true;
   });
   var conFoto = prods.filter(function(p){return p.foto&&p.foto.length>10;}).length;
@@ -26634,6 +26636,7 @@ async function generarCatalogoPDF(previewMode){
     var prods = dbStock.filter(function(p){
       if(filtro && p.cat !== filtro) return false;
       if(soloStock && (stockData[p.id]||0) <= 0) return false;
+      if(_sinStock(p.id)) return false;   // control de stock activo → no sale en el catálogo
       return true;
     });
     prods.sort(function(a,b){
@@ -26665,7 +26668,7 @@ async function generarCatalogoPDF(previewMode){
     })();
 
     // Productos con promo (precio por cantidad) U oferta vigente (precio rebajado)
-    var prodsPromo = dbStock.filter(function(p){ return (p.precioPromo && p.precioPromo > 0) || _ofVigente(p); });
+    var prodsPromo = dbStock.filter(function(p){ return ((p.precioPromo && p.precioPromo > 0) || _ofVigente(p)) && !_sinStock(p.id); });
 
     if(!prods.length && inclPromos !== "solo"){ showNotif("No hay productos con esos filtros","err"); btn.disabled=false; progress.style.display="none"; return; }
     // Vista previa: solo una muestra (rápida) — el catálogo completo se genera después
