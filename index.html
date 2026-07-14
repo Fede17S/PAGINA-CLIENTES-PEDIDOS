@@ -3008,7 +3008,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.10-fin28</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.10-fin29</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -8624,10 +8624,14 @@ async function cambiarPassword(){
 // ¿Está activo el control de stock para esta empresa?
 function _ctrlStockOn(){ return !!(empresaData && empresaData.control_stock); }
 // ¿Este producto está bloqueado por falta de stock?
+// Con el control activo: se bloquea TODO lo que no tenga stock positivo,
+// incluso si nunca se le cargó stock (sin registro = 0).
 function _sinStock(id){
   if(!_ctrlStockOn()) return false;
+  // Salvaguarda: si el stock todavía no se cargó, no bloquear (si no, desaparecería todo el catálogo)
+  if(!stockData || Object.keys(stockData).length===0) return false;
   var q = stockData[id];
-  if(q===undefined || q===null || q==="") return false;  // sin stock cargado → no bloquear
+  if(q===undefined || q===null || q==="") return true;   // sin stock cargado → se considera 0
   return (+q) <= 0;
 }
 async function guardarControlStock(){
@@ -26633,6 +26637,10 @@ async function generarCatalogoPDF(previewMode){
     var promoTitulo  = (document.getElementById("cat-promo-titulo")||{value:""}).value.trim();
     var promoTexto   = (document.getElementById("cat-promo-texto")||{value:""}).value.trim();
 
+    // Si la empresa tiene control de stock, asegurar que el stock esté cargado antes de filtrar
+    if(_ctrlStockOn() && (!stockData || Object.keys(stockData).length===0)){
+      try{ progress.textContent = "📦 Cargando stock…"; var _st = await _sbGetStock(); if(_st) stockData = _st; }catch(e){}
+    }
     var prods = dbStock.filter(function(p){
       if(filtro && p.cat !== filtro) return false;
       if(soloStock && (stockData[p.id]||0) <= 0) return false;
