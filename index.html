@@ -1912,7 +1912,7 @@ select option { background:var(--s2); color:var(--text) }
 .stk-row:hover { border-color:var(--muted2) }
 .stk-row-info { flex:1; min-width:0 }
 .stk-row-cod { font-size:10.5px; font-weight:600; color:var(--muted); margin-bottom:2px; font-variant-numeric:tabular-nums }
-.stk-row-name { font-size:13.5px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.stk-row-name { font-size:13.5px; font-weight:600; color:var(--text); line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
 .stk-row-right { display:flex; align-items:center; gap:8px; flex-shrink:0 }
 .stk-badge { font-size:11px; font-weight:600; padding:4px 9px; border-radius:20px; white-space:nowrap; border:1px solid }
 .stk-badge-ok  { background:var(--green-bg); color:#0a7048; border-color:oklch(88% 0.04 155) }
@@ -2623,6 +2623,8 @@ html[data-theme="dark"] .prod-toolbar {
 .cat-prod-name-prev { font-size:10px; font-weight:600; color:var(--text); text-align:center; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical }
 .cat-prod-price-prev { font-size:11px; font-weight:700; color:var(--accent) }
 
+.stk-fam-head { font-size:12.5px; font-weight:800; color:var(--text); padding:12px 6px 6px; margin-top:4px; border-top:1px solid var(--border); }
+.stk-fam-head:first-child { border-top:none; margin-top:0; }
 /* ── STOCK: los 3 números (físico / reservado / disponible) ── */
 .stk-3num { display:flex; gap:2px; background:var(--s2); border:1px solid var(--border); border-radius:9px; padding:5px 4px; margin:0 8px; flex-shrink:0; }
 .stk-3num-c { min-width:52px; text-align:center; padding:0 4px; border-right:1px solid var(--border); }
@@ -3031,7 +3033,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-arm3</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-stk6</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -14372,7 +14374,10 @@ function renderStock(){
     if(_stkOrden==="cant-asc")  return qa-qb;
     if(_stkOrden==="cant-desc") return qb-qa;
     if(_stkOrden==="codigo")    return String(a.id).localeCompare(String(b.id));
-    return String(a.n||"").localeCompare(String(b.n||"")); // nombre
+    // Por nombre: agrupar las variantes de una misma familia, juntas
+    var fa=(a.familia||a.padre||a.n||""), fb=(b.familia||b.padre||b.n||"");
+    if(fa!==fb) return String(fa).localeCompare(String(fb));
+    return String(a.n||"").localeCompare(String(b.n||""));
   });
   if(!prods.length && !prodsBase.length){
     list.innerHTML='<div class="empty-box"><div class="empty-icon">📦</div>'+(dbStock.length?'Sin resultados':'Sin productos — cargá el catálogo desde el Admin')+'</div>';
@@ -14408,7 +14413,24 @@ function renderStock(){
     return;
   }
   list.innerHTML="";
+  var _famActual = null;
+  var _agrupar = (_stkOrden==="nombre" || !_stkOrden);
   prods.forEach(function(p){
+    // Encabezado de familia (agrupa las variantes)
+    if(_agrupar){
+      var fam = p.familia || p.padre || null;
+      if(fam && fam!==_famActual){
+        // Contar variantes de esta familia en la lista
+        var _nVar = prods.filter(function(x){ return (x.familia||x.padre)===fam; }).length;
+        if(_nVar>1){
+          var head=document.createElement("div");
+          head.className="stk-fam-head";
+          head.innerHTML='📦 '+escHtml(fam)+' <span style="font-weight:600;color:var(--muted);font-size:11px">· '+_nVar+' variantes</span>';
+          list.appendChild(head);
+          _famActual = fam;
+        } else { _famActual = null; }
+      } else if(!fam){ _famActual = null; }
+    }
     var qty=stockData[p.id]!==undefined ? stockData[p.id] : 0;
     var res=+(stockReservado[p.id]||0);
     var disp=qty-res;
@@ -14420,15 +14442,12 @@ function renderStock(){
     card.style.flexWrap="wrap";
     card.dataset.pid = p.id;
     // Bloque de los 3 números (solo si hay reservas o control de stock activo)
-    var tresNums = "";
-    if(_ctrlStockOn() || res>0){
-      tresNums =
+    var tresNums =
         '<div class="stk-3num" title="Físico = lo que hay en depósito · Reservado = comprometido en pedidos · Disponible = lo que se puede vender">'+
           '<div class="stk-3num-c"><div class="stk-3num-v">'+qty+'</div><div class="stk-3num-l">físico</div></div>'+
           '<div class="stk-3num-c"><div class="stk-3num-v" style="color:'+(res>0?"#b45309":"var(--muted)")+'">'+res+'</div><div class="stk-3num-l">reservado</div></div>'+
           '<div class="stk-3num-c"><div class="stk-3num-v" style="color:'+(disp>0?"#0f8a4a":"#b91c1c")+';font-weight:800">'+disp+'</div><div class="stk-3num-l">disponible</div></div>'+
         '</div>';
-    }
     card.innerHTML=
       '<div class="stk-row-info">'+
         '<div class="stk-row-cod">'+p.id+'</div>'+
