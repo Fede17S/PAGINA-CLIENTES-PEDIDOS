@@ -3031,7 +3031,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-arm1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-arm3</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -7308,7 +7308,7 @@ async function _sbInsertProducto(p){ var rows=await sbPost("productos",{empresa_
 async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.detalles!==undefined)b.detalles=p.detalles;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.vendePor!==undefined)b.vende_por=p.vendePor;if(p.pesoDisplay!==undefined)b.peso_display=p.pesoDisplay;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; }); }
 
 async function _sbGetUsuarios(){
-  var rows = await sbGet("usuarios","select=id,uid,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng,vendedor_asignado&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+  var rows = await sbGet("usuarios","select=id,uid,name,role,roles,lista,direccion,telefono,cuit,zona,zona_id,recepciona,nota,catalogo,lat,lng,vendedor_asignado,comision,meta&empresa_id=eq."+_sbEmpId+"&order=name.asc");
   if(!rows) return null;
   var r={};
   rows.forEach(function(u){
@@ -7328,6 +7328,8 @@ async function _sbGetUsuarios(){
       nota:      u.nota||"",
       lat:       u.lat||null,
       lng:       u.lng||null,
+      comision:  (u.comision!=null ? u.comision : null),   // 0% es un valor válido
+      meta:      (u.meta!=null     ? u.meta     : null),
       vendedor_asignado: u.vendedor_asignado||null
     };
   });
@@ -26536,7 +26538,7 @@ function abrirEditarVendedor(uid){
   _editVndData = u;
   document.getElementById("mevnd-uid").value = uid;
   document.getElementById("mevnd-nombre").value = u.name||uid;
-  document.getElementById("mevnd-com").value = u.comision||5;
+  document.getElementById("mevnd-com").value = (u.comision!=null && u.comision!=="") ? u.comision : 5;
   document.getElementById("mevnd-meta").value = u.meta||0;
   _poblarSelectoresZona();
   setTimeout(function(){ document.getElementById("mevnd-zona").value = u.zona_id||""; }, 100);
@@ -26547,11 +26549,24 @@ async function guardarEdicionVendedor(){
   var uid = document.getElementById("mevnd-uid").value;
   var u = Object.values(_clientesDB||{}).find(function(u){ return u.id===uid||u.uid===uid; });
   if(!u||!u._sbId){ showNotif("Usuario no encontrado","err"); return; }
-  var comision = parseFloat(document.getElementById("mevnd-com").value)||5;
+  var comision = parseFloat(document.getElementById("mevnd-com").value);
+  if(isNaN(comision)) comision = 5;
   var meta     = parseFloat(document.getElementById("mevnd-meta").value)||0;
   var zona_id  = document.getElementById("mevnd-zona").value||null;
   try {
     await sbPatch("usuarios","id=eq."+u._sbId+"&empresa_id=eq."+_sbEmpId, {comision:comision, meta:meta, zona_id:zona_id});
+    // IMPORTANTE: la comisión se LEE de Firebase (_clientesDB), así que también hay que guardarla ahí.
+    // Antes solo se guardaba en Supabase → al recargar volvía al 5% por defecto.
+    var _fbKeys = Object.keys(_clientesDB).filter(function(k){
+      return _clientesDB[k].id===uid || _clientesDB[k]._sbId===u._sbId || _clientesDB[k].uid===uid;
+    });
+    for(var i=0;i<_fbKeys.length;i++){
+      try{
+        await fbPatchQ("empresas/"+empresaKey+"/usuarios/"+_fbKeys[i],
+          {comision:comision, meta:meta, zona_id:zona_id},
+          "Comisión de "+(u.name||uid)+": "+comision+"%");
+      }catch(e){ console.warn("[Vendedor] Firebase:", e); }
+    }
     // Actualizar cache local
     Object.keys(_clientesDB).forEach(function(k){
       if(_clientesDB[k].id===uid||_clientesDB[k]._sbId===u._sbId){
@@ -26562,7 +26577,7 @@ async function guardarEdicionVendedor(){
     });
     cerrarModal("modal-editar-vendedor");
     renderVendedores();
-    showNotif("✅ Vendedor actualizado","ok");
+    showNotif("✅ Comisión guardada: "+comision+"%","ok");
   } catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 
@@ -26719,8 +26734,8 @@ function renderVendedores(){
   html += '<div style="font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">'+periodo+' — Ranking</div>';
   sorted.forEach(function(vnd,idx){
     var uData = Object.values(_clientesDB||{}).find(function(u){ return u.id===vnd.uid; }) || {};
-    var comPctVnd = uData.comision || comPct;
-    var metaVnd   = uData.meta     || META_VENTAS;
+    var comPctVnd = (uData.comision!=null && uData.comision!=="") ? +uData.comision : comPct;   // 0% es válido
+    var metaVnd   = (uData.meta!=null     && uData.meta!=="")     ? +uData.meta     : META_VENTAS;
     var zonaVnd   = uData.zona_id  ? (_zonasData[uData.zona_id]||{nombre:"?"}) : null;
     var rankClass=idx===0?"rank-1":idx===1?"rank-2":idx===2?"rank-3":"";
     var rankEmoji=idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":"";
@@ -29690,7 +29705,7 @@ async function _armListo(){
   var items=bk.items||[], falt=[];
   items.forEach(function(it,i){ if(_armFalta[i]){ falt.push({n:it.n||it.nombre||it.nom||it.name||"?", c:it.c||it.cant||it.cantidad||it.qty||0}); } });
   var bultos=parseInt((document.getElementById("arm-bultos")||{value:""}).value,10); if(isNaN(bultos)) bultos=null;
-  var payload={armado_por:uid,armado_por_nom:nom,armado_en:ahora,faltantes:falt};
+  var payload={armado_por:uid,armado_por_nom:nom,armado_en:ahora,faltantes:falt,estado:"enviado"};
   if(bultos!=null) payload.bultos=bultos;
   if(!bk.armadoInicio) payload.armado_inicio=ahora;
   try{
@@ -29699,11 +29714,11 @@ async function _armListo(){
     // Antes esto se tragaba en silencio: el pedido quedaba "armado" en el celular
     // pero NO en la base → al recargar desaparecía y no se podía imprimir la etiqueta.
     console.error("[Armador] No se pudo guardar el armado:", e);
-    showNotif("⚠️ No se pudo guardar en el servidor: "+(e.message||"error de conexión")+". Revisá la conexión.","err");
+    showNotif("⚠️ No se pudo guardar en el servidor: "+(e.message||"error de conexión")+". Revisá la conexión y volvé a intentar.","err");
   }
   var arr=_armGetAll(), idx=arr.findIndex(function(x){return x.id===bk.id;});
-  if(idx>=0){ arr[idx].armadoPor=uid; arr[idx].armadoPorNom=nom; arr[idx].armadoEn=ahora; arr[idx].faltantes=falt; if(bultos!=null) arr[idx].bultos=bultos; if(payload.armado_inicio) arr[idx].armadoInicio=ahora; if(typeof saveBackups==="function") saveBackups(arr); }
-  bk.armadoPor=uid; bk.armadoPorNom=nom; bk.armadoEn=ahora; bk.faltantes=falt; if(bultos!=null) bk.bultos=bultos; if(payload.armado_inicio) bk.armadoInicio=ahora;
+  if(idx>=0){ arr[idx].armadoPor=uid; arr[idx].armadoPorNom=nom; arr[idx].armadoEn=ahora; arr[idx].faltantes=falt; arr[idx].estado="enviado"; if(bultos!=null) arr[idx].bultos=bultos; if(payload.armado_inicio) arr[idx].armadoInicio=ahora; if(typeof saveBackups==="function") saveBackups(arr); }
+  bk.armadoPor=uid; bk.armadoPorNom=nom; bk.armadoEn=ahora; bk.faltantes=falt; bk.estado="enviado"; if(bultos!=null) bk.bultos=bultos; if(payload.armado_inicio) bk.armadoInicio=ahora;
   if(falt.length){ _armDescontarDelPedido(bk, falt); await _armDescontarDeRuta(bk, falt); }
   // MOTOR DE STOCK: el pedido sale del depósito → baja el físico y se libera la reserva.
   // Solo se descuenta lo que REALMENTE salió (los faltantes no salieron).
@@ -29714,7 +29729,8 @@ async function _armListo(){
     }).filter(Boolean);
     await _stkSalida(sbId, _sal);
   }catch(e){ console.warn("[Stock] salida:", e.message); }
-  if(typeof _cambiarEstadoPedido==="function") await _cambiarEstadoPedido(bk,"enviado");
+  // Aviso al cliente por WhatsApp (el estado "enviado" ya se guardó arriba, en un solo patch)
+  if(typeof _ofrecerAvisoWhatsApp==="function"){ try{ _ofrecerAvisoWhatsApp(bk,"enviado"); }catch(e){} }
   var m=document.getElementById("arm-modal"); if(m) m.style.display="none";
   if(typeof showNotif==="function") showNotif(falt.length?("✅ Listo · "+falt.length+" faltante"+(falt.length!==1?"s":"")+" descontado"+(falt.length!==1?"s":"")+" del reparto"):"✅ Pedido listo para reparto","ok");
   _armInicioRender();
@@ -29733,11 +29749,16 @@ async function _armDeshacer(id){
 }
 function _armFechaEtiq(d){ try{ return d.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+d.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
 function _armArmados(){
-  var uid=_armUid(), hoy=new Date(); hoy.setHours(0,0,0,0);
+  // Mostrar TODO lo que armó este usuario (sin límite de fecha).
+  // Antes el filtro por "hoy" escondía lo armado en días anteriores.
   return _armGetAll().filter(function(b){
     if(!_armMio(b)) return false;
-    var e=b.estado||""; if(e!=="enviado"&&e!=="entregado") return false;
-    if(!b.armadoEn) return false; var d=new Date(b.armadoEn); return !isNaN(d)&&d.getTime()>=hoy.getTime();
+    if(!b.armadoEn) return false;
+    var d=new Date(b.armadoEn); if(isNaN(d)) return false;
+    // Excluir los que volvieron a "preparando" / sin armar (des-armados)
+    var e=b.estado||"";
+    if(e==="preparando"||e==="pendiente"||e==="") return false;
+    return true;
   }).sort(function(a,b){ return (""+(b.armadoEn||"")).localeCompare(""+(a.armadoEn||"")); });
 }
 function _armLabelCard(bk, idx, tot){
@@ -29962,21 +29983,45 @@ async function _armInicioRender(){
     +'<div class="repi-kpi"><div class="repi-kpi-ic">🔢</div><div class="repi-kpi-val">'+uni+'</div><div class="repi-kpi-lbl">unidades</div></div>';
 
   var uid=_armUid(), hoy=new Date(); hoy.setHours(0,0,0,0);
-  var mios=_armGetAll().filter(function(b){
-    if(!_armMio(b)) return false;
-    var e=b.estado||""; if(e!=="enviado"&&e!=="entregado") return false;
-    if(!b.armadoEn) return false; var d=new Date(b.armadoEn); return !isNaN(d)&&d.getTime()>=hoy.getTime();
-  }).sort(function(a,b){ return (""+(b.armadoEn||"")).localeCompare(""+(a.armadoEn||"")); });
+  var mios=_armArmados();
   var nSin=document.getElementById("arm-sec-n-sinarmar"); if(nSin) nSin.textContent=pend.length;
   var nArm=document.getElementById("arm-sec-n-armados"); if(nArm) nArm.textContent=mios.length;
   var ht=document.getElementById("armi-hoy-title"), hl=document.getElementById("armi-hoy");
   if(hl){
-    if(!mios.length){ if(ht) ht.style.display="none"; hl.innerHTML='<div class="repi-empty">Todav\u00eda no armaste pedidos hoy.</div>'; }
+    if(!mios.length){ if(ht) ht.style.display="none"; hl.innerHTML='<div class="repi-empty">Todav\u00eda no armaste pedidos.</div>'; }
     else {
-      if(ht){ ht.style.display=""; ht.textContent="Armados hoy ("+mios.length+")"; }
-      hl.innerHTML='<button onclick="_armImprimirTodas()" style="width:100%;margin-bottom:10px;padding:11px;background:var(--gold,#c9933a);border:none;color:#0a1628;border-radius:11px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">\ud83d\udda8\ufe0f Imprimir todas las etiquetas ('+mios.length+')</button>'+mios.map(function(b){
+      if(ht){ ht.style.display=""; ht.textContent="Armados ("+mios.length+")"; }
+      // Resumen para liquidar el pago del armador
+      var _totCajas = mios.reduce(function(s,b){ var n=parseInt(b.bultos,10); return s+(isNaN(n)?1:n); },0);
+      var _totProds = mios.reduce(function(s,b){ return s+((b.items||[]).length); },0);
+      var _resumen =
+        '<div style="display:flex;gap:6px;margin-bottom:10px">'+
+          '<div style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:8px;text-align:center"><div style="font-size:17px;font-weight:800">'+mios.length+'</div><div style="font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase">Pedidos</div></div>'+
+          '<div style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:8px;text-align:center"><div style="font-size:17px;font-weight:800">'+_totCajas+'</div><div style="font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase">Cajas</div></div>'+
+          '<div style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:8px;text-align:center"><div style="font-size:17px;font-weight:800">'+_totProds+'</div><div style="font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase">Productos</div></div>'+
+        '</div>';
+      // Limpiar selección de pedidos que ya no están en la lista
+      Object.keys(_armSel).forEach(function(id){ if(!mios.find(function(b){return b.id===id;})) delete _armSel[id]; });
+      var nSel = Object.keys(_armSel).filter(function(k){return _armSel[k];}).length;
+      hl.innerHTML=
+        _resumen+
+        // Barra de acciones
+        '<div style="display:flex;gap:7px;margin-bottom:10px">'+
+          '<button onclick="_armImprimirTodas()" style="flex:1;padding:11px;background:var(--gold,#c9933a);border:none;color:#0a1628;border-radius:11px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">\ud83d\udda8\ufe0f Imprimir todas ('+mios.length+')</button>'+
+          '<button onclick="_armImprimirSel()" id="arm-print-sel" style="flex:1;padding:11px;background:'+(nSel?'#0f8a4a':'var(--s3)')+';border:none;color:'+(nSel?'#fff':'var(--muted)')+';border-radius:11px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">\u2705 Imprimir elegidas'+(nSel?' ('+nSel+')':'')+'</button>'+
+        '</div>'+
+        '<div style="display:flex;gap:6px;margin-bottom:8px;font-size:12px">'+
+          '<button onclick="_armSelTodos(true)" style="flex:1;padding:7px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-weight:600;cursor:pointer;font-family:inherit">Elegir todas</button>'+
+          '<button onclick="_armSelTodos(false)" style="flex:1;padding:7px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-weight:600;cursor:pointer;font-family:inherit">Ninguna</button>'+
+        '</div>'+
+        mios.map(function(b){
         var tt=_armTiempo(b), fa=(b.faltantes&&b.faltantes.length)||0, cajas=(b.bultos!=null&&b.bultos!=="")?(b.bultos+" caja"+(b.bultos!==1?"s":"")):"";
-        return '<div class="armh-row"><div class="armh-info"><div class="armh-nom">'+(b.clienteNom||"Pedido")+(b.estado==="entregado"?' <span class="armh-ent">entregado</span>':'')+'</div>'
+        var sel=!!_armSel[b.id];
+        return '<div class="armh-row" style="'+(sel?'background:var(--green-bg,#e8f7ef);border-color:#0f8a4a':'')+'">'+
+          '<label style="display:flex;align-items:center;padding:0 6px 0 2px;cursor:pointer" onclick="event.stopPropagation()">'+
+            '<input type="checkbox" '+(sel?"checked":"")+' onchange="_armSelToggle(\''+b.id+'\',this.checked)" style="width:18px;height:18px">'+
+          '</label>'+
+          '<div class="armh-info"><div class="armh-nom">'+(b.clienteNom||"Pedido")+(b.estado==="entregado"?' <span class="armh-ent">entregado</span>':'')+'</div>'
           +'<div class="armh-sub">'+(tt?('⏱ '+tt+' · '):'')+(cajas?(cajas+' · '):'')+((b.items||[]).length)+' prod.'+(fa?(' · <span class="armh-falta">⚠️ '+fa+' falt.</span>'):'')+'</div></div>'
           +'<button class="armh-btn" onclick="_armImprimirEtiqueta(\''+b.id+'\')" title="Etiqueta">🖨️</button>'
           +(b.estado==="enviado"?'<button class="armh-btn" onclick="_armDeshacer(\''+b.id+'\')" title="Deshacer">↩️</button>':'')
@@ -29990,6 +30035,32 @@ async function _armInicioRender(){
 }
 
 function _armImprimirTodas(){ _armPrintLabels(_armArmados()); }
+// ═══ Selección de pedidos para imprimir etiquetas ═══
+var _armSel = {};
+function _armSelToggle(id, v){
+  _armSel[id] = v;
+  var n = Object.keys(_armSel).filter(function(k){return _armSel[k];}).length;
+  var btn = document.getElementById("arm-print-sel");
+  if(btn){
+    btn.style.background = n ? "#0f8a4a" : "var(--s3)";
+    btn.style.color = n ? "#fff" : "var(--muted)";
+    btn.textContent = "✅ Imprimir elegidas" + (n?" ("+n+")":"");
+  }
+  // Resaltar la fila sin re-renderizar todo
+  _armInicioRender();
+}
+function _armSelTodos(v){
+  var mios = _armArmados();
+  mios.forEach(function(b){ _armSel[b.id] = v; });
+  _armInicioRender();
+}
+function _armImprimirSel(){
+  var ids = Object.keys(_armSel).filter(function(k){return _armSel[k];});
+  if(!ids.length){ if(typeof showNotif==="function") showNotif("Elegí al menos un pedido","info"); return; }
+  var todos = _armArmados();
+  var elegidos = todos.filter(function(b){ return _armSel[b.id]; });
+  _armPrintLabels(elegidos);
+}
 
 </script>
 
