@@ -3033,7 +3033,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-stk6</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-off2</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -6052,9 +6052,10 @@ function _sbHeaders(extra){
 }
 
 function sbFetch(method, path, body){
-  // Timeout de 15 segundos para evitar que quede colgado
+  // Timeout: 8s para GET (así cae rápido al cache si la señal está mala), 15s para escrituras
+  var _to = (method==="GET") ? 8000 : 15000;
   var controller = typeof AbortController!=="undefined" ? new AbortController() : null;
-  var timer = controller ? setTimeout(function(){ controller.abort(); }, 15000) : null;
+  var timer = controller ? setTimeout(function(){ controller.abort(); }, _to) : null;
   // Headers: copia de los base + token de empresa si existe (para RLS).
   var _hdr = SB_HDR;
   if(_empToken){
@@ -6209,6 +6210,18 @@ function sbGet(table, params){
   return _sbGetRaw(table, params||"").then(function(data){
     if(data != null) _sbCacheSave(table, params||"", data);
     return data;
+  }).catch(function(err){
+    // CLAVE: si la petición falla estando "online" (corte breve de señal, timeout),
+    // NO dejar la pantalla vacía. Devolver lo último que se cacheó.
+    // Esto es lo que evitaba que "se fue un segundo la señal y no aparecían los clientes".
+    var cached = _sbCacheLoad(table, params||"");
+    if(cached != null){
+      console.warn("[Red inestable] "+table+": usando datos guardados.");
+      if(typeof _marcarRedInestable==="function") _marcarRedInestable();
+      return cached;
+    }
+    console.warn("[Red] "+table+" falló y no hay cache:", err&&err.message);
+    return null;
   });
 }
 
@@ -7788,6 +7801,24 @@ window.onload = function(){
     cacheKeys.forEach(function(k){ localStorage.removeItem(k); });
   } catch(e){}
 
+// Carga los clientes desde el cache offline a _clientesDB.
+// Se usa tanto al reabrir CON internet como SIN internet (para que la lista nunca quede vacía).
+function _cargarClientesDesdeCache(cached){
+  try{
+    var users = cached || _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
+    if(!users || !users.length) return false;
+    users.forEach(function(u){
+      _clientesDB[u.id]={id:u.uid||u.id,_sbId:u.id,name:u.name,role:u.role,
+        roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),lista:u.lista,
+        direccion:u.direccion||"",tel:u.telefono||"",cuit:u.cuit||"",lat:u.lat||null,lng:u.lng||null,
+        zona:u.zona||"",zona_id:u.zona_id||"",rec:u.recepciona||"",nota:u.nota||"",
+        comision:(u.comision!=null?u.comision:null),meta:(u.meta!=null?u.meta:null),
+        vendedor_asignado:u.vendedor_asignado||null,catalogo:u.catalogo};
+    });
+    return true;
+  }catch(e){ console.warn("[Cache] clientes:", e); return false; }
+}
+
   var saved = localStorage.getItem("dm_session");
   if(saved){ try{
     var s=JSON.parse(saved);
@@ -7806,14 +7837,14 @@ window.onload = function(){
       aplicarRestricciones(); cargarListasPrecios();
       // Precalentar cache offline 8s después del login para no bloquear la UI
       setTimeout(_precalentarCacheOffline, 8000);
-      var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
-      if(cachedUsers && cachedUsers.length){
-        cachedUsers.forEach(function(u){
-          _clientesDB[u.id]={id:u.uid||u.id,_sbId:u.id,name:u.name,role:u.role,roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),lista:u.lista,
-            direccion:u.direccion||"",tel:u.telefono||"",cuit:u.cuit||"",lat:u.lat||null,lng:u.lng||null,
-            zona:u.zona||"",zona_id:u.zona_id||"",rec:u.recepciona||"",nota:u.nota||""};
-        });
+      // Refrescar el cache cada 5 minutos, para que nunca envejezca demasiado
+      if(!window._cachePeriodico){
+        window._cachePeriodico = setInterval(function(){
+          if(navigator.onLine) _precalentarCacheOffline();
+        }, 5*60*1000);
       }
+      var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
+      if(cachedUsers && cachedUsers.length){ _cargarClientesDesdeCache(cachedUsers); }
       iniciarApp(); setTimeout(_checkNotifButton,1000);
       setTimeout(_initTrackingUbicacion, 3000);
       _bkPendingQueue=_bkQueueGet();
@@ -7822,9 +7853,13 @@ window.onload = function(){
       // Sin red al reabrir la app: NO echamos al usuario al login.
       // Entramos con la sesión guardada; el control de acceso real se re-verifica cuando vuelve la conexión.
       _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
-      aplicarRestricciones(); cargarListasPrecios(); iniciarApp();
+      aplicarRestricciones(); cargarListasPrecios();
+      // IMPORTANTE: cargar los clientes desde el cache (si no, la lista queda vacía al reabrir sin internet)
+      _cargarClientesDesdeCache();
+      iniciarApp();
       setTimeout(_checkNotifButton,1000);
       setTimeout(_initTrackingUbicacion, 3000);
+      _bkPendingQueue=_bkQueueGet();
     });
   }catch(e){ localStorage.removeItem("dm_session"); document.documentElement.classList.remove("has-session"); } }
   document.getElementById("l-pass").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
@@ -9513,7 +9548,7 @@ function _cmp(actual, prev, etiq){
 async function _cargarDashData(force){
   if(!_sbEmpId) return;
   // Entregas (hoja de ruta) — liviano, sin items. Fuente de TODO: facturado, cobrado, calle, etc.
-  try { _dashCache.entregas = await sbGet("ruta_clientes","select=nom,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || (_dashCache.entregas||[]); } catch(e){ if(!_dashCache.entregas)_dashCache.entregas=[]; }
+  try { _dashCache.entregas = await sbGet("ruta_clientes","select=nom,cliente_id,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || (_dashCache.entregas||[]); } catch(e){ if(!_dashCache.entregas)_dashCache.entregas=[]; }
   // Items de la ruta (más pesado) — solo en carga/refresh manual, para Top productos
   if(force || !_dashCache.entItems){
     try { _dashCache.entItems = await sbGet("ruta_clientes","select=nom,items,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || []; } catch(e){ if(!_dashCache.entItems)_dashCache.entItems=[]; }
@@ -9633,10 +9668,37 @@ function _dashRender(){
   entIt.forEach(function(c){ if(!zonaOk(c.nom) || !enRango(c.fecha,lim)) return; (c.items||[]).forEach(function(it){ var n=it.n||it.nombre||it.nom||it.name||"?"; var q=it.c||it.cant||it.cantidad||it.qty||0; if(n!=="?") prodMap[n]=(prodMap[n]||0)+q; }); });
   var topProd=Object.keys(prodMap).map(function(k){return{nom:k,cant:prodMap[k]};}).sort(function(a,b){return b.cant-a.cant;}).slice(0,5);
 
+  // Clientes en riesgo — agrupar por ID de cliente (no por nombre).
+  // Antes se agrupaba por nombre: al renombrar un cliente, sus ventas viejas
+  // conservaban el nombre viejo y aparecía como un "cliente fantasma" que dejó de comprar.
   var ultC={}, cntC={};
-  ent.forEach(function(c){ if(!zonaOk(c.nom)) return; var k=c.nom||"Sin cliente"; var t=c.fecha?new Date(c.fecha).getTime():0; if(!ultC[k]||t>ultC[k])ultC[k]=t; cntC[k]=(cntC[k]||0)+1; });
+  ent.forEach(function(c){
+    if(!zonaOk(c.nom)) return;
+    // Clave: preferir el ID; si no hay, caer al nombre
+    var cid = c.clienteId || c.cliente_id || null;
+    var k = cid ? ("id:"+cid) : ("nom:"+(c.nom||"Sin cliente"));
+    var t = c.fecha?new Date(c.fecha).getTime():0;
+    if(!ultC[k]||t>ultC[k]) ultC[k]=t;
+    cntC[k]=(cntC[k]||0)+1;
+  });
   var riesgo=[];
-  Object.keys(ultC).forEach(function(k){ if(cntC[k]<2) return; var dias=Math.floor((ahora-ultC[k])/86400000); if(dias>=21) riesgo.push({nom:k,dias:dias}); });
+  Object.keys(ultC).forEach(function(k){
+    if(cntC[k]<2) return;
+    var dias=Math.floor((ahora-ultC[k])/86400000);
+    if(dias<21) return;
+    var nombreActual, existe=true;
+    if(k.indexOf("id:")===0){
+      var cid=k.slice(3);
+      // Buscar el cliente por ID → usar su nombre ACTUAL
+      var u=Object.values(_clientesDB||{}).find(function(x){ return String(x.id)===String(cid)||String(x._sbId)===String(cid); });
+      if(u){ nombreActual = u.name||u.id; }
+      else { existe=false; }   // cliente borrado → no es un "fantasma", ya no existe
+    } else {
+      nombreActual = k.slice(4);
+    }
+    if(!existe) return;   // no listar clientes que ya no existen
+    riesgo.push({nom:nombreActual, dias:dias});
+  });
   riesgo.sort(function(a,b){return b.dias-a.dias;});
 
   // Guardar snapshot del dashboard para poder exportarlo (resumen WhatsApp)
@@ -20917,6 +20979,26 @@ function _showSyncing(on){
   var el = document.getElementById("offline-syncing");
   if(el) el.style.display = on ? "inline" : "none";
 }
+// Red inestable: online según el celu, pero las peticiones fallan (corte breve).
+// Muestra el banner en amarillo un ratito y lo esconde solo si se recupera.
+var _redInestableTimer = null;
+function _marcarRedInestable(){
+  var banner = document.getElementById("offline-banner");
+  var txt = document.getElementById("offline-text");
+  if(!banner) return;
+  banner.style.display = "flex";
+  banner.style.background = "#1a1200";
+  if(txt) txt.textContent = "⚠️ Conexión inestable — trabajando con datos guardados";
+  if(_redInestableTimer) clearTimeout(_redInestableTimer);
+  // Si en 6s no hubo otro fallo, asumimos que se recuperó y escondemos el aviso
+  _redInestableTimer = setTimeout(function(){
+    if(navigator.onLine){
+      banner.style.display = "none";
+      banner.style.background = "#1a0e00";
+    }
+    _updateBanner();
+  }, 6000);
+}
 
 /* ─ ONLINE / OFFLINE handlers ─ */
 function actualizarEstadoConexion(){
@@ -20927,6 +21009,20 @@ function actualizarEstadoConexion(){
   }
 }
 window.addEventListener("online",  actualizarEstadoConexion);
+// Al volver la conexión: además de mandar la cola, refrescar los datos en pantalla
+// (por si estuvimos trabajando con cache viejo). Con un pequeño delay para dar tiempo a la red.
+window.addEventListener("online", function(){
+  setTimeout(function(){
+    if(!navigator.onLine) return;
+    // Recargar clientes y productos frescos, sin recargar toda la app
+    try{
+      if(typeof _sbGetUsuarios==="function"){
+        _sbGetUsuarios().then(function(u){ if(u){ _clientesDB=Object.assign(_clientesDB||{},u); if(typeof renderClientes==="function" && document.getElementById("clientes")) renderClientes(); } }).catch(function(){});
+      }
+      if(typeof cargarCatalogo==="function") cargarCatalogo();
+    }catch(e){ console.warn("[Reconexión] refresh:", e); }
+  }, 3000);
+});
 window.addEventListener("offline", actualizarEstadoConexion);
 
 // ══════════════════════════════════════════════════════
@@ -26370,9 +26466,31 @@ async function guardarZona(){
 }
 
 async function borrarZona(id){
-  if(!(await _confirmar({icono:"🗺️",titulo:"Borrar zona",mensaje:"¿Borrar esta zona? Los usuarios no se borrarán, solo se les quitará la zona.",ok:"Borrar",peligro:true}))) return;
+  if(!(await _confirmar({icono:"🗺️",titulo:"Borrar zona",mensaje:"¿Borrar esta zona? A los clientes que la tenían se les va a quitar.",ok:"Borrar",peligro:true}))) return;
   var _znom = (_zonasData[id]&&_zonasData[id].nombre)||id;
-  try { await sbDel("zonas","id=eq."+id+"&empresa_id=eq."+_sbEmpId); _auditar("borrar","zona",id,"Borró la zona: "+_znom); delete _zonasData[id]; renderZonas(); showNotif("Zona borrada","ok"); }
+  try {
+    await sbDel("zonas","id=eq."+id+"&empresa_id=eq."+_sbEmpId);
+    _auditar("borrar","zona",id,"Borró la zona: "+_znom);
+    delete _zonasData[id];
+    // Limpiar la zona de todos los clientes que la tenían (por id Y por nombre)
+    // Si no, el nombre queda "pegado" en el cliente y sigue apareciendo en los filtros.
+    var _afectados = Object.keys(_clientesDB||{}).filter(function(k){
+      var u=_clientesDB[k];
+      return u && (String(u.zona_id||"")===String(id) || (u.zona && u.zona===_znom));
+    });
+    for(var i=0;i<_afectados.length;i++){
+      var k=_afectados[i], u=_clientesDB[k];
+      try{
+        if(u._sbId) await sbPatch("usuarios","id=eq."+u._sbId+"&empresa_id=eq."+_sbEmpId, {zona_id:null, zona:""});
+        await fbPatchQ("empresas/"+empresaKey+"/usuarios/"+k, {zona_id:null, zona:""}, "Quitó zona borrada");
+        u.zona_id=null; u.zona="";
+      }catch(e){ console.warn("[Zona] limpiar cliente:", e); }
+    }
+    // Refrescar el dashboard (que arma el filtro desde los clientes)
+    if(typeof _dashCache!=="undefined" && _dashCache){ _dashCache.zonaCli={}; }
+    renderZonas();
+    showNotif("Zona borrada"+(_afectados.length?(" · "+_afectados.length+" cliente"+(_afectados.length!==1?"s":"")+" actualizados"):""),"ok");
+  }
   catch(e){ showNotif("Error: "+e.message,"err"); }
 }
 
