@@ -2331,7 +2331,7 @@ html[data-theme="dark"] .prod-toolbar {
 .fin-per-resumen .r .v { font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:1px; }
 
 /* ===== Catálogo en vivo (kiosco, espejo de la tienda) ===== */
-#catalogo-vivo { display:none; position:fixed; inset:0; z-index:100000; background:var(--bg); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+#catalogo-vivo { display:none; position:fixed; inset:0; z-index:100000; background:var(--bg); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
 .cv-head { position:sticky; top:0; z-index:5; background:var(--s1); border-bottom:1px solid var(--border); padding:calc(9px + var(--safe-top)) 12px 9px; display:flex; flex-direction:column; gap:9px; }
 .cv-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:12px; }
 @media (min-width:600px){ .cv-grid { grid-template-columns:repeat(3,1fr); } }
@@ -2649,6 +2649,8 @@ html[data-theme="dark"] .prod-toolbar {
 button, .btn, .sb-item, .ruta-list-btn, .dd-item, .mprod-cls, .item-del, .cat-item-btn
   { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 input, select, textarea { -webkit-appearance: none; appearance: none; }
+/* Los checkbox y radio SÍ deben verse (la regla de arriba los deja invisibles al tildar) */
+input[type="checkbox"], input[type="radio"] { -webkit-appearance: auto !important; appearance: auto !important; accent-color: var(--accent); cursor:pointer; }
 input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -3029,11 +3031,14 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">📖</span>Catálogo en vivo
     </button>
     <div class="sb-group-lbl" id="nav-admin-section">Admin</div>
+    <button class="sb-item" id="nav-auditoria" onclick="verTab('auditoria',this)">
+      <span class="sb-icon">📋</span>Auditoría
+    </button>
     <button class="sb-item" id="nav-datos-empresa" onclick="verTab('datos-empresa',this)">
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-off2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-cv1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -3285,7 +3290,18 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <button class="modal-cls" onclick="cerrarModal('modal-cuenta')">✕</button>
     </div>
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
-      <button id="cuenta-notif-btn" onclick="activarNotificaciones()" style="display:none;width:100%;padding:11px 12px;background:oklch(22% 0.06 240);color:oklch(85% 0.08 240);border:1px solid oklch(35% 0.08 240);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center">🔔 Activar notificaciones</button>
+      <div id="cuenta-notif-row" style="display:none;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 12px;background:var(--s2);border:1px solid var(--border);border-radius:9px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:15px">🔔</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Notificaciones</div>
+            <div id="cuenta-notif-estado" style="font-size:11px;color:var(--muted)">Desactivadas</div>
+          </div>
+        </div>
+        <button id="cuenta-notif-switch" onclick="_toggleNotif()" role="switch" aria-checked="false" style="position:relative;width:46px;height:26px;border-radius:20px;border:none;background:#cbd5e1;cursor:pointer;transition:background .2s;flex-shrink:0;padding:0">
+          <span id="cuenta-notif-knob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>
+        </button>
+      </div>
       <button id="cuenta-onb-btn" onclick="cerrarModal('modal-cuenta');abrirOnboarding();" style="display:none;width:100%;padding:11px 12px;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center">🚀 Primeros pasos</button>
       <button onclick="doLogout()" style="width:100%;padding:11px 12px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center">🚪 Cerrar sesión</button>
     </div>
@@ -3389,7 +3405,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <div class="card">
     <div class="card-head"><span class="card-title">🛒 Cargá el pedido</span></div>
     <div class="card-body">
-      <div class="ped-metodo-switch">
+      <div class="ped-metodo-switch" style="display:none">
         <button id="pm-nuevo" class="on" onclick="_setPedMetodo(true)">🛒 Grilla</button>
         <button id="pm-viejo" onclick="_setPedMetodo(false)">📝 Clásico</button>
       </div>
@@ -3561,6 +3577,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       </select>
       <select id="ruta-fil-zona" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
         <option value="">Todas las zonas</option>
+      </select>
+      <select id="ruta-fil-rep" onchange="renderRutas()" style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
+        <option value="">Todos los repartidores</option>
       </select>
       <button class="rfa btn btn-ghost btn-sm" onclick="cargarRutasFirebase()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></button>
       <button class="nueva-ruta-btn" id="btn-nueva-ruta" onclick="crearNuevaRuta()">+ Nueva Ruta</button>
@@ -4269,6 +4288,38 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <!-- ══════════════════════════════════
      SECCIÓN: GESTIÓN DE CLIENTES
 ══════════════════════════════════ -->
+<div id="auditoria" class="section">
+  <div style="max-width:900px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+      <h2 style="font-size:20px;font-weight:800;margin:0">📋 Auditoría</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="_audExportarPDF()">📄 PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="cargarAuditoria(true)">🔄 Actualizar</button>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 14px">Todos los movimientos y cambios de tu empresa: quién hizo qué y cuándo.</p>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <input type="text" id="aud-buscar" placeholder="🔍 Buscar por usuario, acción o detalle…" oninput="_audRender()" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;background:var(--s1);color:var(--text)">
+      <select id="aud-fil-accion" onchange="_audRender()" style="padding:9px 10px;border:1px solid var(--border);border-radius:9px;font-size:13px;background:var(--s2)">
+        <option value="">Todas las acciones</option>
+        <option value="crear">Crear</option>
+        <option value="editar">Editar</option>
+        <option value="borrar">Borrar</option>
+      </select>
+      <select id="aud-fil-entidad" onchange="_audRender()" style="padding:9px 10px;border:1px solid var(--border);border-radius:9px;font-size:13px;background:var(--s2)">
+        <option value="">Todo</option>
+      </select>
+    </div>
+
+    <div id="aud-resumen" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+    <div id="aud-lista"><div class="empty-box"><div class="empty-icon">📋</div>Cargando movimientos…</div></div>
+    <div style="text-align:center;margin-top:14px">
+      <button class="btn btn-ghost btn-sm" id="aud-mas" onclick="_audMas()" style="display:none">Ver más</button>
+    </div>
+  </div>
+</div>
+
 <div id="datos-empresa" class="section">
 
   <!-- Tabs -->
@@ -4375,6 +4426,25 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span style="font-size:14px;font-weight:600;color:var(--text)">Bloquear la venta de productos sin stock</span>
     </label>
     <button class="mbtn mbtn-primary" onclick="guardarControlStock()" style="padding:11px 24px">💾 Guardar control de stock</button>
+  </div>
+
+  <!-- ═══ ZONA DE PELIGRO: aligerar la base ═══ -->
+  <div class="cfg-card" style="margin-top:14px;border:2px solid #fca5a5;background:#fffafa">
+    <div class="cfg-card-h" style="color:#b91c1c">🧹 Aligerar la base de datos</div>
+    <div class="cfg-card-sub">Borra los <b>pedidos, remitos, hojas de ruta y ventas</b> viejos para que la app vaya más rápida. <b>Nunca</b> toca tus productos ni tus clientes. Antes de borrar, se genera un <b>PDF resumen</b> de respaldo con los totales del período.</div>
+    <div style="background:#fff8f8;border:1px solid #fecaca;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:12.5px;color:#7f1d1d;line-height:1.6">
+      ⚠️ <b>Importante:</b> esto borra datos de forma permanente. Guardá bien el PDF resumen que se genera — es tu respaldo. Recomendado hacerlo cada 6 meses.
+    </div>
+    <div class="cli-field">
+      <label>Borrar lo anterior a:</label>
+      <select id="limp-antiguedad" style="max-width:280px">
+        <option value="6">Más de 6 meses (recomendado)</option>
+        <option value="12">Más de 1 año</option>
+        <option value="3">Más de 3 meses</option>
+      </select>
+    </div>
+    <button class="mbtn" onclick="_limpiarAbrir()" style="padding:11px 24px;background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;font-weight:700">🧹 Revisar qué se puede aligerar</button>
+    <div id="limp-ultima" style="font-size:11.5px;color:var(--muted);margin-top:10px"></div>
   </div>
   </div><!-- end cfg-panel-empresa -->
   <div id="cfg-panel-facturacion" style="display:none">
@@ -4581,10 +4651,33 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   </div>
   </div><!-- end cfg-panel-remito -->
 
-  <!-- ═══ PANEL CUPONES ═══ -->
-  <!-- panel cupones movido a modal-cupones -->
-
 </div><!-- end datos-empresa section -->
+
+<!-- ═══ MODAL ALIGERAR BASE ═══ -->
+<div class="modal-bg" id="modal-limpieza">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-head"><span class="modal-title">🧹 Aligerar la base</span><button class="modal-x" onclick="cerrarModal('modal-limpieza')">✕</button></div>
+    <div class="modal-body">
+      <div id="limp-resumen" style="font-size:13.5px;color:var(--text);line-height:1.6"></div>
+      <div id="limp-paso1" style="margin-top:14px">
+        <button class="mbtn mbtn-primary" onclick="_limpiarGenerarPDF()" style="width:100%;padding:13px;background:#0f8a4a;border-color:#0f8a4a;font-size:14px">📄 Generar PDF resumen de respaldo</button>
+        <div style="background:#fff8f8;border:1px solid #fecaca;border-radius:10px;padding:11px 13px;font-size:12px;color:#7f1d1d;line-height:1.5;margin-top:12px">
+          Primero generá el <b>PDF de respaldo</b> (arriba). Guardalo bien: es tu comprobante de todo lo que había antes de borrar. Recién después vas a poder borrar.
+        </div>
+      </div>
+      <div id="limp-paso2" style="margin-top:14px;display:none">
+        <div style="background:#e8f7ef;border:1px solid #86efac;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#14532d;line-height:1.6;margin-bottom:14px">
+          ✅ PDF generado. Revisá que lo tengas guardado. Ahora podés borrar los datos viejos.
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;margin-bottom:14px;font-size:13px">
+          <input type="checkbox" id="limp-confirmo" onchange="_limpiarToggleConfirm()" style="width:18px;height:18px;margin-top:1px;flex-shrink:0">
+          <span>Confirmo que <b>guardé el PDF de respaldo</b> y entiendo que esto <b>borra los datos de forma permanente</b>.</span>
+        </label>
+        <button class="mbtn" id="limp-btn-borrar" onclick="_limpiarEjecutar()" disabled style="width:100%;padding:12px;background:#ccc;border:none;color:#fff;font-weight:700;cursor:not-allowed">🗑️ Borrar los datos viejos</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="clientes" class="section">
 
@@ -5040,8 +5133,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
           <div>
             <label class="cat-lbl">Por página</label>
             <select id="cat-ppp" style="width:100%">
-              <option value="4">4 (2×2) — grandes</option>
-              <option value="6" selected>6 (2×3)</option>
+              <option value="4" selected>4 (2×2) — grandes</option>
+              <option value="6">6 (2×3)</option>
               <option value="9">9 (3×3) — compacto</option>
             </select>
           </div>
@@ -5161,8 +5254,12 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <div class="modal-head"><span class="modal-title">📲 Enviar a clientes</span><button class="modal-x" onclick="cerrarModal('wa-modal')">✕</button></div>
     <div class="modal-body" style="overflow-y:auto">
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:var(--text2);line-height:1.5">
-        Se abre un chat de WhatsApp por cliente con el mensaje listo. <b>El PDF lo adjuntás vos</b> en el chat (WhatsApp no deja adjuntar archivos desde un link).
+        <b>Dos formas de enviar:</b><br>
+        📎 <b>Compartir PDF</b>: genera el catálogo y abrís WhatsApp para <b>elegir el contacto y mandarlo con el archivo</b> (recomendado).<br>
+        💬 <b>Chats masivos</b>: abre un chat por cliente con el texto listo, pero el PDF lo adjuntás vos (WhatsApp no deja adjuntar desde un link).
       </div>
+      <button onclick="_waCompartirPDF()" class="mbtn mbtn-primary" style="width:100%;padding:13px;margin-bottom:14px;background:#25d366;border-color:#25d366">📎 Generar y compartir el catálogo PDF</button>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px"></div>
       <label class="cat-lbl">Mensaje</label>
       <textarea id="wa-msg" class="cat-inp" rows="4" style="resize:vertical;margin-bottom:12px"></textarea>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
@@ -6084,6 +6181,126 @@ function sbFetch(method, path, body){
 // ===== LOG DE AUDITORÍA =====
 // Registra una acción importante (crear/editar/borrar). No frena la app si falla.
 // Uso: _auditar("borrar", "producto", id, "Borró el producto AXE X150ML");
+// ══════════ AVISOS DEL SUPER-ADMIN (llegan desde DistribuPanel) ══════════
+async function _cargarAvisosAdmin(){
+  try{
+    if(!_sbEmpId) return;
+    // Traer avisos activos: para esta empresa (empresa_id=UUID) O para todas (empresa_id null)
+    var url = SB_URL+"/rest/v1/avisos_admin?select=id,empresa_id,titulo,mensaje,tipo,vence&activo=eq.true&or=(empresa_id.is.null,empresa_id.eq."+_sbEmpId+")&order=creado_en.desc";
+    var res = await fetch(url, { headers:{ "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY } });
+    if(!res.ok) return;
+    var avisos = await res.json();
+    if(!avisos || !avisos.length) return;
+    // Filtrar los ya vistos (guardados localmente) y los vencidos
+    var vistos = {};
+    try{ vistos = JSON.parse(localStorage.getItem("cd_avisos_vistos")||"{}"); }catch(e){}
+    var ahora = Date.now();
+    var pendientes = avisos.filter(function(a){
+      if(vistos[a.id]) return false;
+      if(a.vence && new Date(a.vence).getTime() < ahora) return false;
+      return true;
+    });
+    if(pendientes.length) _mostrarAvisoAdmin(pendientes[0], pendientes.length);
+  }catch(e){ console.warn("[Avisos]", e); }
+}
+function _mostrarAvisoAdmin(aviso, totalPend){
+  var META = {
+    info:    { col:"#3b87f6", bg:"#eff6ff", emo:"💬" },
+    aviso:   { col:"#b45309", bg:"#fffbeb", emo:"⚠️" },
+    urgente: { col:"#b91c1c", bg:"#fef2f2", emo:"🚨" }
+  };
+  var m = META[aviso.tipo] || META.info;
+  var ov = document.createElement("div");
+  ov.id = "aviso-admin-ov";
+  ov.style.cssText = "position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML =
+    '<div style="background:var(--s1,#fff);border-radius:16px;max-width:400px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">'+
+      '<div style="background:'+m.bg+';padding:20px;text-align:center;border-bottom:3px solid '+m.col+'">'+
+        '<div style="font-size:38px;margin-bottom:6px">'+m.emo+'</div>'+
+        '<div style="font-size:17px;font-weight:800;color:'+m.col+'">'+escHtml(aviso.titulo)+'</div>'+
+      '</div>'+
+      '<div style="padding:20px">'+
+        '<div style="font-size:14px;color:var(--text);line-height:1.6;white-space:pre-wrap">'+escHtml(aviso.mensaje)+'</div>'+
+        (totalPend>1?'<div style="font-size:11.5px;color:var(--muted);margin-top:12px;text-align:center">+'+(totalPend-1)+' aviso'+(totalPend-1!==1?"s":"")+' más</div>':'')+
+        '<button onclick="_cerrarAvisoAdmin('+aviso.id+')" style="width:100%;margin-top:16px;padding:12px;background:'+m.col+';border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendido</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(ov);
+  window._avisoActualPend = totalPend;
+}
+function _cerrarAvisoAdmin(id){
+  // Marcar como visto localmente
+  try{
+    var vistos = JSON.parse(localStorage.getItem("cd_avisos_vistos")||"{}");
+    vistos[id] = Date.now();
+    localStorage.setItem("cd_avisos_vistos", JSON.stringify(vistos));
+  }catch(e){}
+  // Registrar en la base (para que el super-admin sepa que lo vieron)
+  try{
+    fetch(SB_URL+"/rest/v1/avisos_vistos", {
+      method:"POST",
+      headers:{ "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({ aviso_id:id, empresa_id:_sbEmpId })
+    }).catch(function(){});
+  }catch(e){}
+  var ov=document.getElementById("aviso-admin-ov"); if(ov) ov.remove();
+  // Si hay más pendientes, mostrar el siguiente
+  if(window._avisoActualPend > 1){ setTimeout(_cargarAvisosAdmin, 300); }
+}
+
+// ══════════ TELEMETRÍA: errores + uso (se ve en DistribuPanel) ══════════
+var _uso_enviados = {};   // anti-spam: no mandar la misma acción muchas veces por sesión
+function _trackUso(accion){
+  try{
+    if(!_sbEmpId || !accion) return;
+    // Throttle: máximo 1 registro de cada acción cada 30 segundos
+    var ahora = Date.now();
+    if(_uso_enviados[accion] && (ahora - _uso_enviados[accion]) < 30000) return;
+    _uso_enviados[accion] = ahora;
+    var empNom = (empresaData && empresaData.nombre) || "";
+    // Fire-and-forget: no bloquea nada, no rompe si falla
+    fetch(SB_URL+"/rest/v1/rpc/registrar_uso", {
+      method:"POST",
+      headers:{ "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({ p_empresa_id:_sbEmpId, p_empresa_nom:empNom, p_accion:accion })
+    }).catch(function(){});
+  }catch(e){}
+}
+var _err_enviados = {};   // anti-spam de errores repetidos
+function _trackError(mensaje, origen, stack){
+  try{
+    var clave = (mensaje||"")+"|"+(origen||"");
+    var ahora = Date.now();
+    if(_err_enviados[clave] && (ahora - _err_enviados[clave]) < 60000) return;  // mismo error, máx 1/min
+    _err_enviados[clave] = ahora;
+    var ver = (document.getElementById("app-version-tag")||{textContent:""}).textContent || "";
+    var body = {
+      empresa_id:  _sbEmpId || null,
+      empresa_nom: (empresaData && empresaData.nombre) || "",
+      usuario_nom: (currentUser && (currentUser.name||currentUser.id)) || "",
+      rol:         (currentUser && currentUser.role) || "",
+      mensaje:     String(mensaje||"").slice(0,300),
+      origen:      String(origen||"").slice(0,200),
+      stack:       String(stack||"").slice(0,800),
+      url:         (window._tabActual||"") ,
+      user_agent:  (navigator.userAgent||"").slice(0,200),
+      version:     ver.replace(/[^0-9a-z.\-]/gi,"")
+    };
+    fetch(SB_URL+"/rest/v1/app_errores", {
+      method:"POST",
+      headers:{ "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    }).catch(function(){});
+  }catch(e){}
+}
+// Captura global de errores de JS (para enterarse de bugs sin que el usuario avise)
+window.addEventListener("error", function(ev){
+  try{ _trackError(ev.message, (ev.filename||"")+":"+(ev.lineno||""), ev.error&&ev.error.stack); }catch(e){}
+});
+window.addEventListener("unhandledrejection", function(ev){
+  try{ var r=ev.reason; _trackError(r&&r.message?r.message:String(r), "promise", r&&r.stack); }catch(e){}
+});
+
 function _auditar(accion, entidad, entidadId, detalle, datos){
   try {
     if(typeof _sbEmpId==="undefined" || !_sbEmpId) return;
@@ -6098,10 +6315,361 @@ function _auditar(accion, entidad, entidadId, detalle, datos){
       p_entidad_id:  entidadId!=null ? String(entidadId) : null,
       p_detalle:     String(detalle||""),
       p_datos:       datos||null
-    }).catch(function(){});   // silencioso: la auditoría nunca debe romper la operación
+    }).catch(function(e){ console.warn("[Auditoría] no se registró:", e&&e.message, {accion:accion, entidad:entidad}); });   // silencioso para el usuario, pero deja rastro en consola
   } catch(e){}
 }
 function _sbGetRaw(table, params){ return sbFetch("GET", "/rest/v1/"+table+"?"+(params||""), null); }
+
+// ══ VISTA DE AUDITORÍA (cada admin ve la de su propia empresa) ══
+var _audData = [], _audLimite = 50;
+async function cargarAuditoria(force){
+  var lista = document.getElementById("aud-lista");
+  if(!_sbEmpId){ if(lista) lista.innerHTML='<div class="empty-box">Sesión no válida.</div>'; return; }
+  if(!force && _audData.length){ _audRender(); return; }
+  if(lista) lista.innerHTML='<div class="empty-box"><div class="spinner-ring" style="margin:0 auto 10px"></div>Cargando movimientos…</div>';
+  try{
+    // Traer sin asumir el nombre de la columna de fecha (algunas tablas usan created_at/creado_en).
+    // Ordenamos en la app, así evitamos el error "column fecha does not exist".
+    var rows = await sbGet("auditoria","select=*&empresa_id=eq."+_sbEmpId+"&limit=500");
+    console.log("[Auditoría] filas traídas:", (rows||[]).length, "para empresa_id:", _sbEmpId);
+    _audData = (rows||[]).map(function(a){
+      return {
+        fecha:       a.fecha || a.created_at || a.creado_en || a.timestamp || a.ts || null,
+        usuario_nom: a.usuario_nom || a.usuario_nombre || a.usuario || "",
+        accion:      a.accion || "",
+        entidad:     a.entidad || "",
+        entidad_id:  a.entidad_id || "",
+        detalle:     a.detalle || ""
+      };
+    });
+    // Ordenar por fecha, más nuevo primero (en la app, no en la query)
+    _audData.sort(function(a,b){ return new Date(b.fecha||0) - new Date(a.fecha||0); });
+    _audLimite = 50;
+    _audPoblarEntidades();
+    _audRender();
+  }catch(e){
+    if(lista) lista.innerHTML='<div class="empty-box">No se pudo cargar la auditoría.<br><span style="font-size:11.5px;color:var(--muted)">'+escHtml(e.message||"")+'</span></div>';
+  }
+}
+function _audPoblarEntidades(){
+  var sel=document.getElementById("aud-fil-entidad"); if(!sel) return;
+  var ents={};
+  _audData.forEach(function(a){ if(a.entidad) ents[a.entidad]=1; });
+  var actual=sel.value;
+  sel.innerHTML='<option value="">Todo</option>'+Object.keys(ents).sort().map(function(e){
+    return '<option value="'+escHtml(e)+'">'+escHtml(_audEntNom(e))+'</option>';
+  }).join("");
+  sel.value=actual;
+}
+function _audEntNom(e){
+  var M={pedido:"Pedidos",producto:"Productos",cliente:"Clientes",usuario:"Usuarios",zona:"Zonas",ruta:"Rutas",pedido_ruta:"Rutas",venta:"Ventas",cupon:"Cupones",oferta:"Ofertas",familia:"Familias",empresa:"Empresa",stock:"Stock"};
+  return M[e]||e;
+}
+function _audRender(){
+  var lista=document.getElementById("aud-lista"); if(!lista) return;
+  var q=((document.getElementById("aud-buscar")||{}).value||"").toLowerCase().trim();
+  var fAcc=(document.getElementById("aud-fil-accion")||{}).value;
+  var fEnt=(document.getElementById("aud-fil-entidad")||{}).value;
+  var arr=_audData.filter(function(a){
+    if(fAcc && (a.accion||"").toLowerCase()!==fAcc) return false;
+    if(fEnt && a.entidad!==fEnt) return false;
+    if(q){
+      var txt=((a.usuario_nom||"")+" "+(a.accion||"")+" "+(a.entidad||"")+" "+(a.detalle||"")).toLowerCase();
+      if(txt.indexOf(q)===-1) return false;
+    }
+    return true;
+  });
+  // Resumen
+  var res=document.getElementById("aud-resumen");
+  if(res){
+    var nC=arr.filter(function(a){return (a.accion||"").toLowerCase()==="crear";}).length;
+    var nE=arr.filter(function(a){return (a.accion||"").toLowerCase()==="editar";}).length;
+    var nB=arr.filter(function(a){return (a.accion||"").toLowerCase()==="borrar";}).length;
+    function ch(v,l,c,bg){ return '<div style="flex:1;min-width:80px;background:'+bg+';border-radius:9px;padding:8px;text-align:center"><div style="font-size:16px;font-weight:800;color:'+c+'">'+v+'</div><div style="font-size:10px;font-weight:700;color:'+c+'">'+l+'</div></div>'; }
+    res.innerHTML=ch(arr.length,"MOVIMIENTOS","#64748b","#f1f5f9")+ch(nC,"CREADOS","#0f8a4a","#e8f7ef")+ch(nE,"EDITADOS","#b45309","#fffbeb")+ch(nB,"BORRADOS","#b91c1c","#fdecec");
+  }
+  if(!arr.length){
+    lista.innerHTML='<div class="empty-box"><div class="empty-icon">📋</div>Sin movimientos'+((q||fAcc||fEnt)?" con esos filtros.":" registrados aún.")+'</div>';
+    var mas0=document.getElementById("aud-mas"); if(mas0) mas0.style.display="none";
+    return;
+  }
+  var _AC={crear:["#0f8a4a","#e8f7ef","➕"],editar:["#b45309","#fffbeb","✏️"],borrar:["#b91c1c","#fdecec","🗑️"]};
+  var shown=arr.slice(0,_audLimite);
+  lista.innerHTML='<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">'+shown.map(function(a){
+    var ac=(a.accion||"").toLowerCase();
+    var col=_AC[ac]||["#64748b","#f1f5f9","•"];
+    var f=new Date(a.fecha);
+    var fStr=f.toLocaleDateString("es-AR",{day:"2-digit",month:"short"})+" "+f.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-bottom:1px solid var(--border)">'+
+      '<div style="flex-shrink:0;font-size:15px;width:28px;height:28px;border-radius:8px;background:'+col[1]+';display:flex;align-items:center;justify-content:center">'+col[2]+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;color:var(--text);line-height:1.4">'+escHtml(a.detalle||(a.accion+" "+_audEntNom(a.entidad)))+'</div>'+
+        '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+
+          '<span style="font-weight:600">'+escHtml(a.usuario_nom||"Sistema")+'</span> · '+
+          '<span style="background:'+col[1]+';color:'+col[0]+';padding:1px 6px;border-radius:6px;font-weight:700;font-size:10px">'+_audEntNom(a.entidad)+'</span> · '+fStr+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join("")+'</div>';
+  var mas=document.getElementById("aud-mas");
+  if(mas) mas.style.display = (arr.length>_audLimite) ? "inline-block" : "none";
+}
+function _audMas(){ _audLimite+=50; _audRender(); }
+
+// Exportar la auditoría a PDF (respeta los filtros activos)
+function _audExportarPDF(){
+  if(!_audData.length){ showNotif("No hay movimientos para exportar","err"); return; }
+  // Aplicar los mismos filtros que la vista
+  var q=((document.getElementById("aud-buscar")||{}).value||"").toLowerCase().trim();
+  var fAcc=(document.getElementById("aud-fil-accion")||{}).value;
+  var fEnt=(document.getElementById("aud-fil-entidad")||{}).value;
+  var arr=_audData.filter(function(a){
+    if(fAcc && (a.accion||"").toLowerCase()!==fAcc) return false;
+    if(fEnt && a.entidad!==fEnt) return false;
+    if(q){ var txt=((a.usuario_nom||"")+" "+(a.accion||"")+" "+(a.entidad||"")+" "+(a.detalle||"")).toLowerCase(); if(txt.indexOf(q)===-1) return false; }
+    return true;
+  });
+  if(!arr.length){ showNotif("No hay movimientos con esos filtros","err"); return; }
+  try{
+    var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+    var ed=_getEmpDatos(), empNom=ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
+    var W=doc.internal.pageSize.getWidth(), M=14, y=18;
+    doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(20,20,20);
+    doc.text(_pdfTxt(empNom), M, y); y+=6;
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90,90,90);
+    doc.text("Auditoría de movimientos · "+arr.length+" registros · "+new Date().toLocaleDateString("es-AR"), M, y); y+=8;
+
+    var filas = arr.map(function(a){
+      var f=a.fecha?new Date(a.fecha):null;
+      var fStr=f?(f.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"2-digit"})+" "+f.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})):"";
+      return [ fStr, _pdfTxt(a.usuario_nom||"Sistema"), _pdfTxt((a.accion||"")), _pdfTxt(_audEntNom(a.entidad)), _pdfTxt(a.detalle||"") ];
+    });
+    doc.autoTable({
+      startY: y,
+      head: [["Fecha","Usuario","Acción","Tipo","Detalle"]],
+      body: filas,
+      styles: { fontSize: 7.5, cellPadding: 1.8, overflow:"linebreak" },
+      headStyles: { fillColor: [40,40,40], textColor:[255,255,255], fontSize:8 },
+      columnStyles: { 0:{cellWidth:26}, 1:{cellWidth:26}, 2:{cellWidth:18}, 3:{cellWidth:22}, 4:{cellWidth:"auto"} },
+      margin: { left:M, right:M }
+    });
+    var fname="auditoria_"+_pdfTxt(empNom).replace(/\s+/g,"_").slice(0,20)+"_"+new Date().toISOString().slice(0,10)+".pdf";
+    _compartirPDF(doc, fname, "Auditoría");
+    showNotif("📄 Auditoría exportada","ok");
+  }catch(e){
+    showNotif("Error al generar el PDF: "+(e.message||""),"err");
+  }
+}
+
+// ══ ALIGERAR LA BASE (borrado de datos transaccionales viejos) ══
+var _limpDatos = null;  // {corte, tablas:{...}, resumen}
+async function _limpiarAbrir(){
+  var meses = parseInt((document.getElementById("limp-antiguedad")||{value:"6"}).value)||6;
+  var corte = new Date(); corte.setMonth(corte.getMonth()-meses); corte.setHours(0,0,0,0);
+  var corteISO = corte.toISOString();
+  var res = document.getElementById("limp-resumen");
+  var p1=document.getElementById("limp-paso1"), p2=document.getElementById("limp-paso2");
+  if(p1) p1.style.display="block"; if(p2) p2.style.display="none";
+  var cb=document.getElementById("limp-confirmo"); if(cb) cb.checked=false;
+  if(res) res.innerHTML='<div style="text-align:center;padding:10px"><div class="spinner-ring" style="margin:0 auto 8px"></div>Contando registros…</div>';
+  abrirModal("modal-limpieza");
+  try{
+    // Contar qué hay antes del corte (solo lectura, no borra nada)
+    var tablas = [
+      {t:"backup_pedidos", lbl:"Pedidos / remitos"},
+      {t:"ruta_clientes",  lbl:"Clientes en hojas de ruta"},
+      {t:"rutas",          lbl:"Hojas de ruta"},
+      {t:"ventas",         lbl:"Ventas de vendedores"}
+    ];
+    var totalReg=0, detalle=[];
+    for(var i=0;i<tablas.length;i++){
+      var cnt=0;
+      try{
+        var rows = await sbGet(tablas[i].t, "select=id&empresa_id=eq."+_sbEmpId+"&fecha=lt."+corteISO+"&limit=100000");
+        cnt = (rows||[]).length;
+      }catch(e){ cnt=0; }
+      totalReg+=cnt;
+      detalle.push({lbl:tablas[i].lbl, t:tablas[i].t, cnt:cnt});
+    }
+    _limpDatos = { corte:corteISO, corteFecha:corte, detalle:detalle, total:totalReg, meses:meses };
+
+    // Desglose por estado de los pedidos (para el PDF completo)
+    try{
+      var peds = await sbGet("backup_pedidos","select=estado,aprobado,armado_en,total&empresa_id=eq."+_sbEmpId+"&fecha=lt."+corteISO+"&limit=100000") || [];
+      var dg = { hechos:peds.length, armados:0, enviados:0, entregados:0, rechazados:0, pendientes:0, montoTotal:0 };
+      peds.forEach(function(p){
+        dg.montoTotal += (p.total||0);
+        if(p.armado_en) dg.armados++;
+        if(p.estado==="enviado") dg.enviados++;
+        else if(p.estado==="entregado") dg.entregados++;
+        if(p.aprobado===false) dg.rechazados++;
+        else if(p.aprobado!==true && !p.armado_en && p.estado!=="entregado" && p.estado!=="enviado") dg.pendientes++;
+      });
+      _limpDatos.desglose = dg;
+    }catch(e){ _limpDatos.desglose = null; }
+
+    // Cobrados y devoluciones desde las hojas de ruta
+    try{
+      var rc = await sbGet("ruta_clientes","select=importe,efectivo,transferencia,entregado,rechazado&empresa_id=eq."+_sbEmpId+"&fecha=lt."+corteISO+"&limit=100000") || [];
+      var cob = { cobradoTotal:0, entregados:0, rechazados:0, facturado:0 };
+      rc.forEach(function(r){
+        cob.facturado += (r.importe||0);
+        cob.cobradoTotal += (r.efectivo||0)+(r.transferencia||0);
+        if(r.entregado) cob.entregados++;
+        if(r.rechazado) cob.rechazados++;
+      });
+      _limpDatos.cobros = cob;
+    }catch(e){ _limpDatos.cobros = null; }
+    if(res){
+      if(!totalReg){
+        res.innerHTML='<div style="text-align:center;color:var(--muted);padding:16px">No hay datos anteriores a '+corte.toLocaleDateString("es-AR")+' para borrar. Tu base ya está liviana. 👍</div>';
+        if(p1) p1.style.display="none";
+      } else {
+        res.innerHTML='<div style="font-weight:700;margin-bottom:8px">Se puede aligerar todo lo anterior al <span style="color:#b91c1c">'+corte.toLocaleDateString("es-AR",{day:"numeric",month:"long",year:"numeric"})+'</span>:</div>'+
+          detalle.map(function(d){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>'+d.lbl+'</span><b>'+d.cnt.toLocaleString("es-AR")+'</b></div>'; }).join("")+
+          '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-weight:800"><span>Total a borrar</span><span style="color:#b91c1c">'+totalReg.toLocaleString("es-AR")+' registros</span></div>';
+      }
+    }
+  }catch(e){
+    if(res) res.innerHTML='<div style="color:#b91c1c;padding:12px">Error al contar: '+escHtml(e.message||"")+'</div>';
+  }
+}
+
+async function _limpiarGenerarPDF(){
+  if(!_limpDatos){ showNotif("Primero revisá qué se puede aligerar","err"); return; }
+  try{
+    var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+    var ed=_getEmpDatos(), empNom=ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
+    var W=doc.internal.pageSize.getWidth(), M=16, y=20;
+    doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(20,20,20);
+    doc.text(_pdfTxt(empNom), M, y); y+=7;
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90,90,90);
+    doc.text("Respaldo antes de aligerar la base", M, y); y+=6;
+    doc.text("Datos anteriores a "+_limpDatos.corteFecha.toLocaleDateString("es-AR")+" · Generado "+new Date().toLocaleDateString("es-AR"), M, y); y+=10;
+    doc.setDrawColor(200,200,200); doc.line(M,y,W-M,y); y+=10;
+
+    // Resumen de cantidades
+    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(20,20,20);
+    doc.text("Registros que se van a borrar:", M, y); y+=8;
+    doc.setFont("helvetica","normal"); doc.setFontSize(11);
+    _limpDatos.detalle.forEach(function(d){
+      doc.text(d.lbl, M+4, y); doc.text(d.cnt.toLocaleString("es-AR"), W-M, y, {align:"right"}); y+=7;
+    });
+    y+=2; doc.setDrawColor(200,200,200); doc.line(M,y,W-M,y); y+=8;
+    doc.setFont("helvetica","bold"); doc.setFontSize(12);
+    doc.text("Total", M+4, y); doc.text(_limpDatos.total.toLocaleString("es-AR")+" registros", W-M, y, {align:"right"}); y+=12;
+
+    // ── DESGLOSE DE PEDIDOS POR ESTADO ──
+    if(_limpDatos.desglose){
+      var dg=_limpDatos.desglose;
+      doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(20,20,20);
+      doc.text("Detalle de pedidos:", M, y); y+=8;
+      doc.setFont("helvetica","normal"); doc.setFontSize(10.5);
+      function fila(lbl,val){ doc.text(lbl, M+4, y); doc.text(String(val), W-M, y, {align:"right"}); y+=6.5; }
+      fila("Pedidos hechos (total)", dg.hechos.toLocaleString("es-AR"));
+      fila("Pedidos armados", dg.armados.toLocaleString("es-AR"));
+      fila("Pedidos enviados", dg.enviados.toLocaleString("es-AR"));
+      fila("Pedidos entregados", dg.entregados.toLocaleString("es-AR"));
+      fila("Pedidos rechazados", dg.rechazados.toLocaleString("es-AR"));
+      fila("Pedidos pendientes", dg.pendientes.toLocaleString("es-AR"));
+      y+=4;
+    }
+
+    // ── DESGLOSE DE COBROS Y ENTREGAS (hojas de ruta) ──
+    if(_limpDatos.cobros){
+      if(y>230){ doc.addPage(); y=20; }
+      var cb=_limpDatos.cobros;
+      doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(20,20,20);
+      doc.text("Entregas y cobros:", M, y); y+=8;
+      doc.setFont("helvetica","normal"); doc.setFontSize(10.5);
+      function fila2(lbl,val){ doc.text(lbl, M+4, y); doc.text(String(val), W-M, y, {align:"right"}); y+=6.5; }
+      fila2("Entregas realizadas", cb.entregados.toLocaleString("es-AR"));
+      fila2("Devoluciones / rechazos en reparto", cb.rechazados.toLocaleString("es-AR"));
+      fila2("Total facturado", "$"+fM(cb.facturado));
+      fila2("Total cobrado (efvo + transf)", "$"+fM(cb.cobradoTotal));
+      y+=6;
+    }
+
+    // Total facturado destacado (caja)
+    try{
+      var totalFacturado = (_limpDatos.cobros && _limpDatos.cobros.facturado) || 0;
+      if(y>250){ doc.addPage(); y=20; }
+      doc.setFillColor(245,244,240); doc.roundedRect(M,y,W-M*2,20,3,3,"F");
+      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90,90,90);
+      doc.text("Total facturado en el período borrado:", M+6, y+8);
+      doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(20,20,20);
+      doc.text("$"+fM(totalFacturado), W-M-6, y+13, {align:"right"});
+      y+=26;
+    }catch(e){}
+
+    doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(140,140,140);
+    var yFoot = Math.min(y+4, 285);
+    doc.text("Este PDF es tu respaldo del historial anterior al "+_limpDatos.corteFecha.toLocaleDateString("es-AR")+". Guardalo en un lugar seguro.", M, yFoot);
+
+    var fname="respaldo_"+_pdfTxt(empNom).replace(/\s+/g,"_").slice(0,20)+"_"+_limpDatos.corteFecha.toISOString().slice(0,10)+".pdf";
+    await _compartirPDF(doc, fname, "Respaldo antes de aligerar");
+    // Pasar al paso 2
+    var p1=document.getElementById("limp-paso1"), p2=document.getElementById("limp-paso2");
+    if(p1) p1.style.display="none"; if(p2) p2.style.display="block";
+    showNotif("📄 PDF de respaldo generado","ok");
+  }catch(e){
+    showNotif("Error al generar el PDF: "+(e.message||""),"err");
+  }
+}
+
+function _limpiarToggleConfirm(){
+  var cb=document.getElementById("limp-confirmo");
+  var btn=document.getElementById("limp-btn-borrar");
+  if(!btn) return;
+  if(cb && cb.checked){
+    btn.disabled=false; btn.style.background="#b91c1c"; btn.style.cursor="pointer";
+  } else {
+    btn.disabled=true; btn.style.background="#ccc"; btn.style.cursor="not-allowed";
+  }
+}
+
+async function _limpiarEjecutar(){
+  var cb=document.getElementById("limp-confirmo");
+  if(!cb || !cb.checked){ showNotif("Confirmá que guardaste el PDF","err"); return; }
+  if(!_limpDatos){ return; }
+  var btn=document.getElementById("limp-btn-borrar");
+  if(btn){ btn.disabled=true; btn.textContent="Borrando…"; btn.style.background="#999"; }
+  var corte=_limpDatos.corte;
+  var borrados=0, errores=[];
+  var tablas=["backup_pedidos","ruta_clientes","rutas","ventas"];
+  for(var i=0;i<tablas.length;i++){
+    try{
+      await sbDel(tablas[i], "empresa_id=eq."+_sbEmpId+"&fecha=lt."+corte);
+      borrados++;
+    }catch(e){ errores.push(tablas[i]); }
+  }
+  _auditar("borrar","base",null,"Aligeró la base: borró datos anteriores a "+_limpDatos.corteFecha.toLocaleDateString("es-AR")+" ("+_limpDatos.total+" registros)");
+  try{ localStorage.setItem("cd_ultima_limpieza", new Date().toISOString()); }catch(e){}
+  cerrarModal("modal-limpieza");
+  if(errores.length){
+    showNotif("Se borró casi todo. Revisá: "+errores.join(", "),"err");
+  } else {
+    showNotif("✅ Base aligerada — "+_limpDatos.total.toLocaleString("es-AR")+" registros borrados","ok");
+  }
+  _limpMostrarUltima();
+  // Refrescar vistas afectadas
+  if(typeof cargarRutasFirebase==="function") try{ cargarRutasFirebase(); }catch(e){}
+}
+
+function _limpMostrarUltima(){
+  var el=document.getElementById("limp-ultima"); if(!el) return;
+  try{
+    var u=localStorage.getItem("cd_ultima_limpieza");
+    if(u){
+      var d=new Date(u);
+      var dias=Math.floor((Date.now()-d.getTime())/86400000);
+      el.innerHTML="Última vez que aligeraste: "+d.toLocaleDateString("es-AR")+" (hace "+dias+" días)."+
+        (dias>=180?' <b style="color:#b45309">Pasaron más de 6 meses, conviene hacerlo.</b>':'');
+    } else {
+      el.textContent="Todavía no aligeraste la base.";
+    }
+  }catch(e){}
+}
 
 // ══ OFFLINE-AWARE sbGet ══
 var _sbOfflineCache = {};
@@ -6211,16 +6779,28 @@ function sbGet(table, params){
     if(data != null) _sbCacheSave(table, params||"", data);
     return data;
   }).catch(function(err){
-    // CLAVE: si la petición falla estando "online" (corte breve de señal, timeout),
-    // NO dejar la pantalla vacía. Devolver lo último que se cacheó.
-    // Esto es lo que evitaba que "se fue un segundo la señal y no aparecían los clientes".
     var cached = _sbCacheLoad(table, params||"");
+    // ¿Es un error REAL de red? (fetch abortado, timeout, sin conexión) o
+    // ¿es un error del servidor (404, 403, 500...) que NO tiene que ver con la red?
+    var msg = (err && err.message) ? String(err.message) : "";
+    var esErrorDeRed = (err && err.name==="AbortError") ||
+                       msg.indexOf("Failed to fetch")!==-1 ||
+                       msg.indexOf("NetworkError")!==-1 ||
+                       msg.indexOf("Load failed")!==-1 ||
+                       msg.toLowerCase().indexOf("timeout")!==-1 ||
+                       msg.toLowerCase().indexOf("conexión")!==-1 ||
+                       msg==="";
     if(cached != null){
-      console.warn("[Red inestable] "+table+": usando datos guardados.");
-      if(typeof _marcarRedInestable==="function") _marcarRedInestable();
+      // Solo avisar "conexión inestable" si fue de verdad un problema de red
+      if(esErrorDeRed && typeof _marcarRedInestable==="function"){
+        console.warn("[Red inestable] "+table+": usando datos guardados.");
+        _marcarRedInestable();
+      } else {
+        console.warn("[Servidor] "+table+" respondió con error:", msg, "— usando cache, sin banner.");
+      }
       return cached;
     }
-    console.warn("[Red] "+table+" falló y no hay cache:", err&&err.message);
+    console.warn("[Error] "+table+":", msg);
     return null;
   });
 }
@@ -6324,6 +6904,8 @@ async function _initPushNativo(interactivo){
     var perm = await Push.requestPermissions();
     if(perm && perm.receive === 'granted'){
       await Push.register();
+      try{ localStorage.setItem("cd_notif_on","1"); }catch(e){}
+      if(typeof _actualizarSwitchNotif==="function") _actualizarSwitchNotif();
       if(interactivo) showNotif("🔔 Notificaciones activadas","ok");
     } else {
       if(interactivo) alert("Permiso de notificaciones denegado.\nActivalo en Ajustes → CoreDistri → Notificaciones.");
@@ -6754,6 +7336,8 @@ async function activarNotificaciones(){
       throw new Error('Supabase '+res.status+': '+errTxt.slice(0,100));
     }
     console.log('[Push] ✅ Guardado en Supabase');
+    try{ localStorage.setItem("cd_notif_on","1"); }catch(e){}
+    if(typeof _actualizarSwitchNotif==="function") _actualizarSwitchNotif();
     if(btn){
       btn.style.background="oklch(22% 0.06 150)";
       btn.style.color="oklch(85% 0.08 150)";
@@ -7062,8 +7646,13 @@ var stockReservado = {};   // { codigo: reservado }
 async function _sbGetStockFull(){
   try{
     var rows = await sbGet("stock","select=codigo,cantidad,reservado&empresa_id=eq."+_sbEmpId);
+    // Si vino null (posible error de columna 'reservado' inexistente), reintentar sin ella
+    if(rows == null){
+      stockReservado = {};
+      return await _sbGetStock();
+    }
     var fis={}, res={};
-    (rows||[]).forEach(function(s){ fis[s.codigo]=s.cantidad; res[s.codigo]=s.reservado||0; });
+    rows.forEach(function(s){ fis[s.codigo]=s.cantidad; res[s.codigo]=s.reservado||0; });
     stockReservado = res;
     return fis;
   }catch(e){ stockReservado={}; return await _sbGetStock(); }  // si falta la columna, seguir sin reservas
@@ -7614,6 +8203,7 @@ async function _sbGetBackup(){
 }
 
 async function _sbInsertBackup(data){
+  if(typeof _trackUso==="function") _trackUso("nuevo_pedido");
   // Limpiar items — quitar campos innecesarios para reducir payload
   var itemsLimpios = (data.items||[]).map(function(i){
     var it = { id:i.id, n:i.n, c:i.c, p:i.p, sub:i.sub, esPeso:i.esPeso||false, gramos:i.gramos||null,
@@ -7723,10 +8313,14 @@ function _ofVigente(p){
 function _listaIdDeNombre(lista){
   if(!lista) return "cli";
   var ls = (typeof getListasOrdenadas==="function") ? getListasOrdenadas() : [];
+  // ¿Ya es un id de lista? (ej. "cli", "pat", "lis", "vip")
+  for(var j=0;j<ls.length;j++){ if(ls[j][0]===lista) return lista; }
+  // ¿Es un nombre? → devolver su id
   for(var i=0;i<ls.length;i++){ if(ls[i][1].nombre===lista) return ls[i][0]; }
   // fallbacks por nombre conocido
   var l=(""+lista).toLowerCase();
   if(l.indexOf("patagon")!==-1) return "pat";
+  if(l==="pat"||l==="lis"||l==="vip"||l==="cli") return l;
   return "cli";
 }
 // Precio de oferta para un producto en una LISTA dada (o null si no aplica)
@@ -7734,21 +8328,23 @@ function _ofPrecioLista(p, lista){
   if(!_ofVigente(p)) return null;
   var tipo = p.ofertaTipo || p.oferta_tipo || "fijo";
   var lid = _listaIdDeNombre(lista);
-  // Precio normal de esa lista (referencia)
-  var normal = (typeof _precioDe==="function") ? _precioDe(p, lista) : (p.pCli||0);
+  // Precio normal de esa lista (referencia). _catPrecio acepta id o nombre.
+  var normal = (typeof _catPrecio==="function") ? _catPrecio(p, lid)
+             : (typeof _precioDe==="function") ? _precioDe(p, lista) : (p.pCli||0);
   if(tipo==="pct"){
     var pct = p.ofertaPct || p.oferta_pct || 0;
     if(pct<=0 || normal<=0) return null;
     var rebajado = Math.round(normal*(1-pct/100)*100)/100;
     return rebajado<normal ? rebajado : null;
   } else {
-    // tipo fijo: precio por lista del JSON, o el precio viejo (en cli) como fallback
+    // tipo fijo: precio por lista del JSON; si esa lista no tiene, usar el precio de oferta base
     var precios = p.ofertaPrecios || p.oferta_precios || null;
     var val = null;
     if(precios && precios[lid]!=null) val = precios[lid];
-    else if(lid==="cli" && (p.ofertaPrecio||p.oferta_precio)) val = (p.ofertaPrecio||p.oferta_precio);
+    else if(precios && precios["cli"]!=null) val = precios["cli"];        // fallback a clientes
+    if(val==null && (p.ofertaPrecio||p.oferta_precio)) val = (p.ofertaPrecio||p.oferta_precio);
     if(val==null || val<=0) return null;
-    return val<normal ? val : null;
+    return (normal<=0 || val<normal) ? val : null;   // si no hay normal de referencia, mostrar igual
   }
 }
 // Compat: precio de oferta usando la lista del pedido actual (o Clientes)
@@ -7825,7 +8421,12 @@ function _cargarClientesDesdeCache(cached){
     empresaKey=s.empresaKey;
     currentUser=s.user;
     empresaData=s.empresaData;
-    _sbEmpId = empresaKey;
+    // _sbEmpId debe ser el UUID de Supabase. Si la sesión guardó el código (o un valor corto),
+    // resolver el UUID real; si no, la auditoría/consultas se graban con el ID equivocado.
+    _sbEmpId = (s.sbEmpId || s.empId || empresaKey);
+    if(_sbEmpId && String(_sbEmpId).length < 30 && s.empresaData && s.empresaData.id){
+      _sbEmpId = s.empresaData.id;   // el UUID viene en empresaData.id
+    }
     _locModo = (currentUser && currentUser.loc_modo) || "momentos";
     aplicarBranding();
     // Re-verificar estado desde Supabase (puede haber cambiado desde el último login)
@@ -7837,6 +8438,8 @@ function _cargarClientesDesdeCache(cached){
       aplicarRestricciones(); cargarListasPrecios();
       // Precalentar cache offline 8s después del login para no bloquear la UI
       setTimeout(_precalentarCacheOffline, 8000);
+      // Mostrar avisos del super-admin (novedades, vencimientos, etc.) 5s después de entrar
+      setTimeout(function(){ if(typeof _cargarAvisosAdmin==="function") _cargarAvisosAdmin(); }, 5000);
       // Refrescar el cache cada 5 minutos, para que nunca envejezca demasiado
       if(!window._cachePeriodico){
         window._cachePeriodico = setInterval(function(){
@@ -8666,8 +9269,14 @@ function previsualizarRemito(){
     +'</body></html>';
 
   var blob=new Blob([html],{type:"text/html"});
-  var url=URL.createObjectURL(blob);
-  frame.src=url;
+  try{
+    // srcdoc es más confiable que blob URL en iframes (evita el preview en blanco)
+    frame.removeAttribute("src");
+    frame.srcdoc = html;
+  }catch(e){
+    var url=URL.createObjectURL(blob);
+    frame.src=url;
+  }
 }
 
 function descargarPlantillaRemito(){
@@ -8798,7 +9407,7 @@ function setCfgTab(tab, btn){
   });
   if(tab==="empresa")     cargarDatosEmpresa();
   if(tab==="empresa" && typeof _2faRefrescarCard==="function") _2faRefrescarCard();
-  if(tab==="remito")      cargarDisenoRemito();
+  if(tab==="remito"){ cargarDisenoRemito(); setTimeout(function(){ try{ previsualizarRemito(); }catch(e){} }, 400); }
   if(tab==="facturacion") cargarFacturacion();
   if(tab==="whatsapp")    cargarWhatsApp();
   var _sec = document.getElementById("datos-empresa");
@@ -9363,6 +9972,7 @@ function _cmpPill(actual, prev, etiq){
 
 // ── MODAL DE DETALLE DE ALERTA ──
 function _alertaItemPartes(tipo, x){
+  if(tipo==="rechazos") return {izq:escHtml(x.nom||"")+(x.motivo?' <span style="color:var(--muted);font-weight:400">· '+escHtml(x.motivo)+'</span>':''), der:'<button onclick="_confirmarRechazo(\''+x.rutaId+'\',\''+x.cliKey+'\')" style="background:#0f8a4a;border:none;color:#fff;border-radius:7px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit">✓ Confirmar</button>'};
   if(tipo==="riesgo") return {izq:escHtml(x.nom||""), der:'<span style="color:#9a3412;font-weight:700">'+(x.dias||0)+'d</span>'};
   if(tipo==="sinentregar") return {izq:escHtml(x.nom||""), der:'<span style="color:var(--muted);font-weight:700">$'+fM(x.monto||0)+'</span>'};
   if(tipo==="calle15") return {izq:escHtml(x.nom||"")+' <span style="color:var(--muted);font-weight:400">\u00b7 '+(x.dias||0)+'d</span>', der:'<span style="color:var(--red);font-weight:700">$'+fM(x.saldo||0)+'</span>'};
@@ -9729,6 +10339,24 @@ function _dashRender(){
       return "";
     }catch(e){ return ""; }
   }
+  // ── Rechazos pendientes de confirmar (control del admin) ──
+  try{
+    var _rechPend = [];
+    Object.keys(rutasData||{}).forEach(function(rk){
+      var ruta=rutasData[rk]; if(!ruta||!ruta.clientes) return;
+      Object.keys(ruta.clientes).forEach(function(ck){
+        var c=ruta.clientes[ck];
+        if(c && c.rechazado && c.rechazoConfirmado!==true){
+          _rechPend.push({rutaId:rk, cliKey:ck, nom:c.nom||"Cliente", motivo:c.motivoRechazo||"", importe:c.importe||0, fecha:c.rechazadoEn});
+        }
+      });
+    });
+    if(_rechPend.length>0){
+      alertas.unshift({tipo:"rechazos", ico:"\u274C", txt:_rechPend.length+" pedido"+(_rechPend.length!==1?"s":"")+" rechazado"+(_rechPend.length!==1?"s":"")+" por confirmar", col:"#b91c1c", goto:"hoja", items:_rechPend});
+    }
+    window._rechPendientes = _rechPend;
+  }catch(e){}
+
   var calle15=bcn.d15+bcn.d30;
   if(calle15>0){
     var calle15List=(sinCobrar||[]).filter(function(x){return (x.dias||0)>15;});
@@ -9827,6 +10455,7 @@ function _setPanelBranding(){
 }
 function iniciarApp(){
   _dashStockIntentado = false;  // estado limpio por empresa
+  if(typeof _initBackButton==="function") _initBackButton();
   document.getElementById("login-screen").style.display="none";
   document.getElementById("app").classList.add("on");
   document.getElementById("sb-username").textContent=currentUser.name||currentUser.id;
@@ -10135,6 +10764,45 @@ function _closeNavFab(){
 }
 
 // Navegar desde el panel: ir a la sección, cerrar y resaltar
+// Cuál es la sección de inicio según el rol del usuario
+function _seccionInicio(){
+  var role = currentUser ? (currentUser.role || "vendedor") : "vendedor";
+  var roles = (currentUser && _normalizarRoles(currentUser.roles).length) ? _normalizarRoles(currentUser.roles) : [role];
+  function tiene(r){ return roles.indexOf(r)!==-1; }
+  if(tiene("admin"))      return "dashboard";
+  if(tiene("vendedor"))   return "pedido";
+  if(tiene("repartidor")) return "inicio-rep";
+  if(tiene("armador"))    return "inicio-arm";
+  return "dashboard";
+}
+function _irAInicio(){
+  var ini=_seccionInicio();
+  var btn=document.getElementById("nav-"+ini);
+  if(typeof verTab==="function") verTab(ini, btn||null);
+}
+// Botón físico "atrás" de Android: si no estás en el inicio, ir al inicio (no salir de la app)
+function _initBackButton(){
+  try{
+    var C=window.Capacitor;
+    if(!(C && C.Plugins && C.Plugins.App)) return;
+    C.Plugins.App.addListener("backButton", function(){
+      // 1) Si hay un modal abierto, cerrarlo
+      var modalAbierto=document.querySelector(".modal-bg.open");
+      if(modalAbierto){ modalAbierto.classList.remove("open"); return; }
+      var confirmOv=document.querySelector(".confirm-ov.show, #alerta-modal-ov[style*='flex']");
+      if(confirmOv){ if(typeof _cerrarAlertaModal==="function") _cerrarAlertaModal(); return; }
+      // 2) Si el catálogo vivo está abierto, cerrarlo
+      var cv=document.getElementById("catalogo-vivo");
+      if(cv && cv.style.display!=="none" && cv.style.display!==""){ if(typeof _cvIntentarSalir==="function"){ _cvIntentarSalir(); return; } }
+      // 3) Si no estás en el inicio, ir al inicio
+      var inicio=_seccionInicio();
+      if(window._tabActual && window._tabActual!==inicio){ _irAInicio(); return; }
+      // 4) Ya estás en el inicio → salir de la app (comportamiento normal)
+      try{ C.Plugins.App.exitApp(); }catch(e){}
+    });
+  }catch(e){ console.warn("[BackButton]", e); }
+}
+
 function _bnGo(id){
   if(id==="catalogo-vivo"){ _closeNavFab(); if(typeof _cvIniciar==="function") _cvIniciar(); return; }
   var sbBtn = document.getElementById("nav-"+id);
@@ -10225,17 +10893,53 @@ function _initTema(){
 _initTema();
 
 // Menú de cuenta para móvil (logout + notificaciones), ya que la sidebar está oculta
+function _notifActivadas(){
+  try{ return localStorage.getItem("cd_notif_on")==="1"; }catch(e){ return false; }
+}
+function _actualizarSwitchNotif(){
+  var sw=document.getElementById("cuenta-notif-switch");
+  var knob=document.getElementById("cuenta-notif-knob");
+  var est=document.getElementById("cuenta-notif-estado");
+  if(!sw) return;
+  var on=_notifActivadas();
+  // Si el permiso del sistema fue denegado, mostrarlo aunque el flag diga on
+  if('Notification' in window && Notification.permission==="denied"){ on=false; }
+  sw.style.background = on ? "#0f8a4a" : "#cbd5e1";
+  sw.setAttribute("aria-checked", on?"true":"false");
+  if(knob) knob.style.transform = on ? "translateX(20px)" : "translateX(0)";
+  if(est) est.textContent = on ? "Activadas" : "Desactivadas";
+}
+async function _toggleNotif(){
+  var on=_notifActivadas();
+  if(!on){
+    // Activar: pedir permiso y suscribir
+    try{
+      await activarNotificaciones();
+      // activarNotificaciones setea el flag si salió bien; reflejar estado
+      setTimeout(_actualizarSwitchNotif, 400);
+    }catch(e){ showNotif("No se pudieron activar","err"); }
+  } else {
+    // Desactivar: solo bajamos el flag local (el permiso del sistema se saca desde Ajustes)
+    try{ localStorage.setItem("cd_notif_on","0"); }catch(e){}
+    _actualizarSwitchNotif();
+    showNotif("Notificaciones desactivadas. Para bloquearlas del todo, usá los Ajustes del teléfono.","info");
+  }
+}
 function _abrirMenuCuenta(){
   var lbl = document.getElementById("cuenta-user-lbl");
   if(lbl && currentUser){
     var rolNom = {admin:"Admin",vendedor:"Vendedor",repartidor:"Repartidor",armador:"Armador",cliente:"Cliente"}[currentUser.role||"vendedor"]||"Usuario";
     lbl.textContent = rolNom+" · "+(currentUser.name||currentUser.id||"");
   }
-  // Replicar visibilidad del botón de notificaciones de la sidebar
+  // Replicar visibilidad del switch de notificaciones de la sidebar
   var origNotif = document.getElementById("btn-activar-notif");
-  var menuNotif = document.getElementById("cuenta-notif-btn");
-  if(origNotif && menuNotif){
-    menuNotif.style.display = (origNotif.style.display!=="none") ? "block" : "none";
+  var menuNotif = document.getElementById("cuenta-notif-row");
+  if(menuNotif){
+    // Mostrar el switch si el dispositivo soporta notificaciones (nativo o web con push)
+    var soporta = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+                  || ('Notification' in window);
+    menuNotif.style.display = soporta ? "flex" : "none";
+    _actualizarSwitchNotif();
   }
   // Botón "Primeros pasos": solo para admin
   var onbBtn = document.getElementById("cuenta-onb-btn");
@@ -10528,6 +11232,8 @@ document.addEventListener("keydown", function(e){
 });
 
 function verTab(id,btn){
+  window._tabActual = id;
+  if(typeof _trackUso==="function") _trackUso("abrir_"+id);
   // Cerrar cualquier modal abierto al cambiar de sección
   document.querySelectorAll(".modal-bg.open").forEach(function(m){ m.classList.remove("open"); });
   // Guard: permitir acceso a una sección si CUALQUIERA de los roles del usuario la habilita.
@@ -10546,7 +11252,7 @@ function verTab(id,btn){
     if(isRepartidor){ ["inicio-rep","hoja","mapa-entregas"].forEach(function(s){_permitidas[s]=1;}); }
     if(isArmador){ ["inicio-arm","backup"].forEach(function(s){_permitidas[s]=1;}); }
     // Secciones solo-admin: nunca permitidas para no-admin
-    var _soloAdmin = {vendedores:1, "datos-empresa":1, dashboard:1};
+    var _soloAdmin = {vendedores:1, "datos-empresa":1, dashboard:1, auditoria:1};
     if(_soloAdmin[id]) return;
     // Si la sección no está entre las permitidas por ningún rol, bloquear
     if(!_permitidas[id]) return;
@@ -10626,9 +11332,11 @@ function verTab(id,btn){
   if(id==="mis-ventas") cargarMisVentas();
   if(id==="vendedores") cargarVendedores();
   if(id==="stock") cargarStock();
+  if(id==="auditoria") cargarAuditoria(true);
   if(id==="catalogo"){ iniciarCatalogo(); }
   if(id==="datos-empresa"){ 
     setCfgTab("empresa", document.getElementById("cfg-tab-empresa"));
+    if(typeof _limpMostrarUltima==="function") _limpMostrarUltima();
   }
   if(id==="pedido"||id==="remito"||id==="hoja"){
     // Asegurar stockConfig cargado para badges en pedidos
@@ -11214,9 +11922,10 @@ function _agregarFrecuente(btn){
   var _tieneOf = _ofp && _ofp<pre;
   var _preEf = _tieneOf ? _ofp : pre;
   var exist = ordenes["ped"].find(function(x){ return x.id===prod.id && x.p===_preEf; });
+  var minU = prod.minCompra || 1;
   if(exist){ exist.c += 1; exist.sub = exist.p*exist.c; }
   else {
-    var _it = { id:prod.id, n:prod.n, p:_preEf, c:1, sub:_preEf };
+    var _it = { id:prod.id, n:prod.n, p:_preEf, c:minU, sub:_preEf*minU };   // arranca en el mínimo de compra
     if(_tieneOf){ _it.ofPrecio=_ofp; _it.ofNormal=pre; _it.ofAplicada=true; }
     ordenes["ped"].push(_it);
   }
@@ -13147,8 +13856,19 @@ function editarCantItem(inp){
   var t=inp.dataset.t, i=parseInt(inp.dataset.i);
   var val=parseFloat(inp.value);
   if(isNaN(val)||val<=0){ inp.style.borderColor="var(--red)"; return; }
-  inp.style.borderColor="var(--border)";
   var it=ordenes[t][i]; if(!it) return;
+  // Respetar el mínimo de compra del producto (no para líneas de caja, que van por bulto)
+  if(!it._esCaja){
+    var prod=(dbStock||[]).find(function(p){return String(p.id)===String(it.id);});
+    var minU=(prod&&prod.minCompra)?prod.minCompra:1;
+    if(val<minU){
+      inp.style.borderColor="var(--red)";
+      inp.title="Mínimo de compra: "+minU;
+      if(typeof showNotif==="function") showNotif("El mínimo de compra de este producto es "+minU,"err");
+      return;
+    }
+  }
+  inp.style.borderColor="var(--border)";
   it.c=val;
   it.sub=it.p*val;
   // Si tiene descuento por item, recalcular
@@ -14406,6 +15126,17 @@ function filtrarStock(){
   renderStock();
 }
 
+// Clave de familia normalizada (para agrupar variantes aunque la familia
+// esté escrita con distintas mayúsculas/espacios). Si no tiene familia, usa el nombre.
+function _stkFamKey(p){
+  var f = p.familia || p.padre || "";
+  f = String(f).trim().toLowerCase();
+  return f || ("__"+String(p.n||"").trim().toLowerCase());
+}
+function _stkTieneFamilia(p){
+  var f = p.familia || p.padre || "";
+  return String(f).trim().length > 0;
+}
 function renderStock(){
   var list=document.getElementById("stk-list");
   var sumEl=document.getElementById("stk-summary");
@@ -14436,9 +15167,11 @@ function renderStock(){
     if(_stkOrden==="cant-asc")  return qa-qb;
     if(_stkOrden==="cant-desc") return qb-qa;
     if(_stkOrden==="codigo")    return String(a.id).localeCompare(String(b.id));
-    // Por nombre: agrupar las variantes de una misma familia, juntas
-    var fa=(a.familia||a.padre||a.n||""), fb=(b.familia||b.padre||b.n||"");
-    if(fa!==fb) return String(fa).localeCompare(String(fb));
+    // Por nombre: agrupar las variantes de una misma familia, juntas.
+    // Normalizar la familia (trim + minúsculas) para que variantes con la familia
+    // escrita distinto igual queden agrupadas.
+    var fa=_stkFamKey(a), fb=_stkFamKey(b);
+    if(fa!==fb) return fa.localeCompare(fb);
     return String(a.n||"").localeCompare(String(b.n||""));
   });
   if(!prods.length && !prodsBase.length){
@@ -14480,18 +15213,21 @@ function renderStock(){
   prods.forEach(function(p){
     // Encabezado de familia (agrupa las variantes)
     if(_agrupar){
-      var fam = p.familia || p.padre || null;
-      if(fam && fam!==_famActual){
-        // Contar variantes de esta familia en la lista
-        var _nVar = prods.filter(function(x){ return (x.familia||x.padre)===fam; }).length;
+      var tieneFam = _stkTieneFamilia(p);
+      var famKey = tieneFam ? _stkFamKey(p) : null;
+      if(famKey && famKey!==_famActual){
+        // Contar variantes de esta familia (con la misma clave normalizada)
+        var _nVar = prods.filter(function(x){ return _stkTieneFamilia(x) && _stkFamKey(x)===famKey; }).length;
         if(_nVar>1){
           var head=document.createElement("div");
           head.className="stk-fam-head";
-          head.innerHTML='📦 '+escHtml(fam)+' <span style="font-weight:600;color:var(--muted);font-size:11px">· '+_nVar+' variantes</span>';
+          // Mostrar el nombre de familia tal como está escrito (no la clave en minúscula)
+          var famNombre = p.familia || p.padre || "";
+          head.innerHTML='📦 '+escHtml(famNombre)+' <span style="font-weight:600;color:var(--muted);font-size:11px">· '+_nVar+' variantes</span>';
           list.appendChild(head);
-          _famActual = fam;
+          _famActual = famKey;
         } else { _famActual = null; }
-      } else if(!fam){ _famActual = null; }
+      } else if(!famKey){ _famActual = null; }
     }
     var qty=stockData[p.id]!==undefined ? stockData[p.id] : 0;
     var res=+(stockReservado[p.id]||0);
@@ -15293,13 +16029,47 @@ function calcRuta(ruta){
     }).length};
 }
 
+function _poblarFiltroRepartidores(){
+  var sel=document.getElementById("ruta-fil-rep"); if(!sel) return;
+  // Repartidores que aparecen en las rutas
+  var reps={};
+  Object.values(rutasData||{}).forEach(function(r){
+    if(r.repartidorId){ reps[r.repartidorId] = r.repartidorNom || r.repartidorId; }
+  });
+  var actual = sel.value;
+  var opts = Object.keys(reps).sort(function(a,b){ return (reps[a]||"").localeCompare(reps[b]||""); });
+  // Solo re-armar si cambió la cantidad (para no perder la selección al re-render)
+  if(sel._repCount === opts.length) { sel.value = actual; return; }
+  sel._repCount = opts.length;
+  sel.innerHTML = '<option value="">Todos los repartidores</option>' +
+    opts.map(function(id){ return '<option value="'+id+'">'+escHtml(reps[id])+'</option>'; }).join("");
+  sel.value = actual;
+}
 function renderRutas(){
   var wrap=document.getElementById("rutas-list");
   var filEstado = (document.getElementById("ruta-fil-estado")||{value:""}).value;
   var filMes    = (document.getElementById("ruta-fil-mes")||{value:""}).value;
   var filZona   = (document.getElementById("ruta-fil-zona")||{value:""}).value;
+  var filRep    = (document.getElementById("ruta-fil-rep")||{value:""}).value;
 
-  var keys=Object.keys(rutasData).sort(function(a,b){return(rutasData[b].fecha||"").localeCompare(rutasData[a].fecha||"");});
+  // Poblar el filtro de repartidores (una vez, con los que tienen rutas)
+  _poblarFiltroRepartidores();
+
+  // Ordenar: primero por cercanía a HOY (los de esta semana arriba), después por fecha desc
+  var _hoy = new Date(); _hoy.setHours(0,0,0,0);
+  var _finSemana = _hoy.getTime() + 7*86400000;
+  function _prioridad(k){
+    var f = new Date(rutasData[k].fecha||0).getTime();
+    // 0 = esta semana (hoy..+7d), 1 = futuro lejano, 2 = pasado
+    if(f>=_hoy.getTime() && f<=_finSemana) return 0;
+    if(f>_finSemana) return 1;
+    return 2;
+  }
+  var keys=Object.keys(rutasData).sort(function(a,b){
+    var pa=_prioridad(a), pb=_prioridad(b);
+    if(pa!==pb) return pa-pb;
+    return (rutasData[b].fecha||"").localeCompare(rutasData[a].fecha||"");
+  });
 
   // Modo "ver solo una ruta" (al elegir un cliente desde el buscador): mostrar únicamente esa.
   if(_soloVerRuta && rutasData[_soloVerRuta]){
@@ -15319,6 +16089,8 @@ function renderRutas(){
     }
     // Filtro zona
     if(filZona && ruta.zona_id !== filZona) return false;
+    // Filtro repartidor
+    if(filRep && String(ruta.repartidorId||"") !== String(filRep)) return false;
     // Filtro estado
     if(filEstado){
       var clientes = Object.values(ruta.clientes||{});
@@ -17870,8 +18642,14 @@ function _renderBkDiasTabs(backups){
   var span = document.getElementById("bk-tabs-dias");
   if(!span) return;
   var dias = (empresaData && empresaData.diasEntrega) || (empresaData&&empresaData._config&&empresaData._config.dias_entrega) || [];
+  dias = dias.slice();
+  // Incluir CUALQUIER día que tenga pedidos, aunque no esté en la config
+  // (si no, al cambiar un pedido a un día no configurado, "desaparecía").
+  var _orden = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"];
+  (backups||[]).forEach(function(bk){ if(bk.diaEntrega && dias.indexOf(bk.diaEntrega)===-1) dias.push(bk.diaEntrega); });
+  dias.sort(function(a,b){ return _orden.indexOf(a)-_orden.indexOf(b); });
   if(!dias.length){ span.innerHTML=""; return; }
-  var DL = {lunes:"Lunes",martes:"Martes",miercoles:"Miérc.",jueves:"Jueves",viernes:"Viernes",sabado:"Sábado"};
+  var DL = {lunes:"Lunes",martes:"Martes",miercoles:"Miérc.",jueves:"Jueves",viernes:"Viernes",sabado:"Sábado",domingo:"Dom."};
   span.innerHTML = dias.map(function(dia){
     var tabE = "dia_"+dia;
     var cntE = backups.filter(function(bk){ return bk.diaEntrega===dia && bk.aprobado!==true && bk.aprobado!==false; }).length;
@@ -21838,18 +22616,17 @@ if(!Array.prototype.includes){
 }
 
 function _cerrarDropdowns(target){
-  // Solo cerrar dropdowns de productos (res-ped, res-rem)
-  // Los dropdowns de clientes se cierran con onblur
   var inSearch = false;
   var el = target;
   while(el && el !== document.body){
-    if(el.id && (el.id==="res-ped"||el.id==="res-rem"||el.id==="res-sto")){ inSearch=true; break; }
+    if(el.id && (el.id==="res-ped"||el.id==="res-rem"||el.id==="res-sto"||el.id==="edit-bk-res")){ inSearch=true; break; }
     if(el.className && typeof el.className==="string" && el.className.indexOf("search-wrap")!==-1){ inSearch=true; break; }
     el=el.parentElement;
   }
   if(!inSearch){
     var dd = document.getElementById("res-ped"); if(dd) dd.classList.remove("open");
     var dr = document.getElementById("res-rem"); if(dr) dr.classList.remove("open");
+    var de = document.getElementById("edit-bk-res"); if(de){ de.classList.remove("open"); de.style.display="none"; }
   }
 }
 document.addEventListener("touchstart", function(e){ _cerrarDropdowns(e.target); }, {passive:true});
@@ -22996,7 +23773,8 @@ function _onbCerrar(omitir){
   var ov = document.getElementById("onboarding-ov");
   if(!ov) return;
   ov.classList.remove("show");
-  setTimeout(function(){ ov.style.display = "none"; }, 200);
+  if(window._onbCloseTimer) clearTimeout(window._onbCloseTimer);
+  window._onbCloseTimer = setTimeout(function(){ ov.style.display = "none"; }, 200);
   if(omitir){ _onbMarcarHecho(); }
 }
 // Marca el onboarding como cerrado para siempre: localStorage + Supabase.
@@ -23025,7 +23803,12 @@ function _onbCheckAutoShow(){
   // Auto-show del checklist desactivado: lo maneja _coriTutorAuto().
 }
 // Permite reabrirlo manualmente desde el menú de cuenta.
-function abrirOnboarding(){ _onbCerrar(false); _onbAbrir(); }
+function abrirOnboarding(){
+  var ov = document.getElementById("onboarding-ov");
+  if(ov){ ov.classList.remove("show"); ov.style.display="none"; }
+  if(window._onbCloseTimer){ clearTimeout(window._onbCloseTimer); window._onbCloseTimer=null; }
+  setTimeout(_onbAbrir, 60);
+}
 
 // Confirmación visual destacada de guardado (✓ animado en el centro)
 var _savedTimer = null;
@@ -24943,20 +25726,21 @@ function _mprodToggleOferta(){
 }
 // Cambiar modo de oferta (pct / fijo)
 function _mprodOfTipo(tipo){
-  document.getElementById("mprod-oferta-tipo").value = tipo;
+  var hid=document.getElementById("mprod-oferta-tipo"); if(hid) hid.value = tipo;
   var bP=document.getElementById("mprod-oftipo-pct"), bF=document.getElementById("mprod-oftipo-fijo");
   var wP=document.getElementById("mprod-of-pct-wrap"), wF=document.getElementById("mprod-of-fijo-wrap");
+  var ON="oklch(60% 0.15 150)", OFF="var(--s2)";
   if(tipo==="pct"){
-    if(bP){ bP.style.background="oklch(60% 0.15 150)"; bP.style.color="#fff"; }
-    if(bF){ bF.style.background="var(--s2)"; bF.style.color="var(--text2)"; }
+    if(bP){ bP.style.background=ON; bP.style.color="#fff"; }
+    if(bF){ bF.style.background=OFF; bF.style.color="var(--text2)"; }
     if(wP) wP.style.display="block"; if(wF) wF.style.display="none";
   } else {
-    if(bF){ bF.style.background="oklch(60% 0.15 150)"; bF.style.color="#fff"; }
-    if(bP){ bP.style.background="var(--s2)"; bP.style.color="var(--text2)"; }
+    if(bF){ bF.style.background=ON; bF.style.color="#fff"; }
+    if(bP){ bP.style.background=OFF; bP.style.color="var(--text2)"; }
     if(wF) wF.style.display="block"; if(wP) wP.style.display="none";
     _mprodRenderOfListas();
   }
-  _mprodCalcOferta();
+  try{ _mprodCalcOferta(); }catch(e){ console.warn("[Oferta] calc:", e); }
 }
 // Renderizar un campo de precio de oferta por cada lista
 function _mprodRenderOfListas(valores){
@@ -26916,7 +27700,12 @@ function renderVendedores(){
         '<div class="vnd-avatar '+rankClass+'">'+vnd.nombre.charAt(0).toUpperCase()+'</div>'+
         '<div class="vnd-info"><div class="vnd-name">'+escHtml(vnd.nombre)+zonaBadge+'</div><div class="vnd-meta">'+vnd.remitos+' remito'+(vnd.remitos!==1?'s':'')+' · Ticket $'+fM(ticketProm)+' · '+pctGlobal+'% del total</div></div>'+
         '<div class="vnd-totals"><div class="vnd-total-val">$'+fM(vnd.total)+'</div><div class="vnd-com-val">+$'+fM(com)+' com. ('+comPctVnd+'%)</div></div>'+
-        '<button onclick="event.stopPropagation();abrirEditarVendedor(\''+vnd.uid+'\')" style="background:none;border:1px solid var(--border);border-radius:7px;padding:4px 8px;font-size:12px;cursor:pointer;flex-shrink:0" title="Editar vendedor">⚙️</button>'+
+        '<span class="vnd-chevron'+(isOpen?" open":"")+'" style="flex-shrink:0;font-size:13px;color:var(--muted);transition:transform .2s;margin-left:4px">▼</span>'+
+      '</div>'+
+      // Barra de acciones (siempre visible, con texto claro)
+      '<div style="display:flex;gap:7px;padding:0 2px 2px">'+
+        '<button onclick="_vndComprobante(\''+vnd.uid+'\')" style="flex:1;background:var(--green-bg);border:1px solid oklch(85% 0.05 155);border-radius:8px;padding:8px;font-size:12px;font-weight:700;color:var(--green);cursor:pointer;font-family:inherit">📄 Comprobante de comisión</button>'+
+        '<button onclick="abrirEditarVendedor(\''+vnd.uid+'\')" style="flex:0 0 auto;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit" title="Editar vendedor">⚙️ Editar</button>'+
       '</div>'+
       '<div class="vnd-bar-wrap'+(isOpen?" open":"")+'" id="vnd-detail-'+vnd.uid+'">'+
         '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'+_varBadge+'</div>'+
@@ -26932,6 +27721,11 @@ function renderVendedores(){
           '<div style="background:var(--s3);border-radius:8px;padding:9px 6px;text-align:center"><div style="font-size:13px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums">$'+fM(ticketProm)+'</div><div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px">Ticket prom.</div></div>'+
         '</div>'+
         '</div>'+
+        // Botón para ver el detalle pesado (evolución, productos, remitos) — oculto por defecto
+        ((_hayEvol||topProds.length||ventasOrd.length)
+          ? '<button onclick="event.stopPropagation();var d=document.getElementById(\'vnd-full-'+vnd.uid+'\');var abierto=d.style.display!==\'none\';d.style.display=abierto?\'none\':\'block\';this.textContent=abierto?\'📊 Ver detalle completo\':\'▲ Ocultar detalle\';" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit;margin-bottom:10px">📊 Ver detalle completo</button>'
+          : '')+
+        '<div id="vnd-full-'+vnd.uid+'" style="display:none">'+
         (_hayEvol?'<div class="vnd-evol"><div class="vnd-evol-ttl">📈 Evolución '+anio+'</div><div class="vnd-evol-bars">'+
           _evolMes.map(function(m,i){
             var h=m>0?Math.max(4,Math.round((m/_maxEvol)*100)):0;
@@ -26940,7 +27734,7 @@ function renderVendedores(){
           }).join('')+'</div></div>':'')+
         (topProds.length?'<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Productos más vendidos</div>'+
           topProds.map(function(p){var bw=Math.round((p.t/maxProd)*100);return '<div class="vnd-prod-bar-row"><div class="vnd-prod-bar-name" title="'+escHtml(p.n)+'">'+escHtml(p.n)+'</div><div class="vnd-prod-bar-track"><div class="vnd-prod-bar-fill" style="width:'+bw+'%"></div></div><div class="vnd-prod-bar-val">$'+fM(p.t)+'</div><div style="font-size:10px;color:var(--muted);width:36px;text-align:right">'+p.u+'u.</div></div>';}).join('')+'</div>':'')+
-        '<div class="vnd-detail"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Remitos</div>'+
+        '<div class="vnd-detail"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Remitos ('+ventasOrd.length+')</div>'+
           ventasOrd.map(function(v){
             var fecha=new Date(v.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"});
             var itemsHTML=(v.items||[]).map(function(it){return '<div class="mv-prod-row"><span style="flex:1">'+escHtml(it.n)+'</span><span style="color:var(--muted)">×'+it.c+'</span><span style="font-weight:700;width:80px;text-align:right">$'+fM(it.sub||it.p*it.c)+'</span></div>';}).join('');
@@ -26948,6 +27742,7 @@ function renderVendedores(){
             return '<div class="vnd-detail-row" onclick="event.stopPropagation();var nx=this.nextElementSibling;nx.classList.toggle(&quot;open&quot;)"><span class="vnd-det-date">'+fecha+'</span><span class="vnd-det-cli">'+escHtml(v.clienteNom||"")+'</span><span class="vnd-det-tot">$'+fM(v.total)+'</span>'+delBtn+'</div>'+
               '<div class="mv-remito-detail" style="border-radius:0;margin-bottom:0">'+(itemsHTML||'<div style="font-size:11px;color:var(--muted)">Sin detalle</div>')+'</div>';
           }).join('')+
+        '</div>'+
         '</div>'+
       '</div>'+
     '</div>';
@@ -26960,6 +27755,89 @@ function toggleVnd(uid){
   _vndOpen[uid]=!_vndOpen[uid];
   var el=document.getElementById("vnd-detail-"+uid);
   if(el) el.classList.toggle("open",_vndOpen[uid]);
+  // Rotar la flecha
+  var head=document.querySelector('.vnd-card-head[data-uid="'+uid+'"]');
+  if(head){ var ch=head.querySelector(".vnd-chevron"); if(ch){ ch.classList.toggle("open",_vndOpen[uid]); ch.style.transform=_vndOpen[uid]?"rotate(180deg)":"rotate(0)"; } }
+}
+
+// ══ COMPROBANTE DE COMISIÓN (PDF para liquidarle al vendedor) ══
+function _vndComprobante(uid){
+  // Reconstruir los datos del vendedor para el período actual
+  var comPct=parseFloat((document.getElementById("vnd-com-pct")||{}).value)||COM_PCT;
+  var uData = Object.values(_clientesDB||{}).find(function(u){ return u.id===uid; }) || {};
+  var comPctVnd = (uData.comision!=null && uData.comision!=="") ? +uData.comision : comPct;
+  var nombre = uData.name || "Vendedor";
+  // Juntar las ventas del vendedor en el período filtrado
+  var anio=parseInt((document.getElementById("vnd-fil-anio")||{}).value)||new Date().getFullYear();
+  var mesRaw=(document.getElementById("vnd-fil-mes")||{}).value, mes=mesRaw===""?null:parseInt(mesRaw);
+  var ventas = [];
+  _vndVentas.forEach(function(v){
+    if((v.usuario||"sin-asignar")!==uid) return;
+    var d=new Date(v.fecha);
+    if(mes!==null){ if(d.getFullYear()!==anio || d.getMonth()!==mes) return; }
+    else if(anio!==null){ if(d.getFullYear()!==anio) return; }
+    ventas.push(v);
+  });
+  if(!ventas.length){ showNotif("Este vendedor no tiene ventas en el período","err"); return; }
+  ventas.sort(function(a,b){ return new Date(a.fecha)-new Date(b.fecha); });
+  var total = ventas.reduce(function(s,v){ return s+(v.total||0); },0);
+  var comision = Math.round(total*comPctVnd/100*100)/100;
+  var periodo = mes!==null ? (MESES[mes]+" "+anio) : ("Año "+anio);
+
+  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
+  var ed=_getEmpDatos(), empNom=ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
+  var W=doc.internal.pageSize.getWidth(), M=16, y=20;
+  // Encabezado
+  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(20,20,20);
+  doc.text(_pdfTxt(empNom), M, y); y+=7;
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90,90,90);
+  doc.text("Comprobante de comisión", M, y); y+=10;
+  doc.setDrawColor(200,200,200); doc.line(M,y,W-M,y); y+=9;
+  // Datos
+  doc.setFontSize(11); doc.setTextColor(20,20,20); doc.setFont("helvetica","bold");
+  doc.text("Vendedor:", M, y); doc.setFont("helvetica","normal"); doc.text(_pdfTxt(nombre), M+28, y); y+=6;
+  doc.setFont("helvetica","bold"); doc.text("Período:", M, y); doc.setFont("helvetica","normal"); doc.text(periodo, M+28, y); y+=6;
+  doc.setFont("helvetica","bold"); doc.text("Emitido:", M, y); doc.setFont("helvetica","normal"); doc.text(new Date().toLocaleDateString("es-AR"), M+28, y); y+=10;
+
+  // Tabla de ventas (con autotable)
+  var filas = ventas.map(function(v){
+    return [ new Date(v.fecha).toLocaleDateString("es-AR"), _pdfTxt(v.clienteNom||v.cliente||"-"), "$"+fM(v.total||0) ];
+  });
+  doc.autoTable({
+    startY: y,
+    head: [["Fecha","Cliente","Monto"]],
+    body: filas,
+    styles: { fontSize: 9, cellPadding: 2.5 },
+    headStyles: { fillColor: [40,40,40], textColor:[255,255,255] },
+    columnStyles: { 2: { halign:"right" } },
+    margin: { left:M, right:M }
+  });
+  var yF = doc.lastAutoTable.finalY + 10;
+
+  // Resumen final
+  doc.setFillColor(245,244,240); doc.roundedRect(M, yF, W-M*2, 30, 3, 3, "F");
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90,90,90);
+  doc.text("Total vendido en el período:", M+6, yF+9);
+  doc.setFont("helvetica","bold"); doc.setTextColor(20,20,20);
+  doc.text("$"+fM(total), W-M-6, yF+9, {align:"right"});
+  doc.setFont("helvetica","normal"); doc.setTextColor(90,90,90);
+  doc.text("Comisión ("+comPctVnd+"%):", M+6, yF+17);
+  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(15,138,74);
+  doc.text("$"+fM(comision), W-M-6, yF+18, {align:"right"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(140,140,140);
+  doc.text(ventas.length+" venta"+(ventas.length!==1?"s":"")+" · Ticket promedio $"+fM(total/ventas.length), M+6, yF+26);
+
+  // Firma
+  var yFirma = yF + 48;
+  doc.setDrawColor(180,180,180); doc.line(M, yFirma, M+70, yFirma);
+  doc.line(W-M-70, yFirma, W-M, yFirma);
+  doc.setFontSize(8); doc.setTextColor(120,120,120);
+  doc.text("Firma vendedor", M, yFirma+5);
+  doc.text("Firma "+_pdfTxt(empNom).slice(0,30), W-M-70, yFirma+5);
+
+  var fname="comision_"+_pdfTxt(nombre).replace(/\s+/g,"_").slice(0,20)+"_"+(mes!==null?(anio+"-"+String(mes+1).padStart(2,"0")):anio)+".pdf";
+  _compartirPDF(doc, fname, "Comprobante de comisión");
+  showNotif("📄 Comprobante generado — comisión $"+fM(comision),"ok");
 }
 
 // ══ CATÁLOGO PDF ══
@@ -26970,8 +27848,13 @@ var _invContado = {};   // { codigo: cantidad contada }
 var _invF = "contados";
 function _invAbrir(){
   _invContado = {};
-  _invF = "contados";
+  _invF = "todos";
   var b=document.getElementById("inv-buscar"); if(b) b.value="";
+  // Marcar visualmente la pestaña "todos" como activa
+  ["todos","contados","dif"].forEach(function(k){
+    var el=document.getElementById("inv-f-"+k);
+    if(el) el.classList.toggle("active", k==="todos");
+  });
   _invRender();
   abrirModal("inv-modal");
 }
@@ -27048,22 +27931,37 @@ async function _invAplicar(){
   if(!ok) return;
   var btn=document.getElementById("inv-btn");
   if(btn){ btn.disabled=true; btn.textContent="Ajustando…"; }
-  // Guardado en lote (mucho más rápido que uno por uno)
+  // Preparar el lote SIN tocar stockData todavía (si falla, no queremos dejar datos corruptos)
   var patch={}, anteriores={};
   difs.forEach(function(cod){
     anteriores[cod] = +(stockData[cod]||0);
     patch[cod] = +_invContado[cod];
-    stockData[cod] = +_invContado[cod];
   });
+  var guardadoOk = false;
   try{
+    // 1) Firebase (la cola ya reintenta sola si hay corte, no rompe)
     await fbPatchQ("empresas/"+empresaKey+"/stock", patch, "Conteo de inventario ("+difs.length+" productos)");
-    if(_sbEmpId) await _sbPatchStock(patch);
-    // Dejar constancia de cada ajuste en el libro de movimientos
+    // 2) Supabase — tolerante: si alguno falla, no tumba todo el ajuste
+    if(_sbEmpId){
+      var results = await Promise.allSettled(Object.entries(patch).map(function(e){
+        return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],cantidad:e[1],updated_at:new Date().toISOString()}, "empresa_id,codigo");
+      }));
+      var fallaron = results.filter(function(r){ return r.status==="rejected"; }).length;
+      if(fallaron && fallaron===results.length){ throw new Error("no se pudo guardar en el servidor"); }
+    }
+    guardadoOk = true;
+    // Recién ahora que guardó, actualizar el estado local
+    difs.forEach(function(cod){ stockData[cod] = patch[cod]; });
+    // Movimientos (no bloquean el resultado)
     for(var i=0;i<difs.length;i++){
       var cod=difs[i];
-      await _stkRegistrarMovimiento(cod, anteriores[cod], patch[cod], "Conteo de inventario", "ajuste");
+      try{ await _stkRegistrarMovimiento(cod, anteriores[cod], patch[cod], "Conteo de inventario", "ajuste"); }catch(e){}
     }
-  }catch(e){ showNotif("Error al guardar: "+(e.message||""),"err"); }
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent="✓ Ajustar el stock a lo contado"; }
+    showNotif("No se pudo guardar el ajuste. Revisá la conexión y probá de nuevo — no se perdió lo que contaste.","err");
+    return;   // NO cerrar el modal ni borrar lo contado, así puede reintentar
+  }
   if(btn){ btn.disabled=false; btn.textContent="✓ Ajustar el stock a lo contado"; }
   cerrarModal("inv-modal");
   await _stkRefrescar();
@@ -27144,45 +28042,67 @@ function _catDibujarQR(doc, texto, x, y, size){
 
 // ═══════ ENVÍO MASIVO POR WHATSAPP ═══════
 var _waClientes = [], _waSel = {};
+// Genera el catálogo PDF y lo comparte por el sistema (WhatsApp adjunta el archivo de verdad)
+async function _waCompartirPDF(){
+  cerrarModal("wa-modal");
+  showNotif("📄 Generando el catálogo para compartir…","info");
+  try{
+    await generarCatalogoPDF(false);   // genera y comparte por el share nativo (adjunta el PDF)
+  }catch(e){
+    console.error("[Compartir catálogo]", e);
+    showNotif("No se pudo generar el catálogo","err");
+  }
+}
 async function _waAbrir(){
-  // Los clientes pueden no estar cargados si no pasaste por Gestión de Clientes
-  if(!_clientesDB || !Object.keys(_clientesDB).length){
-    showNotif("Cargando clientes…","info");
-    try{ var us = await fbGet("empresas/"+empresaKey+"/usuarios"); if(us) _clientesDB = us; }catch(e){}
+  try{
+    // Los clientes pueden no estar cargados si no pasaste por Gestión de Clientes
+    if(!_clientesDB || !Object.keys(_clientesDB).length){
+      showNotif("Cargando clientes…","info");
+      try{ var us = await fbGet("empresas/"+empresaKey+"/usuarios"); if(us) _clientesDB = us; }catch(e){}
+    }
+    // Filtro tolerante: acepta telefono O tel, y cualquiera que no sea admin/repartidor/vendedor
+    var lista = Object.values(_clientesDB||{}).filter(function(u){
+      if(!u) return false;
+      var tel = String(u.telefono||u.tel||"").replace(/\D/g,"");
+      if(tel.length<8) return false;
+      var rol = (u.role||"").toLowerCase();
+      return rol!=="admin" && rol!=="repartidor" && rol!=="vendedor" && rol!=="armador";
+    });
+    if(!lista.length){
+      showNotif("Ningún cliente tiene teléfono cargado (mín. 8 dígitos). Cargalos en Gestión de Clientes.","err");
+      return;
+    }
+    _waClientes = lista.sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
+    _waSel = {};
+    _waSel={}; _waClientes.forEach(function(c,i){ _waSel[i]=true; });
+    var emp = (empresaData && empresaData.nombre) ? empresaData.nombre : "nuestra distribuidora";
+    var url = ((document.getElementById("cat-tienda-url")||{}).value||"").trim();
+    var msg = "¡Hola! 👋 Te paso el catálogo actualizado de "+emp+" con los precios de este mes."+(url?("\n\nTambién podés hacer tu pedido online acá: "+url):"")+"\n\n¡Cualquier consulta escribime!";
+    var t=document.getElementById("wa-msg"); if(t) t.value=msg;
+    var p=document.getElementById("wa-progreso"); if(p) p.style.display="none";
+    var b=document.getElementById("wa-btn"); if(b){ b.disabled=false; b.textContent="💬 Empezar a enviar"; }
+    _waRender();
+    abrirModal("wa-modal");
+  }catch(e){
+    console.error("[WhatsApp masivo]", e);
+    showNotif("Error al abrir: "+(e.message||e),"err");
   }
-  var lista = Object.values(_clientesDB||{}).filter(function(u){
-    return u && u.telefono && String(u.telefono).replace(/\D/g,"").length>=8 && (u.role==="cliente"||!u.role);
-  });
-  if(!lista.length){
-    showNotif("Ningún cliente tiene teléfono cargado. Cargalos en Gestión de Clientes.","err");
-    return;
-  }
-  _waClientes = lista.sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
-  _waSel = {};
-  _waClientes.forEach(function(c){ _waSel[c.id]=true; });
-  var emp = (empresaData && empresaData.nombre) ? empresaData.nombre : "nuestra distribuidora";
-  var url = ((document.getElementById("cat-tienda-url")||{}).value||"").trim();
-  var msg = "¡Hola! 👋 Te paso el catálogo actualizado de "+emp+" con los precios de este mes."+(url?("\n\nTambién podés hacer tu pedido online acá: "+url):"")+"\n\n¡Cualquier consulta escribime!";
-  var t=document.getElementById("wa-msg"); if(t) t.value=msg;
-  var p=document.getElementById("wa-progreso"); if(p) p.style.display="none";
-  var b=document.getElementById("wa-btn"); if(b){ b.disabled=false; b.textContent="💬 Empezar a enviar"; }
-  _waRender();
-  abrirModal("wa-modal");
 }
 function _waRender(){
   var cont=document.getElementById("wa-lista"); if(!cont) return;
   var q=((document.getElementById("wa-buscar")||{}).value||"").toLowerCase().trim();
-  var arr=_waClientes.filter(function(c){ return !q || (c.name||"").toLowerCase().indexOf(q)!==-1; });
-  var n=Object.keys(_waSel).filter(function(k){return _waSel[k];}).length;
+  var n=_waClientes.filter(function(c,i){ return _waSel[i]; }).length;
   cont.innerHTML='<div style="padding:8px 12px;background:var(--s2);font-size:11.5px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border)">'+n+' cliente'+(n!==1?'s':'')+' seleccionado'+(n!==1?'s':'')+'</div>'+
-    arr.map(function(c){
+    _waClientes.map(function(c, i){
+      // Ocultar (no quitar) los que no matchean la búsqueda, para conservar el índice
+      if(q && (c.name||"").toLowerCase().indexOf(q)===-1) return "";
       return '<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer">'+
-        '<input type="checkbox" '+(_waSel[c.id]?"checked":"")+' onchange="_waSel[\''+c.id+'\']=this.checked;_waRender()" style="width:16px;height:16px">'+
-        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+escHtml(c.name||c.id)+'</div>'+
-        '<div style="font-size:11px;color:var(--muted)">'+escHtml(c.telefono||"")+'</div></div></label>';
+        '<input type="checkbox" '+(_waSel[i]?"checked":"")+' onchange="_waSel['+i+']=this.checked;_waRender()" style="width:18px;height:18px;flex-shrink:0">'+
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+escHtml(c.name||"Sin nombre")+'</div>'+
+        '<div style="font-size:11px;color:var(--muted)">'+escHtml(c.telefono||c.tel||"")+'</div></div></label>';
     }).join("");
 }
-function _waTodos(v){ _waClientes.forEach(function(c){ _waSel[c.id]=v; }); _waRender(); }
+function _waTodos(v){ _waSel={}; _waClientes.forEach(function(c,i){ _waSel[i]=v; }); _waRender(); }
 function _waTel(t){
   var n = String(t||"").replace(/\D/g,"");
   if(!n) return "";
@@ -27191,7 +28111,7 @@ function _waTel(t){
 }
 var _waCola = [], _waIdx = 0;
 function _waEnviar(){
-  var sel=_waClientes.filter(function(c){ return _waSel[c.id]; });
+  var sel=_waClientes.filter(function(c,i){ return _waSel[i]; });
   if(!sel.length){ showNotif("No seleccionaste ningún cliente","err"); return; }
   var msg=((document.getElementById("wa-msg")||{}).value||"").trim();
   if(!msg){ showNotif("Escribí un mensaje","err"); return; }
@@ -27206,7 +28126,7 @@ function _waSiguiente(msg){
     return;
   }
   var c=_waCola[_waIdx];
-  var tel=_waTel(c.telefono);
+  var tel=_waTel(c.telefono||c.tel);
   var url="https://wa.me/"+tel+"?text="+encodeURIComponent(msg);
   window.open(url, "_blank");
   _waIdx++;
@@ -27340,6 +28260,7 @@ function _pdfTxt(s){
     .trim();
 }
 async function generarCatalogoPDF(previewMode){
+  if(typeof _trackUso==="function" && !previewMode) _trackUso("generar_catalogo_pdf");
   if(!dbStock.length){ showNotif("Cargá los productos primero desde Mis Productos","err"); return; }
   var btn = document.getElementById("btn-gen-catalogo");
   var progress = document.getElementById("cat-progress");
@@ -27408,7 +28329,7 @@ async function generarCatalogoPDF(previewMode){
 
     if(!prods.length && inclPromos !== "solo"){ showNotif("No hay productos con esos filtros","err"); btn.disabled=false; progress.style.display="none"; return; }
     // Vista previa: solo una muestra (rápida) — el catálogo completo se genera después
-    if(previewMode){ prods = prods.slice(0, 12); prodsPromo = prodsPromo.slice(0, 6); }
+    if(previewMode){ prods = prods.slice(0, 12); prodsPromo = prodsPromo.slice(0, 12); }
 
     progress.textContent = "🖼️ Cargando imágenes (0/"+prods.length+")…";
 
@@ -27565,15 +28486,27 @@ async function generarCatalogoPDF(previewMode){
         promoY += 32;
       }
 
-      // Grid de productos en promo
+      // Grid de productos en promo — TODAS las ofertas (múltiples páginas si hace falta)
       if(prodsPromo.length){
-        var pY = promoTexto ? 100 : 62;
+        var pY0 = promoTexto ? 100 : 62;
         var pCols = 3, pRows = 2;
-        var pCellW = (W-MARGIN*2-(pCols-1)*6)/pCols;
-        var pCellH = (H-pY-MARGIN-(pRows-1)*5)/pRows;
+        var _porPag = pCols*pRows;
+        var _totPagOf = Math.ceil(prodsPromo.length/_porPag);
 
-        progress.textContent = "🔥 Generando página de ofertas…";
-        prodsPromo.slice(0,pCols*pRows).forEach(function(prod,idx){
+        progress.textContent = "🔥 Generando ofertas ("+prodsPromo.length+")…";
+        prodsPromo.forEach(function(prod, gi){
+          var pagOf = Math.floor(gi/_porPag);
+          var idx = gi % _porPag;
+          // Nueva página de ofertas cuando se llena la anterior
+          if(idx===0 && pagOf>0){
+            doc.addPage();
+            doc.setFillColor(200,25,45); doc.rect(0,0,W,26,"F");
+            doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+            doc.text(_pdfTxt(promoTitulo||"OFERTAS DEL MES")+" ("+(pagOf+1)+"/"+_totPagOf+")", W/2, 17, {align:"center"});
+          }
+          var pY = (pagOf>0) ? 36 : pY0;
+          var pCellH = (H-pY-MARGIN-(pRows-1)*5)/pRows;
+          var pCellW = (W-MARGIN*2-(pCols-1)*6)/pCols;
           var ci=idx%pCols, ri=Math.floor(idx/pCols);
           var px=MARGIN+ci*(pCellW+6), py=pY+ri*(pCellH+5);
 
@@ -27614,12 +28547,17 @@ async function generarCatalogoPDF(previewMode){
           var pBase = _catPrecio(prod, lista);
           var ofVig = _ofVigente(prod);
           var precioReb = ofVig ? _ofPrecioLista(prod, lista) : prod.precioPromo;
+          // Si por algún motivo no hay precio rebajado, usar el precio normal (nunca mostrar $0)
+          if(precioReb==null || precioReb<=0) precioReb = pBase;
           var etiquetaExtra = ofVig ? "" : (prod.cantPromo ? (" (x"+prod.cantPromo+")") : "");
-          doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-          doc.text("Antes: $"+fM(pBase),px+pCellW/2,ty,{align:"center"});
-          var tw=doc.getTextWidth("Antes: $"+fM(pBase));
-          doc.setDrawColor(150,148,140); doc.setLineWidth(0.4);
-          doc.line(px+pCellW/2-tw/2,ty-1.2,px+pCellW/2+tw/2,ty-1.2);
+          // "Antes" solo si el rebajado es realmente menor
+          if(precioReb < pBase){
+            doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+            doc.text("Antes: $"+fM(pBase),px+pCellW/2,ty,{align:"center"});
+            var tw=doc.getTextWidth("Antes: $"+fM(pBase));
+            doc.setDrawColor(150,148,140); doc.setLineWidth(0.4);
+            doc.line(px+pCellW/2-tw/2,ty-1.2,px+pCellW/2+tw/2,ty-1.2);
+          }
           ty+=7.5;
           // Precio de oferta BIEN grande
           doc.setTextColor(220,30,50); doc.setFont("helvetica","bold"); doc.setFontSize(15);
@@ -27754,15 +28692,16 @@ async function generarCatalogoPDF(previewMode){
             doc.text("PROMO",x+cellW-10,y+5.8,{align:"center"});
           }
           // Imagen
-          var imgH=cellH*0.44, imgY=y+3, imgX=x+3, imgW=cellW-6;
+          // Imagen: rectángulo fijo más alto (los productos altos se ven grandes)
+          var imgH=cellH*0.55, imgY=y+3, imgX=x+3, imgW=cellW-6;
           if(imagenes[prod.id]){
             try{
-              setFill(estilo==="oscuro"?[45,45,45]:[245,244,240]);
+              setFill(estilo==="oscuro"?[45,45,45]:[248,247,244]);
               doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F");
               doc.addImage(imagenes[prod.id],"JPEG",imgX+2,imgY+2,imgW-4,imgH-4,undefined,"FAST");
-            }catch(e){ setFill(estilo==="oscuro"?[45,45,45]:[245,244,240]); doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F"); }
+            }catch(e){ setFill(estilo==="oscuro"?[45,45,45]:[248,247,244]); doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F"); }
           } else {
-            setFill(estilo==="oscuro"?[45,45,45]:[245,244,240]);
+            setFill(estilo==="oscuro"?[45,45,45]:[248,247,244]);
             doc.roundedRect(imgX,imgY,imgW,imgH,2,2,"F");
             setTxt(T.textMid); doc.setFontSize(13);
             doc.text("Sin foto",x+cellW/2,imgY+imgH/2+2,{align:"center"});
@@ -27778,38 +28717,41 @@ async function generarCatalogoPDF(previewMode){
             doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(6);
             doc.text("OFERTA",x+11,y+6.8,{align:"center"});
           }
-          // Texto
+          // Nombre (debajo de la imagen)
           var textY=imgY+imgH+6;
           if(mostrarCod){ doc.setFontSize(6.5); setTxt(T.textMid); doc.setFont("helvetica","normal"); doc.text("#"+prod.id,x+cellW/2,textY,{align:"center"}); textY+=4; }
-          doc.setFontSize(10); setTxt(T.textDark); doc.setFont("helvetica","bold");
+          doc.setFontSize(10.5); setTxt(T.textDark); doc.setFont("helvetica","bold");
           var nl=doc.splitTextToSize(_pdfTxt(prod.n),cellW-4).slice(0,2);
           doc.text(nl,x+cellW/2,textY,{align:"center",lineHeightFactor:1.25});
-          textY+=nl.length*4.8+4;
+          textY+=nl.length*5+3;
           if(mostrarStock && stockData[prod.id]!==undefined){
             var qty=stockData[prod.id];
             doc.setTextColor(qty>0?30:180,qty>0?130:30,qty>0?80:30); doc.setFontSize(7);
-            doc.text(qty>0?"Stock: "+qty+" u.":"Sin stock",x+cellW/2,textY,{align:"center"}); textY+=4.5;
+            doc.text(qty>0?"Stock: "+qty+" u.":"Sin stock",x+cellW/2,textY,{align:"center"});
           }
-          // Precio — bien grande
-          doc.setFont("helvetica","bold"); doc.setFontSize(15); setTxt(T.accent);
+          // ── PRECIO: anclado abajo de la tarjeta ──
+          var precioY = y + cellH - 9;   // fijo cerca del fondo, no depende del alto del nombre
+          doc.setFont("helvetica","bold"); doc.setFontSize(17); setTxt(T.accent);
           if(lista==="ambas"){
             doc.setFontSize(11);
-            doc.text("CLI: $"+fM(prod.pCli),x+cellW/2,textY,{align:"center"}); textY+=6;
-            setTxt(T.textMid); doc.text("PAT: $"+fM(prod.pPat),x+cellW/2,textY,{align:"center"});
+            doc.text("CLI: $"+fM(prod.pCli),x+cellW/2,precioY-4,{align:"center"});
+            setTxt(T.textMid); doc.text("PAT: $"+fM(prod.pPat),x+cellW/2,precioY+2,{align:"center"});
           } else {
             var precio=_catPrecio(prod, lista);
-            doc.text("$"+fM(precio),x+cellW/2,textY,{align:"center"});
             if(prod.precioPromo && prod.precioPromo>0){
-              doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+              // Precio normal tachado arriba, promo grande abajo
+              doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(8);
+              doc.text("$"+fM(precio),x+cellW/2,precioY-6,{align:"center"});
               var tw2=doc.getTextWidth("$"+fM(precio));
-              doc.line(x+cellW/2-tw2/2-1,textY-3.5,x+cellW/2+tw2/2+1,textY-3.5);
-              doc.setTextColor(220,30,50); doc.setFont("helvetica","bold"); doc.setFontSize(13);
-              doc.text("$"+fM(prod.precioPromo),x+cellW/2,textY+6.5,{align:"center"});
-              doc.setTextColor(220,30,50); doc.setFont("helvetica","bold"); doc.setFontSize(7);
-              doc.text("PRECIO PROMO",x+cellW/2,textY+11.5,{align:"center"});
-            } else if(mostrarCaja && prod.unidadesBulto && prod.unidadesBulto>1){
-              doc.setFont("helvetica","normal"); doc.setFontSize(8); setTxt(T.textMid);
-              doc.text("caja x"+prod.unidadesBulto+": $"+fM((prod.precioCaja&&prod.precioCaja>0)?prod.precioCaja:precio*prod.unidadesBulto),x+cellW/2,textY+5.5,{align:"center"});
+              doc.line(x+cellW/2-tw2/2-1,precioY-7.2,x+cellW/2+tw2/2+1,precioY-7.2);
+              doc.setTextColor(220,30,50); doc.setFont("helvetica","bold"); doc.setFontSize(16);
+              doc.text("$"+fM(prod.precioPromo),x+cellW/2,precioY,{align:"center"});
+            } else {
+              doc.text("$"+fM(precio),x+cellW/2,precioY,{align:"center"});
+              if(mostrarCaja && prod.unidadesBulto && prod.unidadesBulto>1){
+                doc.setFont("helvetica","normal"); doc.setFontSize(7.5); setTxt(T.textMid);
+                doc.text("caja x"+prod.unidadesBulto+": $"+fM((prod.precioCaja&&prod.precioCaja>0)?prod.precioCaja:precio*prod.unidadesBulto),x+cellW/2,precioY+4.5,{align:"center"});
+              }
             }
           }
       }
@@ -28372,8 +29314,10 @@ function _ctBalloonHTML(step, idx, total, dir, centered){
   var cori = '<div class="ct-cori">'+_coriSVG(pose,{size:size,dir:dir,animate:true})+'</div>';
   var tit  = step.titulo ? '<div class="ct-tit">'+step.titulo+'</div>' : '';
   var txt  = '<div class="ct-txt">'+(step.texto||'')+'</div>';
-  var hint = step.hecho ? '<div class="ct-hint">Completá el paso para seguir</div>' : '';
-  var cta  = step.hecho ? '' : '<button class="ct-cta" data-ct="next">'+(step.cta||'Siguiente')+'</button>';
+  var hint = step.hecho ? '<div class="ct-hint">Hacé el paso, o tocá "Siguiente" para continuar</div>' : '';
+  // SIEMPRE mostrar un botón para avanzar (antes los pasos con "hecho" no tenían botón
+  // y si la acción no se detectaba, el tutorial quedaba trabado).
+  var cta  = '<button class="ct-cta" data-ct="next">'+(step.hecho ? 'Siguiente →' : (step.cta||'Siguiente'))+'</button>';
   var dots = '';
   if(total>1){ dots='<div class="ct-dots">'; for(var i=0;i<total;i++){ dots+='<span class="ct-dot'+(i<idx?' done':(i===idx?' on':''))+'"></span>'; } dots+='</div>'; }
   var skip = '<button class="ct-skip" data-ct="skip">Saltar</button>';
@@ -29001,18 +29945,57 @@ async function _meRechazar(i){
     rutasData[rk].clientes[ck].entregado=false;
   }
   fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,
-    {rechazado:true, rechazadoEn:ahora, motivoRechazo:motivo||"", entregado:false},
+    {rechazado:true, rechazadoEn:ahora, motivoRechazo:motivo||"", entregado:false, rechazoConfirmado:false},
     "Rechazado: "+(p.cli.nom||""));
-  // MOTOR DE STOCK: el cliente no la recibió → la mercadería vuelve al depósito
+  // El stock NO vuelve todavía: primero el admin tiene que confirmar el rechazo (control).
+  // Se guarda como pendiente de confirmación.
+  p.cli.rechazoConfirmado = false;
+  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].rechazoConfirmado=false; }
+  // Registrar aviso para el admin
   try{
-    var _its = p.cli.items||[];
-    if(_its.length && _ctrlStockOn()){
-      await _stkDevolver("rech-"+rk+"-"+ck, _its);
+    fbPushQ("empresas/"+empresaKey+"/avisos_rechazo", {
+      rutaId: rk, cliKey: ck, cliNom: p.cli.nom||"", motivo: motivo||"",
+      fecha: ahora, importe: p.cli.importe||0, confirmado:false,
+      repartidor: (currentUser&&currentUser.name)||""
+    }, "Aviso de rechazo");
+  }catch(e){}
+  renderParadas(_mapaParadas);
+  showNotif("\u274c Pedido rechazado — el admin lo va a revisar","ok");
+}
+
+// El admin confirma el rechazo: RECIÉN AHORA la mercadería vuelve al stock
+async function _confirmarRechazo(rutaId, cliKey){
+  var ruta=rutasData[rutaId];
+  var cli = ruta && ruta.clientes && ruta.clientes[cliKey];
+  if(!cli){ showNotif("No se encontró el pedido rechazado","err"); return; }
+  if(cli.rechazoConfirmado===true){ showNotif("Este rechazo ya estaba confirmado","info"); return; }
+  var ok = await _confirmar({icono:"❌",titulo:"Confirmar rechazo",mensaje:"Al confirmar, la mercadería de "+(cli.nom||"este cliente")+" vuelve al stock y el pedido se descuenta de la hoja de ruta y de la comisión. ¿Confirmás?",ok:"Sí, confirmar",peligro:false});
+  if(!ok) return;
+  var ahora=new Date().toISOString();
+  // 1) Marcar confirmado (local + Firebase)
+  cli.rechazoConfirmado=true; cli.rechazoConfirmadoEn=ahora;
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rutaId+"/clientes/"+cliKey,
+    {rechazoConfirmado:true, rechazoConfirmadoEn:ahora}, "Rechazo confirmado: "+(cli.nom||""));
+  // 2) Devolver al stock (recién ahora)
+  try{
+    var its = cli.items||[];
+    if(its.length && _ctrlStockOn()){
+      await _stkDevolver("rech-"+rutaId+"-"+cliKey, its);
       showNotif("↩️ La mercadería volvió al stock","ok");
     }
-  }catch(e){ console.warn("[Stock] devolución:", e.message); }
-  renderParadas(_mapaParadas);
-  showNotif("\u274c Pedido rechazado","ok");
+  }catch(e){ console.warn("[Stock] devolución al confirmar:", e.message); }
+  // 3) Marcar el aviso como atendido
+  try{
+    var avisos = await fbGet("empresas/"+empresaKey+"/avisos_rechazo");
+    if(avisos){ Object.keys(avisos).forEach(function(ak){ var av=avisos[ak]; if(av && av.rutaId===rutaId && av.cliKey===cliKey && !av.confirmado){ fbPatchQ("empresas/"+empresaKey+"/avisos_rechazo/"+ak, {confirmado:true}, "Aviso atendido"); } }); }
+  }catch(e){}
+  // 4) Auditar
+  _auditar("editar","rechazo",cliKey,"Confirmó el rechazo de "+(cli.nom||"")+" — devolución al stock y descuento de ruta/comisión");
+  // 5) Refrescar vistas
+  _cerrarAlertaModal();
+  if(typeof renderDashboard==="function") renderDashboard();
+  if(typeof renderRutas==="function") try{ renderRutas(); }catch(e){}
+  showNotif("✅ Rechazo confirmado","ok");
 }
 
 function _meMotivoRechazo(){
