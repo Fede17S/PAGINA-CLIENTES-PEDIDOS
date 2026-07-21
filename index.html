@@ -3043,7 +3043,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-rep4</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.11-vnd4</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4232,9 +4232,23 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   <!-- Panel Vendedores -->
   <div id="vnd-panel-vendedores">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <select id="vnd-fil-periodo" onchange="_vndCambioPeriodo()" style="flex:1.2;font-size:12px;min-width:130px">
+        <option value="mes">📆 Por mes</option>
+        <option value="semana">Esta semana</option>
+        <option value="semana-ant">Semana anterior</option>
+        <option value="q1">1ª quincena (1–15)</option>
+        <option value="q2">2ª quincena (16–fin)</option>
+        <option value="custom">📅 Elegir fechas…</option>
+      </select>
       <select id="vnd-fil-anio" onchange="renderVendedores()" style="flex:1;font-size:12px"></select>
       <select id="vnd-fil-mes" onchange="renderVendedores()" style="flex:1;font-size:12px"></select>
       <button class="rfa btn btn-ghost btn-sm" onclick="cargarVendedores()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></button>
+    </div>
+    <div id="vnd-fil-fechas" style="display:none;align-items:center;gap:8px;margin:-4px 0 12px;flex-wrap:wrap">
+      <label style="font-size:11.5px;color:var(--muted);font-weight:600">Desde</label>
+      <input type="date" id="vnd-fil-desde" onchange="renderVendedores()" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--s1);color:var(--text)">
+      <label style="font-size:11.5px;color:var(--muted);font-weight:600">Hasta</label>
+      <input type="date" id="vnd-fil-hasta" onchange="renderVendedores()" style="flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;background:var(--s1);color:var(--text)">
     </div>
     <div id="vnd-body"></div>
   </div>
@@ -20167,6 +20181,7 @@ function filtrarEditBk(){
     return _matchBusq((p.n||"")+" "+(p.id||"")+" "+(p.familia||""),q);
   }).slice(0,15);
   if(!hits.length){ res.classList.remove("open"); return; }
+  res.style.display="";        // limpiar cualquier display inline que haya quedado pegado
   res.classList.add("open");
   hits.forEach(function(p){
     var lista = _editBkItem ? (_editBkItem.lista||"Clientes") : "Clientes";
@@ -22754,7 +22769,7 @@ function _cerrarDropdowns(target){
   if(!inSearch){
     var dd = document.getElementById("res-ped"); if(dd) dd.classList.remove("open");
     var dr = document.getElementById("res-rem"); if(dr) dr.classList.remove("open");
-    var de = document.getElementById("edit-bk-res"); if(de){ de.classList.remove("open"); de.style.display="none"; }
+    var de = document.getElementById("edit-bk-res"); if(de){ de.classList.remove("open"); }
   }
 }
 document.addEventListener("touchstart", function(e){ _cerrarDropdowns(e.target); }, {passive:true});
@@ -27736,12 +27751,59 @@ async function borrarVentaVnd(fbKey, vendorName, total){
     .catch(function(){ showNotif("Error al eliminar","err"); });
 }
 
+// ── Períodos personalizados de Mis Vendedores ──
+// Devuelve {desde, hasta, label} según el período elegido, o null si es "por mes" (usa año/mes clásico)
+function _vndRangoFechas(){
+  var per=(document.getElementById("vnd-fil-periodo")||{}).value||"mes";
+  if(per==="mes") return null;
+  function ini(d){ d=new Date(d); d.setHours(0,0,0,0); return d; }
+  function fin(d){ d=new Date(d); d.setHours(23,59,59,999); return d; }
+  var hoy=new Date();
+  if(per==="semana"||per==="semana-ant"){
+    var lunes=new Date(hoy); var dow=(lunes.getDay()+6)%7;   // lunes = inicio de semana
+    lunes.setDate(lunes.getDate()-dow);
+    if(per==="semana-ant") lunes.setDate(lunes.getDate()-7);
+    var dom=new Date(lunes); dom.setDate(dom.getDate()+6);
+    var l1=ini(lunes), l2=fin(dom);
+    return {desde:l1, hasta:l2, label:(per==="semana"?"Esta semana":"Semana anterior")+" ("+l1.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit"})+" al "+l2.toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit"})+")"};
+  }
+  var anio=parseInt((document.getElementById("vnd-fil-anio")||{}).value)||hoy.getFullYear();
+  var mesRaw=(document.getElementById("vnd-fil-mes")||{}).value;
+  var mes=(mesRaw===""||mesRaw==null)?hoy.getMonth():parseInt(mesRaw);
+  if(per==="q1") return {desde:ini(new Date(anio,mes,1)), hasta:fin(new Date(anio,mes,15)), label:"1ª quincena de "+MESES[mes]+" "+anio};
+  if(per==="q2"){ var ult=new Date(anio,mes+1,0); return {desde:ini(new Date(anio,mes,16)), hasta:fin(ult), label:"2ª quincena de "+MESES[mes]+" "+anio}; }
+  if(per==="custom"){
+    var dv=(document.getElementById("vnd-fil-desde")||{}).value, hv=(document.getElementById("vnd-fil-hasta")||{}).value;
+    if(!dv||!hv) return {invalido:true, label:"Elegí las dos fechas"};
+    var dd=ini(new Date(dv+"T00:00:00")), hh=fin(new Date(hv+"T00:00:00"));
+    return {desde:dd, hasta:hh, label:dd.toLocaleDateString("es-AR")+" al "+hh.toLocaleDateString("es-AR")};
+  }
+  return null;
+}
+function _vndCambioPeriodo(){
+  var per=(document.getElementById("vnd-fil-periodo")||{}).value||"mes";
+  var fech=document.getElementById("vnd-fil-fechas");
+  var selA=document.getElementById("vnd-fil-anio"), selM=document.getElementById("vnd-fil-mes");
+  if(fech) fech.style.display = per==="custom" ? "flex" : "none";
+  // año/mes solo tienen sentido en "mes" y en quincenas
+  var usaAnioMes = (per==="mes"||per==="q1"||per==="q2");
+  if(selA) selA.style.display = usaAnioMes ? "" : "none";
+  if(selM) selM.style.display = usaAnioMes ? "" : "none";
+  renderVendedores();
+}
+
 function renderVendedores(){
   var body=document.getElementById("vnd-body"); if(!body) return;
   var anio=parseInt((document.getElementById("vnd-fil-anio")||{}).value)||new Date().getFullYear();
   var mesRaw=(document.getElementById("vnd-fil-mes")||{}).value, mes=mesRaw===""?null:parseInt(mesRaw);
   var comPct=parseFloat((document.getElementById("vnd-com-pct")||{}).value)||COM_PCT;
-  var filtrado=_vndVentas.filter(function(v){var d=new Date(v.fecha);if(d.getFullYear()!==anio)return false;if(mes!==null&&d.getMonth()!==mes)return false;return true;});
+  var rango=_vndRangoFechas();
+  if(rango && rango.invalido){ body.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--muted);font-size:13px">📅 Elegí las fechas <b>Desde</b> y <b>Hasta</b> para ver el período.</div>'; return; }
+  var filtrado=_vndVentas.filter(function(v){
+    var d=new Date(v.fecha);
+    if(rango) return d>=rango.desde && d<=rango.hasta;
+    if(d.getFullYear()!==anio)return false;if(mes!==null&&d.getMonth()!==mes)return false;return true;
+  });
   if(!filtrado.length){body.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--muted);font-size:13px">📭 Sin ventas en el período seleccionado.</div>';return;}
   var porVnd={};
   filtrado.forEach(function(v){
@@ -27761,7 +27823,7 @@ function renderVendedores(){
   var sorted=Object.values(porVnd).sort(function(a,b){return b.total-a.total;});
   var totalGlobal=sorted.reduce(function(s,v){return s+v.total;},0);
   var comGlobal=totalGlobal*comPct/100;
-  var periodo=mes!==null?MESES[mes]+" "+anio:"Todo "+anio;
+  var periodo=rango?rango.label:(mes!==null?MESES[mes]+" "+anio:"Todo "+anio);
   var html='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">'+
     '<div class="vnd-sum-cell"><div class="vnd-sum-val">'+sorted.length+'</div><div class="vnd-sum-lbl">Vendedores</div></div>'+
     '<div class="vnd-sum-cell"><div class="vnd-sum-val">$'+fM(totalGlobal)+'</div><div class="vnd-sum-lbl">Total vendido</div></div>'+
@@ -27797,7 +27859,12 @@ function renderVendedores(){
     var clientesAtendidos=Object.keys(vnd.clientesSet||{}).length;
     // Comparación con el período anterior (mes anterior, o año anterior si el filtro es "todo el año")
     var _totalPrev=0, _prevLbl="";
-    if(mes!==null){
+    if(rango){
+      var _dur=rango.hasta-rango.desde;
+      var _pHasta=new Date(rango.desde.getTime()-1), _pDesde=new Date(_pHasta.getTime()-_dur);
+      _prevLbl="período anterior";
+      _vndVentas.forEach(function(v){ if((v.usuario||"sin-asignar")!==vnd.uid) return; var d=new Date(v.fecha); if(d>=_pDesde&&d<=_pHasta) _totalPrev+=v.total||0; });
+    } else if(mes!==null){
       var _pm=mes-1, _pa=anio; if(_pm<0){ _pm=11; _pa=anio-1; }
       _prevLbl=MESES[_pm];
       _vndVentas.forEach(function(v){ if((v.usuario||"sin-asignar")!==vnd.uid) return; var d=new Date(v.fecha); if(d.getFullYear()===_pa&&d.getMonth()===_pm) _totalPrev+=v.total||0; });
@@ -27890,82 +27957,115 @@ function toggleVnd(uid){
 
 // ══ COMPROBANTE DE COMISIÓN (PDF para liquidarle al vendedor) ══
 function _vndComprobante(uid){
-  // Reconstruir los datos del vendedor para el período actual
   var comPct=parseFloat((document.getElementById("vnd-com-pct")||{}).value)||COM_PCT;
   var uData = Object.values(_clientesDB||{}).find(function(u){ return u.id===uid; }) || {};
   var comPctVnd = (uData.comision!=null && uData.comision!=="") ? +uData.comision : comPct;
   var nombre = uData.name || "Vendedor";
-  // Juntar las ventas del vendedor en el período filtrado
+  // Período: rango personalizado o año/mes clásico
   var anio=parseInt((document.getElementById("vnd-fil-anio")||{}).value)||new Date().getFullYear();
   var mesRaw=(document.getElementById("vnd-fil-mes")||{}).value, mes=mesRaw===""?null:parseInt(mesRaw);
+  var rango=_vndRangoFechas();
+  if(rango && rango.invalido){ showNotif("Elegí las fechas Desde y Hasta primero","err"); return; }
   var ventas = [];
   _vndVentas.forEach(function(v){
     if((v.usuario||"sin-asignar")!==uid) return;
     var d=new Date(v.fecha);
-    if(mes!==null){ if(d.getFullYear()!==anio || d.getMonth()!==mes) return; }
-    else if(anio!==null){ if(d.getFullYear()!==anio) return; }
+    if(rango){ if(!(d>=rango.desde&&d<=rango.hasta)) return; }
+    else if(mes!==null){ if(d.getFullYear()!==anio || d.getMonth()!==mes) return; }
+    else { if(d.getFullYear()!==anio) return; }
     ventas.push(v);
   });
   if(!ventas.length){ showNotif("Este vendedor no tiene ventas en el período","err"); return; }
   ventas.sort(function(a,b){ return new Date(a.fecha)-new Date(b.fecha); });
   var total = ventas.reduce(function(s,v){ return s+(v.total||0); },0);
   var comision = Math.round(total*comPctVnd/100*100)/100;
-  var periodo = mes!==null ? (MESES[mes]+" "+anio) : ("Año "+anio);
+  var periodo = rango ? rango.label : (mes!==null ? (MESES[mes]+" "+anio) : ("Año "+anio));
 
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
   var ed=_getEmpDatos(), empNom=ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
-  var W=doc.internal.pageSize.getWidth(), M=16, y=20;
-  // Encabezado
-  doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(20,20,20);
-  doc.text(_pdfTxt(empNom), M, y); y+=7;
-  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90,90,90);
-  doc.text("Comprobante de comisión", M, y); y+=10;
-  doc.setDrawColor(200,200,200); doc.line(M,y,W-M,y); y+=9;
-  // Datos
-  doc.setFontSize(11); doc.setTextColor(20,20,20); doc.setFont("helvetica","bold");
-  doc.text("Vendedor:", M, y); doc.setFont("helvetica","normal"); doc.text(_pdfTxt(nombre), M+28, y); y+=6;
-  doc.setFont("helvetica","bold"); doc.text("Período:", M, y); doc.setFont("helvetica","normal"); doc.text(periodo, M+28, y); y+=6;
-  doc.setFont("helvetica","bold"); doc.text("Emitido:", M, y); doc.setFont("helvetica","normal"); doc.text(new Date().toLocaleDateString("es-AR"), M+28, y); y+=10;
+  var W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), M=16;
+  var hoy=new Date();
+  var nroRecibo="RC-"+hoy.getFullYear()+String(hoy.getMonth()+1).padStart(2,"0")+String(hoy.getDate()).padStart(2,"0")+"-"+String(uid).replace(/[^a-zA-Z0-9]/g,"").slice(-4).toUpperCase();
 
-  // Tabla de ventas (con autotable)
+  // ── Banda de encabezado ──
+  doc.setFillColor(24,32,48); doc.rect(0,0,W,34,"F");
+  doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.setTextColor(255,255,255);
+  doc.text(_pdfTxt(empNom), M, 14);
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(190,200,215);
+  var subEmp=[];
+  if(ed.cuit) subEmp.push("CUIT "+ed.cuit);
+  if(ed.dir) subEmp.push(_pdfTxt(ed.dir));
+  if(ed.tel) subEmp.push("Tel. "+ed.tel);
+  if(subEmp.length) doc.text(subEmp.join("  ·  ").slice(0,90), M, 21);
+  doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(255,255,255);
+  doc.text("RECIBO DE COMISIÓN", W-M, 14, {align:"right"});
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(190,200,215);
+  doc.text("N° "+nroRecibo, W-M, 21, {align:"right"});
+  doc.text("Emitido: "+hoy.toLocaleDateString("es-AR"), W-M, 27, {align:"right"});
+
+  // ── Datos del vendedor y período ──
+  var y=44;
+  doc.setFillColor(246,245,242); doc.roundedRect(M,y,W-M*2,22,2,2,"F");
+  doc.setFontSize(10); doc.setTextColor(90,90,90); doc.setFont("helvetica","bold");
+  doc.text("VENDEDOR", M+5, y+7); doc.text("PERÍODO LIQUIDADO", W/2+4, y+7);
+  doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text(_pdfTxt(nombre), M+5, y+15);
+  doc.text(_pdfTxt(periodo), W/2+4, y+15);
+  y+=30;
+
+  // ── Detalle de ventas con comisión por línea ──
   var filas = ventas.map(function(v){
-    return [ new Date(v.fecha).toLocaleDateString("es-AR"), _pdfTxt(v.clienteNom||v.cliente||"-"), "$"+fM(v.total||0) ];
+    var vt=v.total||0, vc=Math.round(vt*comPctVnd/100*100)/100;
+    return [ new Date(v.fecha).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"2-digit"}),
+             _pdfTxt(v.clienteNom||v.cliente||"-"),
+             "$"+fM(vt), "$"+fM(vc) ];
   });
   doc.autoTable({
     startY: y,
-    head: [["Fecha","Cliente","Monto"]],
+    head: [["Fecha","Cliente","Venta","Comisión "+comPctVnd+"%"]],
     body: filas,
-    styles: { fontSize: 9, cellPadding: 2.5 },
-    headStyles: { fillColor: [40,40,40], textColor:[255,255,255] },
-    columnStyles: { 2: { halign:"right" } },
+    foot: [["","TOTALES","$"+fM(total),"$"+fM(comision)]],
+    styles: { fontSize: 8.5, cellPadding: 2.4 },
+    headStyles: { fillColor: [24,32,48], textColor:[255,255,255], fontSize:8.5 },
+    footStyles: { fillColor: [246,245,242], textColor:[20,20,20], fontStyle:"bold", fontSize:9 },
+    columnStyles: { 0:{cellWidth:20}, 1:{cellWidth:"auto"}, 2:{halign:"right",cellWidth:30}, 3:{halign:"right",cellWidth:32} },
     margin: { left:M, right:M }
   });
-  var yF = doc.lastAutoTable.finalY + 10;
+  var yF = doc.lastAutoTable.finalY + 8;
 
-  // Resumen final
-  doc.setFillColor(245,244,240); doc.roundedRect(M, yF, W-M*2, 30, 3, 3, "F");
-  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(90,90,90);
-  doc.text("Total vendido en el período:", M+6, yF+9);
+  // ── Caja de liquidación ──
+  if(yF>H-70){ doc.addPage(); yF=20; }
+  doc.setFillColor(246,245,242); doc.roundedRect(M, yF, W-M*2, 34, 3, 3, "F");
+  doc.setDrawColor(15,138,74); doc.setLineWidth(0.8); doc.roundedRect(M, yF, W-M*2, 34, 3, 3, "S");
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
+  doc.text("Total vendido en el período ("+ventas.length+" venta"+(ventas.length!==1?"s":"")+"):", M+6, yF+9);
   doc.setFont("helvetica","bold"); doc.setTextColor(20,20,20);
   doc.text("$"+fM(total), W-M-6, yF+9, {align:"right"});
   doc.setFont("helvetica","normal"); doc.setTextColor(90,90,90);
-  doc.text("Comisión ("+comPctVnd+"%):", M+6, yF+17);
-  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(15,138,74);
-  doc.text("$"+fM(comision), W-M-6, yF+18, {align:"right"});
-  doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(140,140,140);
-  doc.text(ventas.length+" venta"+(ventas.length!==1?"s":"")+" · Ticket promedio $"+fM(total/ventas.length), M+6, yF+26);
+  doc.text("Ticket promedio: $"+fM(total/ventas.length), M+6, yF+16);
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(20,20,20);
+  doc.text("COMISIÓN A PAGAR ("+comPctVnd+"%)", M+6, yF+27);
+  doc.setFontSize(16); doc.setTextColor(15,138,74);
+  doc.text("$"+fM(comision), W-M-6, yF+28, {align:"right"});
 
-  // Firma
-  var yFirma = yF + 48;
-  doc.setDrawColor(180,180,180); doc.line(M, yFirma, M+70, yFirma);
-  doc.line(W-M-70, yFirma, W-M, yFirma);
-  doc.setFontSize(8); doc.setTextColor(120,120,120);
-  doc.text("Firma vendedor", M, yFirma+5);
-  doc.text("Firma "+_pdfTxt(empNom).slice(0,30), W-M-70, yFirma+5);
+  // ── Firmas ──
+  var yFirma = yF + 56;
+  if(yFirma>H-24){ doc.addPage(); yFirma=40; }
+  doc.setDrawColor(150,150,150); doc.setLineWidth(0.4);
+  doc.line(M, yFirma, M+72, yFirma);
+  doc.line(W-M-72, yFirma, W-M, yFirma);
+  doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(110,110,110);
+  doc.text("Recibí conforme — Firma y aclaración del vendedor", M, yFirma+5);
+  doc.text("Por "+_pdfTxt(empNom).slice(0,28)+" — Firma y sello", W-M-72, yFirma+5);
 
-  var fname="comision_"+_pdfTxt(nombre).replace(/\s+/g,"_").slice(0,20)+"_"+(mes!==null?(anio+"-"+String(mes+1).padStart(2,"0")):anio)+".pdf";
-  _compartirPDF(doc, fname, "Comprobante de comisión");
-  showNotif("📄 Comprobante generado — comisión $"+fM(comision),"ok");
+  // ── Pie legal ──
+  doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+  doc.text("Documento interno de liquidación de comisiones. No válido como comprobante fiscal.", M, H-10);
+  doc.text("Recibo "+nroRecibo+" · "+_pdfTxt(empNom).slice(0,40), W-M, H-10, {align:"right"});
+
+  var fname="recibo_comision_"+_pdfTxt(nombre).replace(/\s+/g,"_").slice(0,20)+"_"+hoy.toISOString().slice(0,10)+".pdf";
+  _compartirPDF(doc, fname, "Recibo de comisión");
+  showNotif("📄 Recibo generado — comisión $"+fM(comision),"ok");
 }
 
 // ══ CATÁLOGO PDF ══
