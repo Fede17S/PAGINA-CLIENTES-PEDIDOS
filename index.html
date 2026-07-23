@@ -3068,7 +3068,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.23-hoja2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.23-vend1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -7684,7 +7684,7 @@ function fbDel(path){
 async function _sbGetAllEmpresas(){
   var [emps, users] = await Promise.all([
     sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,onboarding_done"),
-    sbGet("usuarios","select=id,empresa_id,uid,name,role,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng")
+    sbGet("usuarios","select=id,empresa_id,uid,name,role,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng,comision,meta")
   ]);
   if(!emps) return null;
   var result={};
@@ -7694,7 +7694,7 @@ async function _sbGetAllEmpresas(){
       uMap[u.id]={id:u.uid||"",_sbId:u.id,name:u.name||"",role:u.role||"cliente",
         lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
         tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",zona_id:u.zona_id||null,
-        rec:u.recepciona||"",nota:u.nota||""};
+        rec:u.recepciona||"",nota:u.nota||"",comision:(u.comision!=null?u.comision:null),meta:(u.meta!=null?u.meta:null)};
     });
     result[e.id]=Object.assign({},e,{usuarios:uMap});
   });
@@ -7728,7 +7728,9 @@ async function _sbGetEmpresa(empId){
     zona:      u.zona||"",
     zona_id:   u.zona_id||null,
     rec:       u.recepciona||"",
-    nota:      u.nota||""
+    nota:      u.nota||"",
+    comision:  (u.comision!=null ? u.comision : null),
+    meta:      (u.meta!=null     ? u.meta     : null)
   }; });
   prods.forEach(function(p){pMap[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,categoria:p.categoria,familia:p.familia||null,precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,unidadesBulto:p.unidades_bulto||1};});
   stockRows.forEach(function(s){sMap[s.codigo]=s.cantidad;scMap[s.codigo]={umbral:s.umbral};});
