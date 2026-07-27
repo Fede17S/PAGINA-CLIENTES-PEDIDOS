@@ -1967,7 +1967,7 @@ select option { background:var(--s2); color:var(--text) }
 /* Modal de cliente — bottom sheet en móvil, centrado y prolijo en desktop */
 #modal-edit-cli .cli-edit-box { max-width:540px; width:100%; padding:0; display:flex; flex-direction:column; max-height:92vh; overflow:hidden; }
 #modal-edit-cli .cli-edit-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); flex-shrink:0; background:var(--s2); }
-#modal-edit-cli .cli-edit-body { padding:18px; overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; }
+#modal-edit-cli .cli-edit-body { padding:18px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; flex:1 1 auto; min-height:0; }
 #modal-edit-cli .cli-edit-foot { display:flex; gap:10px; padding:14px 18px calc(14px + var(--safe-bottom)); border-top:1px solid var(--border); flex-shrink:0; background:var(--s2); }
 #modal-edit-cli .cli-edit-foot .btn { padding:13px 16px; font-size:15px; }
 #modal-edit-cli .cli-field input, #modal-edit-cli .cli-field select { width:100%; padding:12px 13px; border:1.5px solid var(--border); border-radius:10px; font-size:16px; font-family:inherit; background:var(--s1); color:var(--text); box-sizing:border-box; transition:border-color .15s; }
@@ -3068,7 +3068,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.23-vend1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.23-dsc1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -16433,7 +16433,7 @@ async function imprimirPedidosDeRuta(rk){
       if(tieneOf){ var ofD=Math.round((1-i.ofPrecio/i.ofNormal)*100); dscLbl="OFERTA -"+ofD+"%"; }
       else if(hasDsc){ dscLbl=(i.dsc.tipo==="%"?"-"+i.dsc.valor+"%":"-$"+fM(i.dsc.valor)); }
       else { dscLbl="—"; }
-      var sub=i.sub||(i.p||0)*(i.c||1);
+      var sub=(i.sub!=null?i.sub:(i.p||0)*(i.c||1));
       var pF=(hasDsc||tieneOf)?Math.round(sub/(i.c||1)*100)/100:(i.p||0);
       var _u=_itBulto(i);   // bulto completo → 1 bulto con precio de bulto
       return[i.n||"", _u?((i.c||1)/_u):(i.c||1), "$"+fM(_u?pL*_u:pL), dscLbl, "$"+fM(_u?pF*_u:pF), "$"+fM(sub)];
@@ -19327,7 +19327,7 @@ function abrirModalPendientes(){
         return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #fee2e2">'+
           '<span style="font-size:11px;background:#f97316;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;flex-shrink:0">'+it.c+'×</span>'+
           '<span style="font-size:13px;flex:1;color:#7c2d12">'+it.n+'</span>'+
-          '<span style="font-size:12px;font-weight:600;color:#9a3412">$'+fM(it.sub||it.p*it.c)+'</span>'+
+          '<span style="font-size:12px;font-weight:600;color:#9a3412">$'+fM(it.sub!=null?it.sub:it.p*it.c)+'</span>'+
         '</div>';
       }).join('');
       return '<div style="background:#fff7ed;border:1.5px solid #f97316;border-radius:10px;padding:14px">'+
@@ -20854,7 +20854,7 @@ async function confirmarBackupComoRemito(bkParam){
       p:   i.p,
       esPeso: i.esPeso||false,
       gramos: i.gramos||null,
-      sub: i.sub || (i.c||0)*(i.p||0),  // sub original con descuentos
+      sub: (i.sub != null ? i.sub : (i.c||0)*(i.p||0)),  // sub original con descuentos (0 = 100% off es válido, no usar || que lo pisa)
       dsc: i.dsc || null,                 // descuento por ítem
       cost:(i.cost!=null && i.cost>0) ? i.cost : ((_cst!=null && _cst>0) ? _cst : null)  // costo del día del pedido (o actual si el pedido no lo guardó)
     };
@@ -27927,7 +27927,7 @@ function _renderMisVentas(){
   var totalPeriodo=mis.reduce(function(s,v){return s+v.total;},0);
   var ticketProm=mis.length?totalPeriodo/mis.length:0;
   var prodMap={};
-  mis.forEach(function(v){(v.items||[]).forEach(function(it){if(!prodMap[it.n])prodMap[it.n]={n:it.n,u:0,t:0};prodMap[it.n].u+=it.c||0;prodMap[it.n].t+=it.sub||(it.p*it.c)||0;});});
+  mis.forEach(function(v){(v.items||[]).forEach(function(it){if(!prodMap[it.n])prodMap[it.n]={n:it.n,u:0,t:0};prodMap[it.n].u+=it.c||0;prodMap[it.n].t+=(it.sub!=null?it.sub:(it.p*it.c)||0);});});
   var topProds=Object.values(prodMap).sort(function(a,b){return b.t-a.t;}).slice(0,5);
   // Desglose de ventas con descuento (ofertas / promos) y ahorro dado a clientes
   var vendidoOf=0, vendidoPromo=0, ahorroOf=0, ahorroPromo=0;
@@ -27992,7 +27992,7 @@ function _renderMisVentas(){
       mis.map(function(v){
         var fecha=new Date(v.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short",year:"numeric"});
         var com=v.total*COM_PCT/100;
-        var itemsHTML=(v.items||[]).map(function(it){return '<div class="mv-prod-row"><span style="flex:1;color:var(--text2)">'+escHtml(it.n)+'</span><span style="flex-shrink:0;color:var(--muted)">×'+it.c+'</span><span style="flex-shrink:0;font-weight:700;width:80px;text-align:right">$'+fM(it.sub||it.p*it.c)+'</span></div>';}).join('');
+        var itemsHTML=(v.items||[]).map(function(it){return '<div class="mv-prod-row"><span style="flex:1;color:var(--text2)">'+escHtml(it.n)+'</span><span style="flex-shrink:0;color:var(--muted)">×'+it.c+'</span><span style="flex-shrink:0;font-weight:700;width:80px;text-align:right">$'+fM(it.sub!=null?it.sub:it.p*it.c)+'</span></div>';}).join('');
         return '<div class="mv-remito-row" onclick="toggleMvItem(\''+v.fbKey+'\')" id="mv-row-'+v.fbKey+'"><span class="mv-remito-date">'+fecha+'</span><span class="mv-remito-cli">'+escHtml(v.clienteNom||"")+'</span><div style="text-align:right"><div class="mv-remito-total">$'+fM(v.total)+'</div><div class="mv-remito-com">+$'+fM(com)+' com.</div></div><span id="mv-arrow-'+v.fbKey+'" style="font-size:14px;color:var(--muted);flex-shrink:0">▸</span></div>'+
           '<div class="mv-remito-detail" id="mv-detail-'+v.fbKey+'">'+(itemsHTML||'<div style="font-size:12px;color:var(--muted)">Sin detalle</div>')+'</div>';
       }).join('')
@@ -28841,7 +28841,7 @@ function renderVendedores(){
     if(!porVnd[uid]) porVnd[uid]={uid:uid,ventas:[],total:0,remitos:0,prodMap:{},clientesSet:{}};
     porVnd[uid].ventas.push(v); porVnd[uid].total+=v.total||0; porVnd[uid].remitos++;
     if(v.clienteId||v.clienteNom){ porVnd[uid].clientesSet[(v.clienteId||v.clienteNom)]=true; }
-    (v.items||[]).forEach(function(it){if(!porVnd[uid].prodMap[it.n])porVnd[uid].prodMap[it.n]={n:it.n,u:0,t:0};porVnd[uid].prodMap[it.n].u+=it.c||0;porVnd[uid].prodMap[it.n].t+=it.sub||(it.p*it.c)||0;});
+    (v.items||[]).forEach(function(it){if(!porVnd[uid].prodMap[it.n])porVnd[uid].prodMap[it.n]={n:it.n,u:0,t:0};porVnd[uid].prodMap[it.n].u+=it.c||0;porVnd[uid].prodMap[it.n].t+=(it.sub!=null?it.sub:(it.p*it.c)||0);});
   });
   var usuariosDB=empresaData.usuarios||{};
   Object.entries(porVnd).forEach(function(e){
@@ -28962,7 +28962,7 @@ function renderVendedores(){
         '<div class="vnd-detail"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Remitos ('+ventasOrd.length+')</div>'+
           ventasOrd.map(function(v){
             var fecha=new Date(v.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"});
-            var itemsHTML=(v.items||[]).map(function(it){return '<div class="mv-prod-row"><span style="flex:1">'+escHtml(it.n)+'</span><span style="color:var(--muted)">×'+it.c+'</span><span style="font-weight:700;width:80px;text-align:right">$'+fM(it.sub||it.p*it.c)+'</span></div>';}).join('');
+            var itemsHTML=(v.items||[]).map(function(it){return '<div class="mv-prod-row"><span style="flex:1">'+escHtml(it.n)+'</span><span style="color:var(--muted)">×'+it.c+'</span><span style="font-weight:700;width:80px;text-align:right">$'+fM(it.sub!=null?it.sub:it.p*it.c)+'</span></div>';}).join('');
             var delBtn='<button onclick="event.stopPropagation();borrarVentaVnd(\''+v.fbKey+'\',\''+escHtml(vnd.nombre)+'\','+v.total+')" title="Eliminar este remito" style="flex-shrink:0;padding:3px 8px;border:1px solid #fca5a5;background:#fff0f0;color:#b91c1c;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑</button>';
             return '<div class="vnd-detail-row" onclick="event.stopPropagation();var nx=this.nextElementSibling;nx.classList.toggle(&quot;open&quot;)"><span class="vnd-det-date">'+fecha+'</span><span class="vnd-det-cli">'+escHtml(v.clienteNom||"")+'</span><span class="vnd-det-tot">$'+fM(v.total)+'</span>'+delBtn+'</div>'+
               '<div class="mv-remito-detail" style="border-radius:0;margin-bottom:0">'+(itemsHTML||'<div style="font-size:11px;color:var(--muted)">Sin detalle</div>')+'</div>';
@@ -32205,7 +32205,7 @@ function _armDescontarDelPedido(bk, falt){
   var orig=bk.items||[];
   var nuevos=orig.filter(function(it){ var n=(""+(it.n||it.nombre||it.nom||it.name||"")).trim().toLowerCase(); return !faltNames[n]; });
   if(nuevos.length===orig.length) return;
-  var totalNuevo=Math.round(nuevos.reduce(function(s,it){ return s+(it.sub||((it.p||it.precio||0)*(it.c||it.cant||it.cantidad||0))||0); },0)*100)/100;
+  var totalNuevo=Math.round(nuevos.reduce(function(s,it){ return s+(it.sub!=null?it.sub:(((it.p||it.precio||0)*(it.c||it.cant||it.cantidad||0))||0)); },0)*100)/100;
   var montoDesc=Math.round(((bk.total||0)-totalNuevo)*100)/100;
   var entry={tipo:"faltante", fecha:new Date().toISOString(), por:((typeof _armNom==="function"?_armNom():"")||(typeof _armUid==="function"?_armUid():"")||""), productos:falt.map(function(fx){return {n:fx.n||fx.nombre, c:fx.c||fx.cant||1};}), monto:montoDesc};
   var hist=((bk.historial||[]).slice()); hist.push(entry);
@@ -32231,7 +32231,7 @@ async function _armDescontarDeRuta(bk, falt){
   var orig=cli.items||[];
   var nuevos=orig.filter(function(it){ var n=(""+(it.n||it.nombre||it.nom||it.name||"")).trim().toLowerCase(); return !faltNames[n]; });
   if(nuevos.length===orig.length) return;
-  var importe=Math.round(nuevos.reduce(function(s,it){ return s+(it.sub||((it.p||it.precio||0)*(it.c||it.cant||it.cantidad||0))||0); },0)*100)/100;
+  var importe=Math.round(nuevos.reduce(function(s,it){ return s+(it.sub!=null?it.sub:(((it.p||it.precio||0)*(it.c||it.cant||it.cantidad||0))||0)); },0)*100)/100;
   cli.items=nuevos; cli.importe=importe;
   try{ if(typeof _sbPatchRutaCli==="function" && cli._rcId) await _sbPatchRutaCli(rk, cli._rcId, {items:nuevos, importe:importe}); }catch(e){ console.warn("descontar faltante:", e); }
 }
