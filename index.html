@@ -3002,7 +3002,7 @@ html[data-theme="dark"] .prod-toolbar {
 .stk-fam-wrap { grid-column:1 / -1; border-top:1px solid var(--border); padding-top:8px; margin-top:2px; }
 .stk-fam-wrap:first-child { border-top:none; margin-top:0; padding-top:0; }
 .stk-fam-sub { display:grid; grid-template-columns:repeat(auto-fill,minmax(470px,1fr)); gap:10px; }
-/* ── STOCK: los 3 números (físico / reservado / disponible) ── */
+/* ── STOCK: el número de unidades en depósito ── */
 .stk-3num { display:flex; gap:2px; background:var(--s2); border:1px solid var(--border); border-radius:9px; padding:5px 4px; margin:0 8px; flex-shrink:0; }
 .stk-3num-c { min-width:52px; text-align:center; padding:0 4px; border-right:1px solid var(--border); }
 .stk-3num-c:last-child { border-right:none; }
@@ -8034,7 +8034,7 @@ function fbDel(path){
   if(!_sbEmpId) return Promise.resolve();
   var r = p[2];
   if(r==="ventas" && p[3])       return sbDel("ventas","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
-  if(r==="backupPedidos" && p[3])  { try{ _stkLiberar(p[3]); }catch(e){} return sbDel("backup_pedidos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId); }
+  if(r==="backupPedidos" && p[3])  { return sbDel("backup_pedidos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId); }
   if(r==="productos" && p[3])     return sbDel("productos","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
   if(r==="usuarios" && p[3])      return sbDel("usuarios","id=eq."+p[3]+"&empresa_id=eq."+_sbEmpId);
   if(r==="rutas"){
@@ -8180,11 +8180,11 @@ async function _sbGetStockFull(){
     return fis;
   }catch(e){ stockReservado={}; return await _sbGetStock(); }  // si falta la columna, seguir sin reservas
 }
-// Disponible real de un producto
+// Disponible real de un producto.
+// Modelo nuevo: no hay reservas — la mercadería sale del stock apenas se envía
+// el pedido, así que lo disponible es directamente lo que hay en el depósito.
 function _stkDisponible(cod){
-  var f = +(stockData[cod]||0);
-  var r = +(stockReservado[cod]||0);
-  return f - r;
+  return +(stockData[cod]||0);
 }
 // La tabla de stock se guarda por CÓDIGO de producto (el "6", el "346"...),
 // no por el id interno largo. Esta función devuelve el código a usar.
@@ -8348,6 +8348,52 @@ async function _stkDevolver(ref, items){
     await _stkRefrescar();
     return r;
   }catch(e){ console.warn("[Stock] devolver:", e.message); return null; }
+}
+// Ajuste simple, para las empresas que NO tienen prendido el control de stock
+// en la configuración: no hay RPC atómica, se suma/resta sobre lo que hay.
+function _stkSimple(arr, signo, motivo){
+  try{
+    var its = (arr||[]).map(function(o){ return { id:o.codigo, c: signo * o.cant }; });
+    if(typeof descontarStock==="function") descontarStock(its, motivo||"Movimiento de stock");
+  }catch(e){ console.warn("[Stock] ajuste simple:", e.message); }
+}
+// Devolución al stock que funciona con y sin control de stock activado
+async function _stkDevolverAuto(ref, items, motivo){
+  var arr=_stkItems(items); if(!arr.length) return null;
+  if(!_ctrlStockOn()){ _stkSimple(arr, -1, motivo||"Devolución al stock"); return {simple:true}; }
+  return _stkDevolver(ref, items);
+}
+// ── SALIDA DIRECTA (modelo nuevo) ───────────────────────────────────────────
+// El pedido descuenta el stock FÍSICO apenas se envía, sin pasar por el paso
+// intermedio de "reservado". Por atrás hacemos reserva + salida con la MISMA
+// referencia: el reservado neto queda en 0 y el físico baja UNA sola vez.
+// Como stk_reservar es idempotente por referencia, si el pedido ya se había
+// procesado (un reintento de sincronización) devuelve repetido y no se
+// descuenta dos veces.
+async function _stkSalidaDirecta(ref, items){
+  if(!_sbEmpId || !ref) return null;
+  var arr=_stkItems(items); if(!arr.length) return null;
+  // Sin control de stock activado no hay RPC: descontamos con el método simple
+  if(!_ctrlStockOn()){ _stkSimple(arr, 1, "Pedido enviado"); return null; }
+  var usr = (currentUser?(currentUser.name||currentUser.id):"sistema");
+  try{
+    var r = await _stkRpc("stk_reservar",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr });
+    if(r && r.repetido){ return r; }   // ya se había descontado: no repetir
+    if(r && r.avisos && r.avisos.length){
+      var t = r.avisos.map(function(a){ var p=(dbStock||[]).find(function(x){return x.id===a.codigo;}); return (p?p.n:a.codigo)+" (quedan "+a.disponible+")"; }).join(", ");
+      showNotif("⚠️ Vendiste más de lo disponible: "+t, "err");
+    }
+    try{
+      await _stkRpc("stk_salida",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr });
+    }catch(e2){
+      // 2do intento: si tampoco sale, la mercadería queda retenida (no vendible)
+      // hasta que se rechace o se borre el pedido, que la devuelve.
+      try{ await _stkRpc("stk_salida",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr }); }
+      catch(e3){ console.warn("[Stock] salida directa (2do paso):", e3.message); }
+    }
+    await _stkRefrescar();
+    return r;
+  }catch(e){ console.warn("[Stock] salida directa:", e.message); return null; }
 }
 async function _stkRefrescar(){
   try{ var f = await _sbGetStockFull(); if(f) stockData = f; if(typeof _pgRender==="function") _pgRender(); if(typeof renderStock==="function" && document.getElementById("stock-list")) renderStock(); }catch(e){}
@@ -8978,8 +9024,10 @@ async function _sbInsertBackup(data){
 
   var rows = await sbPost("backup_pedidos", body);
   var _newId = rows&&rows[0] ? rows[0].id : null;
-  // MOTOR DE STOCK: al confirmar el pedido, reservar la mercadería (baja el disponible)
-  if(_newId){ try{ await _stkReservar(_newId, data.items); }catch(e){ console.warn("[Stock] no se pudo reservar:", e.message); } }
+  // MOTOR DE STOCK: al enviarse el pedido la mercadería SALE del stock (baja el físico).
+  // Es el ÚNICO punto de descuento del sistema. Vuelve solo si el admin rechaza el
+  // pedido, si se borra, o por un rechazo/devolución del reparto aprobado por el admin.
+  if(_newId){ try{ await _stkSalidaDirecta(_newId, data.items); }catch(e){ console.warn("[Stock] no se pudo descontar:", e.message); } }
   return _newId;
 }
 
@@ -15706,7 +15754,8 @@ async function generarPDF(m){
   bkItem._ahorroItems   = ahorroItems;
   bkItem._montoDscGen   = montoDscGen;
 
-  descontarStock(ordenes[t]);
+  // (El stock lo descuenta el motor cuando el pedido se envía — ver _stkSalidaDirecta
+  //  en _sbInsertBackup. Acá NO se toca, si no se descontaría dos veces.)
   // Sumar las unidades vendidas con oferta al tope (no bloquea si falla)
   try{ if(typeof _ofSumarUsadas==="function") _ofSumarUsadas(ordenes[t]); }catch(e){}
   // NO limpiar el formulario todavía — se limpia cuando el usuario confirme el tipo de comprobante
@@ -16426,7 +16475,6 @@ function renderStock(){
       if(_stkEstadoFiltro==="bajo") return qty>0 && qty<=umb;
       if(_stkEstadoFiltro==="sin")  return qty===0;
       if(_stkEstadoFiltro==="neg")  return qty<0;
-      if(_stkEstadoFiltro==="reservado") return (+(stockReservado[p.id]||0)) > 0;
       if(_stkEstadoFiltro==="sindisp")   return _stkDisponible(p.id) <= 0;
       return true;
     });
@@ -16454,7 +16502,6 @@ function renderStock(){
   var bajoStk  = prodsBase.filter(function(p){ var q=stockData[p.id]||0; return q > 0 && q <= stkUmbral(p.id); }).length;
   var sinStock = prodsBase.filter(function(p){ return (stockData[p.id]||0) === 0; }).length;
   var negativo = prodsBase.filter(function(p){ return (stockData[p.id]||0) < 0; }).length;
-  var conReserva = prodsBase.filter(function(p){ return (+(stockReservado[p.id]||0)) > 0; }).length;
   var sinDisp  = prodsBase.filter(function(p){ return _stkDisponible(p.id) <= 0; }).length;
 
   if(sumEl){
@@ -16463,9 +16510,7 @@ function renderStock(){
       '<div class="stk-stat clickable" onclick="_stkSetEstado(\'todos\')"><div class="stk-stat-val">'+prodsBase.length+'</div><div class="stk-stat-lbl">Total</div></div>'+
       '<div class="stk-stat clickable" onclick="_stkSetEstado(\'todos\')"><div class="stk-stat-val stk-green">'+enStock+'</div><div class="stk-stat-lbl">Con stock</div></div>'+
       '<div class="stk-stat clickable" onclick="_stkSetEstado(\'bajo\')"><div class="stk-stat-val" style="color:#88571f">'+bajoStk+'</div><div class="stk-stat-lbl">Bajo stock</div></div>'+
-      (conReserva
-        ? '<div class="stk-stat clickable" onclick="_stkSetEstado(\'reservado\')"><div class="stk-stat-val" style="color:#b45309">'+conReserva+'</div><div class="stk-stat-lbl">Reservados</div></div>'
-        : '<div class="stk-stat clickable" onclick="_stkSetEstado(\'neg\')"><div class="stk-stat-val stk-neg">'+negativo+'</div><div class="stk-stat-lbl">Negativos</div></div>')+
+      '<div class="stk-stat clickable" onclick="_stkSetEstado(\'neg\')"><div class="stk-stat-val stk-neg">'+negativo+'</div><div class="stk-stat-lbl">Negativos</div></div>'+
       (_ctrlStockOn()
         ? '<div class="stk-stat clickable" onclick="_stkSetEstado(\'sindisp\')"><div class="stk-stat-val stk-neg">'+sinDisp+'</div><div class="stk-stat-lbl">Sin disponible</div></div>'
         : '');
@@ -16546,8 +16591,6 @@ function renderStock(){
       } else { _famActual = null; _famCont = null; }
     }
     var qty=stockData[p.id]!==undefined ? stockData[p.id] : 0;
-    var res=+(stockReservado[p.id]||0);
-    var disp=qty-res;
     var umbral=stkUmbral(p.id);
     var bc=stkBadgeClass(p.id, qty);
     var lbl=stkBadgeLabel(qty);
@@ -16555,12 +16598,10 @@ function renderStock(){
     card.className="stk-row";
     card.style.flexWrap="wrap";
     card.dataset.pid = p.id;
-    // Bloque de los 3 números (solo si hay reservas o control de stock activo)
+    // Un solo número: lo que hay en el depósito (ya no existen las reservas)
     var tresNums =
-        '<div class="stk-3num" title="Físico = lo que hay en depósito · Reservado = comprometido en pedidos · Disponible = lo que se puede vender">'+
-          '<div class="stk-3num-c"><div class="stk-3num-v">'+qty+'</div><div class="stk-3num-l">físico</div></div>'+
-          '<div class="stk-3num-c"><div class="stk-3num-v" style="color:'+(res>0?"#b45309":"var(--muted)")+'">'+res+'</div><div class="stk-3num-l">reservado</div></div>'+
-          '<div class="stk-3num-c"><div class="stk-3num-v" style="color:'+(disp>0?"#0f8a4a":"#b91c1c")+';font-weight:800">'+disp+'</div><div class="stk-3num-l">disponible</div></div>'+
+        '<div class="stk-3num" title="Lo que hay en el depósito ahora">'+
+          '<div class="stk-3num-c"><div class="stk-3num-v" style="color:'+(qty>0?"#0f8a4a":"#b91c1c")+';font-weight:800">'+qty+'</div><div class="stk-3num-l">en stock</div></div>'+
         '</div>';
     card.innerHTML=
       '<div class="stk-row-info">'+
@@ -16669,21 +16710,16 @@ async function abrirHistorialStock(pid, nom){
 
   // ── Resumen: "¿por qué tengo X?" ──
   var _fis  = +(stockData[pid]||0);
-  var _res  = +(stockReservado[pid]||0);
-  var _disp = _fis - _res;
   var _entradas = movs.filter(function(m){ return (m.delta||0)>0 && m.tipo!=="reserva"; }).reduce(function(s,m){ return s+(m.delta||0); },0);
   var _salidas  = movs.filter(function(m){ return (m.delta||0)<0 && m.tipo!=="reserva"; }).reduce(function(s,m){ return s+Math.abs(m.delta||0); },0);
   var resumen =
     '<div style="background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:13px;margin-bottom:14px">'+
       '<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:9px">¿Por qué tengo '+_fis+'?</div>'+
       '<div style="display:flex;gap:6px;text-align:center;margin-bottom:9px">'+
-        '<div style="flex:1;background:var(--s1);border-radius:8px;padding:8px"><div style="font-size:16px;font-weight:800">'+_fis+'</div><div style="font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase">Físico</div></div>'+
-        '<div style="flex:1;background:var(--s1);border-radius:8px;padding:8px"><div style="font-size:16px;font-weight:800;color:'+(_res>0?"#b45309":"var(--muted)")+'">'+_res+'</div><div style="font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase">Reservado</div></div>'+
-        '<div style="flex:1;background:var(--s1);border-radius:8px;padding:8px"><div style="font-size:16px;font-weight:800;color:'+(_disp>0?"#0f8a4a":"#b91c1c")+'">'+_disp+'</div><div style="font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase">Disponible</div></div>'+
+        '<div style="flex:1;background:var(--s1);border-radius:8px;padding:8px"><div style="font-size:16px;font-weight:800;color:'+(_fis>0?"#0f8a4a":"#b91c1c")+'">'+_fis+'</div><div style="font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase">En stock</div></div>'+
       '</div>'+
       '<div style="font-size:11.5px;color:var(--text2);line-height:1.6">'+
         'En los últimos movimientos: <b style="color:#0f8a4a">+'+_entradas+'</b> entraron · <b style="color:#b91c1c">−'+_salidas+'</b> salieron'+
-        (_res>0 ? '<br>Hay <b>'+_res+' u.</b> comprometidas en pedidos que todavía no salieron del depósito.' : '')+
       '</div>'+
     '</div>';
 
@@ -21187,6 +21223,16 @@ function renderBackup(){
       if(backupAbierto===bk.id) backupAbierto=null;
       var fbKeyDel = bk._fbKey;
       var sbIdDel  = bk._sbId;
+      // MOTOR DE STOCK: al borrar el pedido la mercadería vuelve al stock
+      // (salvo que ya hubiera vuelto por un rechazo).
+      if(!bk._stkDevuelto){
+        try{
+          var _itsDel = (bk.items||[]).filter(function(it){ return !it.pendiente; });
+          await _stkDevolverAuto("borrado-"+(sbIdDel||fbKeyDel||bk.id), _itsDel, "Pedido borrado — vuelve al stock");
+          // bkBackup queda sin la marca a propósito: si tocás "Deshacer", el
+          // pedido se vuelve a insertar y la mercadería vuelve a salir sola.
+        }catch(er){ console.warn("[Stock] devolución por borrado:", er.message); }
+      }
       if(fbKeyDel && empresaKey)
         fbDel("empresas/"+empresaKey+"/backupPedidos/"+fbKeyDel).catch(function(){});
       if(sbIdDel && _sbEmpId)
@@ -28224,8 +28270,7 @@ function _mprodStockRender(pid){
   var cod = _mprodStkCod || pid;
   var cargado = stockData && Object.keys(stockData).length>0;
   var fis = cargado ? +(stockData[cod]||0) : 0;
-  var res = +( (typeof stockReservado!=="undefined" && stockReservado[cod]) || 0);
-  var dis = fis - res;
+  var dis = fis;
   var umb = (typeof stkUmbral==="function") ? stkUmbral(cod) : 5;
   // Stock que quedó cargado con la clave vieja (el id interno) por el error de antes
   var viejo = (cod!==pid && stockData && stockData[pid]!==undefined) ? +(stockData[pid]||0) : 0;
@@ -28237,9 +28282,7 @@ function _mprodStockRender(pid){
            '</div>';
   }
   var colDis = dis<=0 ? "var(--red,#dc2626)" : (dis<=umb ? "#f59e0b" : "oklch(60% 0.15 150)");
-  nums.innerHTML = caja("Físico", fis, "var(--text)") +
-                   caja("Reservado", res, "var(--muted)") +
-                   caja("Disponible", dis, colDis);
+  nums.innerHTML = caja("En stock", fis, colDis);
 
   if(qEl) qEl.value = fis;
   if(uEl) uEl.value = umb;
@@ -28248,7 +28291,7 @@ function _mprodStockRender(pid){
     if(!cargado) t = '<span style="color:#f59e0b">El stock todavía no terminó de cargar. Entrá a la sección Stock y volvé.</span>';
     else if(dis<=0) t = '<span style="color:var(--red,#dc2626)">Sin stock disponible.</span>';
     else if(dis<=umb) t = '<span style="color:#f59e0b">Quedan pocas unidades.</span>';
-    else t = "Disponible = físico − reservado en pedidos.";
+    else t = "Unidades en el depósito. Salen solas cuando se envía un pedido.";
     // Aviso de rescate: unidades que habían quedado guardadas con la clave vieja.
     // No toca nada solo: pone el número en el campo y vos decidís si guardarlo.
     if(cargado && viejo>0 && viejo!==fis){
@@ -29493,30 +29536,39 @@ async function _cambiarAprobacion(bk, aprobado){
   bk.aprobado = aprobado;
   backupAbierto = bk.id;
 
-  // 3. Si APROBADO → descontar stock + enviar a Hoja de Ruta
+  // Marca local de "la mercadería volvió al stock" (para no devolver dos veces)
+  function _bkMarcarDev(val){
+    bk._stkDevuelto = val;
+    try{
+      var _a = getBackups();
+      var _i = _a.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId || x._fbKey===sbId; });
+      if(_i>=0){ _a[_i]._stkDevuelto = val; saveBackups(_a); }
+    }catch(e){}
+  }
+  var _itemsReales = (bk.items||[]).filter(function(it){ return !it.pendiente; });
+
+  // 3. Si APROBADO → enviar a Hoja de Ruta.
+  //    OJO: acá NO se descuenta stock. La mercadería ya salió cuando el vendedor
+  //    envió el pedido (ver _stkSalidaDirecta en _sbInsertBackup).
   if(aprobado === true){
-    // Descuento automático de stock por cada producto del pedido
-    var items = bk.items||[];
-    if(items.length && empresaKey){
-      var cliente  = bk.clienteNom||"cliente";
-      var usuario  = bk.usuarioNom||bk.usuario||"vendedor";
-      var motivo   = "Pedido aprobado — "+cliente+" ("+usuario+")";
-      // Asegurar que stockData esté cargado antes de descontar
-      if(!Object.keys(stockData).length){
-        try {
-          var stkRows = await sbGet("stock","select=codigo,cantidad&empresa_id=eq."+_sbEmpId);
-          (stkRows||[]).forEach(function(s){ stockData[s.codigo]=s.cantidad; });
-        } catch(e){ console.warn("[Stock] No se pudo cargar stock previo a descuento:", e); }
-      }
-      // Mapear items del backup al formato {id, c} que espera descontarStock
-      var itemsMapeados = items
-        .filter(function(it){ return !it.pendiente; }) // no descontar pendientes
-        .map(function(it){ return { id: it.id||it.cod||"", c: it.c||1 }; })
-        .filter(function(it){ return it.id; });
-      if(itemsMapeados.length) descontarStock(itemsMapeados, motivo);
+    // Único caso en que hay que volver a sacarla: el pedido había sido rechazado
+    // (la mercadería volvió al stock) y ahora lo estás aprobando.
+    if(bk._stkDevuelto){
+      try{
+        await _stkSalidaDirecta("reaprob-"+sbId+"-"+Date.now(), _itemsReales);
+        _bkMarcarDev(false);
+      }catch(e){ console.warn("[Stock] re-aprobación:", e.message); }
     }
     try{ await confirmarBackupComoRemito(bk); }
     catch(e){ console.warn("Error al enviar a ruta:", e); }
+  }
+
+  // 3b. Si RECHAZADO → la mercadería vuelve al stock.
+  if(aprobado === false && !bk._stkDevuelto){
+    try{
+      var _rDev = await _stkDevolverAuto("rechazo-"+sbId, _itemsReales, "Pedido rechazado — vuelve al stock");
+      if(_rDev !== null) _bkMarcarDev(true);
+    }catch(e){ console.warn("[Stock] devolución por rechazo:", e.message); }
   }
 
   // Preservar la posición de scroll (aprobar no debe mandarte arriba)
@@ -29529,7 +29581,7 @@ async function _cambiarAprobacion(bk, aprobado){
   _restore();
   requestAnimationFrame(function(){ _restore(); requestAnimationFrame(_restore); });
   setTimeout(_restore, 70); setTimeout(_restore, 180);
-  showNotif(aprobado===true ? "✅ Pedido aprobado — stock descontado. Asignalo a una ruta con \"Asignar a Ruta\"." : "❌ Pedido rechazado", aprobado?"ok":"err");
+  showNotif(aprobado===true ? "✅ Pedido aprobado. Asignalo a una ruta con \"Asignar a Ruta\"." : "❌ Pedido rechazado — la mercadería volvió al stock", aprobado?"ok":"err");
 
   // Al aprobar, ofrecer avisarle al cliente por WhatsApp.
   // Solo aparece si el cliente tiene el teléfono cargado.
@@ -33082,8 +33134,8 @@ async function _confirmarRechazo(rutaId, cliKey){
   // 2) Devolver al stock (recién ahora)
   try{
     var its = cli.items||[];
-    if(its.length && _ctrlStockOn()){
-      await _stkDevolver("rech-"+rutaId+"-"+cliKey, its);
+    if(its.length){
+      await _stkDevolverAuto("rech-"+rutaId+"-"+cliKey, its, "Rechazo en reparto — vuelve al stock");
       showNotif("↩️ La mercadería volvió al stock","ok");
     }
   }catch(e){ console.warn("[Stock] devolución al confirmar:", e.message); }
@@ -33283,6 +33335,34 @@ function _devRenderList(){
       '</div></div>';
   }).join("");
 }
+// ── Stock en las notas de crédito ───────────────────────────────────────────
+// Cuando una NC se APLICA, la mercadería vuelve al inventario. Solo los motivos
+// que descuentan plata (devolución y faltante) devuelven mercadería: la rotura
+// no vuelve al stock porque el producto se perdió.
+// El flag d.stkDev evita devolver dos veces la misma nota.
+function _ncRefNC(d){ return "nc-"+String(d.ts||"").replace(/[^0-9]/g,"")+"-"+String(d.codigo||"x"); }
+async function _ncStockDevolver(d){
+  if(!d || d.stkDev) return;
+  if(!d.codigo) return;                 // producto escrito a mano: no hay código
+  if(!(d.motivo==="devolucion"||d.motivo==="faltante")) return;
+  try{
+    var r = await _stkDevolverAuto(_ncRefNC(d)+"-"+Date.now(), [{id:d.codigo, c:+(d.cantidad||1)}], "Nota de crédito — vuelve al stock");
+    if(r !== null){
+      d.stkDev = true;
+      try{ if(_devTarget) _devTarget.persist(); }catch(e){}
+      if(typeof showNotif==="function") showNotif("📦 "+(d.cantidad||1)+" u. volvieron al stock","ok");
+    }
+  }catch(e){ console.warn("[Stock] NC devolver:", e.message); }
+}
+// Deshacer la devolución (se borró o se rechazó una NC que ya había devuelto)
+async function _ncStockRevertir(d){
+  if(!d || !d.stkDev || !d.codigo) return;
+  try{
+    await _stkSalidaDirecta(_ncRefNC(d)+"-undo-"+Date.now(), [{id:d.codigo, c:+(d.cantidad||1)}]);
+    d.stkDev = false;
+    try{ if(_devTarget) _devTarget.persist(); }catch(e){}
+  }catch(e){ console.warn("[Stock] NC revertir:", e.message); }
+}
 // Aplicar una nota de crédito (vendedor o admin)
 function _ncAplicar(idx){
   if(!_devTarget) return;
@@ -33291,6 +33371,8 @@ function _ncAplicar(idx){
   d.estado='aplicada';
   _ncLog(d,'aplicada');
   _devTarget.persist(); _devRenderList();
+  // La mercadería vuelve al inventario
+  try{ _ncStockDevolver(d).then(function(){ _devRenderList(); }); }catch(e){}
   if(typeof showNotif==="function") showNotif("🟢 Nota de crédito aplicada","ok");
 }
 // Rechazar una nota de crédito (solo admin)
@@ -33302,6 +33384,8 @@ function _ncRechazar(idx){
     if(!ok) return;
     d.estado='rechazada';
     _ncLog(d,'rechazada');
+    // Si esta nota ya había devuelto mercadería, la volvemos a sacar
+    try{ _ncStockRevertir(d); }catch(e){}
     _devTarget.persist(); _devRenderList();
     if(typeof showNotif==="function") showNotif("🔴 Nota de crédito rechazada","ok");
   });
@@ -33353,19 +33437,24 @@ function _devAgregar(){
   var nota=(document.getElementById("dev-nota").value||"").trim();
   if(!_devTarget.cli.devoluciones) _devTarget.cli.devoluciones=[];
   // Buscar el precio unitario del producto en los items de ESTE pedido
-  var _pu=0;
+  var _pu=0, _cod="";
   var _items=(_devTarget.cli.items||[]);
-  for(var _z=0;_z<_items.length;_z++){ if(_devItemNom(_items[_z])===prod){ _pu=_items[_z].p||0; break; } }
+  for(var _z=0;_z<_items.length;_z++){ if(_devItemNom(_items[_z])===prod){ _pu=_items[_z].p||0; _cod=_items[_z].id||_items[_z].codigo||_items[_z].cod||""; break; } }
   // Solo devolucion y faltante descuentan del importe (rotura la absorbe la empresa)
   var _descuenta=(motivo==="devolucion"||motivo==="faltante");
   var _monto=_descuenta ? Math.round(_pu*cant*100)/100 : 0;
   // Estado inicial: el repartidor NOTIFICA (queda pendiente); vendedor/admin la crean ya APLICADA.
   var _estIni = _ncPuedeAplicar() ? 'aplicada' : 'notificada';
-  var _d = {producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,ts:new Date().toISOString(), estado:_estIni, historial:[]};
+  var _d = {producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,codigo:_cod,ts:new Date().toISOString(), estado:_estIni, historial:[]};
   _ncLog(_d,'notificada');
   if(_estIni==='aplicada') _ncLog(_d,'aplicada');
   _devTarget.cli.devoluciones.push(_d);
   _devTarget.persist();
+  // Si nace ya aplicada (la carga el vendedor o el admin), la mercadería vuelve ahora
+  if(_estIni==='aplicada'){ try{ _ncStockDevolver(_d).then(function(){ _devRenderList(); }); }catch(e){} }
+  if(_estIni==='aplicada' && !_cod && (motivo==="devolucion"||motivo==="faltante")){
+    if(typeof showNotif==="function") setTimeout(function(){ showNotif("⚠️ Producto escrito a mano: ajustá el stock a mano desde Stock","warn"); }, 900);
+  }
   if(sel) sel.value=""; var otro=document.getElementById("dev-prod-otro"); if(otro){ otro.value=""; otro.style.display="none"; }
   document.getElementById("dev-cant").value="1"; document.getElementById("dev-nota").value="";
   _devRenderList();
@@ -33373,6 +33462,9 @@ function _devAgregar(){
 }
 function _devQuitar(idx){
   if(!_devTarget||_devTarget.readonly) return;
+  var _dq=(_devTarget.cli.devoluciones||[])[idx];
+  // Si esta nota ya había devuelto mercadería al stock, la sacamos de nuevo
+  if(_dq && _dq.stkDev){ try{ _ncStockRevertir(Object.assign({},_dq)); }catch(e){} }
   _devTarget.cli.devoluciones.splice(idx,1);
   _devTarget.persist();
   _devRenderList();
@@ -33948,15 +34040,9 @@ async function _armListo(){
   if(idx>=0){ arr[idx].armadoPor=uid; arr[idx].armadoPorNom=nom; arr[idx].armadoEn=ahora; arr[idx].faltantes=falt; arr[idx].estado="enviado"; if(bultos!=null) arr[idx].bultos=bultos; if(payload.armado_inicio) arr[idx].armadoInicio=ahora; if(typeof saveBackups==="function") saveBackups(arr); }
   bk.armadoPor=uid; bk.armadoPorNom=nom; bk.armadoEn=ahora; bk.faltantes=falt; bk.estado="enviado"; if(bultos!=null) bk.bultos=bultos; if(payload.armado_inicio) bk.armadoInicio=ahora;
   if(falt.length){ _armDescontarDelPedido(bk, falt); await _armDescontarDeRuta(bk, falt); }
-  // MOTOR DE STOCK: el pedido sale del depósito → baja el físico y se libera la reserva.
-  // Solo se descuenta lo que REALMENTE salió (los faltantes no salieron).
-  try{
-    var _sal = (bk.items||[]).map(function(it,i){
-      if(_armFalta[i]) return null;   // faltante: no salió
-      return { id: it.id||it.codigo, c: it.c||it.cant||it.cantidad||it.qty||0 };
-    }).filter(Boolean);
-    await _stkSalida(sbId, _sal);
-  }catch(e){ console.warn("[Stock] salida:", e.message); }
+  // MOTOR DE STOCK: acá NO se toca el stock. La mercadería ya salió cuando el
+  // vendedor envió el pedido. Los faltantes que marque el armador se ajustan a
+  // mano desde la sección Stock (decisión del admin).
   // Aviso al cliente por WhatsApp (el estado "enviado" ya se guardó arriba, en un solo patch)
   if(typeof _ofrecerAvisoWhatsApp==="function"){ try{ _ofrecerAvisoWhatsApp(bk,"enviado"); }catch(e){} }
   var m=document.getElementById("arm-modal"); if(m) m.style.display="none";
