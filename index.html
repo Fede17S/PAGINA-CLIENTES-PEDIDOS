@@ -578,6 +578,18 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 .cart-dsc-inp { flex:1; height:38px; padding:0 11px; border:1px solid var(--border); border-radius:8px; background:var(--s1); color:var(--text); font-size:14px; box-sizing:border-box; }
 .cart-dsc-apply { height:38px; padding:0 14px; border:none; border-radius:8px; background:var(--text); color:var(--bg); font-weight:700; font-size:13px; cursor:pointer; flex-shrink:0; }
 .cart-dsc-quit { height:38px; width:38px; border:1px solid var(--border); border-radius:8px; background:var(--s1); color:#d1453b; font-size:13px; cursor:pointer; flex-shrink:0; }
+/* Observación dentro del carrito */
+.cart-obs { margin-bottom:12px; }
+.cart-obs-t { width:100%; display:flex; align-items:center; gap:7px; background:var(--s1); border:1px solid var(--border); border-radius:9px; padding:10px 12px; font-size:12.5px; font-weight:700; color:var(--text2); font-family:inherit; cursor:pointer; text-align:left; }
+.cart-obs-t .car { margin-left:auto; font-size:10px; color:var(--muted); }
+.cart-obs-t .prev { font-weight:500; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1; }
+.cart-obs-t.tiene { border-color:var(--amber); background:var(--amber-bg); color:var(--text); }
+.cart-obs-box { margin-top:7px; }
+.cart-obs-box textarea { width:100%; box-sizing:border-box; min-height:74px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:var(--s1); color:var(--text); font-size:16px; font-family:inherit; line-height:1.4; resize:vertical; }
+.cart-obs-box textarea:focus { outline:none; border-color:var(--accent); }
+.cart-obs-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
+.cart-obs-chips button { border:1px solid var(--border); background:var(--s1); color:var(--text2); border-radius:99px; padding:6px 11px; font-size:11.5px; font-weight:600; font-family:inherit; cursor:pointer; }
+.cart-obs-chips button:active { background:var(--s3); }
 .cart-totals { margin-bottom:12px; }
 .cart-line { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); padding:3px 0; }
 .cart-line.cart-total { font-size:18px; color:var(--text); font-weight:800; padding-top:8px; margin-top:4px; border-top:1px dashed var(--border); }
@@ -4454,6 +4466,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <option value="codigo">Código</option>
     </select>
   </div>
+  <div id="stk-colgadas"></div>
   <div class="stk-summary" id="stk-summary"></div>
   <div id="stk-valorizacion" style="display:none;background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px"></div>
   <div id="stk-list"><div class="empty-box"><div class="empty-icon">📦</div>Cargando…</div></div>
@@ -14623,6 +14636,7 @@ function _abrirCartModal(){
   var cli=document.getElementById("nomCli-ped");
   var cc=document.getElementById("cart-cli");
   if(cc) cc.textContent = (cli&&cli.value)? "· "+cli.value : "";
+  _cartObsOpen = null;   // arranca plegada, salvo que ya haya una observación escrita
   _renderCartModal();
   m.classList.add("open");
 }
@@ -14694,12 +14708,72 @@ function _renderCartModal(){
         (dg?'<button class="cart-dsc-quit" onclick="_cartQuitarDsc()">✕</button>':'')+
       '</div>'+
     '</div>'+
+    _cartObsHTML()+
     '<div class="cart-totals">'+
       '<div class="cart-line"><span>Subtotal</span><span>$'+fM(c.subItemDsc)+'</span></div>'+
       dscRow+
       '<div class="cart-line cart-total"><span>Total</span><b>$'+fM(c.total)+'</b></div>'+
     '</div>'+
     '<button class="cart-confirm" onclick="_confirmarPedido()">Confirmar pedido →</button>';
+}
+/* ── Observación del pedido, adentro del carrito ─────────────────────────
+   No duplica el dato: escribe SIEMPRE sobre el textarea #obs-ped de abajo,
+   que es el que lee generarPDF(). Se puede escribir en cualquiera de los dos. */
+var _cartObsOpen = null;   // null = automático (abierta si ya hay texto)
+function _cartObsEl(){ return document.getElementById("obs-ped"); }
+function _cartObsTxt(){ var e=_cartObsEl(); return e ? String(e.value||"") : ""; }
+function _cartObsAbierto(){ return (_cartObsOpen===null) ? !!_cartObsTxt().trim() : !!_cartObsOpen; }
+function _cartObsHTML(){
+  var txt = _cartObsTxt();
+  var tiene = !!txt.trim();
+  var abierto = _cartObsAbierto();
+  var h = '<div class="cart-obs">'+
+    '<button type="button" class="cart-obs-t'+(tiene?" tiene":"")+'" onclick="_cartObsTog()">'+
+      '<span>📝 '+(tiene?"Observación":"Agregar observación")+'</span>'+
+      (tiene && !abierto ? '<span class="prev">'+escHtml(txt.replace(/\s+/g," ").slice(0,60))+'</span>' : '')+
+      '<span class="car">'+(abierto?"▲":"▼")+'</span>'+
+    '</button>';
+  if(abierto){
+    h += '<div class="cart-obs-box">'+
+      '<textarea id="cart-obs-txt" rows="3" placeholder="Ej: entregar después de las 14 hs, tocar timbre del fondo, pasar factura…" '+
+        'oninput="_cartObsSync(this)">'+escHtml(txt)+'</textarea>'+
+      '<div class="cart-obs-chips">'+
+        '<button type="button" onclick="_cartObsChip(\'Llamar antes de entregar\')">Llamar antes</button>'+
+        '<button type="button" onclick="_cartObsChip(\'Entregar por la mañana\')">A la mañana</button>'+
+        '<button type="button" onclick="_cartObsChip(\'Entregar por la tarde\')">A la tarde</button>'+
+        '<button type="button" onclick="_cartObsChip(\'Pasar factura\')">Pasar factura</button>'+
+        (tiene ? '<button type="button" onclick="_cartObsBorrar()" style="color:#d1453b">✕ Borrar</button>' : '')+
+      '</div>'+
+    '</div>';
+  }
+  return h+'</div>';
+}
+function _cartObsTog(){
+  _cartObsOpen = !_cartObsAbierto();
+  _renderCartModal();
+  if(_cartObsOpen){
+    var t=document.getElementById("cart-obs-txt");
+    if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+  }
+}
+function _cartObsSync(el){
+  var real=_cartObsEl();
+  if(real) real.value = el.value;   // el textarea de abajo es la fuente de verdad
+}
+function _cartObsChip(txt){
+  var real=_cartObsEl(); if(!real) return;
+  var cur=String(real.value||"").trim();
+  if(cur.toLowerCase().indexOf(txt.toLowerCase())>=0) return;  // no repetir
+  real.value = cur ? (cur.replace(/[.\s]+$/,"")+". "+txt) : txt;
+  _cartObsOpen = true;
+  _renderCartModal();
+  var t=document.getElementById("cart-obs-txt");
+  if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+}
+function _cartObsBorrar(){
+  var real=_cartObsEl(); if(real) real.value="";
+  _cartObsOpen = true;
+  _renderCartModal();
 }
 var _cartDscTipoSel="%";
 function _cartDscTipo(tp){
@@ -16337,6 +16411,7 @@ function renderStock(){
   var list=document.getElementById("stk-list");
   var sumEl=document.getElementById("stk-summary");
   if(!list)return;
+  try{ _stkColgRender(); }catch(e){}   // aviso de stock que quedó guardado con la clave vieja
   var q=_stkFiltro.toLowerCase().trim();
   // Base: solo búsqueda de texto (para los contadores del resumen)
   var prodsBase=dbStock.filter(function(p){return !q||_matchBusq(p.n+" "+p.id+" "+(p.familia||""),q);});
@@ -28115,9 +28190,21 @@ function _mprodListaTienda(){ return "Clientes"; }
 // Resumen legible de cuándo y dónde corre la oferta
 // Muestra cuántas unidades se vendieron ya en oferta, con opción de reiniciar
 // ── STOCK dentro del editor de producto ──
-var _mprodStkId = null;
+var _mprodStkId  = null;   // id interno del producto (la key larga de _prodData)
+var _mprodStkCod = null;   // CÓDIGO del producto — es la clave real del inventario
+// OJO: la tabla de stock se guarda por CÓDIGO (A0139, el 6, el 346…), NO por el
+// id interno largo. Esta pantalla usaba el id interno: mostraba 0 aunque hubiera
+// mercadería cargada, y al guardar escribía una fila nueva que no leía nadie
+// (ni la tarjeta, ni la tienda, ni el bloqueo por falta de stock).
+function _mprodStkCodDe(pid){
+  if(pid==null || pid==="") return null;
+  var p = (typeof _prodData==="object" && _prodData) ? _prodData[pid] : null;
+  if(typeof _stkCodDe==="function") return _stkCodDe(p, pid);
+  return (p && p.codigo!=null && p.codigo!=="") ? String(p.codigo) : String(pid);
+}
 function _mprodStockRender(pid){
-  _mprodStkId = pid || null;
+  _mprodStkId  = pid || null;
+  _mprodStkCod = pid ? _mprodStkCodDe(pid) : null;
   var nums = document.getElementById("mprod-stock-nums");
   var edit = document.getElementById("mprod-stock-edit");
   var msg  = document.getElementById("mprod-stock-msg");
@@ -28134,11 +28221,14 @@ function _mprodStockRender(pid){
   }
   edit.style.display = "flex";
 
+  var cod = _mprodStkCod || pid;
   var cargado = stockData && Object.keys(stockData).length>0;
-  var fis = cargado ? +(stockData[pid]||0) : 0;
-  var res = +( (typeof stockReservado!=="undefined" && stockReservado[pid]) || 0);
+  var fis = cargado ? +(stockData[cod]||0) : 0;
+  var res = +( (typeof stockReservado!=="undefined" && stockReservado[cod]) || 0);
   var dis = fis - res;
-  var umb = (typeof stkUmbral==="function") ? stkUmbral(pid) : 5;
+  var umb = (typeof stkUmbral==="function") ? stkUmbral(cod) : 5;
+  // Stock que quedó cargado con la clave vieja (el id interno) por el error de antes
+  var viejo = (cod!==pid && stockData && stockData[pid]!==undefined) ? +(stockData[pid]||0) : 0;
 
   function caja(lbl, val, col){
     return '<div style="flex:1;text-align:center;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:8px 4px">'+
@@ -28154,10 +28244,165 @@ function _mprodStockRender(pid){
   if(qEl) qEl.value = fis;
   if(uEl) uEl.value = umb;
   if(msg){
-    if(!cargado) msg.innerHTML = '<span style="color:#f59e0b">El stock todavía no terminó de cargar. Entrá a la sección Stock y volvé.</span>';
-    else if(dis<=0) msg.innerHTML = '<span style="color:var(--red,#dc2626)">Sin stock disponible.</span>';
-    else if(dis<=umb) msg.innerHTML = '<span style="color:#f59e0b">Quedan pocas unidades.</span>';
-    else msg.textContent = "Disponible = físico − reservado en pedidos.";
+    var t;
+    if(!cargado) t = '<span style="color:#f59e0b">El stock todavía no terminó de cargar. Entrá a la sección Stock y volvé.</span>';
+    else if(dis<=0) t = '<span style="color:var(--red,#dc2626)">Sin stock disponible.</span>';
+    else if(dis<=umb) t = '<span style="color:#f59e0b">Quedan pocas unidades.</span>';
+    else t = "Disponible = físico − reservado en pedidos.";
+    // Aviso de rescate: unidades que habían quedado guardadas con la clave vieja.
+    // No toca nada solo: pone el número en el campo y vos decidís si guardarlo.
+    if(cargado && viejo>0 && viejo!==fis){
+      t += '<div style="margin-top:7px;background:var(--amber-bg,#fef3c7);border:1px solid var(--amber,#f59e0b);border-radius:8px;padding:8px 10px;color:var(--text)">'+
+             '⚠️ Tenés <b>'+viejo+' u.</b> que se habían guardado mal (con una clave vieja que el inventario no usa). '+
+             'El inventario real de este producto dice <b>'+fis+' u.</b> '+
+             '<button type="button" onclick="_mprodStkUsarViejo('+viejo+')" style="margin-top:6px;display:block;padding:6px 11px;border:none;border-radius:7px;background:var(--accent,#c9933a);color:#fff;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit">Poner '+viejo+' u. y guardar bien</button>'+
+           '</div>';
+    }
+    msg.innerHTML = t;
+  }
+}
+// Pone en el campo las unidades que habían quedado con la clave vieja.
+// No guarda: hay que tocar "Guardar stock" para confirmarlo.
+function _mprodStkUsarViejo(n){
+  var qEl=document.getElementById("mprod-stock-qty");
+  if(qEl){ qEl.value = n; qEl.focus(); }
+  var msg=document.getElementById("mprod-stock-msg");
+  if(msg) msg.innerHTML = '<span style="color:#f59e0b">Listo: ahora tocá <b>Guardar stock</b> para dejarlo bien.</span>';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// RESCATE DE STOCK "COLGADO"
+// El inventario se guarda por CÓDIGO de producto (A0139, el 6, el 346…).
+// Durante un tiempo, el cuadro de stock que está adentro del editor del
+// producto guardaba con la clave interna larga en vez del código. Ese stock
+// quedó en un cajón que no lee nadie: ni la tarjeta, ni la tienda, ni el
+// bloqueo por falta de stock, ni las reservas de los pedidos.
+// Acá se listan esas unidades para que las pases al inventario real.
+// NO se toca nada solo: elegís cuáles y tocás el botón.
+// ══════════════════════════════════════════════════════════════════════
+var _stkColgSel = null;   // {clave interna: true/false} — null = todavía no se eligió nada
+
+// Devuelve la lista de productos con unidades colgadas de la clave vieja
+function _stkColgadas(){
+  var out = [];
+  if(typeof _prodData!=="object" || !_prodData) return out;
+  if(!stockData || !Object.keys(stockData).length) return out;
+  Object.keys(_prodData).forEach(function(k){
+    var p = _prodData[k]; if(!p || !p.nombre) return;
+    var cod = (typeof _stkCodDe==="function") ? _stkCodDe(p, k) : (p.codigo||k);
+    if(cod==null || String(cod)===String(k)) return;      // sin código propio: no hay confusión posible
+    if(stockData[k]===undefined) return;                  // no hay nada guardado con la clave vieja
+    var colg = +(stockData[k]||0);
+    if(!colg) return;                                     // 0 unidades: no hay nada que rescatar
+    out.push({
+      k: k,
+      cod: String(cod),
+      nombre: p.nombre,
+      colgadas: colg,
+      actual: +(stockData[cod]||0)
+    });
+  });
+  out.sort(function(a,b){ return String(a.nombre).localeCompare(String(b.nombre)); });
+  return out;
+}
+
+// Cartel arriba de la sección Stock con la lista para revisar
+function _stkColgRender(){
+  var box = document.getElementById("stk-colgadas");
+  if(!box) return;
+  var lista = _stkColgadas();
+  if(!lista.length){ box.innerHTML = ""; _stkColgSel = null; return; }
+
+  // Primera vez: vienen todos tildados
+  if(_stkColgSel===null){
+    _stkColgSel = {};
+    lista.forEach(function(o){ _stkColgSel[o.k] = true; });
+  }
+  var nSel = lista.filter(function(o){ return _stkColgSel[o.k]; }).length;
+
+  var filas = lista.map(function(o){
+    var marcado = !!_stkColgSel[o.k];
+    return '<label style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-top:1px solid var(--border);cursor:pointer">'+
+      '<input type="checkbox" '+(marcado?"checked":"")+' onchange="_stkColgTog(\''+String(o.k).replace(/'/g,"\\'")+'\')" style="width:16px;height:16px;flex:0 0 auto">'+
+      '<span style="flex:1;min-width:0">'+
+        '<span style="display:block;font-size:12.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(o.nombre)+'</span>'+
+        '<span style="display:block;font-size:10.5px;color:var(--muted)">Código '+escHtml(o.cod)+'</span>'+
+      '</span>'+
+      '<span style="flex:0 0 auto;text-align:right">'+
+        '<span style="display:block;font-size:13px;font-weight:800;color:var(--amber,#f59e0b)">'+o.colgadas+' u.</span>'+
+        '<span style="display:block;font-size:10.5px;color:var(--muted)">hoy figura '+o.actual+'</span>'+
+      '</span>'+
+    '</label>';
+  }).join("");
+
+  box.innerHTML =
+    '<div style="background:var(--amber-bg,#fef3c7);border:1px solid var(--amber,#f59e0b);border-radius:var(--radius,12px);margin-bottom:12px;overflow:hidden">'+
+      '<div style="padding:12px 14px">'+
+        '<div style="font-size:13.5px;font-weight:800;color:var(--text)">⚠️ '+lista.length+' producto'+(lista.length!==1?"s":"")+' con stock guardado mal</div>'+
+        '<div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.45">'+
+          'Estas unidades se cargaron desde el editor del producto cuando ese cuadro guardaba en el lugar equivocado. '+
+          '<b>El sistema no las está viendo</b>: no cuentan para la tienda, ni para el bloqueo por falta de stock, ni para las reservas. '+
+          'Destildá las que ya vendiste y pasá el resto al inventario real.'+
+        '</div>'+
+      '</div>'+
+      filas+
+      '<div style="padding:11px 14px;border-top:1px solid var(--amber,#f59e0b);display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+        '<button type="button" id="stk-colg-btn" onclick="_stkColgAplicar()" '+(nSel?"":"disabled")+' '+
+          'style="padding:9px 15px;border:none;border-radius:8px;background:'+(nSel?'var(--accent,#c9933a)':'var(--muted,#9ca3af)')+';color:#fff;font-size:12.5px;font-weight:800;cursor:'+(nSel?'pointer':'default')+';font-family:inherit">'+
+          'Pasar '+nSel+' al inventario real</button>'+
+        '<button type="button" onclick="_stkColgTodos(true)" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Tildar todos</button>'+
+        '<button type="button" onclick="_stkColgTodos(false)" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Destildar todos</button>'+
+      '</div>'+
+    '</div>';
+}
+
+function _stkColgTog(k){
+  if(!_stkColgSel) _stkColgSel = {};
+  _stkColgSel[k] = !_stkColgSel[k];
+  _stkColgRender();
+}
+function _stkColgTodos(v){
+  var lista = _stkColgadas();
+  _stkColgSel = {};
+  lista.forEach(function(o){ _stkColgSel[o.k] = !!v; });
+  _stkColgRender();
+}
+
+// Pasa las unidades elegidas al código correcto y deja la clave vieja en 0
+async function _stkColgAplicar(){
+  var lista = _stkColgadas().filter(function(o){ return _stkColgSel && _stkColgSel[o.k]; });
+  if(!lista.length) return;
+  var btn = document.getElementById("stk-colg-btn");
+  if(btn){ btn.disabled = true; btn.textContent = "Pasando…"; }
+  var ok = 0, fallaron = [];
+  for(var i=0;i<lista.length;i++){
+    var o = lista[i];
+    var antes = +(stockData[o.cod]||0);
+    try{
+      var patch = {};
+      patch[o.cod] = o.colgadas;   // el inventario real pasa a tener las unidades
+      patch[o.k]   = 0;            // la clave vieja queda en cero, así no vuelve a aparecer
+      await _sbPatchStock(patch);
+      stockData[o.cod] = o.colgadas;
+      stockData[o.k]   = 0;
+      if(typeof _stkRegistrarMovimiento==="function"){
+        try{ await _stkRegistrarMovimiento(o.cod, antes, o.colgadas, "Recuperado: stock que había quedado guardado con la clave vieja"); }catch(e){}
+      }
+      try{ _auditar("editar","stock",o.cod,"Recuperó "+o.colgadas+" u. de la clave vieja: "+o.nombre); }catch(e){}
+      ok++;
+    }catch(e){
+      stockData[o.cod] = antes;    // si no se pudo guardar, queda como estaba
+      fallaron.push(o.nombre);
+    }
+  }
+  _stkColgSel = null;
+  _stkColgRender();
+  if(typeof renderStock==="function" && document.getElementById("stk-list")) renderStock();
+  if(typeof renderProductos==="function" && document.getElementById("prod-grid")) renderProductos();
+  if(typeof _pgRender==="function") _pgRender();
+  if(typeof showNotif==="function"){
+    if(ok) showNotif("📦 "+ok+" producto"+(ok!==1?"s":"")+" con el stock ya en su lugar","ok");
+    if(fallaron.length) showNotif("No se pudo con: "+fallaron.slice(0,3).join(", "),"err");
   }
 }
 function _mprodStkDelta(d){
@@ -28168,29 +28413,31 @@ function _mprodStkDelta(d){
 async function _mprodStkGuardar(){
   var pid=_mprodStkId;
   if(!pid){ showNotif("Guardá el producto primero","err"); return; }
+  // Se guarda SIEMPRE con el código, que es la clave que usa el inventario.
+  var cod = _mprodStkCod || _mprodStkCodDe(pid) || pid;
   var qEl=document.getElementById("mprod-stock-qty"), uEl=document.getElementById("mprod-stock-umbral");
   var btn=document.getElementById("mprod-stock-btn");
   var n=parseInt(String((qEl||{}).value||"0").replace(/[^0-9-]/g,""),10); if(isNaN(n)) n=0;
   var u=parseInt(String((uEl||{}).value||"").replace(/[^0-9]/g,""),10); if(isNaN(u)||u<0) u=5;
-  var anterior = +(stockData[pid]||0);
+  var anterior = +(stockData[cod]||0);
   if(btn){ btn.disabled=true; btn.textContent="Guardando…"; }
   try{
     if(n!==anterior){
-      stockData[pid]=n;
-      await _sbPatchStock((function(){ var o={}; o[pid]=n; return o; })());
-      if(typeof _stkRegistrarMovimiento==="function") _stkRegistrarMovimiento(pid, anterior, n, "Ajuste desde el producto");
+      stockData[cod]=n;
+      await _sbPatchStock((function(){ var o={}; o[cod]=n; return o; })());
+      if(typeof _stkRegistrarMovimiento==="function") _stkRegistrarMovimiento(cod, anterior, n, "Ajuste desde el producto");
     }
-    if(!stockConfig[pid]) stockConfig[pid]={};
-    if(stockConfig[pid].umbral!==u){
-      stockConfig[pid].umbral=u;
-      await _sbPatchStockConfig((function(){ var o={}; o[pid]={umbral:u}; return o; })());
+    if(!stockConfig[cod]) stockConfig[cod]={};
+    if(stockConfig[cod].umbral!==u){
+      stockConfig[cod].umbral=u;
+      await _sbPatchStockConfig((function(){ var o={}; o[cod]={umbral:u}; return o; })());
     }
     _mprodStockRender(pid);
     if(typeof renderStock==="function" && document.getElementById("stk-list")) renderStock();
     if(typeof renderProductos==="function") renderProductos();
     showNotif("📦 Stock actualizado","ok");
   }catch(e){
-    stockData[pid]=anterior;      // revertir si no se pudo guardar
+    stockData[cod]=anterior;      // revertir si no se pudo guardar
     _mprodStockRender(pid);
     showNotif("No se pudo guardar el stock: "+((e&&e.message)||"").slice(0,70),"err");
   }
