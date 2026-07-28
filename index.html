@@ -8380,7 +8380,15 @@ function _stkSimple(arr, signo, motivo){
 async function _stkDevolverAuto(ref, items, motivo){
   var arr=_stkItems(items); if(!arr.length) return null;
   if(!_ctrlStockOn()){ _stkSimple(arr, -1, motivo||"Devolución al stock"); return {simple:true}; }
-  return _stkDevolver(ref, items);
+  var r = await _stkDevolver(ref, items);
+  if(r === null){
+    // PLAN B: el motor de la base no respondió — la mercadería vuelve igual,
+    // con el método simple, así el pedido rechazado/borrado no queda colgado.
+    console.warn("[Stock] motor no disponible — devolución simple");
+    _stkSimple(arr, -1, motivo||"Devolución al stock");
+    return {simple:true};
+  }
+  return r;
 }
 // ── SALIDA DIRECTA (modelo nuevo) ───────────────────────────────────────────
 // El pedido descuenta el stock FÍSICO apenas se envía, sin pasar por el paso
@@ -8395,8 +8403,19 @@ async function _stkSalidaDirecta(ref, items){
   // Sin control de stock activado no hay RPC: descontamos con el método simple
   if(!_ctrlStockOn()){ _stkSimple(arr, 1, "Pedido enviado"); return null; }
   var usr = (currentUser?(currentUser.name||currentUser.id):"sistema");
+  var r;
   try{
-    var r = await _stkRpc("stk_reservar",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr });
+    r = await _stkRpc("stk_reservar",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr });
+  }catch(ePrim){
+    // PLAN B: la función del motor no está en la base o falló la llamada.
+    // Antes esto moría acá en silencio y el stock quedaba SIN DESCONTAR.
+    // Ahora se descuenta igual, con el método simple (el mismo que usa la
+    // sección Stock cuando cambiás un número a mano).
+    console.warn("[Stock] motor no disponible ("+ePrim.message+") — descuento simple");
+    _stkSimple(arr, 1, "Pedido enviado");
+    return {simple:true};
+  }
+  try{
     if(r && r.repetido){ return r; }   // ya se había descontado: no repetir
     if(r && r.avisos && r.avisos.length){
       var t = r.avisos.map(function(a){ var p=(dbStock||[]).find(function(x){return x.id===a.codigo;}); return (p?p.n:a.codigo)+" (quedan "+a.disponible+")"; }).join(", ");
