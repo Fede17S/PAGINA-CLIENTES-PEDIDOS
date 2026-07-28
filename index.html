@@ -3010,6 +3010,25 @@ html[data-theme="dark"] .prod-toolbar {
 .stk-3num-l { font-size:8.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
 @media (max-width:640px){ .stk-3num { margin:6px 0; width:100%; } .stk-3num-c { flex:1; min-width:0; } }
 
+/* ── STOCK: el nombre del producto arriba, en toda la fila ──────────────────
+   Los controles de la derecha (badge + umbral + cantidad + historial) ocupan
+   casi 400px fijos, así que si el nombre va al lado nunca entra y queda
+   cortado con puntos suspensivos. Lo mandamos a su propio renglón, a lo ancho
+   de toda la tarjeta, y los números y botones quedan abajo. */
+.stk-row { flex-wrap:wrap; row-gap:9px; align-items:center; }
+.stk-row-info { flex:1 1 100%; min-width:0; }
+.stk-row-name { font-size:14px; -webkit-line-clamp:2; word-break:break-word; }
+.stk-row-right { margin-left:auto; flex-wrap:wrap; row-gap:6px; justify-content:flex-end; }
+.stk-3num { margin:0; }
+.stk-3num-c { min-width:46px; }
+@media (max-width:640px){
+  .stk-row-right { margin-left:0; width:100%; justify-content:space-between; }
+  .stk-3num { width:auto; margin:0; }
+  /* en el celular el "desde:" no entra: dejamos solo el triangulito */
+  .stk-umbral-wrap label { font-size:0; }
+  .stk-umbral-wrap label::before { content:"⚠️"; font-size:11px; }
+}
+
 /* ── BACKUP TABS ── */
 .bk-tab { flex:1;padding:8px 4px;border-radius:9px;border:1.5px solid var(--border);background:var(--s2);font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer;touch-action:manipulation;transition:all .15s;text-align:center;white-space:nowrap; }
 .bk-tab.active { border-color:var(--accent);background:var(--accent-bg);color:var(--accent); }
