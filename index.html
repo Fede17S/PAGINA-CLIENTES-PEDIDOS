@@ -3361,6 +3361,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="sb-item" id="nav-dashboard" onclick="verTab('dashboard',this)" style="display:none">
       <span class="sb-icon">🏠</span>Inicio<span id="tp-sb-badge" style="display:none;margin-left:auto;background:var(--red);color:#fff;border-radius:20px;min-width:18px;height:18px;font-size:10px;font-weight:800;line-height:18px;text-align:center;padding:0 5px;box-sizing:border-box">0</span>
     </button>
+    <button class="sb-item" id="nav-mi-dia" onclick="verTab('mi-dia',this)" style="display:none">
+      <span class="sb-icon">🗓️</span>Mi día
+    </button>
     <button class="sb-item active" id="nav-pedido" onclick="verTab('pedido',this)">
       <span class="sb-icon">📝</span>Nuevo Pedido
     </button>
@@ -3375,6 +3378,9 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </button>
     <button class="sb-item" id="nav-mapa-entregas" onclick="verTab('mapa-entregas',this)">
       <span class="sb-icon">🗺️</span>Reparto
+    </button>
+    <button class="sb-item" id="nav-rutas-venta" onclick="verTab('rutas-venta',this)" style="display:none">
+      <span class="sb-icon">🗓️</span>Rutas de Venta
     </button>
     <div class="sb-group-lbl">Análisis</div>
     <button class="sb-item" id="nav-resumen" onclick="verTab('resumen',this)">
@@ -3434,7 +3440,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.23-dsc1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.28-rutas</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4611,6 +4617,66 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="rfa btn btn-ghost btn-sm btn-icon" onclick="cargarVentasFirebase(true)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></button>
   </div>
   <div id="resumen-body"></div>
+</div>
+
+<!-- ══ RUTAS DE VENTA (Admin) ══ -->
+<div id="rutas-venta" class="section">
+  <div class="rvt-head">
+    <h2 class="rvt-h2">🗓️ Rutas de Venta</h2>
+    <div class="rvt-tabs">
+      <button id="rvt-tab-agenda" class="rvt-tab on" onclick="_rvtSetTab('agenda',this)">Agenda</button>
+      <button id="rvt-tab-cumpl"  class="rvt-tab"    onclick="_rvtSetTab('cumpl',this)">Cumplimiento</button>
+      <button id="rvt-tab-dorm"   class="rvt-tab"    onclick="_rvtSetTab('dorm',this)">Dormidos y huérfanos</button>
+    </div>
+    <button class="rvt-mini" style="margin-left:auto" onclick="_rvtAdminRender(true)">🔄 Actualizar</button>
+  </div>
+
+  <!-- ── Agenda ── -->
+  <div id="rvt-pane-agenda" class="rvt-pane on">
+    <div class="rvt-bar">
+      <span class="rvt-lbl">Vendedor</span>
+      <div id="rvt-vends" class="rvt-chips"></div>
+    </div>
+    <div class="rvt-bar">
+      <button class="rvt-mini" onclick="_rvtAbrirZona()">📥 Cargar una zona entera</button>
+      <button class="rvt-mini" onclick="_rvtAbrirCopiar()">📋 Copiar semana</button>
+      <button class="rvt-mini pri" onclick="_rvtAbrirAgregar(0)">+ Agregar cliente</button>
+      <span id="rvt-resumen" class="rvt-lbl" style="margin-left:auto"></span>
+    </div>
+    <div id="rvt-grilla" class="rvt-sem"></div>
+    <div id="rvt-huerf" class="rvt-huerf"></div>
+  </div>
+
+  <!-- ── Cumplimiento ── -->
+  <div id="rvt-pane-cumpl" class="rvt-pane">
+    <div class="rvt-bar">
+      <span class="rvt-lbl">Día</span>
+      <input id="rvt-fecha" type="date" class="rvt-inp" onchange="_rvtRenderCumpl()">
+      <button class="rvt-mini" onclick="_rvtHoyFecha()">Hoy</button>
+    </div>
+    <div id="rvt-kpis" class="rvt-kpis"></div>
+    <div id="rvt-tabla" class="rvt-card"></div>
+    <div id="rvt-timeline" class="rvt-card"></div>
+  </div>
+
+  <!-- ── Dormidos y huérfanos ── -->
+  <div id="rvt-pane-dorm" class="rvt-pane">
+    <div class="rvt-bar">
+      <span class="rvt-lbl">Avisame cuando pasen</span>
+      <input id="rvt-dias" type="number" min="7" max="365" value="30" class="rvt-inp" style="width:80px" onchange="_rvtRenderDorm()">
+      <span class="rvt-lbl">días sin comprar</span>
+    </div>
+    <div class="rvt-dos">
+      <div id="rvt-dormidos" class="rvt-card"></div>
+      <div id="rvt-orfanos"  class="rvt-card"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MI DÍA (Vendedor) ══ -->
+<div id="mi-dia" class="section">
+  <div id="md-top" class="md-top"></div>
+  <div id="md-body"></div>
 </div>
 
 <!-- ══ MIS VENTAS (Vendedor) ══ -->
@@ -8325,6 +8391,19 @@ function _stkItems(items){
 async function _stkRpc(fn, body){
   return sbFetch("POST","/rest/v1/rpc/"+fn, body);
 }
+// Igual que _stkRpc pero llevándole un MOTIVO para el historial de movimientos
+// (por ejemplo "Editado en reparto"). Las versiones viejas del motor no tienen
+// el parámetro p_motivo: si la base lo rechaza, se reintenta sin él y el
+// movimiento queda con el texto por defecto. El movimiento nunca se pierde.
+async function _stkRpcMot(fn, body, motivo){
+  if(!motivo) return _stkRpc(fn, body);
+  try{
+    return await _stkRpc(fn, Object.assign({}, body, {p_motivo:String(motivo)}));
+  }catch(e){
+    console.warn("[Stock] el motor de la base todavía no acepta motivo (correr stock_motor.sql):", e&&e.message);
+    return _stkRpc(fn, body);
+  }
+}
 // Reservar al confirmar un pedido
 async function _stkReservar(ref, items){
   if(!_ctrlStockOn() || !_sbEmpId || !ref) return null;
@@ -8359,11 +8438,11 @@ async function _stkLiberar(ref){
   }catch(e){ console.warn("[Stock] liberar:", e.message); return null; }
 }
 // Devolver al stock (rechazado en reparto)
-async function _stkDevolver(ref, items){
+async function _stkDevolver(ref, items, motivo){
   if(!_ctrlStockOn() || !_sbEmpId || !ref) return null;
   var arr=_stkItems(items); if(!arr.length) return null;
   try{
-    var r = await _stkRpc("stk_devolver",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:(currentUser?(currentUser.name||currentUser.id):"sistema") });
+    var r = await _stkRpcMot("stk_devolver",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:(currentUser?(currentUser.name||currentUser.id):"sistema") }, motivo);
     await _stkRefrescar();
     return r;
   }catch(e){ console.warn("[Stock] devolver:", e.message); return null; }
@@ -8380,7 +8459,7 @@ function _stkSimple(arr, signo, motivo){
 async function _stkDevolverAuto(ref, items, motivo){
   var arr=_stkItems(items); if(!arr.length) return null;
   if(!_ctrlStockOn()){ _stkSimple(arr, -1, motivo||"Devolución al stock"); return {simple:true}; }
-  var r = await _stkDevolver(ref, items);
+  var r = await _stkDevolver(ref, items, motivo);
   if(r === null){
     // PLAN B: el motor de la base no respondió — la mercadería vuelve igual,
     // con el método simple, así el pedido rechazado/borrado no queda colgado.
@@ -8397,11 +8476,11 @@ async function _stkDevolverAuto(ref, items, motivo){
 // Como stk_reservar es idempotente por referencia, si el pedido ya se había
 // procesado (un reintento de sincronización) devuelve repetido y no se
 // descuenta dos veces.
-async function _stkSalidaDirecta(ref, items){
+async function _stkSalidaDirecta(ref, items, motivo){
   if(!_sbEmpId || !ref) return null;
   var arr=_stkItems(items); if(!arr.length) return null;
   // Sin control de stock activado no hay RPC: descontamos con el método simple
-  if(!_ctrlStockOn()){ _stkSimple(arr, 1, "Pedido enviado"); return null; }
+  if(!_ctrlStockOn()){ _stkSimple(arr, 1, motivo||"Pedido enviado"); return null; }
   var usr = (currentUser?(currentUser.name||currentUser.id):"sistema");
   var r;
   try{
@@ -8412,7 +8491,7 @@ async function _stkSalidaDirecta(ref, items){
     // Ahora se descuenta igual, con el método simple (el mismo que usa la
     // sección Stock cuando cambiás un número a mano).
     console.warn("[Stock] motor no disponible ("+ePrim.message+") — descuento simple");
-    _stkSimple(arr, 1, "Pedido enviado");
+    _stkSimple(arr, 1, motivo||"Pedido enviado");
     return {simple:true};
   }
   try{
@@ -8422,11 +8501,11 @@ async function _stkSalidaDirecta(ref, items){
       showNotif("⚠️ Vendiste más de lo disponible: "+t, "err");
     }
     try{
-      await _stkRpc("stk_salida",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr });
+      await _stkRpcMot("stk_salida",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr }, motivo);
     }catch(e2){
       // 2do intento: si tampoco sale, la mercadería queda retenida (no vendible)
       // hasta que se rechace o se borre el pedido, que la devuelve.
-      try{ await _stkRpc("stk_salida",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr }); }
+      try{ await _stkRpcMot("stk_salida",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr }, motivo); }
       catch(e3){ console.warn("[Stock] salida directa (2do paso):", e3.message); }
     }
     await _stkRefrescar();
@@ -8771,7 +8850,12 @@ async function _sbGetRutas(){
   // se reintenta sin ella (ver abajo).
   var _RC_COLS = "id,ruta_id,cliente_id,nom,importe,tipo_comprobante,efectivo,transferencia,modo,items,fecha,firmado_en,pagos_adicionales,devoluciones,entregado,entregado_en,audit_log,remito_num,lista,obs";
   var _RC_EXTRA = ",n_comprobantes,rechazado,rechazado_en,motivo_rechazo,rechazado_por,rechazo_confirmado,reprogramado_de,reprogramado_en";
-  var clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_EXTRA+"&ruta_id=in.("+ids+")&order=created_at.asc");
+  // `dsc_general` va aparte a propósito: si se sumara a _RC_EXTRA y esa columna
+  // faltara, se caería TODO el bloque extra (incluido el rechazo) de una.
+  var _RC_DSC = ",dsc_general";
+  var clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_EXTRA+_RC_DSC+"&ruta_id=in.("+ids+")&order=created_at.asc");
+  if(clis===null) clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_EXTRA+"&ruta_id=in.("+ids+")&order=created_at.asc");
+  if(clis===null) clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_DSC+"&ruta_id=in.("+ids+")&order=created_at.asc");
   if(clis===null) clis=await sbGet("ruta_clientes","select="+_RC_COLS+"&ruta_id=in.("+ids+")&order=created_at.asc");
   var result={};
   rutas.forEach(function(r){
@@ -8801,6 +8885,7 @@ async function _sbGetRutas(){
         _remitoNum:    c.remito_num||"",
         lista:         c.lista||"",
         obs:           c.obs||"",
+        dscGeneral:    c.dsc_general||null,
         rechazado:         c.rechazado===true,
         rechazadoEn:       c.rechazado_en||"",
         motivoRechazo:     c.motivo_rechazo||"",
@@ -8828,7 +8913,7 @@ async function _sbInsertRuta(data){ var rows=await sbPost("rutas",{empresa_id:_s
 async function _sbInsertRutaCli(rutaId,data){ var rows=await sbPost("ruta_clientes",{ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),lista:data.lista||"",obs:data.obs||"",tipo_comprobante:data.tipoComprobante||null,firma:"",pagos_adicionales:[],comprobantes:[]}); return rows&&rows[0]?rows[0].id:null; }
 // Columnas agregadas por rechazos_ruta.sql. Si la base todavía no las tiene,
 // las escrituras las omiten en vez de fallar.
-var _RC_COLS_NUEVAS = ["rechazado","rechazado_en","motivo_rechazo","rechazado_por","rechazo_confirmado","reprogramado_de","reprogramado_en"];
+var _RC_COLS_NUEVAS = ["rechazado","rechazado_en","motivo_rechazo","rechazado_por","rechazo_confirmado","reprogramado_de","reprogramado_en","dsc_general"];
 async function _sbPatchRutaCli(rutaId,cliId,data){
   var b={};
   if(data.efectivo!==undefined)         b.efectivo=data.efectivo;
@@ -8848,6 +8933,11 @@ async function _sbPatchRutaCli(rutaId,cliId,data){
   if(data.lista!==undefined)            b.lista=data.lista;
   if(data.obs!==undefined)              b.obs=data.obs;
   if(data.devoluciones!==undefined)     b.devoluciones=data.devoluciones;
+  // Descuento general de la hoja de ruta ({tipo:"%"|"$", valor:n} o null).
+  // Los importes ya viajan en items[].sub y en importe; esto es el cartelito
+  // "descuento activo" y el botón de quitarlo, que antes se perdía al recargar.
+  // Columna nueva: si la base no la tiene, se omite (ver el SQL de la nota).
+  if(data.dscGeneral!==undefined)       b.dsc_general=data.dscGeneral||null;
   // Rechazo y reprogramación (columnas nuevas — ver rechazos_ruta.sql)
   if(data.rechazado!==undefined)         b.rechazado=data.rechazado;
   if(data.rechazadoEn!==undefined)       b.rechazado_en=data.rechazadoEn||null;
@@ -8866,7 +8956,7 @@ async function _sbPatchRutaCli(rutaId,cliId,data){
     if(/column|does not exist|PGRST204|schema cache/i.test(msg)){
       var b2={};
       Object.keys(b).forEach(function(k){ if(_RC_COLS_NUEVAS.indexOf(k)===-1) b2[k]=b[k]; });
-      console.warn("[ruta_clientes] Faltan columnas de rechazo. Correr rechazos_ruta.sql en Supabase.");
+      console.warn("[ruta_clientes] Faltan columnas nuevas (rechazo / dsc_general). Correr rechazos_ruta.sql y ruta_dsc_general.sql en Supabase.");
       if(!Object.keys(b2).length) return null;
       return sbPatch("ruta_clientes","id=eq."+cliId+"&ruta_id=eq."+rutaId,b2);
     }
@@ -9102,6 +9192,16 @@ function _fechaSegura(f){
   if(typeof f === "string" && f.length===10 && f.charAt(4)==="-") return new Date(f+"T12:00:00");
   return new Date(f);
 }
+// Misma fecha pero llevada al ARRANQUE del día (00:00). Se usa para comparar
+// "desde/hasta" contra hoy: _fechaSegura devuelve el mediodía, y comparar el
+// mediodía de hoy contra la medianoche de hoy hacía que una oferta que empieza
+// HOY se considerara "todavía no empezó" durante todo el primer día.
+function _dia0(f){
+  var d = _fechaSegura(f);
+  if(isNaN(d.getTime())) return d;
+  d = new Date(d); d.setHours(0,0,0,0);
+  return d;
+}
 
 // ¿La oferta de un producto está vigente? (activa + precio válido + dentro de fecha)
 function _ofVigente(p){
@@ -9124,10 +9224,10 @@ function _ofVigente(p){
   var hoy=new Date(); var hoy0=new Date(hoy); hoy0.setHours(0,0,0,0);
   // 1) Fecha de fin
   var hasta = p.ofertaHasta || p.oferta_hasta;
-  if(hasta && _fechaSegura(hasta) < hoy0) return false;
+  if(hasta && _dia0(hasta) < hoy0) return false;
   // 2) Fecha de inicio (permite dejar una oferta programada para más adelante)
   var desde = p.ofertaDesde || p.oferta_desde;
-  if(desde && _fechaSegura(desde) > hoy0) return false;
+  if(desde && _dia0(desde) > hoy0) return false;
   // 3) Días de la semana (0=Dom .. 6=Sáb). Vacío = todos los días.
   var dias = p.ofertaDias || p.oferta_dias;
   if(Array.isArray(dias) && dias.length && dias.indexOf(hoy.getDay())===-1) return false;
@@ -9434,8 +9534,115 @@ function _rastreoHabilitado(){
   return _RASTREO_EMPRESAS_OK.indexOf(String(_sbEmpId||"")) !== -1;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// RASTREO EN VIVO A PEDIDO (sesiones tipo Uber / Buscar de Apple)
+// El admin aprieta "Rastrear en vivo" en el mapa de Ubicación y el celular de
+// esa persona empieza a transmitir la posición exacta cada ~3 segundos, hasta
+// que el admin lo termina o se cumplen 2 horas (corte automático de seguridad).
+// Fuera de una sesión NO se gasta batería: el celular solo consulta cada 15 s
+// si alguien pidió rastrearlo (una lectura mínima a la base, sin prender GPS).
+// La señal viaja en la columna usuarios.loc_modo con el formato
+//   "sesion|<vence en ms>|<modo anterior>"
+// así no hace falta ninguna columna nueva en Supabase. Al terminar (o vencer)
+// se restaura el modo anterior del usuario tal cual estaba.
+// ══════════════════════════════════════════════════════════════════════════
+var _RV_DURACION_MS = 2*60*60*1000;  // corte automático: 2 horas
+var _RV_ENVIO_MS    = 3000;          // el celular manda su posición cada 3 s
+var _RV_POLL_MS     = 15000;         // cada cuánto pregunta el celular si lo están rastreando
+
+// Lee el flag de sesión. Devuelve {hasta, prev, activa} o null si no hay sesión.
+function _rvParse(modo){
+  if(!modo || String(modo).indexOf("sesion|")!==0) return null;
+  var p = String(modo).split("|");
+  var hasta = parseInt(p[1],10)||0;
+  return { hasta:hasta, prev:(p[2]||"momentos"), activa: Date.now()<hasta };
+}
+
+// Estilos del puntito en vivo y del cartel del celular (se inyectan una sola vez)
+function _rvCss(){
+  if(document.getElementById("rv-css")) return;
+  var st=document.createElement("style"); st.id="rv-css";
+  st.textContent =
+    "@keyframes rvHalo{0%{transform:scale(.6);opacity:.55}100%{transform:scale(2.4);opacity:0}}";
+  document.head.appendChild(st);
+}
+
+// ── LADO CELULAR: responder cuando el admin pide rastrear este teléfono ──
+var _rvWatchId=null, _rvPollTimer=null, _rvUltimoEnvio=0, _rvHasta=0, _rvPrev="momentos";
+var _rvSoyViewer=false;  // esta pestaña arrancó el rastreo sobre MI usuario → es la que MIRA, no transmite
+
+// Solo transmiten los celulares (app instalada o navegador del teléfono).
+// La compu del admin nunca manda su propia ubicación: si estás logueado con el
+// mismo usuario en la PC y el teléfono, la posición que se ve es la del teléfono.
+function _rvEsCelular(){
+  try{
+    if(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return true;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||"");
+  }catch(e){ return false; }
+}
+
+function _rvResponderInit(){
+  if(!_rvEsCelular()) return;
+  if(!currentUser || !currentUser._sbId || !_sbEmpId) return;
+  if(_rvPollTimer) return;
+  _rvPollChequear();
+  _rvPollTimer = setInterval(_rvPollChequear, _RV_POLL_MS);
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState==="visible") _rvPollChequear();
+  });
+}
+
+async function _rvPollChequear(){
+  try{
+    // Con la app en segundo plano no se consulta (al volver al frente se chequea al toque)
+    if(document.visibilityState!=="visible" && !_rvWatchId) return;
+    var rows = await sbGet("usuarios","select=loc_modo&id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId);
+    var s = _rvParse(rows && rows[0] && rows[0].loc_modo);
+    if(s && s.activa && !_rvSoyViewer){
+      _rvHasta=s.hasta; _rvPrev=s.prev;
+      _rvTransmitirOn();
+    } else {
+      if(s && !s.activa){
+        // La sesión venció y nadie la cerró: este celular restaura el modo anterior
+        try{ await sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId,{loc_modo:s.prev}); }catch(e2){}
+      }
+      _rvTransmitirOff();
+    }
+  }catch(e){ /* sin red: se reintenta en el próximo tick */ }
+}
+
+function _rvTransmitirOn(){
+  if(_rvWatchId!=null) return;   // ya está transmitiendo
+  // En la app instalada con el servicio nativo corriendo, el rastreo fino lo
+  // hace Java: detecta la sesión solo (consulta el modo cada 15 s) y transmite
+  // cada 3 s INCLUSO con la pantalla bloqueada. El JS no duplica los envíos.
+  if(typeof _bgGeoDisponible==="function" && _bgGeoDisponible() && _bgWatcherId) return;
+  if(!navigator.geolocation) return;
+  _rvWatchId = navigator.geolocation.watchPosition(function(pos){
+    var ahora = Date.now();
+    if(ahora >= _rvHasta){ _rvTransmitirOff(); return; }   // corte automático (2 h)
+    if(ahora - _rvUltimoEnvio < _RV_ENVIO_MS) return;      // como mucho 1 envío cada 3 s
+    _rvUltimoEnvio = ahora;
+    sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId,{
+      last_lat:    pos.coords.latitude,
+      last_lng:    pos.coords.longitude,
+      last_loc_at: new Date().toISOString()
+    }).catch(function(){ /* sin red: el próximo punto lo cubre */ });
+  }, function(err){ console.warn("[rastreo] GPS:", err && err.message); },
+  { enableHighAccuracy:true, maximumAge:0, timeout:15000 });
+}
+
+function _rvTransmitirOff(){
+  if(_rvWatchId!=null){ try{ navigator.geolocation.clearWatch(_rvWatchId); }catch(e){} _rvWatchId=null; }
+}
+
+// Sin cartel en el celular a pedido de Fede: el rastreo es de uso propio,
+// habilitado solo para su empresa, y la notificación "CoreDistri activo" del
+// centro de notificaciones ya avisa que la app está trabajando.
+
 function _initTrackingUbicacion(){
   if(!_rastreoHabilitado()) return;   // desactivado para el resto de las distribuidoras
+  _rvResponderInit();                 // rastreo en vivo a pedido (solo escucha; no prende GPS)
   try {
     // App nativa: el servicio nativo se mantiene vivo y prende/apaga el GPS
     // solo según el horario laboral (todo lo maneja Java, no depende del JS).
@@ -10433,10 +10640,30 @@ async function cambiarPassword(){
 function _ctrlStockOn(){ return !!(empresaData && empresaData.control_stock); }
 // ¿Este producto está bloqueado por falta de stock?
 // Usa el DISPONIBLE (físico − reservado): lo que realmente se puede vender.
+// ¿Este producto NUNCA se cargó al inventario? (no tiene ficha de stock)
+// No es lo mismo que "0 unidades": puede ser mercadería que todavía no se contó
+// o que está por entrar. En ese caso NO se bloquea: se muestra, se puede agregar
+// al pedido, y se avisa que no tiene stock cargado.
+function _stkSinFicha(id){
+  if(!_ctrlStockOn()) return false;
+  if(!stockData || Object.keys(stockData).length===0) return false;
+  var v = stockData[id];
+  return (v===undefined || v===null);
+}
+// Aviso (una sola vez por producto y por sesión) de que no tiene ficha de inventario
+var _stkAvisadoSinFicha = {};
+function _avisarSinFicha(id, nombre){
+  if(!_stkSinFicha(id)) return;
+  if(_stkAvisadoSinFicha[id]) return;
+  _stkAvisadoSinFicha[id] = 1;
+  try{ showNotif("⚠️ "+(nombre||"Este producto")+" no tiene stock cargado en el inventario","info"); }catch(e){}
+}
 function _sinStock(id){
   if(!_ctrlStockOn()) return false;
   // Salvaguarda: si el stock todavía no se cargó, no bloquear (si no, desaparecería todo el catálogo)
   if(!stockData || Object.keys(stockData).length===0) return false;
+  // Sin ficha de inventario → no cuenta como agotado (se ve y se puede pedir, con aviso)
+  if(_stkSinFicha(id)) return false;
   return _stkDisponible(id) <= 0;
 }
 async function guardarControlStock(){
@@ -11619,7 +11846,8 @@ function aplicarRol(){
 
   var allNav = ["nav-dashboard","nav-pedido","nav-remito","nav-hoja","nav-mapa-entregas",
                 "nav-backup","nav-pedidos-acum","nav-proveedores","nav-resumen","nav-clientes","nav-productos",
-                "nav-stock","nav-catalogo","nav-catalogo-vivo","nav-finanzas","nav-mis-ventas","nav-vendedores","nav-datos-empresa","nav-mis-clientes","nav-inicio-rep","nav-inicio-arm","nav-armadores","nav-auditoria"];
+                "nav-stock","nav-catalogo","nav-catalogo-vivo","nav-finanzas","nav-mis-ventas","nav-vendedores","nav-datos-empresa","nav-mis-clientes","nav-inicio-rep","nav-inicio-arm","nav-armadores","nav-auditoria",
+                "nav-rutas-venta","nav-mi-dia"];
 
   allNav.forEach(function(id){
     var el = document.getElementById(id);
@@ -11627,14 +11855,14 @@ function aplicarRol(){
     var show = false;
     // Combinar las secciones de TODOS los roles del usuario (no excluyente).
     if (isAdmin) {
-      show = (id !== "nav-mis-ventas" && id !== "nav-inicio-rep" && id !== "nav-inicio-arm" && id !== "nav-mis-clientes" && id !== "nav-remito");  // admin ve todo excepto mis-ventas y los inicios de rol
+      show = (id !== "nav-mis-ventas" && id !== "nav-inicio-rep" && id !== "nav-inicio-arm" && id !== "nav-mis-clientes" && id !== "nav-remito" && id !== "nav-mi-dia");  // admin ve todo excepto mis-ventas, mi-dia y los inicios de rol
     } else {
       // Sumar las secciones de cada rol que tenga
-      if (isVendedor   && (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup" || id === "nav-mis-clientes" || id === "nav-catalogo-vivo")) show = true;
+      if (isVendedor   && (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup" || id === "nav-mis-clientes" || id === "nav-catalogo-vivo" || id === "nav-mi-dia")) show = true;
       if (isRepartidor && (id === "nav-inicio-rep" || id === "nav-hoja" || id === "nav-mapa-entregas")) show = true;
       if (isArmador    && (id === "nav-inicio-arm" || id === "nav-backup")) show = true;
-      if (isCoAdmin    && (id === "nav-finanzas" || id === "nav-vendedores" || id === "nav-clientes" || id === "nav-auditoria")) show = true;
-      if (isJefeVentas && id === "nav-vendedores") show = true;
+      if (isCoAdmin    && (id === "nav-finanzas" || id === "nav-vendedores" || id === "nav-clientes" || id === "nav-auditoria" || id === "nav-rutas-venta")) show = true;
+      if (isJefeVentas && (id === "nav-vendedores" || id === "nav-rutas-venta")) show = true;
       // Si no tiene ningún rol reconocido, ve al menos Pedido
       if (!isVendedor && !isRepartidor && !isArmador && !isCoAdmin && !isJefeVentas && id === "nav-pedido") show = true;
     }
@@ -11725,6 +11953,7 @@ function _buildBottomNav(role){
       {id:"pedido",       ico:"📝", lbl:"Pedido"},
       {id:"hoja",         ico:"📋", lbl:"Ruta"},
       {id:"mapa-entregas",ico:"🚚", lbl:"Reparto"},
+      {id:"rutas-venta",  ico:"🗓️", lbl:"Rutas"},
       {grupo:"Catálogo"},
       {id:"productos",    ico:"🏪", lbl:"Productos"},
       {id:"catalogo",     ico:"📒", lbl:"Catálogo"},
@@ -11745,6 +11974,7 @@ function _buildBottomNav(role){
       {id:"datos-empresa",ico:"⚙️", lbl:"Config"}
     ],
     vendedor:   [
+      {id:"mi-dia",    ico:"🗓️", lbl:"Mi día"},
       {id:"pedido",    ico:"📝", lbl:"Pedido"},
       {id:"catalogo-vivo",ico:"📖", lbl:"Catálogo vivo"},
       {id:"backup",    ico:"💾", lbl:"Backup"},
@@ -11764,10 +11994,12 @@ function _buildBottomNav(role){
       {id:"finanzas",   ico:"💰", lbl:"Finanzas"},
       {id:"vendedores", ico:"🏆", lbl:"Vendedores"},
       {id:"clientes",   ico:"👥", lbl:"Clientes"},
-      {id:"auditoria",  ico:"📋", lbl:"Auditoría"}
+      {id:"auditoria",  ico:"📋", lbl:"Auditoría"},
+      {id:"rutas-venta",ico:"🗓️", lbl:"Rutas"}
     ],
     "jefe-ventas": [
-      {id:"vendedores", ico:"🏆", lbl:"Vendedores"}
+      {id:"vendedores", ico:"🏆", lbl:"Vendedores"},
+      {id:"rutas-venta",ico:"🗓️", lbl:"Rutas"}
     ]
   };
 
@@ -12362,11 +12594,11 @@ function verTab(id,btn){
   if(!isAdmin){
     // Secciones permitidas según TODOS los roles combinados
     var _permitidas = {};
-    if(isVendedor){ ["pedido","mis-ventas","clientes","backup","mis-clientes"].forEach(function(s){_permitidas[s]=1;}); }
+    if(isVendedor){ ["pedido","mis-ventas","clientes","backup","mis-clientes","mi-dia"].forEach(function(s){_permitidas[s]=1;}); }
     if(isRepartidor){ ["inicio-rep","hoja","mapa-entregas"].forEach(function(s){_permitidas[s]=1;}); }
     if(isArmador){ ["inicio-arm","backup"].forEach(function(s){_permitidas[s]=1;}); }
-    if(_tieneRol("co-admin")){ ["finanzas","vendedores","clientes","auditoria"].forEach(function(s){_permitidas[s]=1;}); }
-    if(_tieneRol("jefe-ventas")){ _permitidas["vendedores"]=1; }
+    if(_tieneRol("co-admin")){ ["finanzas","vendedores","clientes","auditoria","rutas-venta"].forEach(function(s){_permitidas[s]=1;}); }
+    if(_tieneRol("jefe-ventas")){ _permitidas["vendedores"]=1; _permitidas["rutas-venta"]=1; }
     // Secciones solo-admin: nunca permitidas para no-admin,
     // salvo que un rol de arriba las habilite expresamente (co-admin, jefe de ventas)
     var _soloAdmin = {vendedores:1, "datos-empresa":1, dashboard:1, auditoria:1};
@@ -12466,6 +12698,8 @@ function verTab(id,btn){
       _sbGetStockConfig().then(function(d){ if(d) stockConfig=d; }).catch(function(){});
     }
   }
+  if(id==="rutas-venta" && typeof _rvtAdminRender==="function") _rvtAdminRender();
+  if(id==="mi-dia" && typeof _rvtMiDiaRender==="function") _rvtMiDiaRender();
   if(id==="productos")cargarProductos();
 }
 async function cargarCatalogo(){
@@ -13352,6 +13586,9 @@ function filtrar(t){
       var stkHtml="";
       if(qty!==undefined){
         stkHtml='<span class="'+ddStkClass(p.id,qty)+'">'+stkBadgeLabel(qty)+'</span>';
+      } else if(_stkSinFicha(p.id)){
+        // Nunca se cargó al inventario: se puede vender igual, pero avisando
+        stkHtml='<span title="Todavía no está cargado en el inventario" style="font-size:9.5px;background:oklch(95% 0.06 75);color:#b45309;padding:1px 6px;border-radius:8px;font-weight:700">⚠️ sin stock cargado</span>';
       }
       var _ofVig = _ofVigente(p);
       var _ofPV = _ofVig ? _ofPrecioLista(p, lista) : null;
@@ -13371,6 +13608,7 @@ function filtrar(t){
         stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
       function _selProduct(usePromo){
         if(_bloqDD){ showNotif("🚫 "+(p.n||"Este producto")+" no tiene stock","err"); return; }
+        _avisarSinFicha(p.id, p.n);
         var precioFinal = (usePromo && p.precioPromo) ? p.precioPromo : pre;
         itemSel[t]=Object.assign({},p,{pre:precioFinal});
         _modoCaja[t] = _soloCajaP(itemSel[t]);   // si solo se vende por caja, arranca en caja
@@ -14396,10 +14634,13 @@ function _pgRender(){
     }
     var p=cel.p;
     var _bloq = _sinStock(p.id);   // control de stock activo y sin stock → bloqueado
+    var _sinFicha = _stkSinFicha(p.id);   // nunca se cargó al inventario → se puede pedir igual, con aviso
     var pre=_precioDe(p,lista);
     var ofVig = _ofVigente(p);
     var ofPre = ofVig ? _ofPrecioLista(p, lista) : null;
-    var _tieneOf = ofVig && ofPre<pre;
+    // OJO: _ofPrecioLista devuelve null si la oferta no aplica a ESTA lista de
+    // precios. Sin el ofPre!=null, null<pre daba true y se pintaba "$0,00".
+    var _tieneOf = ofVig && ofPre!=null && ofPre<pre;
     var _tienePromo = !_tieneOf && p.precioPromo && p.cantPromo;
     var _cajaCap = _puedeCajaP(p) && p.vendePor!=="peso";
     var _esC = _cajaCap && _pgModoDe(p)==="caja";
@@ -14445,7 +14686,8 @@ function _pgRender(){
         '</div>'
       : '';
     return '<div class="pg-card'+(qty>0?' on':'')+(_bloq?' pg-card-bloq':'')+'">'+
-      (_bloq?'<div style="position:absolute;top:5px;right:5px;z-index:3;background:#6b7280;color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">SIN STOCK</div>':'')+
+      (_bloq?'<div style="position:absolute;top:5px;right:5px;z-index:3;background:#6b7280;color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">SIN STOCK</div>':
+       (_sinFicha?'<div title="Este producto todavía no está cargado en el inventario" style="position:absolute;top:5px;right:5px;z-index:3;background:#b45309;color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">⚠️ SIN STOCK CARGADO</div>':''))+
       (_tieneOf?'<div style="position:absolute;top:5px;left:5px;z-index:2;background:#d9402b;color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">🔥 '+escHtml(_ofNombre(p))+'</div>':
        (_tienePromo?'<div style="position:absolute;top:5px;left:5px;z-index:2;background:oklch(52% 0.13 150);color:#fff;font-size:8.5px;font-weight:800;padding:2px 6px;border-radius:8px">🏷️ PROMO</div>':''))+
       foto2+
@@ -14594,6 +14836,8 @@ function _pgDelta(id, d, e){
   if(!p) return;
   // Control de stock: no dejar agregar si no hay stock
   if(d>0 && _sinStock(id)){ showNotif("🚫 "+(p.n||"Este producto")+" no tiene stock","err"); return; }
+  // Sin ficha de inventario: NO se bloquea (puede entrar mercadería), solo se avisa
+  if(d>0) _avisarSinFicha(id, p.n);
   var lista=tipoLista['ped']||"Clientes";
   var preNormal=_precioDe(p,lista);
   var ofPre = _ofPrecioLista(p, lista); // precio de oferta si vigente
@@ -19199,7 +19443,11 @@ function _appendAuditLog(rk, ck, desc){
 function renderEditItems(wrap, rk, ck){
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(!cli) return;
-  var items=(cli.items||[]).slice();
+  // COPIA de cada ítem, no solo del array. Antes se copiaba nada más el array y
+  // los objetos quedaban compartidos con cli.items: al subir la cantidad de un
+  // producto ya cargado (ex.c+=1) se pisaba también "lo que había antes", así
+  // que el historial no registraba el cambio y el stock no veía diferencia.
+  var items=(cli.items||[]).map(function(it){ return Object.assign({}, it); });
   wrap.innerHTML="";
 
   /* Toggle header */
@@ -19602,10 +19850,87 @@ async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal){
   } catch(e){ console.warn("[propagarEdicionAPedido] error:", e && e.message); }
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// STOCK AL EDITAR DESDE LA HOJA DE RUTA
+// El inventario se descuenta cuando el vendedor ENVÍA el pedido, con la foto
+// de ese momento. Si después el repartidor agrega o saca productos desde la
+// hoja de ruta, el depósito queda desfasado. Acá comparamos lo que había
+// contra lo que quedó y movemos SOLO LA DIFERENCIA:
+//   agregó 3 unidades  → se descuentan 3
+//   sacó 2 unidades    → vuelven 2
+// El movimiento queda con el motivo "Editado en reparto" en el historial.
+// ══════════════════════════════════════════════════════════════════════════
+function _rutaCodItem(it){
+  if(!it) return null;
+  var c = (it.id!=null && it.id!=="") ? it.id : ((it.codigo!=null && it.codigo!=="") ? it.codigo : it.cod);
+  return (c!=null && c!=="") ? String(c) : null;
+}
+// Devuelve {salen:[{id,c}], vuelven:[{id,c}], sinCodigo:[nombres]}
+function _rutaDiffStock(oldItems, newItems){
+  var m = {}, sinCod = {};
+  function _sumar(arr, signo){
+    (arr||[]).forEach(function(it){
+      var c = +(it && it.c) || 0;
+      if(!(c>0)) return;
+      var cod = _rutaCodItem(it);
+      // Producto escrito a mano (sin código): el stock no lo puede seguir.
+      // Lo contamos aparte, solo para poder avisar si cambió la cantidad.
+      if(!cod){
+        var n = (it && it.n) || "(sin nombre)";
+        sinCod[n] = (sinCod[n]||0) + signo*c;
+        return;
+      }
+      m[cod] = (m[cod]||0) + signo*c;
+    });
+  }
+  _sumar(oldItems, -1);
+  _sumar(newItems, +1);
+  var salen=[], vuelven=[];
+  Object.keys(m).forEach(function(cod){
+    if(m[cod] > 0)      salen.push({id:cod, c:m[cod]});     // más unidades → salen del depósito
+    else if(m[cod] < 0) vuelven.push({id:cod, c:-m[cod]});  // menos unidades → vuelven
+  });
+  var manual = Object.keys(sinCod).filter(function(n){ return sinCod[n] !== 0; });
+  return {salen:salen, vuelven:vuelven, sinCodigo:manual};
+}
+// Contador para que dos ediciones seguidas nunca compartan referencia:
+// el motor de stock es idempotente por referencia y se saltearía la segunda.
+var _rutaEdSeq = 0;
+async function _rutaAplicarStockEdicion(rk, ck, oldItems, newItems){
+  try{
+    var d = _rutaDiffStock(oldItems, newItems);
+    // Productos escritos a mano: no tienen código, el stock no los puede seguir
+    if(d.sinCodigo.length){
+      try{ showNotif("⚠️ Producto escrito a mano ("+d.sinCodigo.join(", ")+"): ajustá el stock a mano desde Stock","info"); }catch(e){}
+    }
+    if(!d.salen.length && !d.vuelven.length) return d;
+    var ref = "edit-"+rk+"-"+ck+"-"+Date.now()+"-"+(++_rutaEdSeq);
+    if(d.salen.length){
+      await _stkSalidaDirecta(ref+"-s", d.salen, "Editado en reparto");
+    }
+    if(d.vuelven.length){
+      await _stkDevolverAuto(ref+"-v", d.vuelven, "Editado en reparto — vuelve al stock");
+    }
+    var partes = [];
+    if(d.salen.length)   partes.push("−"+d.salen.reduce(function(s,i){return s+i.c;},0));
+    if(d.vuelven.length) partes.push("+"+d.vuelven.reduce(function(s,i){return s+i.c;},0));
+    try{ showNotif("📦 Stock actualizado ("+partes.join(" / ")+" unidades)","ok"); }catch(e){}
+    return d;
+  }catch(e){
+    console.warn("[Stock] edición en reparto:", e && e.message);
+    try{ showNotif("⚠️ No se pudo mover el stock de esta edición. Ajustalo a mano desde Stock.","err"); }catch(e2){}
+    return null;
+  }
+}
+
 function guardarItemsEditados(rk, ck, items, wrap){
   // Build audit log entry
   var cliOld = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   var oldItems = (cliOld&&cliOld.items)||[];
+  // Foto de lo que había ANTES de guardar: se usa para mover el stock por
+  // diferencia más abajo. Se copia porque abajo se pisa rutasData con lo nuevo.
+  var itemsAntes = oldItems.map(function(it){ return {id:_rutaCodItem(it), n:it.n, c:it.c}; });
+  var itemsDespues = (items||[]).map(function(it){ return {id:_rutaCodItem(it), n:it.n, c:it.c}; });
   var oldMap = {}; oldItems.forEach(function(it){ oldMap[it.n]=(oldMap[it.n]||0)+it.c; });
   var newMap = {}; items.forEach(function(it){ newMap[it.n]=(newMap[it.n]||0)+it.c; });
   var changes = [];
@@ -19634,6 +19959,9 @@ function guardarItemsEditados(rk, ck, items, wrap){
       if(changes.length){
         _appendAuditLog(rk, ck, changes.join("; "));
       }
+      // Mover el stock por diferencia. Va DESPUÉS del guardado: si el guardado
+      // falla, el inventario no se toca.
+      _rutaAplicarStockEdicion(rk, ck, itemsAntes, itemsDespues);
       // El estado del editor (abierto/cerrado) ahora es global (_rcEditorAbierto),
       // así que renderEditItems lo restaura solo. Solo refrescamos el contenido.
       if(wrap){
@@ -30318,10 +30646,28 @@ async function _vndMapaActualizar(encuadrar){
   var lista = document.getElementById("vnd-mapa-lista");
   try {
     var rows = await sbGet("usuarios","select=id,uid,name,role,last_lat,last_lng,last_loc_at,loc_modo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
-    var vendedores = (rows||[]).filter(function(u){ var r=(u.role||""); return r==="vendedor" || r==="repartidor"; });
+    // Se incluye también al admin para poder rastrear su propio celular (testeo)
+    var vendedores = (rows||[]).filter(function(u){ var r=(u.role||""); return r==="vendedor" || r==="repartidor" || r==="admin"; });
+    // Sesiones de rastreo en vivo: adoptar las activas (por si se arrancaron en
+    // otra pestaña o antes de recargar) y limpiar las vencidas restaurando el modo
+    vendedores.forEach(function(u){
+      var s = _rvParse(u.loc_modo);
+      if(!s) return;
+      if(s.activa){
+        if(!_rvLive[u.id]){ _rvLive[u.id] = {hasta:s.hasta, prev:s.prev, nombre:u.name||u.uid}; }
+        _rvFastOn();
+      } else if(!_rvRestaurados[u.id]){
+        _rvRestaurados[u.id] = true;
+        sbPatch("usuarios","id=eq."+u.id+"&empresa_id=eq."+_sbEmpId,{loc_modo:s.prev}).catch(function(){});
+        u.loc_modo = s.prev;
+      }
+    });
     var conUbic = vendedores.filter(function(u){ return u.last_lat!=null && u.last_lng!=null; });
     var bounds = [], vistos = {};
     conUbic.forEach(function(u){
+      // Los que están en rastreo en vivo los mueve el refresco rápido (suavecito);
+      // acá solo se marca que siguen existiendo para no borrarles el marcador.
+      if(_rvLive[u.id]){ vistos[u.id]=true; bounds.push([u.last_lat,u.last_lng]); return; }
       vistos[u.id] = true;
       var enVivo = (u.loc_modo||"momentos")==="vivo";
       var color = enVivo ? "#16a34a" : "var(--accent,#c0633a)";
@@ -30350,22 +30696,176 @@ async function _vndMapaActualizar(encuadrar){
       } else {
         lista.innerHTML = vendedores.map(function(u){
           var modo = u.loc_modo || "momentos";
-          var emo = (u.role==="repartidor") ? "🚚" : "📝";
-          var ubicTxt = (u.last_lat!=null) ? _haceCuanto(u.last_loc_at) : "sin ubicación";
-          var sel = '<select onchange="_setLocModo(\''+u.id+'\',this.value)" style="font-size:11.5px;padding:3px 6px">'+
-            '<option value="momentos"'+(modo==="momentos"?" selected":"")+'>Por momentos</option>'+
-            '<option value="vivo"'+(modo==="vivo"?" selected":"")+'>En vivo</option>'+
-            '<option value="off"'+(modo==="off"?" selected":"")+'>Apagado</option>'+
-          '</select>';
+          var emo = (u.role==="repartidor") ? "🚚" : (u.role==="admin" ? "👑" : "📝");
+          var ses = _rvParse(u.loc_modo);
+          var rastreando = !!(ses && ses.activa);
+          var ubicTxt, ctrl;
+          if(rastreando){
+            var hh = new Date(ses.hasta);
+            ubicTxt = '🔴 rastreo en vivo · '+((u.last_lat!=null)?_haceCuanto(u.last_loc_at):"esperando al celular…")+
+                      ' · corta '+String(hh.getHours()).padStart(2,"0")+":"+String(hh.getMinutes()).padStart(2,"0");
+            ctrl = '<button onclick="_rvTerminarSesion(\''+u.id+'\')" style="font-size:11.5px;padding:5px 10px;border-radius:8px;border:none;background:#dc2626;color:#fff;cursor:pointer;font-weight:600;white-space:nowrap">⏹ Terminar</button>';
+          } else {
+            ubicTxt = (u.last_lat!=null) ? _haceCuanto(u.last_loc_at) : "sin ubicación";
+            var sel = '<select onchange="_setLocModo(\''+u.id+'\',this.value)" style="font-size:11.5px;padding:3px 6px">'+
+              '<option value="momentos"'+(modo==="momentos"?" selected":"")+'>Por momentos</option>'+
+              '<option value="vivo"'+(modo==="vivo"?" selected":"")+'>En vivo</option>'+
+              '<option value="off"'+(modo==="off"?" selected":"")+'>Apagado</option>'+
+            '</select>';
+            ctrl = sel+'<button onclick="_rvArrancarSesion(\''+u.id+'\')" title="Rastreo exacto en tiempo real, como Uber. Corta solo a las 2 horas." style="font-size:11.5px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text,#ddd);cursor:pointer;white-space:nowrap">🔴 Rastrear</button>';
+          }
           return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);font-size:12.5px">'+
             '<div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+emo+' '+(u.name||u.uid)+'</div>'+
             '<div style="color:var(--muted);font-size:11px">'+ubicTxt+'</div></div>'+
-            sel+'</div>';
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'+ctrl+'</div></div>';
         }).join("");
       }
     }
   } catch(e){
     if(lista) lista.innerHTML = '<div style="font-size:12px;color:#c0392b;padding:8px">Error cargando ubicaciones: '+(e.message||e)+'</div>';
+  }
+}
+
+// ══ RASTREO EN VIVO — LADO PANEL (el que mira el mapa) ══════════════════════
+// _rvLive: sesiones activas {sbId: {hasta, prev, nombre}}. Mientras haya alguna,
+// un refresco rápido lee la posición cada 3 s y mueve el puntito con animación
+// suave entre punto y punto (efecto Uber). El resto del mapa sigue igual.
+var _rvLive = {}, _rvRestaurados = {}, _rvFastTimer = null, _rvAnims = {}, _rvRaf = null;
+
+async function _rvArrancarSesion(sbId){
+  try{
+    var rows = await sbGet("usuarios","select=loc_modo,name,uid&id=eq."+sbId+"&empresa_id=eq."+_sbEmpId);
+    if(!rows || !rows[0]){ showNotif("Usuario no encontrado","err"); return; }
+    var actual = rows[0].loc_modo || "momentos";
+    var ya = _rvParse(actual);
+    var prev = ya ? ya.prev : actual;   // si ya había una sesión, conservar el modo original
+    var hasta = Date.now() + _RV_DURACION_MS;
+    await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,{loc_modo:"sesion|"+hasta+"|"+prev});
+    _rvLive[sbId] = { hasta:hasta, prev:prev, nombre:rows[0].name||rows[0].uid||"" };
+    delete _rvRestaurados[sbId];
+    // Si me estoy rastreando a mí mismo, ESTA pestaña es la que mira:
+    // no transmite su propia ubicación (transmite el celular, que es el otro aparato)
+    if(currentUser && currentUser._sbId === sbId) _rvSoyViewer = true;
+    _rvFastOn();
+    showNotif("🔴 Rastreo en vivo iniciado — el celular se engancha en unos 15 segundos","ok");
+    _vndMapaActualizar(false);
+  }catch(e){ showNotif("Error: "+(e.message||e),"err"); }
+}
+
+async function _rvTerminarSesion(sbId){
+  var prev = (_rvLive[sbId] && _rvLive[sbId].prev) || null;
+  try{
+    if(prev==null){
+      // Sesión arrancada en otra pestaña: leer el modo anterior del propio flag
+      var rows = await sbGet("usuarios","select=loc_modo&id=eq."+sbId+"&empresa_id=eq."+_sbEmpId);
+      var s = _rvParse(rows && rows[0] && rows[0].loc_modo);
+      prev = (s && s.prev) || "momentos";
+    }
+    await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,{loc_modo:prev});
+    delete _rvLive[sbId];
+    if(currentUser && currentUser._sbId === sbId) _rvSoyViewer = false;
+    _rvMarkerNormal(sbId);
+    if(!Object.keys(_rvLive).length) _rvFastOff();
+    showNotif("⏹ Rastreo terminado","ok");
+    _vndMapaActualizar(false);
+  }catch(e){ showNotif("Error: "+(e.message||e),"err"); }
+}
+
+function _rvFastOn(){
+  _rvCss();
+  if(_rvFastTimer) return;
+  _rvFastTimer = setInterval(_rvFastTick, _RV_ENVIO_MS);
+}
+function _rvFastOff(){
+  if(_rvFastTimer){ clearInterval(_rvFastTimer); _rvFastTimer = null; }
+}
+
+// Cada 3 s: leer la posición de los rastreados y mover el puntito con animación
+async function _rvFastTick(){
+  var ids = Object.keys(_rvLive);
+  if(!ids.length){ _rvFastOff(); return; }
+  var el = document.getElementById("vnd-mapa-leaflet");
+  if(!el || el.offsetParent===null || document.visibilityState!=="visible") return;  // mapa no visible: no gastar
+  try{
+    var rows = await sbGet("usuarios","select=id,name,uid,last_lat,last_lng,last_loc_at,loc_modo&id=in.("+ids.join(",")+")&empresa_id=eq."+_sbEmpId);
+    (rows||[]).forEach(function(u){
+      var s = _rvParse(u.loc_modo);
+      if(!s || !s.activa){
+        // La terminaron desde otro lado, o venció (el corte de las 2 h)
+        delete _rvLive[u.id];
+        _rvMarkerNormal(u.id);
+        if(!Object.keys(_rvLive).length) _rvFastOff();
+        _vndMapaActualizar(false);
+        return;
+      }
+      if(u.last_lat==null || u.last_lng==null) return;   // el celular todavía no mandó nada
+      _rvMoverSuave(u.id, [u.last_lat, u.last_lng]);
+    });
+  }catch(e){ /* sin red: el próximo tick lo cubre */ }
+}
+
+// Puntito verde pulsante con flecha de rumbo (el marcador "en vivo")
+function _rvIconoVivo(){
+  return L.divIcon({ className:"", iconSize:[22,22], iconAnchor:[11,11],
+    html:'<div style="position:relative;width:22px;height:22px">'+
+      '<div style="position:absolute;inset:0;border-radius:50%;background:#16a34a;animation:rvHalo 1.6s ease-out infinite"></div>'+
+      '<div class="rv-rot" style="position:absolute;inset:3px;border-radius:50%;background:#16a34a;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;transition:transform .8s">'+
+        '<div style="width:0;height:0;border-left:3.5px solid transparent;border-right:3.5px solid transparent;border-bottom:6px solid #fff;margin-top:-2px"></div>'+
+      '</div></div>' });
+}
+
+function _rvMoverSuave(id, dest){
+  if(!_vndMapa) return;
+  var mk = _vndMapaById[id];
+  var nombre = (_rvLive[id] && _rvLive[id].nombre) || "";
+  if(!mk){
+    mk = L.marker(dest, {icon:_rvIconoVivo()}).addTo(_vndMapa).bindPopup("<b>"+nombre+"</b><br>🔴 en vivo");
+    mk._rvVivo = true;
+    _vndMapaById[id] = mk;
+    try{ _vndMapa.panTo(dest, {animate:true, duration:1}); }catch(e){}
+    return;
+  }
+  if(!mk._rvVivo){
+    mk.setIcon(_rvIconoVivo());
+    mk._rvVivo = true;
+    try{ if(mk.getPopup()) mk.getPopup().setContent("<b>"+nombre+"</b><br>🔴 en vivo"); }catch(e){}
+  }
+  var from = mk.getLatLng(), f = [from.lat, from.lng];
+  if(Math.abs(f[0]-dest[0])<1e-7 && Math.abs(f[1]-dest[1])<1e-7) return;   // quieto: no animar
+  // Flecha de rumbo (hacia dónde se está moviendo)
+  try{
+    var dLat = dest[0]-f[0];
+    var dLng = (dest[1]-f[1]) * Math.cos(f[0]*Math.PI/180);
+    var deg  = Math.atan2(dLng, dLat) * 180/Math.PI;
+    var rot = mk.getElement() && mk.getElement().querySelector(".rv-rot");
+    if(rot) rot.style.transform = "rotate("+deg+"deg)";
+  }catch(e){}
+  // Animación: el puntito viaja del punto viejo al nuevo durante ~2,7 s
+  _rvAnims[id] = { mk:mk, from:f, to:dest, t0:performance.now(), dur:_RV_ENVIO_MS-300 };
+  if(!_rvRaf) _rvRaf = requestAnimationFrame(_rvAnimTick);
+  // Seguir al que se mueve (solo si hay uno rastreado, para no marear el mapa)
+  if(Object.keys(_rvLive).length===1){ try{ _vndMapa.panTo(dest, {animate:true, duration:1.2}); }catch(e){} }
+}
+
+function _rvAnimTick(now){
+  var quedan = false;
+  Object.keys(_rvAnims).forEach(function(id){
+    var a = _rvAnims[id];
+    var t = (now - a.t0) / a.dur;
+    if(t >= 1){ try{ a.mk.setLatLng(a.to); }catch(e){} delete _rvAnims[id]; return; }
+    quedan = true;
+    try{ a.mk.setLatLng([ a.from[0]+(a.to[0]-a.from[0])*t, a.from[1]+(a.to[1]-a.from[1])*t ]); }catch(e){}
+  });
+  _rvRaf = quedan ? requestAnimationFrame(_rvAnimTick) : null;
+}
+
+// Al terminar una sesión, sacar el puntito vivo (el refresco normal repone el pin)
+function _rvMarkerNormal(id){
+  delete _rvAnims[id];
+  var mk = _vndMapaById[id];
+  if(mk && mk._rvVivo){
+    try{ _vndMapa.removeLayer(mk); }catch(e){}
+    delete _vndMapaById[id];
   }
 }
 
@@ -34893,6 +35393,1058 @@ function _sysPresenciaInit(){ _sysRegistrarLogin(); _sysIniciarHeartbeat(); }
     }
   })();
 })();
+</script>
+
+<!-- ══════════ RUTAS DE VENTA — estilos, modales y motor ══════════ -->
+<style>
+/* ── Comunes ── */
+#rutas-venta .rvt-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.rvt-h2{margin:0;font-size:20px;font-weight:700;color:var(--text)}
+.rvt-tabs{display:flex;gap:4px;background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:3px;flex-wrap:wrap}
+.rvt-tab{border:none;background:none;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.rvt-tab.on{background:var(--s1);color:var(--text);box-shadow:var(--shadow-sm)}
+.rvt-pane{display:none}
+.rvt-pane.on{display:block}
+.rvt-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.rvt-lbl{font-size:12px;color:var(--muted);font-weight:600}
+.rvt-mini{padding:7px 12px;border:1px solid var(--border);border-radius:9px;background:var(--s2);color:var(--text);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.rvt-mini:hover{background:var(--s4)}
+.rvt-mini.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.rvt-inp{background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:13px;font-family:inherit;width:auto;max-width:190px;flex:0 0 auto}
+.rvt-chips{display:flex;gap:6px;flex-wrap:wrap}
+.rvt-chip{padding:6px 13px;border:1px solid var(--border);border-radius:20px;background:var(--s2);color:var(--text2);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.rvt-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.rvt-card{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-sm);margin-bottom:14px}
+.rvt-card-h{font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.rvt-vacio{text-align:center;padding:26px 10px;color:var(--muted);font-size:13px}
+
+/* ── Grilla de la semana ── */
+.rvt-sem{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+@media(max-width:1100px){.rvt-sem{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:680px){.rvt-sem{grid-template-columns:1fr}}
+.rvt-dia{background:var(--s2);border:1px solid var(--border);border-radius:13px;overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column}
+.rvt-dia.hoy{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.rvt-dia-h{padding:9px 10px;border-bottom:1px solid var(--border);background:var(--s3)}
+.rvt-dia-n{font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px}
+.rvt-dia-n .tag{font-size:9.5px;font-weight:700;background:var(--accent);color:#fff;border-radius:20px;padding:1px 7px;letter-spacing:.3px}
+.rvt-dia-m{font-size:10.5px;color:var(--muted);margin-top:2px}
+.rvt-dia-b{padding:8px;display:flex;flex-direction:column;gap:6px;flex:1}
+.rvt-dia-zona{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:3px 0 1px}
+.rvt-cli{display:flex;flex-direction:column;gap:4px;background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:7px 8px}
+.rvt-cli-t{display:flex;align-items:flex-start;gap:6px}
+.rvt-cli-n{width:17px;height:17px;flex-shrink:0;margin-top:1px;border-radius:50%;background:var(--accent);color:#fff;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rvt-cli-nom{flex:1;min-width:0;font-size:11.5px;font-weight:700;line-height:1.3;color:var(--text);overflow-wrap:break-word;hyphens:auto}
+.rvt-cli-f{display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.rvt-frec{font-size:9px;font-weight:700;border-radius:6px;padding:2px 5px;flex-shrink:0;cursor:pointer;border:1px solid transparent;font-family:inherit}
+.rvt-f-sem{background:var(--green-bg);color:var(--green)}
+.rvt-f-q-a{background:var(--blue-bg);color:var(--blue)}
+.rvt-f-q-b{background:var(--amber-bg);color:var(--amber)}
+.rvt-f-mes{background:var(--s4);color:var(--muted)}
+.rvt-x{background:none;border:none;color:var(--muted2);font-size:14px;cursor:pointer;padding:0 2px;font-family:inherit;flex-shrink:0}
+.rvt-x:hover{color:var(--red)}
+.rvt-dia-add{margin-top:auto;border:1px dashed var(--border);background:none;color:var(--muted);border-radius:9px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.rvt-dia-add:hover{border-color:var(--accent);color:var(--accent)}
+.rvt-huerf{margin-top:14px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:13px;padding:13px 15px}
+
+/* ── KPIs ── */
+.rvt-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:820px){.rvt-kpis{grid-template-columns:repeat(2,1fr)}}
+.rvt-kpi{background:var(--s2);border:1px solid var(--border);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm)}
+.rvt-kpi-l{font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.rvt-kpi-v{font-size:21px;font-weight:800;color:var(--text);margin-top:3px;line-height:1.1}
+.rvt-kpi-s{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ── Tabla por vendedor ── */
+.rvt-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap}
+.rvt-row:last-child{border-bottom:none}
+.rvt-row-n{font-size:13px;font-weight:700;color:var(--text);min-width:130px;flex:1}
+.rvt-bar-out{flex:2;min-width:120px;height:7px;background:var(--s4);border-radius:20px;overflow:hidden}
+.rvt-bar-in{height:100%;background:var(--green);border-radius:20px}
+.rvt-row-v{font-size:12px;color:var(--muted);min-width:90px;text-align:right}
+.rvt-row-t{font-size:13px;font-weight:700;color:var(--text);min-width:100px;text-align:right}
+
+/* ── Timeline ── */
+.rvt-tl{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2)}
+.rvt-tl:last-child{border-bottom:none}
+.rvt-tl-h{font-size:11px;color:var(--muted);min-width:44px;font-weight:600;padding-top:2px}
+.rvt-tl-i{flex:1;min-width:0}
+.rvt-tl-t{font-size:13px;font-weight:700;color:var(--text)}
+.rvt-tl-d{font-size:11.5px;color:var(--muted);margin-top:2px}
+.rvt-gps-ok{color:var(--green);font-weight:600}
+.rvt-gps-no{color:var(--amber);font-weight:600}
+.rvt-dos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:900px){.rvt-dos{grid-template-columns:1fr}}
+.rvt-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border2)}
+.rvt-item:last-child{border-bottom:none}
+.rvt-item-i{flex:1;min-width:0}
+.rvt-item-n{font-size:13px;font-weight:700;color:var(--text)}
+.rvt-item-d{font-size:11.5px;color:var(--muted);margin-top:1px}
+.rvt-badge{font-size:10.5px;font-weight:700;border-radius:20px;padding:3px 9px;white-space:nowrap}
+.rvt-b-red{background:var(--red-bg);color:var(--red)}
+.rvt-b-amb{background:var(--amber-bg);color:var(--amber)}
+
+/* ── MI DÍA (vendedor) ── */
+#mi-dia{max-width:640px;margin:0 auto}
+.md-top{position:sticky;top:0;z-index:5;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
+.md-t1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.md-t1 b{font-size:15px;color:var(--text)}
+.md-t1 span{font-size:12px;color:var(--muted)}
+.md-prog{display:flex;height:8px;border-radius:20px;overflow:hidden;background:var(--s4);margin:10px 0 9px}
+.md-prog i{display:block;height:100%}
+.md-cifras{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.md-cif-l{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.md-cif-v{font-size:15px;font-weight:800;color:var(--text);margin-top:2px}
+.md-grupo{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px;display:flex;align-items:center;gap:7px}
+.md-c{background:var(--s2);border:1px solid var(--border);border-radius:14px;margin-bottom:9px;box-shadow:var(--shadow-sm);overflow:hidden}
+.md-c.dorm{border-color:oklch(62% 0.15 295)}
+.md-c.abierta{border-color:var(--accent)}
+.md-c-h{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.md-c-n{width:26px;height:26px;flex-shrink:0;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.md-c-n.gris{background:var(--s4);color:var(--muted)}
+.md-c-i{flex:1;min-width:0}
+.md-c-nom{font-size:14px;font-weight:700;color:var(--text);line-height:1.25}
+.md-c-dir{font-size:11.5px;color:var(--muted);margin-top:2px}
+.md-c-r{font-size:12.5px;font-weight:700;white-space:nowrap}
+.md-r-vendio{color:var(--green)}
+.md-r-nocompro{color:var(--amber)}
+.md-r-cerrado,.md-r-noestaba,.md-r-repro{color:var(--muted)}
+.md-c-b{display:none;padding:0 14px 13px;border-top:1px solid var(--border2)}
+.md-c-b.on{display:block}
+.md-acc{display:flex;gap:7px;margin:11px 0;flex-wrap:wrap}
+.md-acc button{flex:1;min-width:88px;padding:8px;border:1px solid var(--border);border-radius:9px;background:var(--s3);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.md-datos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
+.md-dato{background:var(--s3);border-radius:10px;padding:8px 10px}
+.md-dato-l{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.md-dato-v{font-size:13px;font-weight:700;color:var(--text);margin-top:2px}
+.md-sug{background:var(--accent-bg);border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin-bottom:11px}
+.md-sug-h{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+.md-sug-l div{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--text2);padding:3px 0}
+.md-sug-l .c{font-weight:700;color:var(--text);white-space:nowrap}
+.md-btns{display:flex;gap:8px}
+.md-btn{flex:1;padding:11px;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--border)}
+.md-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.md-btn.sec{background:var(--s3);color:var(--text)}
+
+/* ── Modal de marcar visita ── */
+#md-modal{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center}
+#md-modal.on{display:flex}
+.md-sheet{background:var(--s1);width:100%;max-width:640px;border-radius:18px 18px 0 0;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.md-sheet-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.md-sheet-h b{font-size:15px;color:var(--text)}
+.md-sheet-b{padding:14px 18px;overflow-y:auto;flex:1}
+.md-gps{display:flex;align-items:center;gap:10px;background:var(--green-bg);border:1px solid var(--green);border-radius:11px;padding:10px 12px;margin-bottom:13px}
+.md-gps.lejos{background:var(--amber-bg);border-color:var(--amber)}
+.md-gps.err{background:var(--s3);border-color:var(--border)}
+.md-gps .ic{font-size:19px}
+.md-gps .tx{font-size:12.5px;color:var(--text2);line-height:1.4}
+.md-opt{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:inherit}
+.md-opt.on{border-color:var(--accent);background:var(--accent-bg)}
+.md-opt-e{font-size:19px;flex-shrink:0}
+.md-opt-tx{flex:1;min-width:0;display:block}
+.md-opt-t{display:block;font-size:13.5px;font-weight:700;color:var(--text);line-height:1.25}
+.md-opt-d{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.md-opt-ck{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0}
+.md-opt.on .md-opt-ck{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px var(--s2)}
+.md-mot{display:none;margin:4px 0 12px}
+.md-mot.on{display:block}
+.md-mot-l{font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:7px}
+.md-mot-c{display:flex;flex-wrap:wrap;gap:6px}
+.md-mot-c button{padding:6px 11px;border:1px solid var(--border);border-radius:20px;background:var(--s2);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.md-mot-c button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.md-nota{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:11px;padding:10px;font-size:13px;font-family:inherit;color:var(--text);resize:vertical;min-height:60px;box-sizing:border-box}
+.md-sheet-f{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:9px}
+</style>
+
+<!-- Modal: marcar visita (vendedor) -->
+<div id="md-modal" onclick="if(event.target===this)_rvtCerrarVisita()">
+  <div class="md-sheet">
+    <div class="md-sheet-h">
+      <b id="md-sheet-nom">Marcar visita</b>
+      <button onclick="_rvtCerrarVisita()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);font-family:inherit">✕</button>
+    </div>
+    <div class="md-sheet-b">
+      <div id="md-gps" class="md-gps err"><div class="ic">📍</div><div class="tx">Buscando tu ubicación…</div></div>
+      <button class="md-opt on" onclick="_rvtOpt(this,'vendio')"><span class="md-opt-e">✅</span><span class="md-opt-tx"><span class="md-opt-t">Vendió</span><span class="md-opt-d">Le tomé el pedido</span></span><span class="md-opt-ck"></span></button>
+      <button class="md-opt" onclick="_rvtOpt(this,'nocompro')"><span class="md-opt-e">🚫</span><span class="md-opt-tx"><span class="md-opt-t">No compró</span><span class="md-opt-d">Pasé pero no me llevó nada</span></span><span class="md-opt-ck"></span></button>
+      <button class="md-opt" onclick="_rvtOpt(this,'cerrado')"><span class="md-opt-e">🔒</span><span class="md-opt-tx"><span class="md-opt-t">Cerrado</span><span class="md-opt-d">El local estaba cerrado</span></span><span class="md-opt-ck"></span></button>
+      <button class="md-opt" onclick="_rvtOpt(this,'noestaba')"><span class="md-opt-e">🤷</span><span class="md-opt-tx"><span class="md-opt-t">No estaba el encargado</span><span class="md-opt-d">No había quién me atienda</span></span><span class="md-opt-ck"></span></button>
+      <button class="md-opt" onclick="_rvtOpt(this,'repro')"><span class="md-opt-e">📆</span><span class="md-opt-tx"><span class="md-opt-t">Pasar otro día</span><span class="md-opt-d">Me pidió que vuelva</span></span><span class="md-opt-ck"></span></button>
+      <div id="md-mot" class="md-mot">
+        <div class="md-mot-l">¿Por qué no compró?</div>
+        <div class="md-mot-c">
+          <button onclick="_rvtChip(this)">Tiene stock</button>
+          <button onclick="_rvtChip(this)">Sin plata</button>
+          <button onclick="_rvtChip(this)">Precio alto</button>
+          <button onclick="_rvtChip(this)">Compró a otro</button>
+          <button onclick="_rvtChip(this)">Faltaba producto</button>
+          <button onclick="_rvtChip(this)">Otro</button>
+        </div>
+      </div>
+      <textarea id="md-nota" class="md-nota" placeholder="Nota (opcional)"></textarea>
+    </div>
+    <div class="md-sheet-f">
+      <button class="md-btn sec" onclick="_rvtCerrarVisita()">Cancelar</button>
+      <button class="md-btn pri" id="md-guardar" onclick="_rvtGuardarVisita()">Guardar visita</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: agregar cliente a la agenda (admin) -->
+<div id="rvt-add" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)_rvtCerrarAgregar()">
+  <div style="background:var(--s1);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <b id="rvt-add-tit" style="font-size:15px;color:var(--text)">Agregar cliente a la ruta</b>
+      <button onclick="_rvtCerrarAgregar()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);font-family:inherit">✕</button>
+    </div>
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <select id="rvt-add-dia" class="rvt-inp" style="flex:1;min-width:120px"></select>
+      <select id="rvt-add-frec" class="rvt-inp" style="flex:1;min-width:120px">
+        <option value="sem">Todas las semanas</option>
+        <option value="q-a">Cada 15 días · A</option>
+        <option value="q-b">Cada 15 días · B</option>
+        <option value="mes">Una vez al mes</option>
+      </select>
+      <input id="rvt-add-q" type="text" class="rvt-inp" placeholder="🔍 Buscar cliente…" oninput="_rvtAddRender()" style="flex:2;min-width:150px">
+    </div>
+    <div id="rvt-add-list" style="flex:1;overflow-y:auto;padding:6px 12px"></div>
+    <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end">
+      <button class="rvt-mini" onclick="_rvtCerrarAgregar()">Cerrar</button>
+      <button class="rvt-mini pri" onclick="_rvtGuardarAgregar()">Agregar los tildados</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: cargar zona entera / copiar semana (admin) -->
+<div id="rvt-tool" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)_rvtCerrarTool()">
+  <div style="background:var(--s1);border:1px solid var(--border);border-radius:16px;max-width:460px;width:100%;overflow:hidden">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <b id="rvt-tool-tit" style="font-size:15px;color:var(--text)">Cargar una zona entera</b>
+      <button onclick="_rvtCerrarTool()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);font-family:inherit">✕</button>
+    </div>
+    <div id="rvt-tool-b" style="padding:16px 18px;display:flex;flex-direction:column;gap:11px"></div>
+    <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end">
+      <button class="rvt-mini" onclick="_rvtCerrarTool()">Cancelar</button>
+      <button class="rvt-mini pri" id="rvt-tool-ok">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════ RUTAS DE VENTA ═══════════════
+   Agenda semanal fija por vendedor + Mi día + marcar visita con GPS
+   (el GPS queda registrado pero NUNCA bloquea el marcado)             */
+(function(){
+  if(typeof TITLES!=="undefined"){
+    if(!TITLES["rutas-venta"]) TITLES["rutas-venta"]="Rutas de Venta";
+    if(!TITLES["mi-dia"])      TITLES["mi-dia"]     ="Mi Día";
+  }
+})();
+
+var _rvtAgenda   = [];     // filas de ruta_agenda (del vendedor elegido, o de todos)
+var _rvtVisitas  = [];     // visitas cargadas
+var _rvtVendSel  = "";     // uid del vendedor elegido en el admin
+var _rvtTabActual= "agenda";
+var _rvtCargando = false;
+var _rvtAddSel   = {};     // uuid -> 1  (tildados en el modal de agregar)
+var _rvtVisitaCtx= null;   // {cliente, agendaId, res, motivo, gps}
+var _rvtDiaAbierto = null; // tarjeta abierta en Mi día
+
+var RVT_DIAS  = ["","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+var RVT_FLBL  = {"sem":"sem","q-a":"15 A","q-b":"15 B","mes":"mes"};
+var RVT_RLBL  = {vendio:"Vendió", nocompro:"No compró", cerrado:"Cerrado", noestaba:"No estaba", repro:"Otro día"};
+var RVT_RICO  = {vendio:"✅", nocompro:"🚫", cerrado:"🔒", noestaba:"🤷", repro:"📆"};
+var RVT_CERCA = 120;       // metros: hasta acá se considera "en la puerta"
+
+function _rvtEsc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function _rvtM(n){ try{ return "$"+fM(n||0); }catch(e){ return "$"+(n||0); } }
+
+// Fecha local (Argentina) en formato YYYY-MM-DD, sin corrimientos de zona
+function _rvtFechaISO(d){
+  d = d || new Date();
+  var m = d.getMonth()+1, dd = d.getDate();
+  return d.getFullYear()+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd;
+}
+function _rvtHoyISO(){ return _rvtFechaISO(new Date()); }
+function _rvtDiaDeSemana(d){ var n=(d||new Date()).getDay(); return n===0 ? 0 : n; } // 0=domingo, 1..6
+
+// Semana A o B: par/impar de la semana del año, para partir los quincenales
+function _rvtSemanaAB(d){
+  d = d || new Date();
+  var ini = new Date(d.getFullYear(),0,1);
+  var sem = Math.floor(((d - ini)/86400000 + ini.getDay())/7);
+  return (sem % 2 === 0) ? "q-a" : "q-b";
+}
+// ¿A este cliente le toca hoy, según su frecuencia?
+function _rvtTocaHoy(f, fecha){
+  fecha = fecha || new Date();
+  if(f==="sem" || !f) return true;
+  if(f==="q-a" || f==="q-b") return _rvtSemanaAB(fecha)===f;
+  if(f==="mes") return fecha.getDate() <= 7;   // la primera semana del mes
+  return true;
+}
+
+function _rvtCli(uuid){ return (_clientesDB||{})[uuid] || null; }
+function _rvtClientes(){ return Object.values(_clientesDB||{}).filter(function(u){ return (u.role||"cliente")==="cliente"; }); }
+function _rvtVendedores(){
+  return Object.values(_clientesDB||{}).filter(function(u){ return u.role==="vendedor"; })
+    .sort(function(a,b){ return (a.name||"").localeCompare(b.name||"","es"); });
+}
+function _rvtNomVend(uid){ var n=uid; _rvtVendedores().forEach(function(v){ if(v.id===uid) n=v.name||uid; }); return n; }
+
+async function _rvtAsegurarClientes(){
+  if(_clientesDB && Object.keys(_clientesDB).length) return;
+  try{
+    var d = await fbGet("empresas/"+empresaKey+"/usuarios");
+    if(d && Object.keys(d).length) _clientesDB = d;
+  }catch(e){}
+}
+async function _rvtAsegurarBackups(){
+  if(typeof getBackups==="function" && getBackups().length) return;
+  if(typeof cargarBackupFirebase==="function"){ try{ await cargarBackupFirebase(); }catch(e){} }
+}
+
+/* ── Carga desde Supabase ─────────────────────────────────────── */
+async function _rvtCargarAgenda(vendUid){
+  if(!_sbEmpId) return [];
+  var q = "select=*&empresa_id=eq."+_sbEmpId;
+  if(vendUid) q += "&vendedor_uid=eq."+encodeURIComponent(vendUid);
+  q += "&order=dia.asc,orden.asc";
+  try{ return (await sbGet("ruta_agenda", q)) || []; }
+  catch(e){ console.warn("[Rutas] agenda:", e.message); return []; }
+}
+async function _rvtCargarVisitas(desde, hasta){
+  if(!_sbEmpId) return [];
+  var q = "select=*&empresa_id=eq."+_sbEmpId+"&fecha=gte."+desde;
+  if(hasta) q += "&fecha=lte."+hasta;
+  q += "&order=hora.asc&limit=2000";
+  try{ return (await sbGet("visitas", q)) || []; }
+  catch(e){ console.warn("[Rutas] visitas:", e.message); return []; }
+}
+
+/* ═══════════ ADMIN ═══════════ */
+function _rvtSetTab(t, btn){
+  _rvtTabActual = t;
+  ["agenda","cumpl","dorm"].forEach(function(k){
+    var p=document.getElementById("rvt-pane-"+k); if(p) p.classList.toggle("on", k===t);
+    var b=document.getElementById("rvt-tab-"+k);  if(b) b.classList.remove("on");
+  });
+  if(btn) btn.classList.add("on");
+  if(t==="agenda") _rvtRenderAgenda();
+  if(t==="cumpl")  _rvtRenderCumpl();
+  if(t==="dorm")   _rvtRenderDorm();
+}
+
+async function _rvtAdminRender(forzar){
+  if(_rvtCargando) return;
+  _rvtCargando = true;
+  var g = document.getElementById("rvt-grilla");
+  if(g && !g.innerHTML) g.innerHTML = '<div class="rvt-vacio">Cargando la agenda…</div>';
+  try{
+    await _rvtAsegurarClientes();
+    if(!Object.keys(_zonasData||{}).length && typeof cargarZonas==="function"){ try{ await cargarZonas(); }catch(e){} }
+    var vends = _rvtVendedores();
+    if(!_rvtVendSel && vends.length) _rvtVendSel = vends[0].id;
+    _rvtAgenda  = await _rvtCargarAgenda(null);
+    var f = document.getElementById("rvt-fecha");
+    if(f && !f.value) f.value = _rvtHoyISO();
+    var desde = new Date(); desde.setDate(desde.getDate()-45);
+    _rvtVisitas = await _rvtCargarVisitas(_rvtFechaISO(desde));
+    _rvtAsegurarBackups();
+    _rvtRenderVends();
+    if(_rvtTabActual==="agenda") _rvtRenderAgenda();
+    if(_rvtTabActual==="cumpl")  _rvtRenderCumpl();
+    if(_rvtTabActual==="dorm")   _rvtRenderDorm();
+  }catch(e){
+    if(g) g.innerHTML = '<div class="rvt-vacio">No se pudo cargar la agenda. Probá de nuevo.</div>';
+    console.warn("[Rutas]", e);
+  }
+  _rvtCargando = false;
+}
+
+function _rvtRenderVends(){
+  var c = document.getElementById("rvt-vends"); if(!c) return;
+  var vends = _rvtVendedores();
+  if(!vends.length){ c.innerHTML = '<span class="rvt-lbl">No hay vendedores cargados</span>'; return; }
+  c.innerHTML = vends.map(function(v){
+    var n = _rvtAgenda.filter(function(a){ return a.vendedor_uid===v.id; }).length;
+    return '<button class="rvt-chip'+(v.id===_rvtVendSel?" on":"")+'" onclick="_rvtElegirVend(\''+_rvtEsc(v.id)+'\')">'+
+      _rvtEsc(v.name||v.id)+' <span style="opacity:.75">'+n+'</span></button>';
+  }).join("");
+}
+function _rvtElegirVend(uid){
+  _rvtVendSel = uid;
+  _rvtRenderVends();
+  if(_rvtTabActual==="agenda") _rvtRenderAgenda();
+  if(_rvtTabActual==="cumpl")  _rvtRenderCumpl();
+}
+
+function _rvtRenderAgenda(){
+  var g = document.getElementById("rvt-grilla"); if(!g) return;
+  if(!_rvtVendSel){ g.innerHTML = '<div class="rvt-vacio">Elegí un vendedor para ver su semana.</div>'; return; }
+  var mias  = _rvtAgenda.filter(function(a){ return a.vendedor_uid===_rvtVendSel; });
+  var hoyD  = _rvtDiaDeSemana();
+  var html  = "";
+  for(var d=1; d<=6; d++){
+    var delDia = mias.filter(function(a){ return Number(a.dia)===d; })
+                     .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+    // agrupar por zona
+    var porZona = {}, ordenZ = [];
+    delDia.forEach(function(a){
+      var c = _rvtCli(a.cliente_id);
+      var z = (c && c.zona) ? c.zona : "Sin zona";
+      if(!porZona[z]){ porZona[z]=[]; ordenZ.push(z); }
+      porZona[z].push(a);
+    });
+    var n = 0, cuerpo = "";
+    ordenZ.forEach(function(z){
+      cuerpo += '<div class="rvt-dia-zona">'+_rvtEsc(z)+'</div>';
+      porZona[z].forEach(function(a){
+        n++;
+        var c = _rvtCli(a.cliente_id);
+        var nom = (c && c.name) || a.cliente_nom || "Cliente";
+        var fr = a.frecuencia||"sem";
+        cuerpo += '<div class="rvt-cli">'+
+          '<div class="rvt-cli-t"><div class="rvt-cli-n">'+n+'</div>'+
+            '<div class="rvt-cli-nom">'+_rvtEsc(nom)+'</div></div>'+
+          '<div class="rvt-cli-f">'+
+            '<button class="rvt-frec rvt-f-'+fr+'" title="Tocá para cambiar cada cuánto se visita" onclick="_rvtRotarFrec(\''+a.id+'\')">'+RVT_FLBL[fr]+'</button>'+
+            '<button class="rvt-x" title="Sacar de la ruta" onclick="_rvtQuitar(\''+a.id+'\')">✕</button>'+
+          '</div>'+
+        '</div>';
+      });
+    });
+    if(!delDia.length) cuerpo = '<div style="font-size:11px;color:var(--muted);padding:6px 2px">Sin clientes</div>';
+    html += '<div class="rvt-dia'+(d===hoyD?" hoy":"")+'">'+
+      '<div class="rvt-dia-h"><div class="rvt-dia-n">'+RVT_DIAS[d]+(d===hoyD?' <span class="tag">hoy</span>':'')+'</div>'+
+      '<div class="rvt-dia-m">'+delDia.length+' cliente'+(delDia.length===1?"":"s")+'</div></div>'+
+      '<div class="rvt-dia-b">'+cuerpo+'<button class="rvt-dia-add" onclick="_rvtAbrirAgregar('+d+')">+ Agregar</button></div>'+
+    '</div>';
+  }
+  g.innerHTML = html;
+  var r = document.getElementById("rvt-resumen");
+  if(r) r.textContent = mias.length + " visitas en la semana";
+  _rvtRenderHuerfanos();
+}
+
+function _rvtRenderHuerfanos(){
+  var box = document.getElementById("rvt-huerf"); if(!box) return;
+  var enRuta = {};
+  _rvtAgenda.forEach(function(a){ enRuta[a.cliente_id]=1; });
+  var sin = _rvtClientes().filter(function(c){ return !enRuta[c._sbId]; });
+  if(!sin.length){ box.innerHTML = '<div style="font-size:12.5px;color:var(--text2)">✅ Todos los clientes están en la ruta de alguien.</div>'; return; }
+  box.innerHTML = '<div class="rvt-card-h">🧭 '+sin.length+' cliente'+(sin.length===1?"":"s")+' sin ruta asignada</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px">'+
+    sin.slice(0,40).map(function(c){
+      return '<button class="rvt-mini" style="font-size:11.5px;padding:5px 10px" onclick="_rvtAbrirAgregar(0,\''+_rvtEsc(c._sbId)+'\')">'+
+        _rvtEsc(c.name||c.id)+' +</button>';
+    }).join("")+
+    (sin.length>40 ? '<span class="rvt-lbl">y '+(sin.length-40)+' más…</span>' : '')+
+    '</div>';
+}
+
+/* ── Alta / baja / frecuencia ── */
+function _rvtAbrirAgregar(dia, preSel){
+  if(!_rvtVendSel){ showNotif("Elegí primero un vendedor","warn"); return; }
+  _rvtAddSel = {};
+  if(preSel) _rvtAddSel[preSel]=1;
+  var sd = document.getElementById("rvt-add-dia");
+  if(sd){
+    sd.innerHTML = "";
+    for(var d=1; d<=6; d++) sd.innerHTML += '<option value="'+d+'">'+RVT_DIAS[d]+'</option>';
+    sd.value = String(dia && dia>=1 && dia<=6 ? dia : (_rvtDiaDeSemana()||1));
+  }
+  var t = document.getElementById("rvt-add-tit");
+  if(t) t.textContent = "Agregar a la ruta de "+_rvtNomVend(_rvtVendSel);
+  var q = document.getElementById("rvt-add-q"); if(q) q.value = "";
+  document.getElementById("rvt-add").style.display = "flex";
+  _rvtAddRender();
+}
+function _rvtCerrarAgregar(){ document.getElementById("rvt-add").style.display = "none"; }
+
+function _rvtAddRender(){
+  var box = document.getElementById("rvt-add-list"); if(!box) return;
+  var q = ((document.getElementById("rvt-add-q")||{}).value||"").toLowerCase().trim();
+  var yaVend = {};
+  _rvtAgenda.forEach(function(a){ if(a.vendedor_uid===_rvtVendSel) yaVend[a.cliente_id]=Number(a.dia); });
+  var lista = _rvtClientes()
+    .filter(function(c){ if(!q) return true; return ((c.name||"")+" "+(c.id||"")+" "+(c.zona||"")).toLowerCase().indexOf(q)!==-1; })
+    .sort(function(a,b){ return (a.name||"").localeCompare(b.name||"","es"); })
+    .slice(0,300);
+  if(!lista.length){ box.innerHTML = '<div class="rvt-vacio">No hay clientes que coincidan.</div>'; return; }
+  box.innerHTML = lista.map(function(c){
+    var uid = c._sbId;
+    var ya  = yaVend[uid];
+    return '<label style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--border2);cursor:pointer">'+
+      '<input type="checkbox" class="av-chk" '+(_rvtAddSel[uid]?"checked":"")+' onchange="_rvtAddTick(\''+_rvtEsc(uid)+'\',this.checked)">'+
+      '<span style="flex:1;min-width:0">'+
+        '<span style="display:block;font-size:13px;font-weight:600;color:var(--text)">'+_rvtEsc(c.name||c.id)+'</span>'+
+        '<span style="display:block;font-size:11px;color:var(--muted)">'+_rvtEsc(c.zona||"Sin zona")+(ya?(" · ya está el "+RVT_DIAS[ya]):"")+'</span>'+
+      '</span></label>';
+  }).join("");
+}
+function _rvtAddTick(uuid, on){ if(on) _rvtAddSel[uuid]=1; else delete _rvtAddSel[uuid]; }
+
+async function _rvtGuardarAgregar(){
+  var ids = Object.keys(_rvtAddSel);
+  if(!ids.length){ showNotif("No tildaste ningún cliente","warn"); return; }
+  var dia  = parseInt((document.getElementById("rvt-add-dia")||{}).value)||1;
+  var frec = (document.getElementById("rvt-add-frec")||{}).value||"sem";
+  var base = _rvtAgenda.filter(function(a){ return a.vendedor_uid===_rvtVendSel && Number(a.dia)===dia; }).length;
+  var filas = ids.map(function(uuid, i){
+    var c = _rvtCli(uuid);
+    return {
+      empresa_id: _sbEmpId, vendedor_uid: _rvtVendSel, cliente_id: uuid,
+      cliente_nom: (c && c.name) || "", dia: dia, orden: base + i, frecuencia: frec
+    };
+  });
+  try{
+    await sbUpsert("ruta_agenda", filas, "empresa_id,cliente_id,dia");
+    showNotif("✓ "+filas.length+" cliente"+(filas.length===1?"":"s")+" en la ruta del "+RVT_DIAS[dia],"ok");
+    _rvtCerrarAgregar();
+    _rvtAgenda = await _rvtCargarAgenda(null);
+    _rvtRenderVends(); _rvtRenderAgenda();
+  }catch(e){
+    console.warn("[Rutas] alta:", e);
+    showNotif("No se pudo guardar. ¿Corriste el rutas_venta.sql?","err");
+  }
+}
+
+async function _rvtQuitar(id){
+  try{
+    await sbDel("ruta_agenda","id=eq."+id);
+    _rvtAgenda = _rvtAgenda.filter(function(a){ return a.id!==id; });
+    _rvtRenderVends(); _rvtRenderAgenda();
+    showNotif("Sacado de la ruta","ok");
+  }catch(e){ showNotif("No se pudo sacar","err"); }
+}
+
+async function _rvtRotarFrec(id){
+  var fila = null;
+  _rvtAgenda.forEach(function(a){ if(a.id===id) fila=a; });
+  if(!fila) return;
+  var orden = ["sem","q-a","q-b","mes"];
+  var nueva = orden[(orden.indexOf(fila.frecuencia||"sem")+1) % orden.length];
+  fila.frecuencia = nueva;
+  _rvtRenderAgenda();
+  try{ await sbPatch("ruta_agenda","id=eq."+id,{frecuencia:nueva}); }
+  catch(e){ showNotif("No se pudo cambiar la frecuencia","err"); }
+}
+
+/* ── Cargar una zona entera ── */
+function _rvtAbrirZona(){
+  if(!_rvtVendSel){ showNotif("Elegí primero un vendedor","warn"); return; }
+  var zonas = {};
+  _rvtClientes().forEach(function(c){ var z=c.zona||"Sin zona"; zonas[z]=(zonas[z]||0)+1; });
+  var keys = Object.keys(zonas).sort(function(a,b){ return a.localeCompare(b,"es"); });
+  if(!keys.length){ showNotif("No hay zonas cargadas en los clientes","warn"); return; }
+  document.getElementById("rvt-tool-tit").textContent = "Cargar una zona entera";
+  document.getElementById("rvt-tool-b").innerHTML =
+    '<div class="rvt-lbl">Todos los clientes de esta zona van a quedar en el día que elijas, en la ruta de <b>'+_rvtEsc(_rvtNomVend(_rvtVendSel))+'</b>.</div>'+
+    '<select id="rvt-tool-zona" class="rvt-inp">'+keys.map(function(z){ return '<option value="'+_rvtEsc(z)+'">'+_rvtEsc(z)+' ('+zonas[z]+')</option>'; }).join("")+'</select>'+
+    '<select id="rvt-tool-dia" class="rvt-inp">'+[1,2,3,4,5,6].map(function(d){ return '<option value="'+d+'">'+RVT_DIAS[d]+'</option>'; }).join("")+'</select>'+
+    '<select id="rvt-tool-frec" class="rvt-inp"><option value="sem">Todas las semanas</option><option value="q-a">Cada 15 días · A</option><option value="q-b">Cada 15 días · B</option><option value="mes">Una vez al mes</option></select>';
+  document.getElementById("rvt-tool-ok").onclick = _rvtAplicarZona;
+  document.getElementById("rvt-tool").style.display = "flex";
+}
+function _rvtCerrarTool(){ document.getElementById("rvt-tool").style.display = "none"; }
+
+async function _rvtAplicarZona(){
+  var z    = (document.getElementById("rvt-tool-zona")||{}).value||"";
+  var dia  = parseInt((document.getElementById("rvt-tool-dia")||{}).value)||1;
+  var frec = (document.getElementById("rvt-tool-frec")||{}).value||"sem";
+  var cls  = _rvtClientes().filter(function(c){ return (c.zona||"Sin zona")===z; });
+  if(!cls.length){ showNotif("Esa zona no tiene clientes","warn"); return; }
+  var base = _rvtAgenda.filter(function(a){ return a.vendedor_uid===_rvtVendSel && Number(a.dia)===dia; }).length;
+  var filas = cls.map(function(c,i){
+    return { empresa_id:_sbEmpId, vendedor_uid:_rvtVendSel, cliente_id:c._sbId,
+             cliente_nom:c.name||"", dia:dia, orden:base+i, frecuencia:frec };
+  });
+  try{
+    await sbUpsert("ruta_agenda", filas, "empresa_id,cliente_id,dia");
+    showNotif("✓ "+filas.length+" clientes de "+z+" el "+RVT_DIAS[dia],"ok");
+    _rvtCerrarTool();
+    _rvtAgenda = await _rvtCargarAgenda(null);
+    _rvtRenderVends(); _rvtRenderAgenda();
+  }catch(e){ showNotif("No se pudo guardar la zona","err"); }
+}
+
+/* ── Copiar la semana de un vendedor a otro ── */
+function _rvtAbrirCopiar(){
+  var vends = _rvtVendedores();
+  if(vends.length<2){ showNotif("Hace falta más de un vendedor","warn"); return; }
+  document.getElementById("rvt-tool-tit").textContent = "Copiar semana";
+  document.getElementById("rvt-tool-b").innerHTML =
+    '<div class="rvt-lbl">Copia la agenda completa de un vendedor a otro. Los clientes que el destino ya tenga ese día no se duplican.</div>'+
+    '<select id="rvt-cp-de" class="rvt-inp">'+vends.map(function(v){ return '<option value="'+_rvtEsc(v.id)+'"'+(v.id===_rvtVendSel?" selected":"")+'>Desde: '+_rvtEsc(v.name||v.id)+'</option>'; }).join("")+'</select>'+
+    '<select id="rvt-cp-a" class="rvt-inp">'+vends.map(function(v){ return '<option value="'+_rvtEsc(v.id)+'">Hacia: '+_rvtEsc(v.name||v.id)+'</option>'; }).join("")+'</select>';
+  document.getElementById("rvt-tool-ok").onclick = _rvtAplicarCopiar;
+  document.getElementById("rvt-tool").style.display = "flex";
+}
+async function _rvtAplicarCopiar(){
+  var de = (document.getElementById("rvt-cp-de")||{}).value||"";
+  var a  = (document.getElementById("rvt-cp-a")||{}).value||"";
+  if(!de || !a || de===a){ showNotif("Elegí dos vendedores distintos","warn"); return; }
+  var origen = _rvtAgenda.filter(function(x){ return x.vendedor_uid===de; });
+  if(!origen.length){ showNotif("Ese vendedor no tiene agenda cargada","warn"); return; }
+  var filas = origen.map(function(x){
+    return { empresa_id:_sbEmpId, vendedor_uid:a, cliente_id:x.cliente_id,
+             cliente_nom:x.cliente_nom||"", dia:x.dia, orden:x.orden||0, frecuencia:x.frecuencia||"sem" };
+  });
+  try{
+    await sbUpsert("ruta_agenda", filas, "empresa_id,cliente_id,dia");
+    showNotif("✓ Semana copiada a "+_rvtNomVend(a),"ok");
+    _rvtCerrarTool();
+    _rvtAgenda = await _rvtCargarAgenda(null);
+    _rvtVendSel = a;
+    _rvtRenderVends(); _rvtRenderAgenda();
+  }catch(e){ showNotif("No se pudo copiar","err"); }
+}
+
+/* ── Cumplimiento ── */
+function _rvtHoyFecha(){ var f=document.getElementById("rvt-fecha"); if(f){ f.value=_rvtHoyISO(); _rvtRenderCumpl(); } }
+
+function _rvtRenderCumpl(){
+  var fecha = ((document.getElementById("rvt-fecha")||{}).value)||_rvtHoyISO();
+  var fObj  = new Date(fecha+"T12:00:00");
+  var dia   = _rvtDiaDeSemana(fObj);
+  var delDia = _rvtVisitas.filter(function(v){ return String(v.fecha).slice(0,10)===fecha; });
+
+  // Cuántas visitas había que hacer ese día (según frecuencia)
+  var previstas = _rvtAgenda.filter(function(a){ return Number(a.dia)===dia && _rvtTocaHoy(a.frecuencia, fObj); });
+  var hechas = delDia.length;
+  var conVenta = delDia.filter(function(v){ return v.resultado==="vendio"; }).length;
+  var efect = hechas ? Math.round(conVenta*100/hechas) : 0;
+  var plata = delDia.reduce(function(s,v){ return s + (Number(v.total)||0); }, 0);
+
+  // Clientes sin visitar hace más de 30 días (de los que están en alguna ruta)
+  var ult = {};
+  _rvtVisitas.forEach(function(v){ var f=String(v.fecha).slice(0,10); if(!ult[v.cliente_id] || f>ult[v.cliente_id]) ult[v.cliente_id]=f; });
+  var lim = new Date(); lim.setDate(lim.getDate()-30); lim = _rvtFechaISO(lim);
+  var enRuta = {}; _rvtAgenda.forEach(function(a){ enRuta[a.cliente_id]=1; });
+  var frios = Object.keys(enRuta).filter(function(id){ return !ult[id] || ult[id] < lim; }).length;
+
+  var k = document.getElementById("rvt-kpis");
+  if(k) k.innerHTML =
+    '<div class="rvt-kpi"><div class="rvt-kpi-l">Visitas del día</div><div class="rvt-kpi-v">'+hechas+(previstas.length?(" / "+previstas.length):"")+'</div><div class="rvt-kpi-s">'+(previstas.length?("faltan "+Math.max(0,previstas.length-hechas)):"sin agenda ese día")+'</div></div>'+
+    '<div class="rvt-kpi"><div class="rvt-kpi-l">Efectividad</div><div class="rvt-kpi-v">'+efect+'%</div><div class="rvt-kpi-s">'+conVenta+' de '+hechas+' terminaron en pedido</div></div>'+
+    '<div class="rvt-kpi"><div class="rvt-kpi-l">Vendido en la ruta</div><div class="rvt-kpi-v">'+_rvtM(plata)+'</div><div class="rvt-kpi-s">de las visitas marcadas</div></div>'+
+    '<div class="rvt-kpi"><div class="rvt-kpi-l">Sin visitar +30 días</div><div class="rvt-kpi-v">'+frios+'</div><div class="rvt-kpi-s">clientes con ruta asignada</div></div>';
+
+  // Tabla por vendedor
+  var porV = {};
+  _rvtVendedores().forEach(function(v){ porV[v.id] = {nom:v.name||v.id, prev:0, hechas:0, vend:0, plata:0}; });
+  previstas.forEach(function(a){ if(porV[a.vendedor_uid]) porV[a.vendedor_uid].prev++; });
+  delDia.forEach(function(v){
+    if(!porV[v.vendedor_uid]) porV[v.vendedor_uid] = {nom:_rvtNomVend(v.vendedor_uid), prev:0, hechas:0, vend:0, plata:0};
+    porV[v.vendedor_uid].hechas++;
+    if(v.resultado==="vendio"){ porV[v.vendedor_uid].vend++; porV[v.vendedor_uid].plata += Number(v.total)||0; }
+  });
+  var filas = Object.keys(porV).map(function(uid){ return Object.assign({uid:uid}, porV[uid]); })
+                    .filter(function(r){ return r.prev || r.hechas; })
+                    .sort(function(a,b){ return b.plata - a.plata; });
+  var t = document.getElementById("rvt-tabla");
+  if(t) t.innerHTML = '<div class="rvt-card-h">👤 Cómo viene cada vendedor</div>'+
+    (filas.length ? filas.map(function(r){
+      var pct = r.hechas ? Math.round(r.vend*100/r.hechas) : 0;
+      return '<div class="rvt-row" style="cursor:pointer" onclick="_rvtElegirVend(\''+_rvtEsc(r.uid)+'\')">'+
+        '<div class="rvt-row-n">'+_rvtEsc(r.nom)+'</div>'+
+        '<div class="rvt-bar-out"><div class="rvt-bar-in" style="width:'+pct+'%"></div></div>'+
+        '<div class="rvt-row-v">'+r.hechas+(r.prev?("/"+r.prev):"")+' vis · '+pct+'%</div>'+
+        '<div class="rvt-row-t">'+_rvtM(r.plata)+'</div>'+
+      '</div>';
+    }).join("") : '<div class="rvt-vacio">Todavía no hay visitas marcadas ese día.</div>');
+
+  // Recorrido del vendedor elegido
+  var mias = delDia.filter(function(v){ return v.vendedor_uid===_rvtVendSel; })
+                   .sort(function(a,b){ return String(a.hora).localeCompare(String(b.hora)); });
+  var tl = document.getElementById("rvt-timeline");
+  if(tl) tl.innerHTML = '<div class="rvt-card-h">📍 Recorrido de '+_rvtEsc(_rvtNomVend(_rvtVendSel))+
+    ' <span style="font-weight:500;color:var(--muted);font-size:11.5px">— el ✅ verde quiere decir que el GPS lo ubicó en la puerta del cliente</span></div>'+
+    (mias.length ? mias.map(function(v){
+      var h = "";
+      try{ var d=new Date(v.hora); h=(d.getHours()<10?"0":"")+d.getHours()+":"+(d.getMinutes()<10?"0":"")+d.getMinutes(); }catch(e){}
+      var gps = "";
+      if(v.distancia_m==null) gps = '<span style="color:var(--muted2)">sin GPS</span>';
+      else if(v.distancia_m<=RVT_CERCA) gps = '<span class="rvt-gps-ok">✅ a '+v.distancia_m+' m del local</span>';
+      else gps = '<span class="rvt-gps-no">⚠️ a '+(v.distancia_m>=1000 ? (Math.round(v.distancia_m/100)/10+" km") : (v.distancia_m+" m"))+' del local cargado</span>';
+      var det = RVT_RLBL[v.resultado]||v.resultado;
+      if(v.resultado==="vendio" && v.total) det = "Pedido "+_rvtM(v.total);
+      if(v.motivo) det += " · "+_rvtEsc(v.motivo);
+      return '<div class="rvt-tl"><div class="rvt-tl-h">'+h+'</div><div class="rvt-tl-i">'+
+        '<div class="rvt-tl-t">'+(RVT_RICO[v.resultado]||"")+' '+_rvtEsc(v.cliente_nom||"Cliente")+'</div>'+
+        '<div class="rvt-tl-d">'+det+' · '+gps+(v.nota?(' · '+_rvtEsc(v.nota)):"")+'</div>'+
+      '</div></div>';
+    }).join("") : '<div class="rvt-vacio">Sin visitas marcadas ese día.</div>');
+}
+
+/* ── Dormidos y huérfanos ── */
+function _rvtUltimoPedidoPorCliente(){
+  var r = {};  // uid del cliente -> {fecha, total}
+  var bks = (typeof getBackups==="function") ? getBackups() : [];
+  bks.forEach(function(b){
+    if(b.aprobado===false) return;
+    var id = String(b.clienteId||"").trim().toLowerCase();
+    var nm = String(b.clienteNom||"").trim().toLowerCase();
+    var f  = String(b.fecha||"").slice(0,10);
+    if(!f) return;
+    [id, "n:"+nm].forEach(function(k){
+      if(!k || k==="n:") return;
+      if(!r[k] || f > r[k].fecha) r[k] = { fecha:f, total:Number(b.total)||0 };
+    });
+  });
+  return r;
+}
+
+function _rvtRenderDorm(){
+  var dias = parseInt((document.getElementById("rvt-dias")||{}).value)||30;
+  var lim  = new Date(); lim.setDate(lim.getDate()-dias); lim = _rvtFechaISO(lim);
+  var ult  = _rvtUltimoPedidoPorCliente();
+  var hoy  = new Date();
+
+  var dormidos = _rvtClientes().map(function(c){
+    var k1 = String(c.id||"").trim().toLowerCase();
+    var k2 = "n:"+String(c.name||"").trim().toLowerCase();
+    var u  = ult[k1] || ult[k2] || null;
+    if(!u) return null;                       // nunca compró: no es "dormido", es nuevo
+    if(u.fecha >= lim) return null;
+    var d = Math.round((hoy - new Date(u.fecha+"T12:00:00"))/86400000);
+    return { c:c, dias:d, ult:u };
+  }).filter(Boolean).sort(function(a,b){ return b.dias - a.dias; });
+
+  var box = document.getElementById("rvt-dormidos");
+  if(box) box.innerHTML = '<div class="rvt-card-h">😴 Dejaron de comprar <span class="rvt-lbl">('+dormidos.length+')</span></div>'+
+    (dormidos.length ? dormidos.slice(0,60).map(function(x){
+      var tel = (x.c.tel||"").replace(/[^0-9]/g,"");
+      return '<div class="rvt-item">'+
+        '<div class="rvt-item-i"><div class="rvt-item-n">'+_rvtEsc(x.c.name||x.c.id)+'</div>'+
+        '<div class="rvt-item-d">Último pedido '+_rvtM(x.ult.total)+' · '+_rvtEsc(x.c.zona||"Sin zona")+'</div></div>'+
+        '<span class="rvt-badge '+(x.dias>60?"rvt-b-red":"rvt-b-amb")+'">'+x.dias+' días</span>'+
+        (tel ? '<button class="rvt-mini" style="padding:5px 10px;font-size:11.5px" onclick="_rvtWpp(\''+tel+'\')">Avisar</button>' : '')+
+      '</div>';
+    }).join("") : '<div class="rvt-vacio">Ningún cliente pasó los '+dias+' días. 👌</div>');
+
+  var enRuta = {};
+  _rvtAgenda.forEach(function(a){ enRuta[a.cliente_id]=1; });
+  var sin = _rvtClientes().filter(function(c){ return !enRuta[c._sbId]; })
+                          .sort(function(a,b){ return (a.name||"").localeCompare(b.name||"","es"); });
+  var box2 = document.getElementById("rvt-orfanos");
+  if(box2) box2.innerHTML = '<div class="rvt-card-h">🧭 Sin ruta asignada <span class="rvt-lbl">('+sin.length+')</span></div>'+
+    (sin.length ? sin.slice(0,60).map(function(c){
+      return '<div class="rvt-item">'+
+        '<div class="rvt-item-i"><div class="rvt-item-n">'+_rvtEsc(c.name||c.id)+'</div>'+
+        '<div class="rvt-item-d">'+_rvtEsc(c.zona||"Sin zona")+(c.vendedor_asignado?(" · "+_rvtEsc(_rvtNomVend(c.vendedor_asignado))):" · sin vendedor")+'</div></div>'+
+        '<button class="rvt-mini" style="padding:5px 10px;font-size:11.5px" onclick="_rvtDesdeDorm(\''+_rvtEsc(c._sbId)+'\')">+ Poner en ruta</button>'+
+      '</div>';
+    }).join("") : '<div class="rvt-vacio">Todos los clientes están en alguna ruta. 👌</div>');
+}
+function _rvtDesdeDorm(uuid){
+  var c = _rvtCli(uuid);
+  if(c && c.vendedor_asignado) _rvtVendSel = c.vendedor_asignado;
+  var b = document.getElementById("rvt-tab-agenda");
+  _rvtSetTab("agenda", b);
+  _rvtRenderVends();
+  _rvtAbrirAgregar(0, uuid);
+}
+function _rvtWpp(tel){
+  var t = String(tel).replace(/[^0-9]/g,"");
+  if(t.length===10) t = "549"+t;
+  else if(t.length===11 && t.charAt(0)==="9") t = "54"+t;
+  var url = "https://wa.me/"+t;
+  try{ window.open(url,"_system"); }catch(e){ try{ window.open(url,"_blank"); }catch(e2){ location.href=url; } }
+}
+
+/* ═══════════ MI DÍA (vendedor) ═══════════ */
+async function _rvtMiDiaRender(){
+  var body = document.getElementById("md-body");
+  var top  = document.getElementById("md-top");
+  if(!body || !currentUser) return;
+  body.innerHTML = '<div class="rvt-vacio">Cargando tu día…</div>';
+  try{
+    await _rvtAsegurarClientes();
+    var uid = currentUser.id;
+    _rvtAgenda  = await _rvtCargarAgenda(uid);
+    _rvtVisitas = await _rvtCargarVisitas(_rvtHoyISO(), _rvtHoyISO());
+    await _rvtAsegurarBackups();
+    _rvtPintarMiDia();
+  }catch(e){
+    console.warn("[Mi día]", e);
+    body.innerHTML = '<div class="rvt-vacio">No se pudo cargar tu ruta de hoy. Probá de nuevo.</div>';
+  }
+}
+
+function _rvtPintarMiDia(){
+  var body = document.getElementById("md-body");
+  var top  = document.getElementById("md-top");
+  var hoyD = _rvtDiaDeSemana();
+  var hoy  = new Date();
+
+  var delDia = _rvtAgenda.filter(function(a){ return Number(a.dia)===hoyD && _rvtTocaHoy(a.frecuencia, hoy); })
+                         .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+
+  var visitados = {};
+  _rvtVisitas.forEach(function(v){ if(v.vendedor_uid===currentUser.id) visitados[v.cliente_id]=v; });
+
+  var hechos = delDia.filter(function(a){ return visitados[a.cliente_id]; });
+  var pend   = delDia.filter(function(a){ return !visitados[a.cliente_id]; });
+  var conVta = hechos.filter(function(a){ return visitados[a.cliente_id].resultado==="vendio"; }).length;
+
+  // Vendido hoy: pedidos del vendedor con fecha de hoy
+  var hoyISO = _rvtHoyISO();
+  var bks = (typeof getBackups==="function") ? getBackups() : [];
+  var vendidoHoy = bks.filter(function(b){
+    return b.usuario===currentUser.id && String(b.fecha||"").slice(0,10)===hoyISO && b.aprobado!==false;
+  }).reduce(function(s,b){ return s+(Number(b.total)||0); }, 0);
+  var meta = Number(currentUser.meta)||0;
+
+  if(top){
+    if(!hoyD){
+      top.innerHTML = '<div class="md-t1"><b>😴 Domingo</b><span>No hay ruta cargada para hoy</span></div>';
+    } else {
+      var pctV = delDia.length ? (conVta*100/delDia.length) : 0;
+      var pctN = delDia.length ? ((hechos.length-conVta)*100/delDia.length) : 0;
+      top.innerHTML =
+        '<div class="md-t1"><b>'+RVT_DIAS[hoyD]+' · '+hechos.length+' de '+delDia.length+'</b>'+
+        '<span>'+conVta+' compraron</span></div>'+
+        '<div class="md-prog"><i style="width:'+pctV+'%;background:var(--green)"></i><i style="width:'+pctN+'%;background:var(--amber)"></i></div>'+
+        '<div class="md-cifras">'+
+          '<div><div class="md-cif-l">Vendido hoy</div><div class="md-cif-v">'+_rvtM(vendidoHoy)+'</div></div>'+
+          '<div><div class="md-cif-l">Objetivo mes</div><div class="md-cif-v">'+(meta?_rvtM(meta):"—")+'</div></div>'+
+          '<div><div class="md-cif-l">Efectividad</div><div class="md-cif-v">'+(hechos.length?Math.round(conVta*100/hechos.length):0)+'%</div></div>'+
+        '</div>';
+    }
+  }
+
+  if(!delDia.length){
+    body.innerHTML = '<div class="rvt-vacio">'+(hoyD
+      ? 'Hoy no tenés clientes en la ruta.<br><span style="font-size:12px">Si creés que falta alguno, pedile al admin que lo cargue en la agenda.</span>'
+      : 'Los domingos no hay ruta.')+'</div>';
+    return;
+  }
+
+  var ult = _rvtUltimoPedidoPorCliente();
+  var html = "";
+  if(pend.length){
+    html += '<div class="md-grupo">Por visitar <span style="background:var(--s4);border-radius:20px;padding:1px 8px;color:var(--text2)">'+pend.length+'</span></div>';
+    pend.forEach(function(a, i){ html += _rvtTarjeta(a, i+1, null, ult); });
+  }
+  if(hechos.length){
+    html += '<div class="md-grupo">Ya visitados <span style="background:var(--s4);border-radius:20px;padding:1px 8px;color:var(--text2)">'+hechos.length+'</span></div>';
+    hechos.forEach(function(a, i){ html += _rvtTarjeta(a, i+1, visitados[a.cliente_id], ult); });
+  }
+  body.innerHTML = html;
+}
+
+function _rvtTarjeta(a, n, visita, ult){
+  var c   = _rvtCli(a.cliente_id) || {};
+  var nom = c.name || a.cliente_nom || "Cliente";
+  var dir = c.direccion || "";
+  var k1  = String(c.id||"").trim().toLowerCase();
+  var k2  = "n:"+String(nom).trim().toLowerCase();
+  var u   = ult[k1] || ult[k2] || null;
+  var dormido = false, diasSin = 0;
+  if(u){ diasSin = Math.round((new Date() - new Date(u.fecha+"T12:00:00"))/86400000); dormido = diasSin>30; }
+
+  var der = "";
+  if(visita){
+    var lbl = RVT_RLBL[visita.resultado]||visita.resultado;
+    if(visita.resultado==="vendio" && visita.total) lbl = _rvtM(visita.total);
+    der = '<div class="md-c-r md-r-'+visita.resultado+'">'+(RVT_RICO[visita.resultado]||"")+' '+_rvtEsc(lbl)+'</div>';
+  }
+
+  var sub = dir ? _rvtEsc(dir) : (c.zona ? _rvtEsc(c.zona) : "");
+  if(dormido) sub += (sub?" · ":"")+"😴 hace "+diasSin+" días que no compra";
+
+  var id = "md"+_rvtEsc(a.id);
+  var body = "";
+  if(!visita){
+    var tel = (c.tel||"").replace(/[^0-9]/g,"");
+    var sug = (typeof _calcFrecuentes==="function") ? _calcFrecuentes(nom, c.id).slice(0,5) : [];
+    body =
+      '<div class="md-acc">'+
+        (tel ? '<button onclick="event.stopPropagation();_rvtLlamar(\''+tel+'\')">📞 Llamar</button>' : '')+
+        (tel ? '<button onclick="event.stopPropagation();_rvtWpp(\''+tel+'\')">💬 WhatsApp</button>' : '')+
+        ((c.lat&&c.lng) ? '<button onclick="event.stopPropagation();_rvtIr('+c.lat+','+c.lng+')">🗺️ Ir</button>' : '')+
+      '</div>'+
+      '<div class="md-datos">'+
+        '<div class="md-dato"><div class="md-dato-l">Último pedido</div><div class="md-dato-v">'+(u?_rvtM(u.total):"—")+'</div></div>'+
+        '<div class="md-dato"><div class="md-dato-l">Lista</div><div class="md-dato-v">'+_rvtEsc(c.lista||"Clientes")+'</div></div>'+
+      '</div>'+
+      (sug.length ? ('<div class="md-sug"><div class="md-sug-h">🔁 Lo que suele llevar</div><div class="md-sug-l">'+
+        sug.map(function(f){ return '<div><span>'+_rvtEsc(f.n)+'</span><span class="c">'+f.veces+'×</span></div>'; }).join("")+
+      '</div></div>') : '')+
+      '<div class="md-btns">'+
+        '<button class="md-btn pri" onclick="event.stopPropagation();_rvtHacerPedido(\''+_rvtEsc(a.cliente_id)+'\')">📝 Hacer pedido</button>'+
+        '<button class="md-btn sec" onclick="event.stopPropagation();_rvtAbrirVisita(\''+_rvtEsc(a.id)+'\')">✓ Marcar visita</button>'+
+      '</div>';
+  } else {
+    body = '<div style="padding-top:11px">'+
+      '<div class="md-dato" style="margin-bottom:9px"><div class="md-dato-l">Lo que marcaste</div>'+
+      '<div class="md-dato-v">'+(RVT_RICO[visita.resultado]||"")+' '+_rvtEsc(RVT_RLBL[visita.resultado]||visita.resultado)+
+      (visita.motivo?(' · '+_rvtEsc(visita.motivo)):"")+'</div>'+
+      (visita.nota?('<div style="font-size:12px;color:var(--muted);margin-top:4px">'+_rvtEsc(visita.nota)+'</div>'):"")+'</div>'+
+      '<button class="md-btn sec" style="width:100%" onclick="event.stopPropagation();_rvtAbrirVisita(\''+_rvtEsc(a.id)+'\')">✎ Corregir la visita</button>'+
+    '</div>';
+  }
+
+  return '<div class="md-c'+(dormido&&!visita?" dorm":"")+'" id="c'+id+'">'+
+    '<div class="md-c-h" onclick="_rvtToggle(\''+id+'\')">'+
+      '<div class="md-c-n'+(visita?" gris":"")+'">'+n+'</div>'+
+      '<div class="md-c-i"><div class="md-c-nom">'+_rvtEsc(nom)+'</div>'+(sub?('<div class="md-c-dir">'+sub+'</div>'):"")+'</div>'+
+      der+
+    '</div>'+
+    '<div class="md-c-b" id="b'+id+'">'+body+'</div>'+
+  '</div>';
+}
+
+function _rvtToggle(id){
+  if(_rvtDiaAbierto && _rvtDiaAbierto!==id){
+    var bo=document.getElementById("b"+_rvtDiaAbierto), co=document.getElementById("c"+_rvtDiaAbierto);
+    if(bo) bo.classList.remove("on");
+    if(co) co.classList.remove("abierta");
+  }
+  var b=document.getElementById("b"+id), c=document.getElementById("c"+id);
+  if(!b) return;
+  var estaba = b.classList.contains("on");
+  b.classList.toggle("on", !estaba);
+  if(c) c.classList.toggle("abierta", !estaba);
+  _rvtDiaAbierto = estaba ? null : id;
+}
+
+function _rvtLlamar(tel){ try{ location.href="tel:"+tel; }catch(e){} }
+function _rvtIr(lat,lng){
+  var url="https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng;
+  try{ window.open(url,"_system"); }catch(e){ try{ window.open(url,"_blank"); }catch(e2){ location.href=url; } }
+}
+function _rvtHacerPedido(uuid){
+  var c = _rvtCli(uuid);
+  if(!c){ showNotif("No encontré los datos del cliente","err"); return; }
+  verTab("pedido");
+  setTimeout(function(){
+    try{ _elegirCliente("ped", { id:c.id||"", nombre:c.name||"", lista:c.lista||"Clientes" }); }
+    catch(e){ console.warn("[Mi día] no se pudo preseleccionar el cliente", e); }
+  }, 120);
+}
+
+/* ── Marcar visita ── */
+function _rvtAbrirVisita(agendaId){
+  var fila = null;
+  _rvtAgenda.forEach(function(a){ if(a.id===agendaId) fila=a; });
+  if(!fila){ showNotif("No encontré esa parada","err"); return; }
+  var c = _rvtCli(fila.cliente_id) || {};
+  _rvtVisitaCtx = { agenda:fila, cliente:c, res:"vendio", motivo:"", gps:null, dist:null };
+
+  document.getElementById("md-sheet-nom").textContent = c.name || fila.cliente_nom || "Marcar visita";
+  document.getElementById("md-nota").value = "";
+  var opts = document.querySelectorAll("#md-modal .md-opt");
+  for(var i=0;i<opts.length;i++) opts[i].classList.toggle("on", i===0);
+  document.getElementById("md-mot").classList.remove("on");
+  var chips = document.querySelectorAll("#md-mot .md-mot-c button");
+  for(var j=0;j<chips.length;j++) chips[j].classList.remove("on");
+  var g = document.getElementById("md-gps");
+  g.className = "md-gps err";
+  g.innerHTML = '<div class="ic">📍</div><div class="tx">Buscando tu ubicación…</div>';
+  document.getElementById("md-modal").classList.add("on");
+
+  // GPS: se registra, pero NUNCA bloquea el marcado
+  if(typeof _obtenerUbicacionActual==="function"){
+    _obtenerUbicacionActual().then(function(pos){
+      if(!_rvtVisitaCtx) return;
+      _rvtVisitaCtx.gps = pos;
+      var lat=parseFloat(c.lat), lng=parseFloat(c.lng);
+      if(isFinite(lat)&&isFinite(lng)&&lat!==0&&lng!==0 && typeof _distanciaMetros==="function"){
+        var d = Math.round(_distanciaMetros(pos.lat,pos.lng,lat,lng));
+        _rvtVisitaCtx.dist = d;
+        var txt = d<1000 ? (d+" metros") : (Math.round(d/100)/10+" km");
+        g.className = "md-gps"+(d>RVT_CERCA?" lejos":"");
+        g.innerHTML = '<div class="ic">📍</div><div class="tx">Estás <b>a '+txt+'</b> del local. Queda registrado que pasaste.</div>';
+      } else {
+        g.className = "md-gps err";
+        g.innerHTML = '<div class="ic">📍</div><div class="tx">Guardo tu posición. Este cliente todavía no tiene la ubicación cargada, así que no puedo calcular la distancia.</div>';
+      }
+    }).catch(function(){
+      if(!_rvtVisitaCtx) return;
+      g.className = "md-gps err";
+      g.innerHTML = '<div class="ic">📍</div><div class="tx">No pude leer el GPS. Igual podés marcar la visita.</div>';
+    });
+  } else {
+    g.className = "md-gps err";
+    g.innerHTML = '<div class="ic">📍</div><div class="tx">Sin GPS en este dispositivo. Igual podés marcar la visita.</div>';
+  }
+}
+function _rvtCerrarVisita(){
+  document.getElementById("md-modal").classList.remove("on");
+  _rvtVisitaCtx = null;
+}
+function _rvtOpt(el, tipo){
+  var os = document.querySelectorAll("#md-modal .md-opt");
+  for(var i=0;i<os.length;i++) os[i].classList.remove("on");
+  el.classList.add("on");
+  if(_rvtVisitaCtx) _rvtVisitaCtx.res = tipo;
+  document.getElementById("md-mot").classList.toggle("on", tipo==="nocompro");
+}
+function _rvtChip(el){
+  var cs = document.querySelectorAll("#md-mot .md-mot-c button");
+  for(var i=0;i<cs.length;i++) cs[i].classList.remove("on");
+  el.classList.add("on");
+  if(_rvtVisitaCtx) _rvtVisitaCtx.motivo = el.textContent.trim();
+}
+
+async function _rvtGuardarVisita(){
+  if(!_rvtVisitaCtx) return;
+  var ctx = _rvtVisitaCtx;
+  var c   = ctx.cliente || {};
+  var btn = document.getElementById("md-guardar");
+  if(btn){ btn.disabled = true; btn.textContent = "Guardando…"; }
+
+  // Si vendió, buscamos el pedido de hoy de este cliente para adjuntar el total
+  var total = null, pedidoId = null;
+  if(ctx.res==="vendio"){
+    var hoyISO = _rvtHoyISO();
+    var bks = (typeof getBackups==="function") ? getBackups() : [];
+    var suyo = bks.filter(function(b){
+      return String(b.fecha||"").slice(0,10)===hoyISO &&
+             (String(b.clienteId||"")===String(c.id||"") ||
+              String(b.clienteNom||"").trim().toLowerCase()===String(c.name||"").trim().toLowerCase());
+    }).sort(function(a,b){ return String(b.fecha).localeCompare(String(a.fecha)); })[0];
+    if(suyo){
+      total = Number(suyo.total)||0;
+      // pedido_id es uuid en la base: si el pedido todavía no se sincronizó
+      // a Supabase (clave de Firebase), lo dejamos vacío en vez de romper.
+      var _pid = String(suyo._sbId||"");
+      pedidoId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(_pid) ? _pid : null;
+    }
+  }
+
+  var fila = {
+    empresa_id:   _sbEmpId,
+    vendedor_uid: currentUser.id,
+    vendedor_nom: currentUser.name || currentUser.id,
+    cliente_id:   ctx.agenda.cliente_id,
+    cliente_nom:  c.name || ctx.agenda.cliente_nom || "",
+    fecha:        _rvtHoyISO(),
+    hora:         new Date().toISOString(),
+    resultado:    ctx.res,
+    motivo:       ctx.res==="nocompro" ? (ctx.motivo||null) : null,
+    nota:         (document.getElementById("md-nota").value||"").trim() || null,
+    lat:          ctx.gps ? ctx.gps.lat : null,
+    lng:          ctx.gps ? ctx.gps.lng : null,
+    distancia_m:  ctx.dist,
+    pedido_id:    pedidoId,
+    total:        total
+  };
+
+  try{
+    await sbUpsert("visitas", [fila], "empresa_id,cliente_id,fecha");
+    showNotif("✓ Visita marcada","ok");
+    _rvtCerrarVisita();
+    _rvtVisitas = await _rvtCargarVisitas(_rvtHoyISO(), _rvtHoyISO());
+    _rvtPintarMiDia();
+  }catch(e){
+    console.warn("[Visita]", e);
+    showNotif("No se pudo guardar la visita. ¿Corriste el rutas_venta.sql?","err");
+  }
+  if(btn){ btn.disabled = false; btn.textContent = "Guardar visita"; }
+}
 </script>
 </body>
 </html>
