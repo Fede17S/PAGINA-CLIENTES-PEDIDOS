@@ -1,18 +1,29 @@
-// DistriMax Service Worker v1.2
-const CACHE_NAME = 'distrimax-v1.2';
-const CACHE_STATIC = 'distrimax-static-v1.2';
+// DistriMax / CoreDistri Service Worker v1.3
+const CACHE_NAME = 'distrimax-v1.3';
+const CACHE_STATIC = 'distrimax-static-v1.3';
 
-// Recursos del app shell que se cachean siempre
-const APP_SHELL = [
+// Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
+// directamente el archivo de desarrollo; si no existe en producción no bloquea
+// la instalación del resto del app shell.
+const PANEL_CANDIDATES = [
+  './',
   './pagina_clientes_pedidos.html',
+  './PANEL-index_15.html'
+];
+
+const APP_SHELL = PANEL_CANDIDATES.concat([
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
-];
+]);
 
-// Dominios que siempre van a la red (API calls)
+// Dominios de datos: nunca se cachean en el Service Worker. Reparto y Hoja de
+// Ruta administran su propia caché y cola persistente dentro del panel.
 const NETWORK_ONLY = [
   'supabase.co',
   'firebase',
@@ -21,30 +32,25 @@ const NETWORK_ONLY = [
   'google.com/maps'
 ];
 
-// ── INSTALL ──────────────────────────────────────────────────
-self.addEventListener('install', function(e) {
+self.addEventListener('install', function(event) {
   self.skipWaiting();
-  e.waitUntil(
+  event.waitUntil(
     caches.open(CACHE_STATIC).then(function(cache) {
-      return cache.addAll(APP_SHELL.map(function(url) {
-        return new Request(url, { cache: 'reload' });
-      })).catch(function(err) {
-        console.warn('[SW] Cache install partial:', err);
-      });
+      return Promise.allSettled(APP_SHELL.map(function(url) {
+        return cache.add(new Request(url, { cache: 'reload' }));
+      }));
     })
   );
 });
 
-// ── ACTIVATE ─────────────────────────────────────────────────
-self.addEventListener('activate', function(e) {
-  e.waitUntil(
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
     caches.keys().then(function(keys) {
       return Promise.all(
-        keys.filter(function(k) {
-          return k !== CACHE_NAME && k !== CACHE_STATIC;
-        }).map(function(k) {
-          console.log('[SW] Borrando caché viejo:', k);
-          return caches.delete(k);
+        keys.filter(function(key) {
+          return key !== CACHE_NAME && key !== CACHE_STATIC;
+        }).map(function(key) {
+          return caches.delete(key);
         })
       );
     }).then(function() {
@@ -53,69 +59,111 @@ self.addEventListener('activate', function(e) {
   );
 });
 
-// ── FETCH ─────────────────────────────────────────────────────
-self.addEventListener('fetch', function(e) {
-  var url = e.request.url;
-
-  // API calls → siempre a la red, sin caché
+self.addEventListener('fetch', function(event) {
+  var request = event.request;
+  var url = request.url;
   var isNetworkOnly = NETWORK_ONLY.some(function(domain) {
     return url.includes(domain);
   });
-  if (isNetworkOnly || e.request.method !== 'GET') {
-    return; // fetch normal sin interceptar
-  }
 
-  // App shell → cache-first con refresh en background
-  e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      var fetchPromise = fetch(e.request).then(function(response) {
-        if (response && response.status === 200 && response.type !== 'opaque') {
-          var toCache = response.clone();
+  if (isNetworkOnly || request.method !== 'GET') return;
+
+  // Navegación: busca primero la versión nueva y usa la copia local si no hay
+  // señal. Así una actualización desplegada no queda escondida por un HTML viejo.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).then(function(response) {
+        if (response && response.ok) {
+          var copy = response.clone();
           caches.open(CACHE_STATIC).then(function(cache) {
-            cache.put(e.request, toCache);
+            cache.put(request, copy);
           });
         }
         return response;
       }).catch(function() {
-        return cached; // offline fallback
-      });
-
-      return cached || fetchPromise;
-    })
-  );
-});
-
-// ── SYNC (para pedidos offline pendientes) ────────────────────
-self.addEventListener('sync', function(e) {
-  if (e.tag === 'sync-pedidos') {
-    e.waitUntil(
-      self.clients.matchAll().then(function(clients) {
-        clients.forEach(function(client) {
-          client.postMessage({ type: 'SYNC_PEDIDOS' });
+        return caches.match(request).then(function(cached) {
+          if (cached) return cached;
+          return _primerPanelCacheado();
         });
       })
     );
+    return;
   }
-});
 
-// ── PUSH NOTIFICATIONS ────────────────────────────────────────
-self.addEventListener('push', function(e) {
-  if (!e.data) return;
-  var data = e.data.json();
-  e.waitUntil(
-    self.registration.showNotification(data.title || 'DistriMax', {
-      body:  data.body  || '',
-      icon:  './icon-192.png',
-      badge: './icon-72.png',
-      vibrate: [200, 100, 200],
-      data:  data.data  || {}
+  // Recursos estáticos: cache-first y actualización silenciosa.
+  event.respondWith(
+    caches.match(request).then(function(cached) {
+      var refresh = fetch(request).then(function(response) {
+        if (response && (response.ok || response.type === 'opaque')) {
+          var copy = response.clone();
+          caches.open(CACHE_STATIC).then(function(cache) {
+            cache.put(request, copy);
+          });
+        }
+        return response;
+      }).catch(function() {
+        return cached;
+      });
+      return cached || refresh;
     })
   );
 });
 
-self.addEventListener('notificationclick', function(e) {
-  e.notification.close();
-  e.waitUntil(
-    self.clients.openWindow('./pagina_clientes_pedidos.html')
+async function _primerPanelCacheado() {
+  for (var i = 0; i < PANEL_CANDIDATES.length; i++) {
+    var response = await caches.match(PANEL_CANDIDATES[i]);
+    if (response) return response;
+  }
+  return Response.error();
+}
+
+// Al recuperar señal, avisa a las pestañas abiertas. El panel también escucha el
+// evento online, por lo que la cola se sincroniza aunque Background Sync no exista.
+self.addEventListener('sync', function(event) {
+  if (event.tag !== 'sync-pedidos' && event.tag !== 'sync-rutas') return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windows) {
+      windows.forEach(function(client) {
+        client.postMessage({
+          type: event.tag === 'sync-rutas' ? 'SYNC_OFFLINE_QUEUE' : 'SYNC_PEDIDOS'
+        });
+      });
+    })
+  );
+});
+
+self.addEventListener('push', function(event) {
+  var data = { title: 'CoreDistri', body: '', data: {} };
+  try { if (event.data) data = event.data.json(); } catch (_) {}
+  event.waitUntil(
+    self.registration.showNotification(data.title || data.titulo || 'CoreDistri', {
+      body: data.body || data.mensaje || '',
+      icon: './icon-192.png',
+      badge: './icon-72.png',
+      vibrate: [200, 100, 200],
+      tag: 'coredistri-pedido',
+      renotify: true,
+      data: data.data || {},
+      actions: [
+        { action: 'ver', title: 'Ver pedido' },
+        { action: 'cerrar', title: 'Cerrar' }
+      ]
+    })
+  );
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  if (event.action === 'cerrar') return;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windows) {
+      var open = windows.find(function(client) { return !!client.url; });
+      if (open) {
+        open.focus();
+        open.postMessage({ type: 'OPEN_BACKUP' });
+        return;
+      }
+      return self.clients.openWindow('./pagina_clientes_pedidos.html');
+    })
   );
 });
