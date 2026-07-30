@@ -3608,7 +3608,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     </div>
   </div>
 </div>
-<div id="offline-banner" style="display:none;background:#1a0e00;color:#fbbf24;padding:10px 16px;text-align:center;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;display:flex;align-items:center;justify-content:center;gap:10px">
+<div id="offline-banner" onclick="_verPendientesOffline()" title="Tocá para ver el estado de sincronización" style="display:none;background:#1a0e00;color:#fbbf24;padding:10px 16px;text-align:center;font-size:12.5px;font-weight:700;position:sticky;top:0;z-index:250;align-items:center;justify-content:center;gap:10px;cursor:pointer">
   <span>📵</span>
   <span id="offline-text">Sin conexión — Modo offline activo</span>
   <span id="offline-cache-status" style="font-size:10px;opacity:.8;margin-left:6px"></span>
@@ -24700,6 +24700,8 @@ var _offlineQueue  = [];   // ops pendientes de sync: [{id,method,path,data,ts,d
 var _readCache     = {};   // {path: {data, ts}}
 var _isSyncing     = false;
 var _rutasOfflineTimer = null;
+var _syncLastError = null;
+var _syncRetryTimer = null;
 
 function _ofKey(suffix){ return "dm_offq_"+(empresaKey||"global")+(suffix||""); }
 function _cacheKey(suffix){ return "dm_rcache_"+(empresaKey||"global")+(suffix||""); }
@@ -24763,7 +24765,11 @@ function _fusionarRutasOffline(base,local){
 
 /* ─ Persistencia de queue ─ */
 function _loadQueue(){
-  try { _offlineQueue = JSON.parse(localStorage.getItem(_ofKey())||"[]"); } catch(e){ _offlineQueue=[]; }
+  try {
+    _offlineQueue = JSON.parse(localStorage.getItem(_ofKey())||"[]");
+    var conError=_offlineQueue.find(function(op){return op&&op.ultimoError;});
+    _syncLastError=conError?conError.ultimoError:null;
+  } catch(e){ _offlineQueue=[]; _syncLastError=null; }
 }
 function _saveQueue(){
   var payload;
@@ -24934,7 +24940,10 @@ function _sbPatchOfflineQ(table,match,body,desc){
 }
 async function _syncQueue(){
   if(_isSyncing||!navigator.onLine||!_offlineQueue.length) return;
+  if(_syncRetryTimer){clearTimeout(_syncRetryTimer);_syncRetryTimer=null;}
   _isSyncing=true;
+  _syncLastError=null;
+  _updateBanner();
   _showSyncing(true);
   var ops=_offlineQueue.slice(),synced=0;
   for(var i=0;i<ops.length;i++){
@@ -24945,7 +24954,13 @@ async function _syncQueue(){
       _offlineQueue=_offlineQueue.filter(function(x){return x.id!==op.id;});
       _saveQueue();
     }catch(e){
-      console.warn("[Offline] Sincronización detenida para conservar el orden:",e&&e.message);
+      var msg=String((e&&e.message)||e||"Error desconocido").replace(/\s+/g," ").slice(0,280);
+      op.intentos=(op.intentos||0)+1;
+      op.ultimoError=msg;
+      op.ultimoIntento=new Date().toISOString();
+      _syncLastError=msg;
+      _saveQueue();
+      console.warn("[Offline] Sincronización detenida para conservar el orden:",msg);
       break;
     }
   }
@@ -24957,8 +24972,11 @@ async function _syncQueue(){
     showNotif("☁️ "+synced+" operación"+(synced>1?"es":"")+" sincronizada"+(synced>1?"s":"")+" con éxito","ok");
   }
   if(_offlineQueue.length&&navigator.onLine){
-    setTimeout(function(){if(!_isSyncing)_syncQueue();},5000);
+    var primero=_offlineQueue[0]||{};
+    var demora=(primero.intentos||0)>=3?60000:12000;
+    _syncRetryTimer=setTimeout(function(){_syncRetryTimer=null;if(!_isSyncing)_syncQueue();},demora);
   }else if(!_offlineQueue.length){
+    _syncLastError=null;
     setTimeout(function(){try{cargarRutasFirebase();}catch(e){}},800);
   }
 }
@@ -24972,7 +24990,18 @@ function _updateBanner(){
   if(navigator.onLine){
     var pendientes=_offlineQueue.length;
     banner.style.display = pendientes>0 ? "flex" : "none";
-    if(txt&&pendientes>0) txt.textContent="☁️ Conexión restaurada — enviando datos pendientes";
+    if(pendientes>0){
+      if(_isSyncing){
+        banner.style.background="#1a0e00";
+        if(txt) txt.textContent="☁️ Enviando datos pendientes…";
+      }else if(_syncLastError){
+        banner.style.background="#2a0d0d";
+        if(txt) txt.textContent="⚠️ No se pudieron enviar algunos datos — tocá para ver y reintentar";
+      }else{
+        banner.style.background="#1a0e00";
+        if(txt) txt.textContent="☁️ Datos pendientes — preparando sincronización";
+      }
+    }
     if(badge){
       badge.style.display=pendientes>0?"inline-block":"none";
       badge.textContent=pendientes+" pendiente"+(pendientes>1?"s":"");
@@ -24985,6 +25014,24 @@ function _updateBanner(){
       badge.textContent   = n+" pendiente"+(n>1?"s":"");
     }
     if(txt) txt.textContent = "📵 Sin conexión — modo offline activo, podés seguir trabajando";
+  }
+}
+function _verPendientesOffline(){
+  if(!_offlineQueue||!_offlineQueue.length) return;
+  var op=_offlineQueue[0]||{};
+  var detalle=op.desc||op.method||"Operación pendiente";
+  var mensaje=navigator.onLine
+    ? (_syncLastError
+        ? "La conexión funciona, pero Supabase rechazó o no pudo procesar esta operación:\n\n"+detalle+"\n\nMotivo: "+_syncLastError+"\n\n¿Reintentar ahora?"
+        : "Hay "+_offlineQueue.length+" operación"+(_offlineQueue.length>1?"es":"")+" esperando envío.\n\n¿Sincronizar ahora?")
+    : "Estás sin conexión. Hay "+_offlineQueue.length+" operación"+(_offlineQueue.length>1?"es":"")+" guardada"+(_offlineQueue.length>1?"s":"")+" en este dispositivo.";
+  if(!navigator.onLine){alert(mensaje);return;}
+  if(confirm(mensaje)){
+    op.ultimoError=null;
+    op.intentos=0;
+    _syncLastError=null;
+    _saveQueue();
+    _syncQueue();
   }
 }
 function _showSyncing(on){
