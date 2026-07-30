@@ -1419,9 +1419,14 @@ html[data-theme="dark"] .dash-al.ambar{ border-color:oklch(44% 0.08 75); color:o
 .hr-big.pri{background:var(--accent);color:#fff;box-shadow:0 6px 18px oklch(58% 0.13 35 / .3)}
 .hr-big.ok{background:var(--green);color:#fff;box-shadow:0 6px 18px oklch(58% 0.13 155 / .28)}
 .hr-big.ghost{background:var(--s2);color:var(--text2);border:1px solid var(--border);box-shadow:none;font-size:13.5px;padding:12px}
-.hr-sec{display:flex;gap:7px;margin-top:8px}
-.hr-sec button{flex:1;padding:11px 6px;border:1px solid var(--border);border-radius:10px;background:var(--s2);font-size:12px;font-weight:700;color:var(--text2);cursor:pointer}
+.hr-sec{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.hr-sec button{flex:1 1 calc(50% - 4px);min-width:125px;padding:11px 8px;border:1px solid var(--border);border-radius:10px;background:var(--s2);font-size:12px;font-weight:700;color:var(--text2);cursor:pointer}
 .hr-sec button.tiene{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.hr-sec button.hr-act-edit{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.hr-sec button.hr-act-dev{background:#fff7ed;border-color:#fb923c;color:#c2410c}
+.hr-sec button.hr-act-rech{background:#fef2f2;border-color:#ef4444;color:#b91c1c}
+html[data-theme="dark"] .hr-sec button.hr-act-dev{background:#351f14;color:#fdba74;border-color:#c2410c}
+html[data-theme="dark"] .hr-sec button.hr-act-rech{background:#351517;color:#fca5a5;border-color:#b91c1c}
 .hr-mas{width:100%;margin-top:8px;background:none;border:none;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;padding:8px}
 .hr-mas-box{margin-top:6px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .hr-mas-box button{width:100%;text-align:left;padding:11px 13px;background:var(--s2);border:none;border-bottom:1px solid var(--border2);font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer}
@@ -2053,8 +2058,9 @@ html[data-theme="dark"] .dash-al.ambar{ border-color:oklch(44% 0.08 75); color:o
 .rc-edit-name { flex:1; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .rc-edit-price { font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0 }
 .rc-edit-cant { width:60px !important; padding:7px 8px !important; font-size:13px !important; font-weight:700 !important; text-align:center; flex-shrink:0; border-radius:7px !important }
-.rc-edit-del { background:none; border:none; cursor:pointer; color:var(--muted2); font-size:14px; padding:5px 7px; border-radius:6px; flex-shrink:0; transition:all .15s }
-.rc-edit-del:hover { color:var(--red); background:var(--red-bg) }
+.rc-edit-del { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; background:var(--red-bg); border:1px solid #fca5a5; cursor:pointer; color:var(--red); padding:0; border-radius:9px; flex-shrink:0; transition:all .15s }
+.rc-edit-del:hover { color:#fff; background:var(--red); border-color:var(--red); transform:translateY(-1px) }
+.rc-edit-del svg { width:16px; height:16px; pointer-events:none }
 .rc-edit-add { padding:8px 0 2px }
 
 /* Cobro card */
@@ -3440,7 +3446,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.28-rutas</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">CoreDistri · v2026.07.29-rastreo6</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4073,7 +4079,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 <div id="backup" class="section">
   <!-- Buscador y acciones -->
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-    <input type="text" id="bk-search" placeholder="🔍 Buscar por cliente, vendedor…"
+    <input type="text" id="bk-search" placeholder="🔍 Buscar por cliente, vendedor o producto…"
       oninput="renderBackup()" style="flex:1;font-size:14px"
       autocomplete="off" autocorrect="off" autocapitalize="off">
     <button class="btn btn-ghost btn-sm" id="bk-sel-btn" onclick="_bkToggleSelect()" title="Seleccionar pedidos">☑️</button>
@@ -5328,6 +5334,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
     <button class="bk-tab" onclick="_setRolFilter('repartidor',this)">🚚 Repartidores</button>
     <button class="bk-tab" onclick="_setRolFilter('armador',this)">📦 Armadores</button>
+    <button class="bk-tab" onclick="_setRolFilter('jefe-ventas',this)">📈 Jefe de ventas</button>
+    <button class="bk-tab" onclick="_setRolFilter('co-admin',this)">🤝 Co-Admin</button>
     <button class="bk-tab" onclick="_setRolFilter('admin',this)" id="cli-filter-roles">👑 Admin</button>
   </div>
 
@@ -6450,7 +6458,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
       <span>Incluye IVA 21%</span><span id="edit-bk-iva-monto"></span>
     </div>
     <div style="display:flex;gap:8px;margin-top:4px">
-      <button onclick="guardarEdicionBackup()" class="mbtn mbtn-primary" style="flex:1">💾 Guardar cambios</button>
+      <button id="edit-bk-guardar" onclick="guardarEdicionBackup()" class="mbtn mbtn-primary" style="flex:1">💾 Guardar cambios</button>
       <button onclick="cerrarModal('modal-editar-backup')" class="mbtn mbtn-ghost">Cancelar</button>
     </div>
   </div>
@@ -6563,14 +6571,14 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
     <span class="pfs-count" id="pfs-count">0 ítems</span>
     <span class="pfs-total" id="pfs-total">$0,00</span>
   </div>
-  <button class="pfs-send" onclick="event.stopPropagation();_confirmarPedido()">Confirmar →</button>
+  <button class="pfs-send" onclick="event.stopPropagation();_abrirCartModal()">Revisar pedido →</button>
 </div>
 
 <!-- MODAL CARRITO / RESUMEN DEL PEDIDO -->
 <div id="ped-cart-modal" class="cart-modal" onclick="if(event.target===this)_cerrarCartModal()">
   <div class="cart-sheet">
     <div class="cart-head">
-      <div class="cart-title">🛒 Tu pedido <span id="cart-cli" class="cart-cli"></span></div>
+      <div class="cart-title">🛒 Revisar pedido <span id="cart-cli" class="cart-cli"></span></div>
       <button class="cart-close" onclick="_cerrarCartModal()" aria-label="Cerrar">×</button>
     </div>
     <div class="cart-body" id="cart-body"></div>
@@ -7286,7 +7294,7 @@ function _slimParaCache(table, data){
     return data.map(function(p){ var q={}; for(var k in p){ if(k!=="foto") q[k]=p[k]; } return q; });
   }
   if(table === "ruta_clientes" || table === "backup_pedidos"){
-    return data.map(function(r){ var q={}; for(var k in r){ if(k!=="firma") q[k]=r[k]; } return q; });
+    return data.map(function(r){ var q={}; for(var k in r){ if(k!=="firma"&&k!=="comprobantes") q[k]=r[k]; } return q; });
   }
   return data;
 }
@@ -7407,6 +7415,8 @@ async function _precalentarCacheOffline(){
     ["backup_pedidos","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=300"],
     ["listas_precios","select=*&empresa_id=eq."+_sbEmpId],
     ["stock",      "select=*&empresa_id=eq."+_sbEmpId],
+    ["rutas",      "select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=120"],
+    ["ruta_clientes","select=id,ruta_id,cliente_id,nom,importe,tipo_comprobante,efectivo,transferencia,modo,items,fecha,firmado_en,pagos_adicionales,devoluciones,entregado,entregado_en,audit_log,remito_num,lista,obs,dsc_general,rechazado,rechazado_en,motivo_rechazo,rechazado_por,rechazo_confirmado,reprogramado_de,reprogramado_en&empresa_id=eq."+_sbEmpId+"&order=created_at.desc&limit=1600"],
   ];
   for(var i=0;i<tablas.length;i++){
     var t=tablas[i];
@@ -8136,7 +8146,7 @@ function fbDel(path){
 async function _sbGetAllEmpresas(){
   var [emps, users] = await Promise.all([
     sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,onboarding_done"),
-    sbGet("usuarios","select=id,empresa_id,uid,name,role,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng,comision,meta")
+    sbGet("usuarios","select=id,empresa_id,uid,name,role,roles,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng,comision,meta")
   ]);
   if(!emps) return null;
   var result={};
@@ -8144,6 +8154,7 @@ async function _sbGetAllEmpresas(){
     var uMap={};
     (users||[]).filter(function(u){return u.empresa_id===e.id;}).forEach(function(u){
       uMap[u.id]={id:u.uid||"",_sbId:u.id,name:u.name||"",role:u.role||"cliente",
+        roles:(_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),
         lista:u.lista||"Clientes",catalogo:u.catalogo,direccion:u.direccion||"",
         tel:u.telefono||"",cuit:u.cuit||"",zona:u.zona||"",zona_id:u.zona_id||null,
         rec:u.recepciona||"",nota:u.nota||"",comision:(u.comision!=null?u.comision:null),meta:(u.meta!=null?u.meta:null)};
@@ -8179,6 +8190,7 @@ async function _sbGetEmpresa(empId){
     _sbId:     u.id,           // Supabase UUID
     name:      u.name||"",
     role:      u.role||"cliente",
+    roles:     (_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),
     lista:     u.lista||"Clientes",
     catalogo:  u.catalogo,
     direccion: u.direccion||"",
@@ -8455,9 +8467,22 @@ function _stkSimple(arr, signo, motivo){
     if(typeof descontarStock==="function") descontarStock(its, motivo||"Movimiento de stock");
   }catch(e){ console.warn("[Stock] ajuste simple:", e.message); }
 }
+function _stkAplicarSoloLocal(items,signo){
+  try{
+    _stkItems(items).forEach(function(it){
+      stockData[it.codigo]=Math.max(0,+(stockData[it.codigo]||0)+signo*it.cant);
+    });
+    try{ _sbCacheSave("stock","offline-local",Object.keys(stockData||{}).map(function(c){return {codigo:c,cantidad:stockData[c],reservado:0};})); }catch(e){}
+  }catch(e){}
+}
 // Devolución al stock que funciona con y sin control de stock activado
 async function _stkDevolverAuto(ref, items, motivo){
   var arr=_stkItems(items); if(!arr.length) return null;
+  if(!navigator.onLine){
+    _stkAplicarSoloLocal(items,1);
+    await _enqueue("STOCK_RETURN","stock/"+String(ref),{ref:String(ref),items:items,motivo:motivo||"Devolución al stock"},motivo||"Devolución al stock");
+    return {queued:true};
+  }
   if(!_ctrlStockOn()){ _stkSimple(arr, -1, motivo||"Devolución al stock"); return {simple:true}; }
   var r = await _stkDevolver(ref, items, motivo);
   if(r === null){
@@ -8479,6 +8504,11 @@ async function _stkDevolverAuto(ref, items, motivo){
 async function _stkSalidaDirecta(ref, items, motivo){
   if(!_sbEmpId || !ref) return null;
   var arr=_stkItems(items); if(!arr.length) return null;
+  if(!navigator.onLine){
+    _stkAplicarSoloLocal(items,-1);
+    await _enqueue("STOCK_OUT","stock/"+String(ref),{ref:String(ref),items:items,motivo:motivo||"Salida de stock"},motivo||"Salida de stock");
+    return {queued:true};
+  }
   // Sin control de stock activado no hay RPC: descontamos con el método simple
   if(!_ctrlStockOn()){ _stkSimple(arr, 1, motivo||"Pedido enviado"); return null; }
   var usr = (currentUser?(currentUser.name||currentUser.id):"sistema");
@@ -8498,7 +8528,12 @@ async function _stkSalidaDirecta(ref, items, motivo){
     if(r && r.repetido){ return r; }   // ya se había descontado: no repetir
     if(r && r.avisos && r.avisos.length){
       var t = r.avisos.map(function(a){ var p=(dbStock||[]).find(function(x){return x.id===a.codigo;}); return (p?p.n:a.codigo)+" (quedan "+a.disponible+")"; }).join(", ");
-      showNotif("⚠️ Vendiste más de lo disponible: "+t, "err");
+      // El RPC ya hizo la reserva: liberarla de inmediato y cancelar el pedido.
+      // Antes solo se mostraba un aviso y se permitía terminar la venta.
+      try{ await _stkLiberar(ref); }catch(_libErr){}
+      var _stockErr=new Error("Stock insuficiente: "+t);
+      _stockErr.code="STOCK_INSUFICIENTE";
+      throw _stockErr;
     }
     try{
       await _stkRpcMot("stk_salida",{ p_empresa:_sbEmpId, p_ref:String(ref), p_items:arr, p_usuario:usr }, motivo);
@@ -8510,7 +8545,11 @@ async function _stkSalidaDirecta(ref, items, motivo){
     }
     await _stkRefrescar();
     return r;
-  }catch(e){ console.warn("[Stock] salida directa:", e.message); return null; }
+  }catch(e){
+    console.warn("[Stock] salida directa:", e.message);
+    if(e && e.code==="STOCK_INSUFICIENTE") throw e;
+    return null;
+  }
 }
 async function _stkRefrescar(){
   try{ var f = await _sbGetStockFull(); if(f) stockData = f; if(typeof _pgRender==="function") _pgRender(); if(typeof renderStock==="function" && document.getElementById("stock-list")) renderStock(); }catch(e){}
@@ -8770,6 +8809,7 @@ async function _sbGetUsuarios(){
       _sbId:     u.id,
       name:      u.name||"",
       role:      u.role||"cliente",
+      roles:     (_normalizarRoles(u.roles).length?_normalizarRoles(u.roles):null),
       lista:     u.lista||"Clientes",
       catalogo:  u.catalogo,
       direccion: u.direccion||"",
@@ -8823,7 +8863,7 @@ async function _sbInsertUsuario(u){
 }
 async function _sbPatchUsuario(id,u){
   // Datos no sensibles: update normal.
-  var b={};if(u.name!==undefined)b.name=u.name;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.zona_id!==undefined)b.zona_id=u.zona_id;if(u.cuit!==undefined)b.cuit=u.cuit;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;if(u.uid!==undefined)b.uid=u.uid;
+  var b={};if(u.name!==undefined)b.name=u.name;if(u.lista!==undefined)b.lista=u.lista;if(u.role!==undefined)b.role=u.role;if(u.roles!==undefined)b.roles=u.roles;if(u.direccion!==undefined)b.direccion=u.direccion;if(u.tel!==undefined)b.telefono=u.tel;if(u.zona!==undefined)b.zona=u.zona;if(u.zona_id!==undefined)b.zona_id=u.zona_id;if(u.cuit!==undefined)b.cuit=u.cuit;if(u.rec!==undefined)b.recepciona=u.rec;if(u.nota!==undefined)b.nota=u.nota;if(u.uid!==undefined)b.uid=u.uid;
   // Si hay datos no-pass, actualizarlos primero.
   if(Object.keys(b).length){
     await sbPatch("usuarios","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b);
@@ -8910,7 +8950,7 @@ async function _sbGetRutas(){
   return result;
 }
 async function _sbInsertRuta(data){ var rows=await sbPost("rutas",{empresa_id:_sbEmpId,nombre:data.nombre,fecha:data.fecha||new Date().toISOString()}); return rows&&rows[0]?rows[0].id:null; }
-async function _sbInsertRutaCli(rutaId,data){ var rows=await sbPost("ruta_clientes",{ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),lista:data.lista||"",obs:data.obs||"",tipo_comprobante:data.tipoComprobante||null,firma:"",pagos_adicionales:[],comprobantes:[]}); return rows&&rows[0]?rows[0].id:null; }
+async function _sbInsertRutaCli(rutaId,data){ var rows=await sbPost("ruta_clientes",{ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),lista:data.lista||"",obs:data.obs||"",tipo_comprobante:data.tipoComprobante||null,firma:"",pagos_adicionales:[],comprobantes:[],audit_log:data.auditLog||[]}); return rows&&rows[0]?rows[0].id:null; }
 // Columnas agregadas por rechazos_ruta.sql. Si la base todavía no las tiene,
 // las escrituras las omiten en vez de fallar.
 var _RC_COLS_NUEVAS = ["rechazado","rechazado_en","motivo_rechazo","rechazado_por","rechazo_confirmado","reprogramado_de","reprogramado_en","dsc_general"];
@@ -8970,17 +9010,29 @@ async function _sbDelComprobante(rutaId,cliId,tid){ var rows=await sbGet("ruta_c
 // PORTADA DE FAMILIA (tabla familias: foto + título lindo por familia)
 // ══════════════════════════════════════════════════════════════════
 var _famPortadas = {}; // { [nombreFamilia]: {id, familia, titulo, foto} }
+function _famDescLeer(raw){
+  raw=String(raw||"");
+  var m=raw.match(/^\[\[MIN_FAMILIA:(\d+)\]\]\s*/);
+  return {descripcion:raw.replace(/^\[\[MIN_FAMILIA:\d+\]\]\s*/,""),minCompra:m?Math.max(1,parseInt(m[1],10)||1):1};
+}
+function _famDescGuardar(descripcion,minCompra){
+  var min=Math.max(1,parseInt(minCompra,10)||1);
+  return (min>1?"[[MIN_FAMILIA:"+min+"]]\n":"")+String(descripcion||"").trim();
+}
 async function _sbGetFamilias(){
   try {
     var rows = await sbGet("familias", "select=id,familia,titulo,foto,descripcion&empresa_id=eq."+_sbEmpId);
     var m = {};
-    (rows||[]).forEach(function(f){ m[f.familia] = {id:f.id, familia:f.familia, titulo:f.titulo||"", foto:f.foto||"", descripcion:f.descripcion||""}; });
+    (rows||[]).forEach(function(f){
+      var md=_famDescLeer(f.descripcion);
+      m[f.familia] = {id:f.id, familia:f.familia, titulo:f.titulo||"", foto:f.foto||"", descripcion:md.descripcion, minCompra:md.minCompra};
+    });
     return m;
   } catch(e){
     try {
       var rows2 = await sbGet("familias", "select=id,familia,titulo,foto&empresa_id=eq."+_sbEmpId);
       var m2 = {};
-      (rows2||[]).forEach(function(f){ m2[f.familia] = {id:f.id, familia:f.familia, titulo:f.titulo||"", foto:f.foto||"", descripcion:""}; });
+      (rows2||[]).forEach(function(f){ m2[f.familia] = {id:f.id, familia:f.familia, titulo:f.titulo||"", foto:f.foto||"", descripcion:"", minCompra:1}; });
       return m2;
     } catch(e2){ return {}; }
   }
@@ -8990,17 +9042,19 @@ async function _cargarFamPortadas(){
   return _famPortadas;
 }
 // Guardar (insert o update) la portada de una familia
-async function _sbGuardarPortadaFamilia(familia, titulo, foto, descripcion){
+async function _sbGuardarPortadaFamilia(familia, titulo, foto, descripcion, minCompra){
   var existente = _famPortadas[familia];
-  var body = { empresa_id:_sbEmpId, familia:familia, titulo:titulo||null, foto:foto||null, descripcion:descripcion||null };
+  var min=Math.max(1,parseInt(minCompra,10)||1);
+  var descDB=_famDescGuardar(descripcion,min);
+  var body = { empresa_id:_sbEmpId, familia:familia, titulo:titulo||null, foto:foto||null, descripcion:descDB||null };
   try {
     if(existente && existente.id){
-      await sbPatch("familias", "id=eq."+existente.id+"&empresa_id=eq."+_sbEmpId, {titulo:titulo||null, foto:foto||null, descripcion:descripcion||null});
-      _famPortadas[familia] = {id:existente.id, familia:familia, titulo:titulo||"", foto:foto||"", descripcion:descripcion||""};
+      await sbPatch("familias", "id=eq."+existente.id+"&empresa_id=eq."+_sbEmpId, {titulo:titulo||null, foto:foto||null, descripcion:descDB||null});
+      _famPortadas[familia] = {id:existente.id, familia:familia, titulo:titulo||"", foto:foto||"", descripcion:descripcion||"", minCompra:min};
     } else {
       var rows = await sbPost("familias", body);
       var nid = rows && rows[0] ? rows[0].id : null;
-      _famPortadas[familia] = {id:nid, familia:familia, titulo:titulo||"", foto:foto||"", descripcion:descripcion||""};
+      _famPortadas[familia] = {id:nid, familia:familia, titulo:titulo||"", foto:foto||"", descripcion:descripcion||"", minCompra:min};
     }
     return true;
   } catch(e){ console.warn("Guardar portada familia:", e); return false; }
@@ -9008,6 +9062,17 @@ async function _sbGuardarPortadaFamilia(familia, titulo, foto, descripcion){
 // Obtener la portada de una familia (foto/título), con fallbacks
 function _portadaDe(familia){
   return _famPortadas[familia] || null;
+}
+function _famTieneMinCombinado(p){
+  if(!p||!p.familia) return false;
+  var port=_portadaDe(p.familia);
+  return !!(port&&parseInt(port.minCompra,10)>1);
+}
+function _minCompraPedidoProd(p){
+  return _famTieneMinCombinado(p)?1:Math.max(1,parseInt(p&&p.minCompra,10)||1);
+}
+function _cantInicialPedidoProd(p){
+  return _famTieneMinCombinado(p)?1:Math.max(_minCompraPedidoProd(p),parseInt(p&&p.cantDefault,10)||1);
 }
 
 async function _sbGetProveedores(){
@@ -9155,7 +9220,19 @@ async function _sbInsertBackup(data){
   // MOTOR DE STOCK: al enviarse el pedido la mercadería SALE del stock (baja el físico).
   // Es el ÚNICO punto de descuento del sistema. Vuelve solo si el admin rechaza el
   // pedido, si se borra, o por un rechazo/devolución del reparto aprobado por el admin.
-  if(_newId){ try{ await _stkSalidaDirecta(_newId, data.items); }catch(e){ console.warn("[Stock] no se pudo descontar:", e.message); } }
+  if(_newId){
+    try{
+      await _stkSalidaDirecta(_newId, data.items);
+    }catch(e){
+      console.warn("[Stock] no se pudo descontar:", e.message);
+      // Si otro vendedor consumio el stock entre la validacion y el INSERT,
+      // borrar el pedido recien creado: nunca debe quedar una venta sin stock.
+      if(e && e.code==="STOCK_INSUFICIENTE"){
+        try{ await sbDel("backup_pedidos","id=eq."+_newId+"&empresa_id=eq."+_sbEmpId); }catch(_delErr){}
+        throw e;
+      }
+    }
+  }
   return _newId;
 }
 
@@ -9430,6 +9507,8 @@ function _cargarClientesDesdeCache(cached){
       }
       var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
       if(cachedUsers && cachedUsers.length){ _cargarClientesDesdeCache(cachedUsers); }
+      var rutasLocal=_cargarRutasOffline();
+      if(rutasLocal&&(!navigator.onLine||(_offlineQueue&&_offlineQueue.length))) rutasData=_fusionarRutasOffline(rutasData||{},rutasLocal);
       iniciarApp(); setTimeout(_checkNotifButton,1000);
       setTimeout(_initTrackingUbicacion, 3000);
       _bkPendingQueue=_bkQueueGet();
@@ -9441,6 +9520,8 @@ function _cargarClientesDesdeCache(cached){
       aplicarRestricciones(); cargarListasPrecios();
       // IMPORTANTE: cargar los clientes desde el cache (si no, la lista queda vacía al reabrir sin internet)
       _cargarClientesDesdeCache();
+      var rutasLocal=_cargarRutasOffline();
+      if(rutasLocal) rutasData=_fusionarRutasOffline(rutasData||{},rutasLocal);
       iniciarApp();
       setTimeout(_checkNotifButton,1000);
       setTimeout(_initTrackingUbicacion, 3000);
@@ -9569,6 +9650,8 @@ function _rvCss(){
 
 // ── LADO CELULAR: responder cuando el admin pide rastrear este teléfono ──
 var _rvWatchId=null, _rvPollTimer=null, _rvUltimoEnvio=0, _rvHasta=0, _rvPrev="momentos";
+var _rvSesionVistaEn=0;      // cuándo este celular vio la sesión por primera vez (p/ dar changüí al nativo)
+var _rvNativaRevividaEn=0;   // último intento de revivir el servicio nativo (tope 1/min)
 var _rvSoyViewer=false;  // esta pestaña arrancó el rastreo sobre MI usuario → es la que MIRA, no transmite
 
 // Solo transmiten los celulares (app instalada o navegador del teléfono).
@@ -9596,27 +9679,44 @@ async function _rvPollChequear(){
   try{
     // Con la app en segundo plano no se consulta (al volver al frente se chequea al toque)
     if(document.visibilityState!=="visible" && !_rvWatchId) return;
-    var rows = await sbGet("usuarios","select=loc_modo&id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId);
-    var s = _rvParse(rows && rows[0] && rows[0].loc_modo);
+    var rows = await sbGet("usuarios","select=loc_modo,last_loc_at&id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId);
+    var u0 = rows && rows[0];
+    var s = _rvParse(u0 && u0.loc_modo);
     if(s && s.activa && !_rvSoyViewer){
       _rvHasta=s.hasta; _rvPrev=s.prev;
-      _rvTransmitirOn();
+      if(!_rvSesionVistaEn) _rvSesionVistaEn = Date.now();
+      // ¿El servicio nativo está mandando DE VERDAD? Miramos el último punto que
+      // llegó a la base: si tiene más de 25 s (y ya le dimos 25 s de changüí al
+      // nativo para engancharse), algo lo frenó — el JS sale a transmitir de
+      // respaldo y de paso intenta revivir al nativo re-inyectándole la config.
+      var vieja = true;
+      try{ vieja = !u0.last_loc_at || (Date.now() - new Date(u0.last_loc_at).getTime()) > 25000; }catch(e3){}
+      var sinSenal = vieja && (Date.now() - _rvSesionVistaEn > 25000);
+      if(sinSenal && typeof _bgGeoDisponible==="function" && _bgGeoDisponible()
+         && (Date.now() - _rvNativaRevividaEn > 60000)){
+        _rvNativaRevividaEn = Date.now();
+        try{ _bgWatcherId = null; _bgGeoIniciar(); }catch(e4){}
+      }
+      _rvTransmitirOn(sinSenal);
     } else {
       if(s && !s.activa){
         // La sesión venció y nadie la cerró: este celular restaura el modo anterior
         try{ await sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId,{loc_modo:s.prev}); }catch(e2){}
       }
+      _rvSesionVistaEn = 0;
       _rvTransmitirOff();
     }
   }catch(e){ /* sin red: se reintenta en el próximo tick */ }
 }
 
-function _rvTransmitirOn(){
-  if(_rvWatchId!=null) return;   // ya está transmitiendo
+function _rvTransmitirOn(forzar){
+  if(_rvWatchId!=null) return;   // ya está transmitiendo (y sigue hasta que la sesión termine)
   // En la app instalada con el servicio nativo corriendo, el rastreo fino lo
   // hace Java: detecta la sesión solo (consulta el modo cada 15 s) y transmite
-  // cada 3 s INCLUSO con la pantalla bloqueada. El JS no duplica los envíos.
-  if(typeof _bgGeoDisponible==="function" && _bgGeoDisponible() && _bgWatcherId) return;
+  // cada 3 s INCLUSO con la pantalla bloqueada. El JS no duplica los envíos…
+  // SALVO que la base muestre que el nativo no está mandando (forzar=true):
+  // ahí el JS transmite igual, de respaldo, antes que dejar el puntito trabado.
+  if(!forzar && typeof _bgGeoDisponible==="function" && _bgGeoDisponible() && _bgWatcherId) return;
   if(!navigator.geolocation) return;
   _rvWatchId = navigator.geolocation.watchPosition(function(pos){
     var ahora = Date.now();
@@ -9676,11 +9776,23 @@ function _bgGeoDisponible(){
     && window.Capacitor.Plugins && window.Capacitor.Plugins.LocTracker);
 }
 
+var _bgGeoUltimoStart = 0;
+var _bgGeoUltimoTk    = "";   // último token de empresa que le pasamos al servicio nativo
 async function _bgGeoIniciar(){
   if(typeof _rastreoHabilitado==="function" && !_rastreoHabilitado()) return false;  // solo empresas habilitadas
   if(!_bgGeoDisponible()) return false;           // solo en app nativa con el plugin LocTracker
   if(_locModo === "off") return false;             // el usuario lo tiene apagado
-  if(_bgWatcherId) return true;                    // ya está corriendo
+  // OJO: aunque figure como "ya corriendo", cada vez que la app vuelve al frente
+  // le RE-INYECTAMOS la configuración al servicio nativo (URL, empresa, usuario,
+  // token). Si Android lo mató y lo revivió sin config (servicio zombi), esto lo
+  // cura al instante. Con un tope de 1 vez por minuto para no gastar red al pedo.
+  // El tope de 1/min NO aplica si cambió el token de empresa: ese token es el que
+  // le permite al servicio nativo LEER la base (RLS), y vence cada tanto. Apenas
+  // el panel consigue uno nuevo (login, renovación), se lo pasamos al toque —
+  // si no, el servicio se queda ciego hasta el próximo minuto y, peor, si la app
+  // no se abre, hasta que alguien la abra.
+  var _tkAhora = _empToken || "";
+  if(_bgWatcherId && _tkAhora === _bgGeoUltimoTk && (Date.now() - _bgGeoUltimoStart) < 60000) return true;
   if(!currentUser || !currentUser._sbId || !_sbEmpId) return false;
   try {
     var uid = currentUser.uid || currentUser.id;
@@ -9695,11 +9807,30 @@ async function _bgGeoIniciar(){
       anonKey:   SB_KEY,
       empresaId: String(_sbEmpId),
       uid:       String(uid),
+      // El id de la FILA en usuarios. El panel siempre consulta por acá, así que
+      // el servicio nativo hace lo mismo y los dos leen exactamente el mismo
+      // renglón. (Antes el nativo filtraba solo por "uid": si esa columna estaba
+      // vacía o distinta, no encontraba nada y creía que el modo era "momentos",
+      // o sea se quedaba en espera para siempre sin avisar.)
+      sbId:      String(currentUser._sbId),
+      // Solo para mostrarlo en la notificación del celular: así, mirando el
+      // teléfono, se sabe de QUIÉN es la sesión que está reflejando.
+      nombre:    String(currentUser.name || currentUser.nombre || ""),
+      // ESTO es lo que faltaba desde el día uno. La tabla usuarios tiene RLS y
+      // solo deja leer si viaja el header "x-empresa-token". El panel lo manda
+      // siempre (mirá _sbHeaders / sbFetch), pero el servicio nativo NO lo tenía:
+      // consultaba con la anon key pelada, la base le devolvía CERO filas y el
+      // servicio creía que no había ninguna sesión de rastreo pedida. Por eso con
+      // la pantalla apagada nunca transmitía: no era el GPS ni la batería, era
+      // que nunca llegaba a enterarse de que tenía que transmitir.
+      empToken:  String(_empToken || ""),
       token:     String(token),
       horaIni:   (empresaData && empresaData.loc_hora_ini) || "",
       horaFin:   (empresaData && empresaData.loc_hora_fin) || ""
     });
     _bgWatcherId = "nativo";   // marca de "servicio activo"
+    _bgGeoUltimoStart = Date.now();
+    _bgGeoUltimoTk    = _tkAhora;
     return true;
   } catch(e){ console.warn("[nat-geo] no se pudo iniciar:", e); return false; }
 }
@@ -10665,6 +10796,59 @@ function _sinStock(id){
   // Sin ficha de inventario → no cuenta como agotado (se ve y se puede pedir, con aviso)
   if(_stkSinFicha(id)) return false;
   return _stkDisponible(id) <= 0;
+}
+// Cantidad total de un producto dentro de un pedido. Suma lineas por unidad,
+// caja y cualquier otra presentacion que comparta el mismo codigo.
+function _stkCantEnItems(items, id){
+  return (items||[]).reduce(function(s,it){
+    return String(it && it.id)===String(id) ? s+(+(it.c||0)) : s;
+  },0);
+}
+// Valida una cantidad contra el stock fisico disponible. Al editar un pedido,
+// creditoItems contiene la foto original: esas unidades ya fueron descontadas
+// y pueden reutilizarse sin contarlas como una venta nueva.
+function _stkPuedeCantidad(id, cantidadNueva, nombre, creditoItems, avisar){
+  if(!_ctrlStockOn()) return true;
+  if(!stockData || Object.keys(stockData).length===0){
+    if(avisar!==false) showNotif("⏳ Cargando stock. Intentá nuevamente en un momento.","info");
+    try{ _asegurarStockParaPedido(); }catch(e){}
+    return false;
+  }
+  if(_stkSinFicha(id)){
+    if(avisar!==false) _avisarSinFicha(id,nombre);
+    return true;
+  }
+  var credito = _stkCantEnItems(creditoItems,id);
+  var disponible = _stkDisponible(id) + credito;
+  if(cantidadNueva <= disponible + 0.000001) return true;
+  if(avisar!==false){
+    var dispTxt = Math.max(0,disponible);
+    showNotif("🚫 Stock insuficiente de "+(nombre||id)+". Disponible: "+dispTxt,"err");
+  }
+  return false;
+}
+function _stkValidarPedido(items, creditoItems, avisar){
+  if(!_ctrlStockOn()) return {ok:true, faltantes:[]};
+  if(!stockData || Object.keys(stockData).length===0){
+    if(avisar!==false) showNotif("🚫 No se pudo comprobar el stock. Actualizá e intentá de nuevo.","err");
+    return {ok:false, faltantes:[]};
+  }
+  var ids={}, faltantes=[];
+  (items||[]).forEach(function(it){ if(it && it.id!=null) ids[String(it.id)]=it.n||String(it.id); });
+  Object.keys(ids).forEach(function(id){
+    var pedido=_stkCantEnItems(items,id);
+    var credito=_stkCantEnItems(creditoItems,id);
+    if(_stkSinFicha(id)) return;
+    var disponible=_stkDisponible(id)+credito;
+    if(pedido > disponible + 0.000001){
+      faltantes.push({id:id,n:ids[id],pedido:pedido,disponible:Math.max(0,disponible)});
+    }
+  });
+  if(faltantes.length && avisar!==false){
+    var detalle=faltantes.slice(0,3).map(function(f){return f.n+" (pedís "+f.pedido+", hay "+f.disponible+")";}).join(", ");
+    showNotif("🚫 No se puede guardar: stock insuficiente. "+detalle,"err");
+  }
+  return {ok:!faltantes.length,faltantes:faltantes};
 }
 async function guardarControlStock(){
   var cb = document.getElementById("de-control-stock");
@@ -11830,6 +12014,16 @@ function _esJefeVentas(){ return !_tengoRol("admin") && _tengoRol("jefe-ventas")
 function _veComisiones(){ return !(_esJefeVentas() && !_esCoAdmin()); }
 // Zonas en solo lectura: el jefe de ventas mira, no dibuja ni borra.
 function _zonasSoloVer(){ return _esJefeVentas() && !_esCoAdmin(); }
+/* ¿Este usuario puede cargar pedidos (o sea, se le pueden acreditar ventas)?
+   Además del vendedor de siempre, ahora el co-admin y el jefe de ventas
+   también venden, así que aparecen en los selectores de "vendedor". */
+function _esUsuarioVendedor(u){
+  if(!u) return false;
+  var r = u.role || "";
+  if(r === "vendedor" || r === "co-admin" || r === "jefe-ventas") return true;
+  var arr = _normalizarRoles(u.roles);
+  return arr.indexOf("vendedor")!==-1 || arr.indexOf("co-admin")!==-1 || arr.indexOf("jefe-ventas")!==-1;
+}
 
 function aplicarRol(){
   var role = currentUser.role || "vendedor";
@@ -11861,8 +12055,11 @@ function aplicarRol(){
       if (isVendedor   && (id === "nav-pedido" || id === "nav-mis-ventas" || id === "nav-clientes" || id === "nav-backup" || id === "nav-mis-clientes" || id === "nav-catalogo-vivo" || id === "nav-mi-dia")) show = true;
       if (isRepartidor && (id === "nav-inicio-rep" || id === "nav-hoja" || id === "nav-mapa-entregas")) show = true;
       if (isArmador    && (id === "nav-inicio-arm" || id === "nav-backup")) show = true;
-      if (isCoAdmin    && (id === "nav-finanzas" || id === "nav-vendedores" || id === "nav-clientes" || id === "nav-auditoria" || id === "nav-rutas-venta")) show = true;
-      if (isJefeVentas && (id === "nav-vendedores" || id === "nav-rutas-venta")) show = true;
+      // Co-Admin y Jefe de ventas: además de lo suyo, el paquete de ventas completo
+      if (isCoAdmin    && (id === "nav-finanzas" || id === "nav-vendedores" || id === "nav-clientes" || id === "nav-auditoria" || id === "nav-rutas-venta" ||
+                           id === "nav-pedido" || id === "nav-catalogo-vivo" || id === "nav-backup" || id === "nav-mis-ventas" || id === "nav-mi-dia" || id === "nav-mis-clientes")) show = true;
+      if (isJefeVentas && (id === "nav-vendedores" || id === "nav-rutas-venta" || id === "nav-clientes" ||
+                           id === "nav-pedido" || id === "nav-catalogo-vivo" || id === "nav-backup" || id === "nav-mis-ventas" || id === "nav-mi-dia" || id === "nav-mis-clientes")) show = true;
       // Si no tiene ningún rol reconocido, ve al menos Pedido
       if (!isVendedor && !isRepartidor && !isArmador && !isCoAdmin && !isJefeVentas && id === "nav-pedido") show = true;
     }
@@ -11991,6 +12188,11 @@ function _buildBottomNav(role){
       {id:"backup", ico:"💾", lbl:"Backup"}
     ],
     "co-admin": [
+      {id:"mi-dia",     ico:"🗓️", lbl:"Mi día"},
+      {id:"pedido",     ico:"📝", lbl:"Pedido"},
+      {id:"catalogo-vivo",ico:"📖", lbl:"Catálogo vivo"},
+      {id:"backup",     ico:"💾", lbl:"Backup"},
+      {id:"mis-ventas", ico:"💼", lbl:"Ventas"},
       {id:"finanzas",   ico:"💰", lbl:"Finanzas"},
       {id:"vendedores", ico:"🏆", lbl:"Vendedores"},
       {id:"clientes",   ico:"👥", lbl:"Clientes"},
@@ -11998,6 +12200,12 @@ function _buildBottomNav(role){
       {id:"rutas-venta",ico:"🗓️", lbl:"Rutas"}
     ],
     "jefe-ventas": [
+      {id:"mi-dia",     ico:"🗓️", lbl:"Mi día"},
+      {id:"pedido",     ico:"📝", lbl:"Pedido"},
+      {id:"catalogo-vivo",ico:"📖", lbl:"Catálogo vivo"},
+      {id:"backup",     ico:"💾", lbl:"Backup"},
+      {id:"mis-ventas", ico:"💼", lbl:"Ventas"},
+      {id:"clientes",   ico:"👥", lbl:"Clientes"},
       {id:"vendedores", ico:"🏆", lbl:"Vendedores"},
       {id:"rutas-venta",ico:"🗓️", lbl:"Rutas"}
     ]
@@ -12597,8 +12805,10 @@ function verTab(id,btn){
     if(isVendedor){ ["pedido","mis-ventas","clientes","backup","mis-clientes","mi-dia"].forEach(function(s){_permitidas[s]=1;}); }
     if(isRepartidor){ ["inicio-rep","hoja","mapa-entregas"].forEach(function(s){_permitidas[s]=1;}); }
     if(isArmador){ ["inicio-arm","backup"].forEach(function(s){_permitidas[s]=1;}); }
-    if(_tieneRol("co-admin")){ ["finanzas","vendedores","clientes","auditoria","rutas-venta"].forEach(function(s){_permitidas[s]=1;}); }
-    if(_tieneRol("jefe-ventas")){ _permitidas["vendedores"]=1; _permitidas["rutas-venta"]=1; }
+    // Co-Admin y Jefe de ventas también pueden VENDER: se les suma el paquete
+    // completo del vendedor (pedido, catálogo vivo, backup, mis ventas, mi día).
+    if(_tieneRol("co-admin")){ ["finanzas","vendedores","clientes","auditoria","rutas-venta","pedido","catalogo-vivo","backup","mis-ventas","mi-dia","mis-clientes"].forEach(function(s){_permitidas[s]=1;}); }
+    if(_tieneRol("jefe-ventas")){ ["vendedores","rutas-venta","pedido","catalogo-vivo","backup","mis-ventas","mi-dia","clientes","mis-clientes"].forEach(function(s){_permitidas[s]=1;}); }
     // Secciones solo-admin: nunca permitidas para no-admin,
     // salvo que un rol de arriba las habilite expresamente (co-admin, jefe de ventas)
     var _soloAdmin = {vendedores:1, "datos-empresa":1, dashboard:1, auditoria:1};
@@ -13316,7 +13526,9 @@ function _agregarFrecuente(btn){
   var _tieneOf = _ofp && _ofp<pre;
   var _preEf = _tieneOf ? _ofp : pre;
   var exist = ordenes["ped"].find(function(x){ return x.id===prod.id && x.p===_preEf; });
-  var minU = prod.minCompra || 1;
+  var minU = _minCompraPedidoProd(prod);
+  var cantNueva = _stkCantEnItems(ordenes["ped"],prod.id) + (exist ? 1 : minU);
+  if(!_stkPuedeCantidad(prod.id,cantNueva,prod.n,null,true)) return;
   if(exist){ exist.c += 1; exist.sub = exist.p*exist.c; }
   else {
     var _it = { id:prod.id, n:prod.n, p:_preEf, c:minU, sub:_preEf*minU };   // arranca en el mínimo de compra
@@ -13618,9 +13830,9 @@ function filtrar(t){
         box.innerHTML="";
         var cantInp=document.getElementById("cant-"+t);
         if(cantInp){
-          var _mc = _modoCaja[t] ? 1 : Math.max(itemSel[t].minCompra||1, itemSel[t].cantDefault||1);
+          var _mc = _modoCaja[t] ? 1 : _cantInicialPedidoProd(itemSel[t]);
           cantInp.value = _mc;
-          cantInp.min = _modoCaja[t] ? 1 : (itemSel[t].minCompra||1);
+          cantInp.min = _modoCaja[t] ? 1 : _minCompraPedidoProd(itemSel[t]);
           cantInp.focus(); cantInp.select();
         }
         // El precio promo ahora se aplica automáticamente en agregar() según la cantidad,
@@ -13712,8 +13924,8 @@ function _setModoCaja(t, on){
   _modoCaja[t]=!!on; _renderCajaToggle(t);
   var p=itemSel[t], ci=document.getElementById("cant-"+t);
   if(p && ci){
-    var mc = on ? 1 : Math.max(p.minCompra||1, p.cantDefault||1);
-    ci.value = mc; ci.min = on ? 1 : (p.minCompra||1);
+    var mc = on ? 1 : _cantInicialPedidoProd(p);
+    ci.value = mc; ci.min = on ? 1 : _minCompraPedidoProd(p);
   }
 }
 
@@ -14628,7 +14840,8 @@ function _pgRender(){
         (qtyFam>0?'<div class="pg-fam-badge">'+qtyFam+'</div>':'')+
         '<div class="pg-fam-tag">🗂️ '+prods.length+' opciones</div>'+
         foto+
-        '<div class="pg-info"><div class="pg-nom">'+escHtml(titulo)+'</div><div class="pg-price">desde $'+fM(minP)+'</div></div>'+
+        '<div class="pg-info"><div class="pg-nom">'+escHtml(titulo)+'</div><div class="pg-price">desde $'+fM(minP)+'</div>'+
+          ((port&&port.minCompra>1)?'<div style="font-size:10px;color:var(--accent);font-weight:800;margin-top:2px">Mínimo combinado: '+port.minCompra+' u.</div>':'')+'</div>'+
         '<button class="pg-add pg-add-fam">Elegir variedad ›</button>'+
       '</div>';
     }
@@ -14717,6 +14930,7 @@ function _pgAbrirFamilia(fam){
   prods.sort(function(a,b){ return (a.n||"").localeCompare(b.n||""); });
   var port = (typeof _portadaDe==="function") ? _portadaDe(fam) : null;
   var tituloFam = (port && port.titulo) ? port.titulo : fam;
+  var minFam=Math.max(1,parseInt(port&&port.minCompra,10)||1);
   var rows=prods.map(function(p){
     var pre=_precioDe(p,lista);
     var qty=_pgQtyDe(p.id);
@@ -14727,7 +14941,8 @@ function _pgAbrirFamilia(fam){
       '<div class="pgv-step" id="pgv-step-'+p.id+'">'+_pgvStepHtml(p,qty)+'</div>'+
     '</div>';
   }).join("");
-  var body='<div style="font-size:11.5px;color:var(--muted);padding:0 2px 10px">Cargá la cantidad de cada opción. Se van sumando al pedido al instante.</div>'+
+  var minHtml=minFam>1?'<div id="pgv-min-fam" style="background:var(--accent-bg);border:1px solid var(--accent);color:var(--text);border-radius:10px;padding:9px 11px;margin-bottom:10px;font-size:12px;font-weight:700">Mínimo combinado: '+minFam+' unidades entre todas las variedades.</div>':'';
+  var body=minHtml+'<div style="font-size:11.5px;color:var(--muted);padding:0 2px 10px">Cargá la cantidad de cada opción. Se van sumando al pedido al instante.</div>'+
     '<div class="pgv-list">'+rows+'</div>'+
     '<button class="famv-save" onclick="cerrarFamOverlay()" style="margin-top:6px">✓ Listo</button>';
   _openFamOverlay("🗂️ "+tituloFam, body);
@@ -14765,6 +14980,8 @@ function _pgPesoPrompt(id, e){
   var kg = g/1000;
   ordenes['ped'] = ordenes['ped']||[];
   var idx = ordenes['ped'].findIndex(function(x){return x.id===p.id;});
+  var cantOtros = _stkCantEnItems(ordenes['ped'],p.id) - (idx>=0 ? +(ordenes['ped'][idx].c||0) : 0);
+  if(g>0 && !_stkPuedeCantidad(p.id,cantOtros+kg,p.n,null,true)) return;
   if(g<=0){
     if(idx>=0) ordenes['ped'].splice(idx,1);
   } else {
@@ -14787,7 +15004,7 @@ function _pgSetCant(id, val, e){
 
   var esCaja=(_pgModoDe(p)==="caja") && _puedeCajaP(p);
   var ub=p.unidadesBulto||1;
-  var minU=p.minCompra||1;
+  var minU=_minCompraPedidoProd(p);
   function _linea(){
     return esCaja ? _pgLinea(id,true)
                   : (ordenes['ped']||[]).find(function(x){return x.id===p.id && !x._esCaja;});
@@ -14807,8 +15024,13 @@ function _pgSetCant(id, val, e){
   }
 
   var l=_linea();
+  var nuevaLinea = esCaja ? n*ub : n;
+  var cantOtras = _stkCantEnItems(ordenes['ped'],id) - (l ? +(l.c||0) : 0);
+  if(!_stkPuedeCantidad(id,cantOtras+nuevaLinea,p.n,null,true)){
+    _pgRender();
+    return;
+  }
   if(!l){
-    if(_sinStock(id)){ showNotif("🚫 "+(p.n||"Este producto")+" no tiene stock","err"); return; }
     _pgDelta(id, 1, null);      // crea la línea con su precio/oferta
     l=_linea();
     if(!l) return;
@@ -14834,15 +15056,13 @@ function _pgDelta(id, d, e){
   if(e) e.stopPropagation();
   var p=(dbStock||[]).find(function(x){return x.id===id;});
   if(!p) return;
-  // Control de stock: no dejar agregar si no hay stock
-  if(d>0 && _sinStock(id)){ showNotif("🚫 "+(p.n||"Este producto")+" no tiene stock","err"); return; }
-  // Sin ficha de inventario: NO se bloquea (puede entrar mercadería), solo se avisa
-  if(d>0) _avisarSinFicha(id, p.n);
   var lista=tipoLista['ped']||"Clientes";
   var preNormal=_precioDe(p,lista);
   var ofPre = _ofPrecioLista(p, lista); // precio de oferta si vigente
   var tieneOf = ofPre && ofPre<preNormal;
   var esCaja = (_pgModoDe(p)==="caja") && _puedeCajaP(p);
+  var _pasoStock = esCaja ? (p.unidadesBulto||1) : ((ordenes['ped']||[]).some(function(x){return x.id===p.id&&!x._esCaja;}) ? 1 : _minCompraPedidoProd(p));
+  if(d>0 && !_stkPuedeCantidad(id,_stkCantEnItems(ordenes['ped'],id)+_pasoStock,p.n,null,true)) return;
   if(esCaja){
     // Línea de CAJA: se guarda en unidades totales, con nombre "(caja xN)" y precio unitario de la caja
     var ub=p.unidadesBulto||1;
@@ -14862,7 +15082,7 @@ function _pgDelta(id, d, e){
     return;
   }
   // Consolidar por producto (id) SIN mezclar con líneas de caja
-  var minU=p.minCompra||1;
+  var minU=_minCompraPedidoProd(p);
   var exist=(ordenes['ped']||[]).find(function(x){return x.id===p.id && !x._esCaja;});
   if(d>0){
     if(exist){ exist.c+=1; }
@@ -14896,6 +15116,35 @@ function _cartCalc(){
   return {subBase:subBase, subItemDsc:subItemDsc, montoDsc:montoDsc, total:total, dg:dg};
 }
 
+function _famMinValidarPedido(items,avisar){
+  var totales={};
+  (items||[]).forEach(function(it){
+    var p=(dbStock||[]).find(function(x){return String(x.id)===String(it.id);});
+    if(!p||!p.familia) return;
+    totales[p.familia]=(totales[p.familia]||0)+Math.max(0,+(it.c||it.cant||it.cantidad||0));
+  });
+  var faltantes=[];
+  Object.keys(totales).forEach(function(fam){
+    var port=(typeof _portadaDe==="function")?_portadaDe(fam):null;
+    var min=Math.max(1,parseInt(port&&port.minCompra,10)||1);
+    var cant=totales[fam]||0;
+    if(cant>0&&cant<min) faltantes.push({familia:fam,cantidad:cant,minimo:min,faltan:min-cant});
+  });
+  if(avisar&&faltantes.length&&typeof showNotif==="function"){
+    var f=faltantes[0];
+    showNotif("La familia "+f.familia+" pide mínimo "+f.minimo+" unidades combinadas. Faltan "+f.faltan+".","warn");
+  }
+  return {ok:!faltantes.length,faltantes:faltantes};
+}
+function _famMinAvisoCarrito(){
+  var r=_famMinValidarPedido(ordenes['ped']||[],false);
+  if(r.ok) return "";
+  return '<div style="margin-bottom:12px;padding:10px 11px;border:1px solid #f59e0b;background:#fffbeb;color:#92400e;border-radius:10px;font-size:12px;line-height:1.4">'+
+    '<b>⚠️ Falta completar mínimos por familia</b>'+
+    r.faltantes.map(function(f){return '<div style="margin-top:3px">'+escHtml(f.familia)+': llevás '+f.cantidad+' de '+f.minimo+' (faltan '+f.faltan+')</div>';}).join("")+
+  '</div>';
+}
+
 // ── OFERTAS EN EL PEDIDO ──────────────────────────────────────────
 // Estado: si el vendedor activó las ofertas para este pedido
 var _ofertasAplicadas = false;
@@ -14910,10 +15159,42 @@ function _pedTotalConOfertas(aplicar){
     return s + precio*i.c;
   },0);
 }
-// Confirmar pedido: la oferta ya viene aplicada por item (el vendedor pudo cancelarla en el carrito)
-function _confirmarPedido(){
-  _cerrarCartModal();
-  generarPDF('pedido');
+// Confirmar pedido: refresca Supabase y vuelve a validar todo el carrito.
+// Esta segunda barrera evita confirmar una cantidad que otro vendedor consumio
+// mientras el pedido estaba abierto.
+var _confirmandoPedidoStock=false;
+async function _confirmarPedido(){
+  if(_confirmandoPedidoStock) return;
+  _confirmandoPedidoStock=true;
+  try{
+    var famOk=_famMinValidarPedido(ordenes['ped']||[],true);
+    if(!famOk.ok){
+      _abrirCartModal();
+      return;
+    }
+    if(_ctrlStockOn()){
+      if(!navigator.onLine){
+        showNotif("🚫 Necesitás conexión para comprobar el stock antes de confirmar.","err");
+        return;
+      }
+      try{
+        var fresco=await _sbGetStockFull();
+        if(fresco) stockData=fresco;
+      }catch(e){
+        showNotif("🚫 No se pudo actualizar el stock. Intentá nuevamente.","err");
+        return;
+      }
+      if(!_stkValidarPedido(ordenes['ped'],null,true).ok){
+        if(typeof _pgRender==="function") _pgRender();
+        if(typeof _renderCartModal==="function") _renderCartModal();
+        return;
+      }
+    }
+    _cerrarCartModal();
+    generarPDF('pedido');
+  }finally{
+    _confirmandoPedidoStock=false;
+  }
 }
 // Modal que muestra total con/sin ofertas y deja elegir
 function _abrirModalOfertas(){
@@ -15039,12 +15320,13 @@ function _renderCartModal(){
       '</div>'+
     '</div>'+
     _cartObsHTML()+
+    _famMinAvisoCarrito()+
     '<div class="cart-totals">'+
       '<div class="cart-line"><span>Subtotal</span><span>$'+fM(c.subItemDsc)+'</span></div>'+
       dscRow+
       '<div class="cart-line cart-total"><span>Total</span><b>$'+fM(c.total)+'</b></div>'+
     '</div>'+
-    '<button class="cart-confirm" onclick="_confirmarPedido()">Confirmar pedido →</button>';
+    '<button class="cart-confirm" onclick="_confirmarPedido()">Enviar pedido definitivo →</button>';
 }
 /* ── Observación del pedido, adentro del carrito ─────────────────────────
    No duplica el dato: escribe SIEMPRE sobre el textarea #obs-ped de abajo,
@@ -15204,6 +15486,7 @@ function _cartQuitarItemDsc(i){
 function _cartDelta(i,d){
   var it=ordenes['ped'][i];
   if(!it) return;
+  if(d>0 && !_stkPuedeCantidad(it.id,_stkCantEnItems(ordenes['ped'],it.id)+d,it.n,null,true)) return;
   it.c+=d;
   if(it.c<=0){ ordenes['ped'].splice(i,1); if(_cartDscOpen===i) _cartDscOpen=-1; }
   else {
@@ -15238,6 +15521,7 @@ async function agregar(t){
     var _cantUc=cant*_ubc;
     var _nomc=(_pc.n||"")+" ("+(_pc.unidadBulto||"caja")+" x"+_ubc+")";
     var _existC=ordenes[t].find(function(x){return x.id===_pc.id && x._esCaja;});
+    if(t==="ped" && !_stkPuedeCantidad(_pc.id,_stkCantEnItems(ordenes[t],_pc.id)+_cantUc,_pc.n,null,true)) return;
     if(_existC){ _existC.c+=_cantUc; _existC.sub=_existC.p*_existC.c; }
     else { ordenes[t].push({id:_pc.id, n:_nomc, p:_preUc, c:_cantUc, sub:_preUc*_cantUc, _esCaja:true, _ub:_ubc}); }
     renderItems(t);
@@ -15263,8 +15547,12 @@ async function agregar(t){
   var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id && !x._esCaja;});
   var cantTotal=cant + (exist?exist.c:0);
   // Respetar la cantidad mínima del producto (modo unidad)
-  var _minU = itemSel[t].minCompra||1;
+  var _minU = _minCompraPedidoProd(itemSel[t]);
   if(cantTotal < _minU){ cant = _minU - (exist?exist.c:0); cantTotal = _minU; showNotif("Mínimo "+_minU+" u. para \""+(itemSel[t].n||"")+"\" — se ajustó","err"); }
+  if(t==="ped"){
+    var _cantOtrasStock=_stkCantEnItems(ordenes[t],itemSel[t].id)-(exist?+(exist.c||0):0);
+    if(!_stkPuedeCantidad(itemSel[t].id,_cantOtrasStock+cantTotal,itemSel[t].n,null,true)) return;
+  }
   // Promo por cantidad: si no hay oferta, hay promo y la cantidad TOTAL alcanza el mínimo,
   // preguntar si aplicar el precio promo (la oferta tiene prioridad).
   var usarPromo=false;
@@ -15450,10 +15738,18 @@ function editarCantItem(inp){
   var val=parseFloat(inp.value);
   if(isNaN(val)||val<=0){ inp.style.borderColor="var(--red)"; return; }
   var it=ordenes[t][i]; if(!it) return;
+  if(t==="ped"){
+    var otrasStock=_stkCantEnItems(ordenes[t],it.id)-+(it.c||0);
+    if(!_stkPuedeCantidad(it.id,otrasStock+val,it.n,null,true)){
+      inp.value=it.c;
+      inp.style.borderColor="var(--red)";
+      return;
+    }
+  }
   // Respetar el mínimo de compra del producto (no para líneas de caja, que van por bulto)
   if(!it._esCaja){
     var prod=(dbStock||[]).find(function(p){return String(p.id)===String(it.id);});
-    var minU=(prod&&prod.minCompra)?prod.minCompra:1;
+    var minU=_minCompraPedidoProd(prod);
     if(val<minU){
       inp.style.borderColor="var(--red)";
       inp.title="Mínimo de compra: "+minU;
@@ -15508,6 +15804,14 @@ function editarPesoItem(inp){
     return;
   }
   var kg=g/1000;
+  if(t==="ped"){
+    var otrasPeso=_stkCantEnItems(ordenes[t],it.id)-+(it.c||0);
+    if(!_stkPuedeCantidad(it.id,otrasPeso+kg,it.n,null,true)){
+      inp.value=Math.round((it.c||0)*1000);
+      inp.style.borderColor="var(--red)";
+      return;
+    }
+  }
   it.c=kg; it.gramos=g; it.esPeso=true;
   it.sub=Math.round(it.p*kg*100)/100;
   if(it.disc&&it.disc.valor>0){
@@ -16974,6 +17278,84 @@ function guardarUmbral(pid){
     .catch(function(e){ renderStock(); showNotif("No se pudo guardar el umbral: "+((e&&e.message)||""),"err"); });
 }
 
+/* ══════════ DEL MOVIMIENTO DE STOCK AL PEDIDO QUE LO GENERÓ ══════════
+   La columna `ref` de stock_movimientos guarda el id del pedido, a veces
+   con un prefijo o un sufijo según de dónde salió el movimiento:
+     <uuid>                → pedido normal (salida al enviarse)
+     borrado-<id>          → el pedido se borró y volvió el stock
+     rechazo-<id>          → el admin lo rechazó
+     reaprob-<id>-<ts>     → lo volvió a aprobar
+     <uuid>-s / <uuid>-v   → se editó el pedido desde la hoja de ruta
+     rech-<ruta>-<cli>     → rechazo en el reparto (NO es un pedido)
+     nc-…                  → nota de crédito (NO es un pedido)
+   Devuelve {id, etiqueta} o null si esa ref no apunta a un pedido. */
+function _stkRefAPedido(ref){
+  var r = String(ref==null?"":ref).trim();
+  if(!r) return null;
+  var et = "Ver pedido";
+  if(r.indexOf("rech-")===0) return null;   // rechazo de reparto
+  if(r.indexOf("nc-")===0)   return null;   // nota de crédito
+  if(r.indexOf("borrado-")===0){ r = r.slice(8); et = "Ver pedido borrado"; }
+  else if(r.indexOf("rechazo-")===0){ r = r.slice(8); et = "Ver pedido rechazado"; }
+  else if(r.indexOf("reaprob-")===0){ r = r.slice(8); }
+  // Sufijos que agrega el sistema
+  r = r.replace(/-undo-\d{10,}$/, "");
+  r = r.replace(/-\d{10,}$/, "");
+  r = r.replace(/-(s|v)$/, "");
+  r = r.trim();
+  if(!r || r.length < 4) return null;
+  return { id:r, etiqueta:et };
+}
+
+/* Busca el pedido en la lista local por cualquiera de sus ids */
+function _stkBuscarPedido(id){
+  var lista = [];
+  try { lista = (typeof getBackups==="function") ? (getBackups()||[]) : []; } catch(e){ lista = []; }
+  for(var i=0;i<lista.length;i++){
+    var b = lista[i]; if(!b) continue;
+    if(String(b.id)===id || String(b._sbId||"")===id || String(b._fbKey||"")===id) return b;
+  }
+  return null;
+}
+
+/* Movimientos que está mostrando el modal de historial (para los botones) */
+var _stkHistMovs = [];
+
+function _stkIrAPedidoIdx(i){
+  var m = _stkHistMovs[i];
+  if(!m){ showNotif("No se encontró el movimiento","err"); return; }
+  var info = _stkRefAPedido(m.ref);
+  if(!info){ showNotif("Este movimiento no viene de un pedido","err"); return; }
+  var bk = _stkBuscarPedido(info.id);
+  if(!bk){
+    showNotif("Ese pedido ya no está en la lista (se borró o es muy viejo)","err");
+    return;
+  }
+  try { cerrarModal("modal-stk-hist"); } catch(e){}
+  // Dejarlo abierto y sin filtros que lo puedan esconder
+  backupAbierto = bk.id;
+  _bkTab = "todos";
+  try { document.querySelectorAll(".bk-tab").forEach(function(b){ b.classList.remove("active"); }); }catch(e){}
+  try {
+    var _t0 = document.querySelector('.bk-tab[onclick*="todos"]');
+    if(_t0) _t0.classList.add("active");
+  } catch(e){}
+  var _inp = document.getElementById("bk-search"); if(_inp) _inp.value = "";
+  try { verTab("backup", document.getElementById("nav-backup")); } catch(e){}
+  setTimeout(function(){
+    try { renderBackup(); } catch(e){}
+    setTimeout(function(){
+      var card = document.getElementById("bk-card-"+bk.id);
+      if(card){
+        if(card.scrollIntoView) card.scrollIntoView({behavior:"smooth", block:"center"});
+        card.style.transition = "box-shadow .35s";
+        card.style.boxShadow  = "0 0 0 3px var(--accent)";
+        setTimeout(function(){ card.style.boxShadow=""; }, 2400);
+      }
+    }, 260);
+  }, 120);
+}
+
 async function abrirHistorialStock(pid, nom){
   var titulo   = document.getElementById("stk-hist-titulo");
   var subtit   = document.getElementById("stk-hist-subtitulo");
@@ -16985,6 +17367,7 @@ async function abrirHistorialStock(pid, nom){
   abrirModal("modal-stk-hist");
 
   var movs = await _stkGetMovimientos(pid);
+  _stkHistMovs = movs || [];
   if(!movs.length){
     body.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">Sin movimientos registrados aún.<br><span style="font-size:11.5px">Los movimientos se empiezan a guardar desde ahora.</span></div>';
     return;
@@ -17030,10 +17413,18 @@ async function abrirHistorialStock(pid, nom){
     var _tipos = {reserva:["🔒 Reserva","#b45309","#fffbeb"], salida:["📤 Salida","#b91c1c","#fdecec"], liberacion:["🔓 Liberada","#0f8a4a","#e8f7ef"], devolucion:["↩️ Devolución","#0f8a4a","#e8f7ef"], ajuste:["✏️ Ajuste","#64748b","#f1f5f9"]};
     var _tp = _tipos[m.tipo] || null;
     var _tag = _tp ? '<span style="display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:8px;color:'+_tp[1]+';background:'+_tp[2]+';margin-bottom:3px">'+_tp[0]+'</span> ' : "";
+    // Botón para saltar al pedido que generó este movimiento (si lo hay)
+    var _pedInfo = _stkRefAPedido(m.ref);
+    var _btnPed = _pedInfo
+      ? '<div style="margin-top:5px"><button onclick="_stkIrAPedidoIdx('+i+')" title="Abrir el pedido en Backup Pedidos" '+
+        'style="font-size:10.5px;font-weight:700;background:var(--s2);color:var(--accent);border:1px solid var(--border);'+
+        'border-radius:7px;padding:3px 9px;cursor:pointer;font-family:inherit">🧾 '+_pedInfo.etiqueta+' →</button></div>'
+      : '';
     html += '<td style="padding:8px 14px;line-height:1.4">'+
               _tag+
               '<div style="color:var(--text2);font-size:12px">'+escHtml(m.motivo||"—")+'</div>'+
-              '<div style="color:var(--muted);font-size:11px">👤 '+(m.usuario||"sistema")+'</div></td>';
+              '<div style="color:var(--muted);font-size:11px">👤 '+(m.usuario||"sistema")+'</div>'+
+              _btnPed+'</td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
@@ -17163,6 +17554,9 @@ async function _ccRegistrarPagoManual(){
 // Registrar la deuda de un cliente al finalizar ruta (saldo pendiente → débito en CC)
 async function _ccRegistrarDeudaRuta(cliNom, montoDeuda, refRuta){
   if(!cliNom || !montoDeuda || montoDeuda<=0.01) return;
+  if(!navigator.onLine&&typeof _enqueue==="function"){
+    return _enqueue("CC_DEUDA","cc/"+String(refRuta||"")+"/"+String(cliNom),{cliNom:cliNom,monto:montoDeuda,refRuta:refRuta},"Deuda de ruta: "+cliNom);
+  }
   var mov = {
     tipo:"deuda", fecha:new Date().toISOString(),
     concepto:"Saldo pendiente de ruta",
@@ -17386,10 +17780,10 @@ async function guardarAsignacion(){
   }
 
   try {
-    await fbPatch("empresas/"+empresaKey+"/rutas/"+rutaKey, {
+    await fbPatchQ("empresas/"+empresaKey+"/rutas/"+rutaKey, {
       repartidorId:  repUid  || null,
       repartidorNom: repNom  || null
-    });
+    },"Asignar repartidor");
     // Actualizar en memoria
     if(rutasData[rutaKey]){
       rutasData[rutaKey].repartidorId  = repUid  || null;
@@ -17406,9 +17800,16 @@ async function guardarAsignacion(){
 function cargarRutasFirebase(){
   _soloVerRuta = null;  // al recargar la sección, mostrar todas las rutas
   var role = currentUser ? (currentUser.role||"vendedor") : "vendedor";
+  var local=_cargarRutasOffline();
+  if(local&&(!navigator.onLine||(_offlineQueue&&_offlineQueue.length))){
+    rutasData=_fusionarRutasOffline(rutasData||{},local);
+    _poblarFiltrosMesRuta();
+    renderRutas();
+  }
   setStatus("fb-hoja-status","sync","☁️ Cargando…");
   fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
-    var all = d || {};
+    var all = d || local || {};
+    if(local&&(!navigator.onLine||(_offlineQueue&&_offlineQueue.length))) all=_fusionarRutasOffline(all,local);
     if(role === "repartidor"){
       // En este panel, currentUser.id ES el uid del usuario, y currentUser._sbId es el UUID de Supabase.
       // La asignación guarda el uid en repartidorId, así que comparamos contra ambos por robustez.
@@ -17426,6 +17827,7 @@ function cargarRutasFirebase(){
     setStatus("fb-hoja-status","ok","✅");
     _poblarFiltrosMesRuta();
     renderRutas();
+    _guardarRutasOffline();
   }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
 }
 async function imprimirPedidosDeRuta(rk){
@@ -17500,7 +17902,7 @@ async function imprimirPedidosDeRuta(rk){
       remitoNum = await _nextRemitoNum();
       if(remitoNum==null){ return; } // No se pudo obtener número: abortar
       cli._remitoNum = remitoNum;
-      fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{_remitoNum:remitoNum}).catch(function(){});
+      fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{_remitoNum:remitoNum},"Número de remito").catch(function(){});
     }
 
     var nom = cli.nom||"";
@@ -17700,7 +18102,7 @@ async function crearNuevaRuta(){
     } catch(e){ showNotif("Error al crear ruta: "+e.message,"err"); }
   });
 }
-async function borrarRuta(rk){ if(!(await _confirmar({icono:"🗑️",titulo:"Borrar hoja de ruta",mensaje:"Se va a borrar esta hoja de ruta completa. No se puede deshacer.",ok:"Borrar",peligro:true})))return; _auditar("borrar","ruta",rk,"Borró la hoja de ruta: "+((rutasData[rk]&&rutasData[rk].nombre)||rk)); fbDel("empresas/"+empresaKey+"/rutas/"+rk).then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();}).catch(function(){alert("Error al borrar.");}); }
+async function borrarRuta(rk){ if(!(await _confirmar({icono:"🗑️",titulo:"Borrar hoja de ruta",mensaje:"Se va a borrar esta hoja de ruta completa. No se puede deshacer.",ok:"Borrar",peligro:true})))return; _auditar("borrar","ruta",rk,"Borró la hoja de ruta: "+((rutasData[rk]&&rutasData[rk].nombre)||rk)); fbDelQ("empresas/"+empresaKey+"/rutas/"+rk,"Borrar hoja de ruta").then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();showNotif(navigator.onLine?"Hoja de ruta borrada":"Borrado guardado en el dispositivo","ok");}).catch(function(){alert("Error al borrar.");}); }
 // ===== NOTAS DE CRÉDITO — estados, roles e historial =====
 // Conviven con el sistema de devoluciones/roturas/faltantes. Cada nota puede estar
 // 'notificada' (repartidor), 'aplicada' (vendedor/admin) o 'rechazada' (admin).
@@ -17794,6 +18196,7 @@ function _hrCuentas(ruta){
 }
 
 function renderRutas(){
+  _programarGuardarRutasOffline();
   var wrap=document.getElementById("rutas-list");
   var filEstado = (document.getElementById("ruta-fil-estado")||{value:""}).value;
   var filMes    = (document.getElementById("ruta-fil-mes")||{value:""}).value;
@@ -18285,7 +18688,7 @@ async function _rutaEliminarSeleccionados(rk){
   for(var i=0;i<ids.length;i++){
     var ck = ids[i];
     try {
-      await fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck);
+      await fbDelQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,"Eliminar pedido seleccionado");
       if(rutasData[rk] && rutasData[rk].clientes) delete rutasData[rk].clientes[ck];
       if(clienteAbierto[rk]===ck) delete clienteAbierto[rk];
     } catch(e){ errores++; console.warn("[Ruta] Error eliminando cliente "+ck, e); }
@@ -18672,7 +19075,7 @@ async function _toggleFinalizarRuta(rk, finalizar){
     ? { finalizada:true, finalizadaEn:ahora }
     : { finalizada:false, finalizadaEn:null };
   try {
-    await fbPatch("empresas/"+empresaKey+"/rutas/"+rk, patch);
+    await fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk,patch,finalizar?"Finalizar ruta":"Reabrir ruta");
     rutasData[rk].finalizada   = finalizar;
     rutasData[rk].finalizadaEn = finalizar ? ahora : null;
 
@@ -18692,7 +19095,7 @@ async function _toggleFinalizarRuta(rk, finalizar){
       }
       // Marcar la ruta para no volver a registrar
       rutasData[rk]._ccRegistrada = true;
-      fbPatch("empresas/"+empresaKey+"/rutas/"+rk, {_ccRegistrada:true}).catch(function(){});
+      fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk,{_ccRegistrada:true},"Cuenta corriente de ruta registrada").catch(function(){});
       if(registrados>0){
         showNotif("✅ Ruta finalizada — "+registrados+" deuda"+(registrados!==1?"s":"")+" a cuenta corriente","ok");
         renderRutas();
@@ -19041,6 +19444,17 @@ function _hrAtajo(rk, ck, cual, e){
 }
 function _hrTogItems(rk,ck,e){ if(e) e.stopPropagation(); var k=rk+"|"+ck; _hrItemsAbierto[k]=!_hrItemsAbierto[k]; renderRutas(); }
 function _hrTogMas(rk,ck,e){ if(e) e.stopPropagation(); var k=rk+"|"+ck; _hrMasAbierto[k]=!_hrMasAbierto[k]; renderRutas(); }
+function _hrEditarProductos(rk,ck,e){
+  if(e) e.stopPropagation();
+  clienteAbierto[rk]=ck;
+  _hrMasAbierto[rk+"|"+ck]=true;
+  _rcEditorAbierto[rk+"|"+ck]=true;
+  renderRutas();
+  setTimeout(function(){
+    var el=document.getElementById("edit-items-"+rk+"-"+ck);
+    if(el&&el.scrollIntoView) el.scrollIntoView({behavior:"smooth",block:"center"});
+  },80);
+}
 function _hrTogListos(rk,e){ if(e) e.stopPropagation(); _hrListosAbierto[rk]=!_hrListosAbierto[rk]; renderRutas(); }
 function _hrTogMenu(rk,e){ if(e){ e.stopPropagation(); } _hrMenuRuta=(_hrMenuRuta===rk?null:rk); renderRutas(); }
 function _hrIrA(rk,ck,e){ if(e) e.stopPropagation(); clienteAbierto[rk]=ck; renderRutas();
@@ -19075,7 +19489,7 @@ function _hrGuardar(rk,ck,e){
     var ahora=new Date().toISOString();
     cli.entregado=true; cli.entregadoEn=ahora;
     try{ fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(cli.nom||ck)); }
-    catch(err){ try{ fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora}); }catch(e2){} }
+    catch(err){ try{ fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(cli.nom||ck)); }catch(e2){} }
   }
   if(tot>0){ guardarPago(rk,ck); }   // guardarPago ya persiste y ajusta la cuenta corriente
   delete _hrEditCobro[rk+"|"+ck];
@@ -19245,10 +19659,19 @@ function _hrBlBotones(rk, ck, cli, n, st){
          _hrTxtBoton(cli,n,cargado)+'</button>';
   }
   out+='<div class="hr-sec">'+
-    '<button class="'+(cli.firma?"tiene":"")+'" onclick="event.stopPropagation();abrirFirma(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">'+(cli.firma?"✓ Firma":"✍️ Firma")+'</button>'+
-    '<button onclick="event.stopPropagation();imprimirRemitoCli(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">🖨️ Remito</button>'+
-    '<button onclick="event.stopPropagation();_devAdminVer(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">↩️ Devolución</button>'+
-  '</div>';
+    '<button class="hr-act-edit" onclick="_hrEditarProductos(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\',event)">✏️ Editar pedido / productos</button>'+
+    '<button onclick="event.stopPropagation();imprimirRemitoCli(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">🖨️ Remito</button>';
+  if(st==="rech"){
+    if(cli.rechazoConfirmado===true){
+      out+='<button class="hr-act-rech" disabled>✓ Rechazo confirmado</button>';
+    }else{
+      out+='<button class="hr-act-rech" onclick="event.stopPropagation();_confirmarRechazo(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">↩️ Confirmar y devolver stock</button>';
+    }
+  }else{
+    out+='<button class="hr-act-dev" onclick="_devHojaAbrir(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\',event)">↩️ Rechazar productos</button>'+
+         '<button class="hr-act-rech" onclick="_hrRechazarPedido(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\',event)">❌ Rechazar pedido</button>';
+  }
+  out+='</div>';
   out+='<button class="hr-mas" onclick="_hrTogMas(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\',event)">'+
        (_hrMasAbierto[rk+"|"+ck]?"▾":"▸")+' Más opciones</button>';
   return out;
@@ -19415,7 +19838,7 @@ async function marcarEntregado(rk, ck){
   if(!(await _confirmar({icono:"📦",titulo:"Marcar entregado",mensaje:"¿Marcar este pedido como entregado?",ok:"Entregado"}))) return;
   var ahora = new Date().toISOString();
   var patch = { entregado:true, entregadoEn:ahora };
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch)
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch, "Entrega: "+((rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]&&rutasData[rk].clientes[ck].nom)||ck))
     .then(function(){
       if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
         rutasData[rk].clientes[ck].entregado = true;
@@ -19437,7 +19860,7 @@ function _appendAuditLog(rk, ck, desc){
   });
   if(log.length > 30) log = log.slice(-30); // máx 30 entradas
   cli.auditLog = log;
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {auditLog:log}).catch(function(){});
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {auditLog:log}, "Historial de ruta").catch(function(){});
 }
 
 function renderEditItems(wrap, rk, ck){
@@ -19482,7 +19905,9 @@ function renderEditItems(wrap, rk, ck){
       '<span class="rc-edit-name">'+it.n+'</span>'+
       '<span class="rc-edit-price">'+(disc?'<s style="font-size:10px;opacity:.5">$'+fM(precioBase)+'</s> <b>$'+fM(precioConDesc)+'</b>':'$'+fM(precioBase))+'</span>'+
       '<input type="number" min="0" step="1" class="rc-edit-cant" value="'+it.c+'" data-idx="'+i+'">'+
-      '<button class="rc-edit-del" data-idx="'+i+'">✕</button>'+
+      '<button class="rc-edit-del" data-idx="'+i+'" title="Quitar producto" aria-label="Quitar '+_hrAtt(it.n||"producto")+'">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>'+
+      '</button>'+
       /* Per-item discount row */
       '<div class="rc-edit-dsc-row">'+
         '<span class="rc-edit-dsc-lbl">Descuento:</span>'+
@@ -19633,7 +20058,7 @@ function renderEditItems(wrap, rk, ck){
     if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
       Object.assign(rutasData[rk].clientes[ck],patch);
     }
-    fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch)
+    fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch,"Descuento de pedido")
       .then(function(){
         actualizarVentaDeRuta(rk,ck,patch.importe,itemsConDsc);
         _propagarEdicionAPedido(rk,ck,itemsConDsc,_netoDsc);
@@ -19651,7 +20076,7 @@ function renderEditItems(wrap, rk, ck){
     if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
       Object.assign(rutasData[rk].clientes[ck],patch);
     }
-    fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch)
+    fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch,"Quitar descuento de pedido")
       .then(function(){actualizarVentaDeRuta(rk,ck,patch.importe,itemsOrig);_propagarEdicionAPedido(rk,ck,itemsOrig,totalOrig);renderRutas();showNotif("Descuento removido","ok");})
       .catch(function(){showNotif("Error al guardar","err");});
   };
@@ -19689,7 +20114,7 @@ async function imprimirRemitoCli(rk, ck){
     if(remitoNum==null){ return; } // No se pudo obtener número: abortar
     // Guardarlo en el cliente de la ruta para no re-generar
     cli._remitoNum = remitoNum;
-    fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {_remitoNum:remitoNum}).catch(function(){});
+    fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, {_remitoNum:remitoNum},"Número de remito").catch(function(){});
   }
 
   var bk = {
@@ -19953,7 +20378,7 @@ function guardarItemsEditados(rk, ck, items, wrap){
     rutasData[rk].clientes[ck].items = items;
     rutasData[rk].clientes[ck].importe = nuevoImporte;
   }
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch)
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck, patch, "Editar productos de ruta")
     .then(function(){
       // Guardar audit log si hubo cambios
       if(changes.length){
@@ -20089,12 +20514,17 @@ function confirmarPagoAdicional(rk, ck){
   var nuevosPagos=(cli.pagosAdicionales||[]).slice();
   var nuevoPago={monto:monto,forma:forma,nota:nota,fecha:new Date().toISOString(),usuario:currentUser?currentUser.id:"vendedor"};
   nuevosPagos.push(nuevoPago);
-
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{pagosAdicionales:nuevosPagos})
+  cli.pagosAdicionales=nuevosPagos;
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{pagosAdicionales:nuevosPagos},"Pago adicional: "+(cli.nom||ck))
     .then(function(){
-      cli.pagosAdicionales=nuevosPagos;
+      _registrarPagoCC({
+        p_op_id:"payadd_"+rk+"_"+ck+"_"+String(nuevoPago.fecha).replace(/[^0-9]/g,""),
+        p_empresa_id:_sbEmpId,p_cliente_nom:cli.nom,p_delta:-monto,p_monto:monto,p_forma:forma,
+        p_nota:"Pago adicional"+(nota?" — "+nota:"")+" (ruta)",
+        p_usuario:currentUser?currentUser.id:"vendedor",p_fecha:nuevoPago.fecha
+      });
       // Sync to cuentas_corrientes
-      var movCC={tipo:"pago",fecha:nuevoPago.fecha,
+      if(false){ var movCC={tipo:"pago",fecha:nuevoPago.fecha,
         concepto:"Pago "+forma+(nota?" — "+nota:"")+" (ruta)",
         forma_pago:forma,debito:0,credito:monto,
         usuario:currentUser?currentUser.id:"vendedor",ref_ruta:rk,ref_cli:ck};
@@ -20103,7 +20533,7 @@ function confirmarPagoAdicional(rk, ck){
         .then(function(ccData){
           var s=(ccData&&ccData.saldo)||0;
           fbPatch("empresas/"+empresaKey+"/cuentas_corrientes/"+cli.nom,{saldo:s-monto}).catch(function(){});
-        }).catch(function(){});
+        }).catch(function(){}); }
       clienteAbierto[rk]=ck;
       renderRutas();
     }).catch(function(){alert("Error al guardar pago.");});
@@ -20116,9 +20546,17 @@ async function borrarPagoAdicional(rk,ck,idx){
   var pagos=(cli.pagosAdicionales||[]).slice();
   var pagoEliminado=pagos[idx];
   pagos.splice(idx,1);
-  fbPatch("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{pagosAdicionales:pagos})
+  cli.pagosAdicionales=pagos;
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{pagosAdicionales:pagos},"Borrar pago adicional: "+(cli.nom||ck))
     .then(function(){
-      cli.pagosAdicionales=pagos;
+      if(pagoEliminado&&pagoEliminado.monto){
+        _registrarPagoCC({
+          p_op_id:"paydel_"+rk+"_"+ck+"_"+Date.now(),p_empresa_id:_sbEmpId,p_cliente_nom:cli.nom,
+          p_delta:+pagoEliminado.monto,p_monto:-pagoEliminado.monto,p_forma:pagoEliminado.forma||"",
+          p_nota:"Anulación de pago adicional (ruta)",p_usuario:currentUser?currentUser.id:"vendedor",
+          p_fecha:new Date().toISOString()
+        });
+      }
       clienteAbierto[rk]=ck;
       renderRutas();
     }).catch(function(){alert("Error al borrar.");});
@@ -20243,11 +20681,32 @@ function _confirmarNuevaRuta(){
 }
 
 // BORRAR CLIENTE
-async function borrarClienteRuta(rk,ck,nom){ if(!(await _confirmar({icono:"❌",titulo:"Quitar de la ruta",mensaje:"¿Quitar a "+(nom||"este cliente")+" de la ruta?",ok:"Quitar",peligro:true})))return; _auditar("borrar","pedido_ruta",ck,"Quitó de la hoja de ruta a: "+(nom||ck)); fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck).then(function(){if(rutasData[rk]&&rutasData[rk].clientes)delete rutasData[rk].clientes[ck];if(clienteAbierto[rk]===ck)delete clienteAbierto[rk];renderRutas();}).catch(function(){alert("Error al borrar.");}); }
+async function borrarClienteRuta(rk,ck,nom){ if(!(await _confirmar({icono:"❌",titulo:"Quitar de la ruta",mensaje:"¿Quitar a "+(nom||"este cliente")+" de la ruta?",ok:"Quitar",peligro:true})))return; _auditar("borrar","pedido_ruta",ck,"Quitó de la hoja de ruta a: "+(nom||ck)); fbDelQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,"Quitar pedido de la ruta").then(function(){if(rutasData[rk]&&rutasData[rk].clientes)delete rutasData[rk].clientes[ck];if(clienteAbierto[rk]===ck)delete clienteAbierto[rk];renderRutas();showNotif(navigator.onLine?"Pedido quitado":"Cambio guardado en el dispositivo","ok");}).catch(function(){alert("Error al borrar.");}); }
 
 // MOVER CLIENTE
 function abrirMover(rk,ck){ var keys=Object.keys(rutasData).filter(function(k){return k!==rk;}); if(!keys.length){alert("No hay otras rutas. Creá una nueva primero.");return;} modalRutaKey=rk; modalCliKey=ck; var sel=document.getElementById("modal-mover-destino"); sel.innerHTML=keys.map(function(k){return'<option value="'+k+'">'+(rutasData[k].nombre||_fechaSegura(rutasData[k].fecha).toLocaleDateString("es-AR"))+'</option>';}).join(""); abrirModal("modal-mover"); }
-function confirmarMover(){ if(!modalRutaKey||!modalCliKey)return; var dst=document.getElementById("modal-mover-destino").value; var cli=rutasData[modalRutaKey]&&rutasData[modalRutaKey].clientes?rutasData[modalRutaKey].clientes[modalCliKey]:null; if(!cli){cerrarModal("modal-mover");return;} var rk=modalRutaKey,ck=modalCliKey; fbPush("empresas/"+empresaKey+"/rutas/"+dst+"/clientes",cli).then(function(nk){if(!rutasData[dst])rutasData[dst]={clientes:{}};if(!rutasData[dst].clientes)rutasData[dst].clientes={};rutasData[dst].clientes[nk]=cli;return fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck);}).then(function(){if(rutasData[rk]&&rutasData[rk].clientes)delete rutasData[rk].clientes[ck];if(clienteAbierto[rk]===ck)delete clienteAbierto[rk];cerrarModal("modal-mover");rutaAbierta=dst;renderRutas();}).catch(function(){alert("Error al mover.");}); }
+async function _moverClienteRutaQ(rk,ck,dst,cli,desc){
+  var op={id:"op_"+Date.now()+"_"+Math.random().toString(36).slice(2,6),method:"ROUTE_MOVE",path:"ruta_clientes",data:{src:rk,srcCli:ck,dst:dst,cli:cli},ts:new Date().toISOString(),desc:desc||"Mover pedido"};
+  var nk;
+  if(!navigator.onLine){
+    _offlineQueue.push(op); _saveQueue(); _pedirSyncOffline(); _updateBanner();
+    nk="local_"+op.id;
+  }else{
+    try{ nk=await _replayOfflineOp(op); }
+    catch(err){
+      _offlineQueue.push(op); _saveQueue(); _pedirSyncOffline(); _updateBanner();
+      nk="local_"+op.id;
+    }
+  }
+  if(!rutasData[dst]) rutasData[dst]={clientes:{}};
+  if(!rutasData[dst].clientes) rutasData[dst].clientes={};
+  rutasData[dst].clientes[nk]=cli;
+  if(rutasData[rk]&&rutasData[rk].clientes) delete rutasData[rk].clientes[ck];
+  if(clienteAbierto[rk]===ck) delete clienteAbierto[rk];
+  _programarGuardarRutasOffline();
+  return nk;
+}
+async function confirmarMover(){ if(!modalRutaKey||!modalCliKey)return; var dst=document.getElementById("modal-mover-destino").value; var cli=rutasData[modalRutaKey]&&rutasData[modalRutaKey].clientes?rutasData[modalRutaKey].clientes[modalCliKey]:null; if(!cli){cerrarModal("modal-mover");return;} var rk=modalRutaKey,ck=modalCliKey; try{await _moverClienteRutaQ(rk,ck,dst,cli,"Mover pedido entre rutas");cerrarModal("modal-mover");rutaAbierta=dst;renderRutas();showNotif(navigator.onLine?"Pedido movido":"Movimiento guardado en el dispositivo","ok");}catch(e){alert("Error al mover.");} }
 
 // PDF RUTA
 function descargarPDFRuta(rk){
@@ -20537,6 +20996,15 @@ async function _sbInsertBackupConReintento(item, intentosRestantes, delayMs){
     }
   } catch(e){
     console.warn('[Backup] Error ('+intentosRestantes+' intentos rest.):', e.message);
+    if(e && e.code==="STOCK_INSUFICIENTE"){
+      // No reintentar automaticamente una venta rechazada por stock.
+      _bkQueueRemove(item.id);
+      var _sinVenta=getBackups().filter(function(x){return x.id!==item.id;});
+      saveBackups(_sinVenta);
+      renderBackup();
+      showNotif("🚫 Pedido cancelado: "+e.message,"err");
+      return;
+    }
     if(intentosRestantes > 1){
       var delay = Math.min(delayMs * 1.5, 30000); // backoff exponencial, máx 30s
       setTimeout(function(){
@@ -21020,6 +21488,24 @@ function _bkStopAutoRefresh(){
 
 var _bkTab = "todos"; // "todos" | "espera" | "aprobados" | "rechazados" | "dia_martes" etc.
 
+/* ── Buscador de Backup Pedidos: también mira los PRODUCTOS ──
+   Devuelve los items del pedido que matchean el texto buscado (por nombre
+   o por código). Se usa para filtrar y para mostrar el chip "🔎 …" en la
+   tarjeta, así se ve DE UNA por qué ese pedido apareció en la búsqueda. */
+function _bkItemsHits(bk, q){
+  if(!q) return [];
+  var out = [];
+  var items = (bk && bk.items) || [];
+  for(var i=0;i<items.length;i++){
+    var it = items[i]; if(!it) continue;
+    var n = String(it.n||it.nombre||it.nom||it.name||"").toLowerCase();
+    var c = String(it.id||it.codigo||it.cod||"").toLowerCase();
+    if((n && n.indexOf(q)!==-1) || (c && c.indexOf(q)!==-1)) out.push(it);
+  }
+  return out;
+}
+function _bkItemsMatch(bk, q){ return _bkItemsHits(bk, q).length > 0; }
+
 function setBkTab(tab, el){
   _bkTab = tab;
   document.querySelectorAll(".bk-tab").forEach(function(b){ b.classList.remove("active"); });
@@ -21193,8 +21679,14 @@ function renderBackup(){
   if(!wrap) return;
   try { _ncBackupAviso(); } catch(e){}
   var all = getBackups();
-  var isAdminBk = currentUser && (currentUser.role === "admin" || currentUser.role === "armador");
-  var isVendedorBk = currentUser && (currentUser.role === "vendedor" || !currentUser.role);
+  // Ven TODOS los pedidos: admin, armador y co-admin (el co-admin es un admin
+  // acotado: ya ve Finanzas y Auditoría, así que en Backup también ve todo).
+  // El jefe de ventas, como el vendedor, ve solo los pedidos que cargó él.
+  var isAdminBk = currentUser && (currentUser.role === "admin" || currentUser.role === "armador" ||
+                    _tengoRol("admin") || _tengoRol("armador") || _tengoRol("co-admin"));
+  // Puede editar SUS propios pedidos: vendedor, jefe de ventas y co-admin.
+  var isVendedorBk = currentUser && (currentUser.role === "vendedor" || !currentUser.role ||
+                    _tengoRol("vendedor") || _tengoRol("jefe-ventas") || _tengoRol("co-admin"));
 
   // Vendedor solo ve sus propios pedidos; armador y admin ven todos
   if(!isAdminBk && currentUser){
@@ -21205,9 +21697,11 @@ function renderBackup(){
   var q = (document.getElementById("bk-search")||{value:""}).value.toLowerCase().trim();
   if(q){
     all = all.filter(function(bk){
-      return (bk.clienteNom||"").toLowerCase().indexOf(q)!==-1 ||
-             (bk.usuarioNom||bk.usuario||"").toLowerCase().indexOf(q)!==-1 ||
-             (bk.clienteId||"").toLowerCase().indexOf(q)!==-1;
+      if((bk.clienteNom||"").toLowerCase().indexOf(q)!==-1) return true;
+      if((bk.usuarioNom||bk.usuario||"").toLowerCase().indexOf(q)!==-1) return true;
+      if((bk.clienteId||"").toLowerCase().indexOf(q)!==-1) return true;
+      // También busca DENTRO de los productos del pedido (nombre o código)
+      return _bkItemsMatch(bk, q);
     });
   }
 
@@ -21361,6 +21855,18 @@ function renderBackup(){
       dscBadge = '<span style="font-size:10px;background:#fce7f3;color:#9d174d;border-radius:5px;padding:2px 7px;font-weight:600;margin-left:4px">🏷️ dsc. items</span>';
     }
 
+    // Badge de coincidencia por PRODUCTO (solo cuando se está buscando)
+    var prodBadge = '';
+    if(q){
+      var _hits = _bkItemsHits(bk, q);
+      if(_hits.length){
+        var _hTit = _hits.map(function(x){ return (x.c||1)+"× "+String(x.n||x.id||""); }).join(" · ");
+        var _hTxt = String(_hits[0].n||_hits[0].id||"");
+        if(_hTxt.length>26) _hTxt = _hTxt.slice(0,26)+"…";
+        prodBadge = '<span title="'+escHtml(_hTit)+'" style="font-size:10px;background:#e0f2fe;color:#075985;border-radius:5px;padding:2px 7px;font-weight:700;margin-left:4px">🔎 '+escHtml(_hTxt)+(_hits.length>1?(' +'+(_hits.length-1)):'')+'</span>';
+      }
+    }
+
     var _esAdminFalt = (typeof currentUser!=="undefined" && currentUser && (currentUser.role==="admin" || (Array.isArray(currentUser.roles) && currentUser.roles.indexOf("admin")>=0)));
     var faltBadge = (_esAdminFalt && bk.faltantes && bk.faltantes.length) ? '<span style="font-size:10px;background:#fde2e2;color:#b91c1c;border-radius:5px;padding:2px 7px;font-weight:700;margin-left:4px">⚠️ '+bk.faltantes.length+' faltante'+(bk.faltantes.length!==1?'s':'')+'</span>' : '';
 
@@ -21379,7 +21885,7 @@ function renderBackup(){
           '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+faltBadge+armadoBadge+'</div>'+
           '<div class="bk-card-meta">'+
             tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
-            listaBadge+vndBadge+obsBadge+dscBadge+
+            listaBadge+vndBadge+obsBadge+dscBadge+prodBadge+
           '</div>'+
         '</div>'+
         '<div style="text-align:right;flex-shrink:0">'+
@@ -21404,7 +21910,7 @@ function renderBackup(){
         '<div class="bk-card-nom">'+(bk.clienteNom||"Sin cliente")+compBadge+pendBadgeHeader+entregaBadge+estadoBadge+faltBadge+armadoBadge+'</div>'+
         '<div class="bk-card-meta">'+
           tipoIcon+' '+fechaStr+' · '+horaStr+' · '+(bk.items?bk.items.length:0)+' prod. '+
-          listaBadge+vndBadge+obsBadge+dscBadge+
+          listaBadge+vndBadge+obsBadge+dscBadge+prodBadge+
         '</div>'+
       '</div>'+
       '<div class="bk-card-right">'+
@@ -21650,7 +22156,7 @@ function renderBackup(){
         } else {
           // Pedido de tienda (o sin vendedor): permitir acreditar / cambiar
           var vndOpts = '<option value="">'+(_vendRealDet?'— Cambiar vendedor —':'— Elegí un vendedor —')+'</option>';
-          Object.values(_clientesDB||{}).filter(function(u){ return u.role==="vendedor"; }).forEach(function(u){
+          Object.values(_clientesDB||{}).filter(function(u){ return _esUsuarioVendedor(u); }).forEach(function(u){
             vndOpts += '<option value="'+u.id+'|'+(u.name||u.id)+'">'+escHtml(u.name||u.id)+'</option>';
           });
           var _etq;
@@ -21667,7 +22173,7 @@ function renderBackup(){
       } else {
         // Sin vendedor asignado — mostrar selector
         var vndOpts = '<option value="">— Sin asignar (admin) —</option>';
-        Object.values(_clientesDB||{}).filter(function(u){ return u.role==="vendedor"; }).forEach(function(u){
+        Object.values(_clientesDB||{}).filter(function(u){ return _esUsuarioVendedor(u); }).forEach(function(u){
           vndOpts += '<option value="'+u.id+'|'+(u.name||u.id)+'">'+escHtml(u.name||u.id)+'</option>';
         });
         vndInfo.innerHTML='<span style="font-size:11.5px;font-weight:700;color:#b45309">⚠️ Sin vendedor asignado</span>'+
@@ -21914,7 +22420,7 @@ function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
         }
         // _rcId es el UUID real de la fila en Supabase; usarlo si está
         var _rk = rutaAbierta, _rcKey = _cliR._rcId || _ck2;
-        fbPatch("empresas/"+empresaKey+"/rutas/"+_rk+"/clientes/"+_rcKey, _patch).catch(function(){});
+        fbPatchQ("empresas/"+empresaKey+"/rutas/"+_rk+"/clientes/"+_rcKey, _patch,"Tipo de comprobante").catch(function(){});
         break;
       }
     }
@@ -21982,11 +22488,13 @@ function _pedidoOkCerrar(){
 // ══ EDITAR BACKUP PEDIDO ══
 var _editBkItem = null;
 var _editBkSelProd = null;
+var _editBkOriginalItems = [];
 
 var _editBkSoloArmador = false;
 function abrirEditarBackup(bk, soloArmador){
   _editBkSoloArmador = !!soloArmador;
   _editBkItem = JSON.parse(JSON.stringify(bk)); // copia profunda
+  _editBkOriginalItems = JSON.parse(JSON.stringify((bk&&bk.items)||[]));
   // Cargar clientes y ESPERAR antes de mostrar el modal
   var _doAbrir = function(){
     var aprobado = _editBkItem.aprobado === true || _editBkItem.aprobado === false;
@@ -22345,6 +22853,11 @@ function editBkCant(idx, val){
   if(isNaN(v) || val === "" || val === null) return; // no procesar si está vacío
   if(v <= 0) return;
   var it = _editBkItem.items[idx];
+  var otras = _stkCantEnItems(_editBkItem.items,it.id) - +(it.c||0);
+  if(!_stkPuedeCantidad(it.id,otras+v,it.n,_editBkOriginalItems,true)){
+    _renderEditBkItems();
+    return;
+  }
   it.c = v;
   // Recalcular subtotal respetando el descuento por ítem si lo tiene
   var base = v * (it.p||0);
@@ -22504,6 +23017,8 @@ function agregarItemEditBk(){
   if(!_editBkSelProd||!_editBkItem) return;
   var cant = parseFloat((document.getElementById("edit-bk-cant")||{}).value)||1;
   var exist = _editBkItem.items.find(function(i){ return i.id===_editBkSelProd.id; });
+  var cantNueva = _stkCantEnItems(_editBkItem.items,_editBkSelProd.id)+cant;
+  if(!_stkPuedeCantidad(_editBkSelProd.id,cantNueva,_editBkSelProd.n,_editBkOriginalItems,true)) return;
   if(exist){ exist.c += cant; exist.sub = exist.c * exist.p; }
   else { _editBkItem.items.push({id:_editBkSelProd.id,n:_editBkSelProd.n,c:cant,p:_editBkSelProd.p,sub:cant*_editBkSelProd.p}); }
   _editBkSelProd = null;
@@ -22562,8 +23077,48 @@ async function _propagarEdicionARuta(bk){
   } catch(e){ console.warn("[propagarEdicionARuta] error:", e.message); }
 }
 
-function guardarEdicionBackup(){
+var _bkEditStockSeq=0;
+async function _bkAplicarStockEdicion(bkId, oldItems, newItems){
+  var d=_rutaDiffStock(oldItems,newItems);
+  if(!d.salen.length && !d.vuelven.length) return d;
+  var ref="edit-bk-"+bkId+"-"+Date.now()+"-"+(++_bkEditStockSeq);
+  // Primero devolver lo quitado y despues descontar lo agregado.
+  // Si el segundo paso falla, deshacer tambien la devolucion inicial.
+  try{
+    if(d.vuelven.length) await _stkDevolverAuto(ref+"-v",d.vuelven,"Edición de pedido — vuelve al stock");
+    if(d.salen.length) await _stkSalidaDirecta(ref+"-s",d.salen,"Edición de pedido");
+  }catch(e){
+    if(d.vuelven.length){
+      try{ await _stkSalidaDirecta(ref+"-rollback",d.vuelven,"Se revirtió una edición de pedido"); }catch(_rb){}
+    }
+    throw e;
+  }
+  d._ref=ref;
+  return d;
+}
+async function _bkRevertirStockEdicion(d){
+  if(!d || (!d.salen.length && !d.vuelven.length)) return;
+  var ref=(d._ref||("edit-bk-rollback-"+Date.now()))+"-rollback";
+  if(d.salen.length) await _stkDevolverAuto(ref+"-v",d.salen,"Se revirtió una edición de pedido");
+  if(d.vuelven.length) await _stkSalidaDirecta(ref+"-s",d.vuelven,"Se revirtió una edición de pedido");
+}
+
+async function guardarEdicionBackup(){
   if(!_editBkItem) return;
+  var btn=document.getElementById("edit-bk-guardar");
+  if(btn && btn.disabled) return;
+  if(btn){ btn.disabled=true; btn.textContent="Guardando…"; }
+  var stockMov=null;
+  try{
+    // Refrescar antes de validar: otro vendedor puede haber vendido mientras
+    // este modal estaba abierto. Las cantidades originales se toman como credito.
+    if(_ctrlStockOn()){
+      if(!navigator.onLine) throw new Error("Necesitás conexión para comprobar el stock");
+      var fresco=await _sbGetStockFull();
+      if(!fresco) throw new Error("No se pudo actualizar el stock");
+      stockData=fresco;
+      if(!_stkValidarPedido(_editBkItem.items,_editBkOriginalItems,true).ok) return;
+    }
   // Armar el objeto completo con todos los campos editados
   var _esFactA = _editBkItem.tipoComprobante === "factura_a";
   var _totalBase = _editBkItem.total || 0;
@@ -22579,34 +23134,53 @@ function guardarEdicionBackup(){
     descuentos:  _editBkItem.descuentos || null
   };
 
-  // Actualizar en localStorage
-  var arr = getBackups();
-  var idx = arr.findIndex(function(x){ return x.id===_editBkItem.id; });
-  if(idx>=0) arr[idx] = _editBkItem;
-  saveBackups(arr);
+  // Ajustar solo la diferencia de inventario antes de confirmar el cambio.
+  stockMov=await _bkAplicarStockEdicion(_editBkItem._sbId||_editBkItem.id,_editBkOriginalItems,_editBkItem.items);
 
-  // Actualizar en Supabase (fuente de verdad)
+  // Actualizar en Supabase (fuente de verdad) y esperar la respuesta.
+  var guardado=false;
   if(_editBkItem._sbId && _sbEmpId){
-    sbPatch("backup_pedidos","id=eq."+_editBkItem._sbId+"&empresa_id=eq."+_sbEmpId, patch)
-    .catch(function(e){ console.warn("Error guardando backup:", e); });
+    await sbPatch("backup_pedidos","id=eq."+_editBkItem._sbId+"&empresa_id=eq."+_sbEmpId, patch);
+    guardado=true;
   }
-  // Fallback Firebase si tiene clave
-  if(_editBkItem._fbKey && empresaKey){
-    fbPatch("empresas/"+empresaKey+"/backupPedidos/"+_editBkItem._fbKey, {
+  // Fallback para pedidos antiguos que aun no tienen id de Supabase.
+  if(!guardado && _editBkItem._fbKey && empresaKey){
+    await fbPatch("empresas/"+empresaKey+"/backupPedidos/"+_editBkItem._fbKey, {
       items: patch.items, total: patch.total,
       tipoComprobante: patch.tipo_comprobante, totalConIVA: patch.total_con_iva,
       clienteNom: patch.cliente_nom, clienteId: patch.cliente_id, lista: patch.lista,
       descuentos: patch.descuentos
-    }).catch(function(){});
+    });
+    guardado=true;
   }
+  if(!guardado) throw new Error("El pedido no tiene un identificador válido para actualizarlo");
 
+  // Recién después de que la base confirmó, actualizar la copia local.
+  var arr = getBackups();
+  var idx = arr.findIndex(function(x){ return x.id===_editBkItem.id || (_editBkItem._sbId && x._sbId===_editBkItem._sbId); });
+  if(idx>=0) arr[idx] = JSON.parse(JSON.stringify(_editBkItem));
+  saveBackups(arr);
+  _editBkOriginalItems=JSON.parse(JSON.stringify(_editBkItem.items||[]));
   cerrarModal("modal-editar-backup");
   renderBackup();
   _checkPendientes();
-  showNotif("✓ Pedido actualizado","ok");
+  var movPartes=[];
+  if(stockMov && stockMov.salen.length) movPartes.push("−"+stockMov.salen.reduce(function(s,i){return s+i.c;},0));
+  if(stockMov && stockMov.vuelven.length) movPartes.push("+"+stockMov.vuelven.reduce(function(s,i){return s+i.c;},0));
+  showNotif("✓ Pedido y stock actualizados"+(movPartes.length?" ("+movPartes.join(" / ")+" unidades)":""),
+    "ok");
   // Si el pedido está vinculado a una hoja de ruta, propagar los cambios (items + importe).
   if(_editBkItem && _editBkItem.rutaVinculadaId){
-    _propagarEdicionARuta(_editBkItem);
+    await _propagarEdicionARuta(_editBkItem);
+  }
+  }catch(e){
+    console.warn("Error guardando edición de backup:",e);
+    if(stockMov){
+      try{ await _bkRevertirStockEdicion(stockMov); }catch(_rbErr){ console.warn("No se pudo revertir stock:",_rbErr); }
+    }
+    showNotif("🚫 No se guardó el pedido: "+(e.message||"error desconocido"),"err");
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent="💾 Guardar cambios"; }
   }
 }
 
@@ -24074,11 +24648,17 @@ function confirmarFirma() {
   if(!hasDrawing){ alert("El cliente tiene que firmar antes de confirmar."); return; }
   firmaDataURL = small.toDataURL("image/jpeg", 0.5); // JPEG 50% quality = ~10-20KB
   if (firmaRutaKey && firmaCliKey) {
-    sbPatch("ruta_clientes","id=eq."+firmaCliKey+"&empresa_id=eq."+_sbEmpId, {firma: firmaDataURL, firmado_en: new Date().toISOString()})
+    var firmadoAhora=new Date().toISOString();
+    if(rutasData[firmaRutaKey]&&rutasData[firmaRutaKey].clientes&&rutasData[firmaRutaKey].clientes[firmaCliKey]){
+      rutasData[firmaRutaKey].clientes[firmaCliKey].firma=firmaDataURL;
+      rutasData[firmaRutaKey].clientes[firmaCliKey].firmadoEn=firmadoAhora;
+      rutasData[firmaRutaKey].clientes[firmaCliKey].tieneFirma=true;
+    }
+    fbPatchQ("empresas/"+empresaKey+"/rutas/"+firmaRutaKey+"/clientes/"+firmaCliKey,{firma:firmaDataURL,firmadoEn:firmadoAhora},"Firma de entrega")
       .then(function(){
         if(rutasData[firmaRutaKey]&&rutasData[firmaRutaKey].clientes&&rutasData[firmaRutaKey].clientes[firmaCliKey]){
           rutasData[firmaRutaKey].clientes[firmaCliKey].firma = firmaDataURL;
-          rutasData[firmaRutaKey].clientes[firmaCliKey].firmadoEn = new Date().toISOString();
+          rutasData[firmaRutaKey].clientes[firmaCliKey].firmadoEn = firmadoAhora;
           rutasData[firmaRutaKey].clientes[firmaCliKey].tieneFirma = true;
         }
         cerrarModal("modal-firma");
@@ -24094,7 +24674,7 @@ async function borrarFirma(rk, ck) {
   if(!(await _confirmar({icono:"✍️",titulo:"Borrar firma",mensaje:"¿Borrar la firma de este cliente?",ok:"Borrar",peligro:true}))) return;
   // Usar Supabase directamente (ck = Supabase UUID de ruta_clientes)
   var patchData = {firma:"", firmado_en:null};
-  sbPatch("ruta_clientes","id=eq."+ck+"&empresa_id=eq."+_sbEmpId, patchData)
+  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{firma:"",firmadoEn:null},"Borrar firma")
     .then(function(){
       if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
         rutasData[rk].clientes[ck].firma="";
@@ -24119,9 +24699,67 @@ async function borrarFirma(rk, ck) {
 var _offlineQueue  = [];   // ops pendientes de sync: [{id,method,path,data,ts,desc}]
 var _readCache     = {};   // {path: {data, ts}}
 var _isSyncing     = false;
+var _rutasOfflineTimer = null;
 
 function _ofKey(suffix){ return "dm_offq_"+(empresaKey||"global")+(suffix||""); }
 function _cacheKey(suffix){ return "dm_rcache_"+(empresaKey||"global")+(suffix||""); }
+function _rutasOfflineKey(){
+  var emp=_sbEmpId||empresaKey||"global";
+  var usr=(currentUser&&(currentUser.id||currentUser.uid||currentUser._sbId))||"sinusuario";
+  return "dm_rutas_work_"+emp+"_"+usr;
+}
+function _rutasParaOffline(){
+  var out={};
+  Object.keys(rutasData||{}).forEach(function(rk){
+    var r=rutasData[rk]||{}, nr={};
+    Object.keys(r).forEach(function(k){ if(k!=="clientes") nr[k]=r[k]; });
+    nr.clientes={};
+    Object.keys(r.clientes||{}).forEach(function(ck){
+      var c=r.clientes[ck]||{}, nc={};
+      Object.keys(c).forEach(function(k){
+        if(k!=="firma"&&k!=="comprobantes"&&k!=="_pruebasCargando") nc[k]=c[k];
+      });
+      if(c.firma) nc.tieneFirma=true;
+      if(Array.isArray(c.comprobantes)) nc.nComprobantes=c.comprobantes.length;
+      nr.clientes[ck]=nc;
+    });
+    out[rk]=nr;
+  });
+  return out;
+}
+function _guardarRutasOffline(){
+  if(!empresaKey&&!_sbEmpId) return false;
+  try{
+    localStorage.setItem(_rutasOfflineKey(),JSON.stringify({ts:Date.now(),data:_rutasParaOffline()}));
+    return true;
+  }catch(e){
+    try{ _limpiarCacheViejo(); localStorage.setItem(_rutasOfflineKey(),JSON.stringify({ts:Date.now(),data:_rutasParaOffline()})); return true; }
+    catch(e2){ console.warn("[Offline] No se pudo guardar la hoja de ruta local:",e2&&e2.message); return false; }
+  }
+}
+function _programarGuardarRutasOffline(){
+  if(_rutasOfflineTimer) clearTimeout(_rutasOfflineTimer);
+  _rutasOfflineTimer=setTimeout(function(){ _rutasOfflineTimer=null; _guardarRutasOffline(); },80);
+}
+function _cargarRutasOffline(){
+  try{
+    var raw=JSON.parse(localStorage.getItem(_rutasOfflineKey())||"null");
+    return raw&&raw.data&&typeof raw.data==="object"?raw.data:null;
+  }catch(e){ return null; }
+}
+function _fusionarRutasOffline(base,local){
+  var out=Object.assign({},base||{});
+  Object.keys(local||{}).forEach(function(rk){
+    var br=out[rk]||{}, lr=local[rk]||{};
+    var nr=Object.assign({},br,lr);
+    nr.clientes=Object.assign({},br.clientes||{});
+    Object.keys(lr.clientes||{}).forEach(function(ck){
+      nr.clientes[ck]=Object.assign({},nr.clientes[ck]||{},lr.clientes[ck]||{});
+    });
+    out[rk]=nr;
+  });
+  return out;
+}
 
 /* ─ Persistencia de queue ─ */
 function _loadQueue(){
@@ -24175,8 +24813,17 @@ function _enqueue(method, path, data, desc){
   var op = { id:"op_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), method:method, path:path, data:data, ts:new Date().toISOString(), desc:desc||"" };
   _offlineQueue.push(op);
   _saveQueue();
+  _pedirSyncOffline();
+  if((path&&path.indexOf("/rutas/")!==-1)||method==="RC_COMP_ADD"||method==="RC_COMP_DEL") _programarGuardarRutasOffline();
   _updateBanner();
   return Promise.resolve(op.id);
+}
+function _pedirSyncOffline(){
+  try{
+    if(navigator.serviceWorker&&window.SyncManager){
+      navigator.serviceWorker.ready.then(function(reg){return reg.sync.register("sync-rutas");}).catch(function(){});
+    }
+  }catch(e){}
 }
 
 /* ─ Firebase wrappers offline-aware ─ */
@@ -24194,7 +24841,7 @@ function fbDelQ(path, desc){
 }
 
 /* ─ Sincronizar cola al reconectarse ─ */
-function _syncQueue(){
+function _syncQueueParalelaVieja(){
   if(_isSyncing || !navigator.onLine || !_offlineQueue.length) return;
   _isSyncing = true;
   _showSyncing(true);
@@ -24226,6 +24873,96 @@ function _syncQueue(){
   });
 }
 
+async function _replayOfflineOp(op){
+  if(op.method==="RPC") return sbFetch("POST",op.path,op.data);
+  if(op.method==="SB_POST") return sbPost(op.path,op.data);
+  if(op.method==="SB_PATCH") return sbPatch(op.path,op.data.match,op.data.body);
+  if(op.method==="CC_DEUDA") return _ccRegistrarDeudaRuta(op.data.cliNom,op.data.monto,op.data.refRuta);
+  if(op.method==="POST") return fbPush(op.path,op.data);
+  if(op.method==="PATCH") return fbPatch(op.path,op.data);
+  if(op.method==="DELETE") return fbDel(op.path);
+  if(op.method==="STOCK_RETURN") return _stkDevolverAuto(op.data.ref,op.data.items,op.data.motivo);
+  if(op.method==="STOCK_OUT") return _stkSalidaDirecta(op.data.ref,op.data.items,op.data.motivo);
+  if(op.method==="RC_COMP_ADD"){
+    var d=op.data||{};
+    var rows=await _sbGetRaw("ruta_clientes","select=comprobantes&id=eq."+d.cliId+"&empresa_id=eq."+_sbEmpId);
+    var arr=(rows&&rows[0]&&Array.isArray(rows[0].comprobantes))?rows[0].comprobantes:[];
+    if(!arr.some(function(x){return x&&String(x.id)===String(d.comp&&d.comp.id);})){
+      arr=arr.concat([d.comp]);
+      await sbPatch("ruta_clientes","id=eq."+d.cliId+"&empresa_id=eq."+_sbEmpId,{comprobantes:arr});
+    }
+    return true;
+  }
+  if(op.method==="RC_COMP_DEL"){
+    var dd=op.data||{};
+    var rr=await _sbGetRaw("ruta_clientes","select=comprobantes&id=eq."+dd.cliId+"&empresa_id=eq."+_sbEmpId);
+    var aa=(rr&&rr[0]&&Array.isArray(rr[0].comprobantes))?rr[0].comprobantes:[];
+    aa=aa.filter(function(x){return x&&String(x.id)!==String(dd.tid);});
+    return sbPatch("ruta_clientes","id=eq."+dd.cliId+"&empresa_id=eq."+_sbEmpId,{comprobantes:aa});
+  }
+  if(op.method==="ROUTE_MOVE"){
+    var md=op.data||{}, marker="offline_move:"+op.id, nk=null;
+    // El marcador vuelve idempotente el movimiento: si se cortó internet después
+    // del alta, el reintento encuentra la copia y no duplica el pedido.
+    var existentes=await _sbGetRaw("ruta_clientes","select=id,audit_log&ruta_id=eq."+md.dst+"&empresa_id=eq."+_sbEmpId+"&limit=1000");
+    (existentes||[]).some(function(row){
+      var logs=Array.isArray(row.audit_log)?row.audit_log:[];
+      if(logs.some(function(l){return l&&l.offlineMoveId===marker;})){ nk=row.id; return true; }
+      return false;
+    });
+    if(!nk){
+      var copia=Object.assign({},md.cli||{});
+      copia.auditLog=(Array.isArray(copia.auditLog)?copia.auditLog:[]).concat([{
+        offlineMoveId:marker, fecha:op.ts||new Date().toISOString(), accion:"movido_offline"
+      }]);
+      nk=await _sbInsertRutaCli(md.dst,copia);
+      if(!nk) throw new Error("No se pudo crear el pedido en la ruta de destino");
+      await _sbPatchRutaCli(md.dst,nk,copia);
+    }
+    await sbDel("ruta_clientes","id=eq."+md.srcCli+"&ruta_id=eq."+md.src);
+    return nk;
+  }
+  return true;
+}
+function _sbPostOfflineQ(table,data,desc){
+  if(!navigator.onLine) return _enqueue("SB_POST",table,data,desc||("Alta "+table));
+  return sbPost(table,data).catch(function(){return _enqueue("SB_POST",table,data,desc||("Alta "+table));});
+}
+function _sbPatchOfflineQ(table,match,body,desc){
+  if(!navigator.onLine) return _enqueue("SB_PATCH",table,{match:match,body:body},desc||("Cambio "+table));
+  return sbPatch(table,match,body).catch(function(){return _enqueue("SB_PATCH",table,{match:match,body:body},desc||("Cambio "+table));});
+}
+async function _syncQueue(){
+  if(_isSyncing||!navigator.onLine||!_offlineQueue.length) return;
+  _isSyncing=true;
+  _showSyncing(true);
+  var ops=_offlineQueue.slice(),synced=0;
+  for(var i=0;i<ops.length;i++){
+    var op=ops[i];
+    try{
+      await _replayOfflineOp(op);
+      synced++;
+      _offlineQueue=_offlineQueue.filter(function(x){return x.id!==op.id;});
+      _saveQueue();
+    }catch(e){
+      console.warn("[Offline] Sincronización detenida para conservar el orden:",e&&e.message);
+      break;
+    }
+  }
+  _isSyncing=false;
+  _showSyncing(false);
+  _updateBanner();
+  if(synced>0){
+    _guardarRutasOffline();
+    showNotif("☁️ "+synced+" operación"+(synced>1?"es":"")+" sincronizada"+(synced>1?"s":"")+" con éxito","ok");
+  }
+  if(_offlineQueue.length&&navigator.onLine){
+    setTimeout(function(){if(!_isSyncing)_syncQueue();},5000);
+  }else if(!_offlineQueue.length){
+    setTimeout(function(){try{cargarRutasFirebase();}catch(e){}},800);
+  }
+}
+
 /* ─ Banner ─ */
 function _updateBanner(){
   var banner  = document.getElementById("offline-banner");
@@ -24233,7 +24970,13 @@ function _updateBanner(){
   var txt     = document.getElementById("offline-text");
   if(!banner) return;
   if(navigator.onLine){
-    banner.style.display = "none";
+    var pendientes=_offlineQueue.length;
+    banner.style.display = pendientes>0 ? "flex" : "none";
+    if(txt&&pendientes>0) txt.textContent="☁️ Conexión restaurada — enviando datos pendientes";
+    if(badge){
+      badge.style.display=pendientes>0?"inline-block":"none";
+      badge.textContent=pendientes+" pendiente"+(pendientes>1?"s":"");
+    }
   } else {
     banner.style.display = "flex";
     var n = _offlineQueue.length;
@@ -24306,6 +25049,10 @@ var _mePosicion = null; // {lat,lng} GPS position
 
 function iniciarMapaEntregas() {
   cargarGeocodeCache();
+  if(!Object.keys(rutasData||{}).length){
+    var local=_cargarRutasOffline();
+    if(local) rutasData=_fusionarRutasOffline(rutasData||{},local);
+  }
   _initMapaBase();
   // Try to auto-detect GPS silently
   if (navigator.geolocation && !_mePosicion) {
@@ -24555,8 +25302,10 @@ function meDetectarGPS() {
       if(el)el.textContent="✓ GPS";
       document.getElementById("mapa-stats").style.display="grid";
       _initMapaBase();
-      _mapaLeaflet.setView([_mePosicion.lat,_mePosicion.lng],14);
-      _agregarMarcadorPropio();
+      if(_mapaLeaflet){
+        _mapaLeaflet.setView([_mePosicion.lat,_mePosicion.lng],14);
+        _agregarMarcadorPropio();
+      }
     },
     function(err){
       btn.disabled=false; btn.textContent="📡 Mi posición";
@@ -24599,6 +25348,7 @@ async function geocodeAddress(direccion) {
   if (!direccion||!direccion.trim()) return null;
   var key = direccion.trim().toLowerCase();
   if (_geocodeCache[key]) return _geocodeCache[key];
+  if(!navigator.onLine) return null;
   // Try with ", Argentina" first, then bare
   var queries = [direccion+", Argentina", direccion];
   for (var qi=0; qi<queries.length; qi++) {
@@ -24785,7 +25535,7 @@ async function optimizarYMostrar(modo) {
   document.getElementById("ms-cobrar").textContent    = "$"+fM(totalSaldo);
 
   _initMapaBase();
-  initMapa(startLat, startLng, ordered);
+  if(typeof L!=="undefined" && _mapaLeaflet) initMapa(startLat, startLng, ordered);
   renderParadas(ordered);
   _mapaParadas = ordered;
 }
@@ -24859,6 +25609,7 @@ function _meNavUrls(p){
 function _meTel(t){ return (""+t).replace(/[^0-9+]/g,""); }
 
 function renderParadas(ordered) {
+  _programarGuardarRutasOffline();
   var wrap = document.getElementById("mapa-paradas");
   if (!ordered.length) {
     wrap.innerHTML="<div style='padding:40px 20px;text-align:center;color:var(--muted)'>🗺️ Sin paradas para mostrar</div>";
@@ -25394,8 +26145,12 @@ function _renderClientesList(){
   var entries = (isAdmin || isCoAdm) ? all : all.filter(function(e){
     return (e[1].role||"cliente")==="cliente" || e[1].catalogo===true;
   });
+  // Filtro por rol: mira el rol principal Y las funciones adicionales, así el
+  // que es "vendedor + jefe de ventas" aparece en los dos filtros.
   if(_cliRolFilter) entries = entries.filter(function(e){
-    return (e[1].role||"cliente") === _cliRolFilter;
+    var u = e[1];
+    if((u.role||"cliente") === _cliRolFilter) return true;
+    return _normalizarRoles(u.roles).indexOf(_cliRolFilter) !== -1;
   });
   if(window._cliZonaFilter) entries = entries.filter(function(e){ return (e[1].zona||"")===window._cliZonaFilter; });
   if(window._cliVendFilter){ if(window._cliVendFilter==="__none__") entries = entries.filter(function(e){ return !e[1].vendedor_asignado; }); else entries = entries.filter(function(e){ return e[1].vendedor_asignado===window._cliVendFilter; }); }
@@ -25429,8 +26184,17 @@ function _renderClientesList(){
   var RC = {cliente:"#059669",vendedor:"#2563eb",repartidor:"#d97706",armador:"#ea580c",admin:"#7c3aed","co-admin":"#0e7490","jefe-ventas":"#be185d"};
   var RL = {cliente:"Cliente",vendedor:"Vendedor",repartidor:"Repartidor",armador:"Armador",admin:"Admin","co-admin":"Co-Admin","jefe-ventas":"Jefe de ventas"};
   var isArmadorCli = currentUser && currentUser.role === "armador";
+  // Badges de las funciones ADICIONALES (multi-rol), aparte del rol principal
+  window._rolesExtraBadges = function(u, rolPrincipal, RCm, RLm){
+    var extras = _normalizarRoles(u.roles).filter(function(r){ return r && r !== rolPrincipal; });
+    if(!extras.length) return "";
+    return extras.map(function(r){
+      var c = RCm[r] || "#64748b";
+      return ' <span style="font-size:10.5px;font-weight:700;background:'+c+'1f;color:'+c+';border:1px solid '+c+'55;border-radius:6px;padding:1px 7px;white-space:nowrap">+ '+escHtml(RLm[r]||r)+'</span>';
+    }).join("");
+  };
 
-  var _vmapCli={}; Object.values(_clientesDB||{}).forEach(function(_u){ if(_u.role==="vendedor") _vmapCli[_u.id]=_u.name||_u.id; });
+  var _vmapCli={}; Object.values(_clientesDB||{}).forEach(function(_u){ if(_esUsuarioVendedor(_u)) _vmapCli[_u.id]=_u.name||_u.id; });
   var _cliTot = entries.length, _CLI_MAX = 30, _cliTrunc = _cliTot > _CLI_MAX;
   if(_cliTrunc) entries = entries.slice(0, _CLI_MAX);
   body.innerHTML = (_cliTrunc ? '<div style="text-align:center;padding:9px 10px;color:var(--muted);font-size:12px;background:var(--s2);border-radius:8px;margin-bottom:8px">Mostrando '+_CLI_MAX+' de '+_cliTot+' — afiná la búsqueda para ver más</div>' : '') + entries.map(function(e){
@@ -25457,6 +26221,7 @@ function _renderClientesList(){
       '<div class="cli-info">'+
         '<div class="cli-name">'+escHtml(nom)+
           ' <span class="cli-rol-badge cli-rol-'+rol+'"'+((rol==="co-admin"||rol==="jefe-ventas")?' style="background:'+RC[rol]+'22;color:'+RC[rol]+'"':'')+'>'+(RL[rol]||rol)+'</span>'+
+          _rolesExtraBadges(u, rol, RC, RL)+
           (u.zona ? ' <span class="cli-zona-tag">🗺 '+escHtml(u.zona)+'</span>' : '')+
           (u.vendedor_asignado ? ' <span style="font-size:10.5px;background:rgba(37,99,235,.13);color:#2563eb;border:1px solid rgba(37,99,235,.4);border-radius:6px;padding:1px 7px;white-space:nowrap">👤 '+escHtml(_vmapCli[u.vendedor_asignado]||u.vendedor_asignado)+'</span>' : '')+
         '</div>'+
@@ -25719,6 +26484,35 @@ function abrirEditCliente(pushKey) {
   document.getElementById("modal-edit-cli").classList.add("open");
 }
 
+async function _guardarUsuarioVerificado(sbId, payload){
+  var rows=await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,payload);
+  // Con RLS, un PATCH puede responder 200 pero devolver [] si no encontro o no
+  // autorizo ninguna fila. Eso antes se mostraba falsamente como "actualizado".
+  if(!Array.isArray(rows) || !rows.length){
+    throw new Error("Supabase no actualizó el usuario. Revisá los permisos del perfil administrador.");
+  }
+  var guardado=rows[0]||{};
+  if(String(guardado.role||"")!==String(payload.role||"")){
+    throw new Error("Supabase no conservó el rol seleccionado");
+  }
+  var esperados=_normalizarRoles(payload.roles).slice().sort();
+  var reales=_normalizarRoles(guardado.roles).slice().sort();
+  if(esperados.join("|")!==reales.join("|")){
+    throw new Error("Supabase no conservó las funciones adicionales");
+  }
+  // Mantener también el cache offline alineado con la fila confirmada.
+  try{
+    var cacheUsuarios=_sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
+    if(Array.isArray(cacheUsuarios)){
+      var ci=cacheUsuarios.findIndex(function(u){return String(u.id)===String(sbId);});
+      if(ci>=0) cacheUsuarios[ci]=Object.assign({},cacheUsuarios[ci],guardado);
+      else cacheUsuarios.push(guardado);
+      _sbCacheSave("usuarios","select=*&empresa_id=eq."+_sbEmpId,cacheUsuarios);
+    }
+  }catch(_cacheErr){}
+  return guardado;
+}
+
 async function guardarEditCliente() {
   var pushKey = document.getElementById("ec-key").value;
   if (!pushKey) return;
@@ -25801,7 +26595,7 @@ async function guardarEditCliente() {
 
     if(_sbEmpId && isUUID){
       try {
-        await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, sbPayload);
+        await _guardarUsuarioVerificado(sbId,sbPayload);
         // Contraseña nueva → hashear del lado servidor
         if(_passNueva){
           await sbFetch("POST","/rest/v1/rpc/cambiar_pass_seguro",{p_usuario_id:sbId,p_empresa_id:_sbEmpId,p_pass:_passNueva});
@@ -25817,7 +26611,7 @@ async function guardarEditCliente() {
       try {
         var existRows = await sbGet("usuarios","select=id&uid=eq."+id+"&empresa_id=eq."+_sbEmpId);
         if(existRows && existRows.length){
-          await sbPatch("usuarios","id=eq."+existRows[0].id+"&empresa_id=eq."+_sbEmpId, sbPayload);
+          await _guardarUsuarioVerificado(existRows[0].id,sbPayload);
           if(_passNueva){
             await sbFetch("POST","/rest/v1/rpc/cambiar_pass_seguro",{p_usuario_id:existRows[0].id,p_empresa_id:_sbEmpId,p_pass:_passNueva});
           }
@@ -25860,7 +26654,7 @@ async function guardarEditCliente() {
     cerrarModal("modal-edit-cli");
     // Pequeño delay para que el modal cierre antes de re-renderizar
     setTimeout(function(){ _renderClientesList(); }, 80);
-    showSaved('Cliente actualizado');
+    showSaved(rol==="cliente" ? "Cliente actualizado" : "Usuario y roles actualizados");
   } catch(e) {
     console.error("Error guardarEditCliente:", e);
     showNotif("Error al guardar: "+(e.message||e),"err");
@@ -26527,6 +27321,27 @@ function compHandleFile(e) {
 async function compGuardarEnFB(rk, ck, base64, loaderEl) {
   var ts   = Date.now();
   var data = { url: base64, ts: ts, id: String(ts) };
+  var cliLocal=rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck];
+  var rcLocal=cliLocal&&(cliLocal._rcId||ck);
+  function aplicarLocal(){
+    if(!rutasData[rk]) rutasData[rk]={};
+    if(!rutasData[rk].clientes) rutasData[rk].clientes={};
+    if(!rutasData[rk].clientes[ck]) rutasData[rk].clientes[ck]={};
+    var c=rutasData[rk].clientes[ck];
+    if(!Array.isArray(c.comprobantes)) c.comprobantes=Object.values(c.comprobantes||{});
+    if(!c.comprobantes.some(function(x){return x&&String(x.id)===String(data.id);})) c.comprobantes.push(data);
+    c.nComprobantes=c.comprobantes.length;
+    var w=document.getElementById("comp-wrap-"+rk+"-"+ck);
+    if(w) renderComprobantes(w,rk,ck,c.comprobantes);
+    if(typeof _meRefrescarSiVisible==="function") _meRefrescarSiVisible();
+    _programarGuardarRutasOffline();
+  }
+  if(!navigator.onLine){
+    aplicarLocal();
+    await _enqueue("RC_COMP_ADD","ruta_clientes/"+rcLocal,{cliId:rcLocal,comp:data},"Foto de entrega");
+    showNotif("✓ Comprobante guardado en el dispositivo","ok");
+    return;
+  }
   try {
     // Guardar en Supabase directamente (ruta_clientes.comprobantes es un array JSONB)
     var cliData = rutasData[rk] && rutasData[rk].clientes && rutasData[rk].clientes[ck];
@@ -26564,8 +27379,9 @@ async function compGuardarEnFB(rk, ck, base64, loaderEl) {
     showNotif("✓ Comprobante guardado","ok");
   } catch(err) {
     console.error("compGuardar error:", err);
-    if(loaderEl && loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
-    showNotif("Error al subir comprobante","err");
+    aplicarLocal();
+    await _enqueue("RC_COMP_ADD","ruta_clientes/"+rcLocal,{cliId:rcLocal,comp:data},"Foto de entrega");
+    showNotif("Comprobante guardado — se subirá al volver la conexión","warn");
   }
 }
 
@@ -26573,7 +27389,13 @@ async function compBorrar(rk, ck, tid, e) {
   e.stopPropagation();
   if (!(await _confirmar({icono:"🗑️",titulo:"Borrar comprobante",mensaje:"¿Borrar este comprobante?",ok:"Borrar",peligro:true}))) return;
   try {
-    await fbDel("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck+"/comprobantes/"+tid);
+    var _c0=rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck];
+    var _rc0=_c0&&(_c0._rcId||ck);
+    if(!navigator.onLine) await _enqueue("RC_COMP_DEL","ruta_clientes/"+_rc0,{cliId:_rc0,tid:tid},"Borrar comprobante");
+    else {
+      try{ await _replayOfflineOp({method:"RC_COMP_DEL",data:{cliId:_rc0,tid:tid}}); }
+      catch(_e){ await _enqueue("RC_COMP_DEL","ruta_clientes/"+_rc0,{cliId:_rc0,tid:tid},"Borrar comprobante"); }
+    }
     var _c = rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck];
     if(_c){
       var _arr = Array.isArray(_c.comprobantes) ? _c.comprobantes : Object.values(_c.comprobantes||{});
@@ -26906,6 +27728,7 @@ function csConfirmar() {
     var tieneOf = ofPre && ofPre<preNormal;
     // Consolidar por producto para evaluar la promo sobre la cantidad total
     var exist = ordenes[_csT].find(function(x){ return x.id===pid; });
+    if(_csT==="ped" && !_stkPuedeCantidad(pid,_stkCantEnItems(ordenes[_csT],pid)+qty,p.n,null,true)) return;
     if (exist) { exist.c += qty; }
     else {
       exist = {id:pid, n:p.n, p:preNormal, c:qty, sub:preNormal*qty};
@@ -27324,7 +28147,8 @@ function _renderListaFamilias(q){
         }).join("") || '<div style="width:34px;height:34px;border-radius:6px;background:var(--s3);display:flex;align-items:center;justify-content:center">📦</div>';
       }
       var titulo = (port && port.titulo) ? port.titulo : f;
-      var sub = arr.length+' variante'+(arr.length!==1?"s":"")+((port && port.titulo)?' · 🖼️ '+escHtml(f):(port && port.foto)?' · 🖼️ con portada':' · sin portada');
+      var minFam=(port&&port.minCompra>1)?(' · mínimo combinado '+port.minCompra+' u.'):'';
+      var sub = arr.length+' variante'+(arr.length!==1?"s":"")+minFam+((port && port.titulo)?' · 🖼️ '+escHtml(f):(port && port.foto)?' · 🖼️ con portada':' · sin portada');
       return '<div class="fam-row" onclick="abrirModalFamilia(\''+(""+f).replace(/'/g,"\\'").replace(/"/g,"&quot;")+'\')" style="display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s;background:var(--s2)" onmouseover="this.style.borderColor=\'var(--gold,#c9933a)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'+
         '<div style="display:flex;align-items:center;gap:3px;flex-shrink:0">'+fotoLista+'</div>'+
         '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(titulo)+'</div>'+
@@ -27383,6 +28207,11 @@ function abrirModalFamilia(fam, desdeProducto){
         '<label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">📝 Descripción general (opcional)</label>'+
         '<textarea id="fam-portada-desc" rows="3" placeholder="ej: Desodorantes AXE en aerosol 150ml. Elegí abajo tu variedad." style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;background:var(--s2);color:var(--text);outline:none;box-sizing:border-box;resize:vertical">'+escHtml(portada.descripcion||"")+'</textarea>'+
         '<div style="font-size:10.5px;color:var(--muted);margin-top:5px;line-height:1.4">Se le muestra al cliente cuando entra a la familia a elegir la variedad.</div>'+
+      '</div>'+
+      '<div style="margin-top:12px;padding:11px 12px;background:var(--s2);border:1px solid var(--border);border-radius:10px">'+
+        '<label style="font-size:11px;color:var(--text);font-weight:800;display:block;margin-bottom:5px">🛒 Mínimo combinado de la familia</label>'+
+        '<input type="number" id="fam-min-compra" min="1" step="1" value="'+Math.max(1,parseInt(portada.minCompra,10)||1)+'" style="width:110px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;font-size:14px;font-weight:700;font-family:inherit;background:var(--s1);color:var(--text);outline:none">'+
+        '<div style="font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.45">Se suman todas las variedades. Ejemplo: mínimo 3 permite llevar 1 de tres productos distintos de esta familia.</div>'+
       '</div>'+
       // Tabs Archivo / URL
       '<div style="display:flex;gap:0;margin-top:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden">'+
@@ -27493,8 +28322,10 @@ async function _guardarFamiliaCostos(){
   var titulo = tituloEl ? (tituloEl.value||"").trim() : "";
   var descEl = document.getElementById("fam-portada-desc");
   var descripcion = descEl ? (descEl.value||"").trim() : "";
-  if(_famActual && (titulo || descripcion || _famFotoB64 || _portadaDe(_famActual))){
-    try { await _sbGuardarPortadaFamilia(_famActual, titulo, _famFotoB64, descripcion); } catch(e){}
+  var minEl=document.getElementById("fam-min-compra");
+  var minFamilia=Math.max(1,parseInt(minEl&&minEl.value,10)||1);
+  if(_famActual && (titulo || descripcion || _famFotoB64 || minFamilia>1 || _portadaDe(_famActual))){
+    try { await _sbGuardarPortadaFamilia(_famActual, titulo, _famFotoB64, descripcion, minFamilia); } catch(e){}
   }
   // 2) Guardar costos cambiados
   var inputs=[].slice.call(document.querySelectorAll('#fam-overlay-body input[data-fkey]'));
@@ -27507,7 +28338,7 @@ async function _guardarFamiliaCostos(){
     // No hubo cambios de costo, pero quizás sí de portada → refrescar y cerrar
     if(typeof renderProductos==="function") renderProductos();
     cerrarFamOverlay();
-    setTimeout(function(){ showSaved("Portada guardada"); }, 80);
+    setTimeout(function(){ showSaved("Familia guardada"); }, 80);
     return;
   }
   var btn=document.querySelector(".famv-save"); if(btn){btn.disabled=true;}
@@ -30800,6 +31631,22 @@ async function _rvFastTick(){
       }
       if(u.last_lat==null || u.last_lng==null) return;   // el celular todavía no mandó nada
       _rvMoverSuave(u.id, [u.last_lat, u.last_lng]);
+      // Aviso de SEÑAL VIEJA: si la sesión está activa pero el último punto tiene
+      // más de 45 s, el puntito se atenúa y el globito lo dice — así se ve de una
+      // que el celular dejó de mandar (sin internet, GPS trabado, celu apagado…)
+      // en vez de creer que la persona está quieta ahí.
+      try{
+        var _mkRv = _vndMapaById[u.id];
+        if(_mkRv){
+          var _edad = u.last_loc_at ? (Date.now() - new Date(u.last_loc_at).getTime()) : Infinity;
+          var _quieto = _edad > 45000;
+          if(_mkRv.setOpacity) _mkRv.setOpacity(_quieto ? .55 : 1);
+          var _nomRv = (_rvLive[u.id] && _rvLive[u.id].nombre) || u.name || "";
+          if(_mkRv.getPopup()) _mkRv.getPopup().setContent("<b>"+_nomRv+"</b><br>"+(
+            _quieto ? "⚠️ sin señal nueva ("+_haceCuanto(u.last_loc_at)+")<br><span style='font-size:11px'>puede estar sin internet o con el GPS frenado</span>"
+                    : "🔴 en vivo"));
+        }
+      }catch(eSt){}
     });
   }catch(e){ /* sin red: el próximo tick lo cubre */ }
 }
@@ -31034,7 +31881,7 @@ function _poblarSelectorVendedores(){
   var sel = document.getElementById("rem-vendedor-uid");
   if(!sel || !empresaData.usuarios) return;
   var usuarios = Object.values(empresaData.usuarios);
-  var vendedores = usuarios.filter(function(u){ return u.role==="vendedor" || (!u.role && u.id !== currentUser.id); });
+  var vendedores = usuarios.filter(function(u){ return _esUsuarioVendedor(u) || (!u.role && u.id !== currentUser.id); });
   vendedores.sort(function(a,b){ return (a.name||a.id).localeCompare(b.name||b.id,"es"); });
   sel.innerHTML = '<option value="">— Sin atribución (admin) —</option>' +
     vendedores.map(function(u){
@@ -32456,6 +33303,10 @@ async function generarCatalogoPDF(previewMode){
 
     // Escuchar mensajes del SW → abrir Backup Pedidos al tocar notificación
     navigator.serviceWorker.addEventListener('message', function(e){
+      if(e.data && (e.data.type==='SYNC_OFFLINE_QUEUE'||e.data.type==='SYNC_PEDIDOS')){
+        if(typeof _syncQueue==="function") _syncQueue();
+        return;
+      }
       if(e.data && e.data.type==='OPEN_BACKUP'){
         if(typeof verTab==='function'){
           var btn=document.getElementById('nav-backup');
@@ -33268,7 +34119,7 @@ function _cliPoblarFiltros(){
     zs.innerHTML='<option value="">🗺 Todas las zonas</option>'+Object.keys(zonas).sort(function(a,b){return a.localeCompare(b,'es');}).map(function(z){return '<option value="'+_avEsc(z)+'">'+_avEsc(z)+'</option>';}).join('');
   }
   if(vs && vs.options.length<=2){
-    var vends=Object.values(_clientesDB||{}).filter(function(u){return u.role==='vendedor';}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'','es');});
+    var vends=Object.values(_clientesDB||{}).filter(function(u){return _esUsuarioVendedor(u);}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'','es');});
     vs.innerHTML='<option value="">👤 Todos los vendedores</option><option value="__none__">— Sin asignar —</option>'+vends.map(function(v){return '<option value="'+_avEsc(v.id)+'">'+_avEsc(v.name||v.id)+'</option>';}).join('');
   }
 }
@@ -33502,12 +34353,12 @@ async function _meRechazar(i){
   // Registrar aviso para el admin (en Supabase)
   try{
     if(_sbEmpId){
-      sbPost("avisos_rechazo", {
+      _sbPostOfflineQ("avisos_rechazo", {
         empresa_id: _sbEmpId,
         ruta_id: String(rk), cli_key: String(ck), cli_nom: p.cli.nom||"",
         motivo: motivo||"", importe: p.cli.importe||0, confirmado:false,
         repartidor: (currentUser&&currentUser.name)||"", fecha: ahora
-      }).catch(function(e){ console.warn("[Aviso rechazo]", e&&e.message); });
+      },"Aviso de pedido rechazado").catch(function(e){ console.warn("[Aviso rechazo]", e&&e.message); });
     }
   }catch(e){}
   renderParadas(_mapaParadas);
@@ -33637,18 +34488,9 @@ async function _meReprogramar(i){
       try{
         var cli=p.cli;
         cli.reprogramadoDe=rkOrigen; cli.reprogramadoEn=ahora;
-        var nk=await fbPush("empresas/"+empresaKey+"/rutas/"+dst+"/clientes", cli);
-        // El alta no guarda estos campos: se completan con un patch aparte
-        // (si la base no tiene las columnas, el patch los omite sin romper).
-        try{ await fbPatchQ("empresas/"+empresaKey+"/rutas/"+dst+"/clientes/"+nk,
-              {reprogramadoDe:rkOrigen, reprogramadoEn:ahora}, "Reprogramado"); }catch(e){}
-        if(!rutasData[dst]) rutasData[dst]={clientes:{}};
-        if(!rutasData[dst].clientes) rutasData[dst].clientes={};
-        rutasData[dst].clientes[nk]=cli;
-        await fbDel("empresas/"+empresaKey+"/rutas/"+rkOrigen+"/clientes/"+ck);
-        if(rutasData[rkOrigen]&&rutasData[rkOrigen].clientes) delete rutasData[rkOrigen].clientes[ck];
+        await _moverClienteRutaQ(rkOrigen,ck,dst,cli,"Reprogramar pedido");
         _auditar("editar","reprogramar",ck,"Reprogramó el pedido de "+(cli.nom||"")+" a otra hoja de ruta");
-        showNotif("📅 Pedido reprogramado","ok");
+        showNotif(navigator.onLine?"📅 Pedido reprogramado":"📱 Reprogramación guardada en el dispositivo","ok");
         _mapaParadas.splice(i,1);
         renderParadas(_mapaParadas);
       }catch(e){ showNotif("Error al reprogramar: "+(e.message||""),"err"); }
@@ -33657,41 +34499,98 @@ async function _meReprogramar(i){
 }
 
 // El admin confirma el rechazo: RECIÉN AHORA la mercadería vuelve al stock
-async function _confirmarRechazo(rutaId, cliKey){
+function _rechazoItemsPendientesStock(cli){
+  var pedidos={}, orden=[];
+  (cli.items||[]).forEach(function(it){
+    var id=String(it.id||it.codigo||it.cod||"");
+    var cant=+(it.c||it.cant||it.cantidad||it.qty||0);
+    if(!id||cant<=0) return;
+    if(pedidos[id]===undefined){ pedidos[id]=0; orden.push(id); }
+    pedidos[id]+=cant;
+  });
+  (cli.devoluciones||[]).forEach(function(d){
+    if(!d||!d.stkDev||_devEstado(d)==="rechazada") return;
+    var id=String(d.codigo||"");
+    if(id&&pedidos[id]!==undefined) pedidos[id]-=+(d.cantidad||1);
+  });
+  return orden.map(function(id){
+    return {id:id,c:Math.max(0,pedidos[id])};
+  }).filter(function(it){ return it.c>0; });
+}
+
+async function _confirmarRechazo(rutaId, cliKey, opts){
+  opts=opts||{};
   var ruta=rutasData[rutaId];
   var cli = ruta && ruta.clientes && ruta.clientes[cliKey];
   if(!cli){ showNotif("No se encontró el pedido rechazado","err"); return; }
   if(cli.rechazoConfirmado===true){ showNotif("Este rechazo ya estaba confirmado","info"); return; }
-  var ok = await _confirmar({icono:"❌",titulo:"Confirmar rechazo",mensaje:"Al confirmar, la mercadería de "+(cli.nom||"este cliente")+" vuelve al stock y el pedido se descuenta de la hoja de ruta y de la comisión. ¿Confirmás?",ok:"Sí, confirmar",peligro:false});
-  if(!ok) return;
-  var ahora=new Date().toISOString();
-  // 1) Marcar confirmado (local + Firebase)
-  cli.rechazoConfirmado=true; cli.rechazoConfirmadoEn=ahora;
-  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rutaId+"/clientes/"+cliKey,
-    {rechazoConfirmado:true, rechazoConfirmadoEn:ahora}, "Rechazo confirmado: "+(cli.nom||""));
-  // 2) Devolver al stock (recién ahora)
+  if(!opts.sinPregunta){
+    var ok = await _confirmar({icono:"❌",titulo:"Confirmar rechazo",mensaje:"Al confirmar, la mercadería pendiente de "+(cli.nom||"este cliente")+" vuelve al stock y el pedido se descuenta de la hoja de ruta y de la comisión. ¿Confirmás?",ok:"Sí, confirmar",peligro:false});
+    if(!ok) return;
+  }
+  // Primero vuelve el stock. Recién si eso termina se marca confirmado.
   try{
-    var its = cli.items||[];
+    var its = _rechazoItemsPendientesStock(cli);
     if(its.length){
       await _stkDevolverAuto("rech-"+rutaId+"-"+cliKey, its, "Rechazo en reparto — vuelve al stock");
       showNotif("↩️ La mercadería volvió al stock","ok");
     }
-  }catch(e){ console.warn("[Stock] devolución al confirmar:", e.message); }
-  // 3) Marcar el aviso como atendido (en Supabase)
+  }catch(e){
+    console.warn("[Stock] devolución al confirmar:", e.message);
+    showNotif("No se pudo devolver el stock. El rechazo quedó pendiente para reintentar.","err");
+    return false;
+  }
+  var ahora=new Date().toISOString();
+  cli.rechazoConfirmado=true; cli.rechazoConfirmadoEn=ahora;
+  try{
+    await fbPatchQ("empresas/"+empresaKey+"/rutas/"+rutaId+"/clientes/"+cliKey,
+      {rechazoConfirmado:true, rechazoConfirmadoEn:ahora}, "Rechazo confirmado: "+(cli.nom||""));
+  }catch(e){
+    cli.rechazoConfirmado=false; cli.rechazoConfirmadoEn=null;
+    showNotif("El stock volvió, pero no se pudo guardar la confirmación. Revisá la conexión.","err");
+    return false;
+  }
+  // Marcar el aviso como atendido (en Supabase)
   try{
     if(_sbEmpId){
-      await sbPatch("avisos_rechazo",
+      await _sbPatchOfflineQ("avisos_rechazo",
         "empresa_id=eq."+_sbEmpId+"&ruta_id=eq."+encodeURIComponent(String(rutaId))+"&cli_key=eq."+encodeURIComponent(String(cliKey))+"&confirmado=eq.false",
-        {confirmado:true, confirmado_en:new Date().toISOString()});
+        {confirmado:true, confirmado_en:new Date().toISOString()},"Confirmar aviso de rechazo");
     }
   }catch(e){ console.warn("[Aviso atendido]", e&&e.message); }
-  // 4) Auditar
   _auditar("editar","rechazo",cliKey,"Confirmó el rechazo de "+(cli.nom||"")+" — devolución al stock y descuento de ruta/comisión");
-  // 5) Refrescar vistas
   _cerrarAlertaModal();
   if(typeof renderDashboard==="function") renderDashboard();
   if(typeof renderRutas==="function") try{ renderRutas(); }catch(e){}
   showNotif("✅ Rechazo confirmado","ok");
+  return true;
+}
+
+async function _hrRechazarPedido(rk,ck,e){
+  if(e) e.stopPropagation();
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli){ showNotif("No se encontró el pedido","err"); return; }
+  if(cli.rechazoConfirmado===true){ showNotif("Este pedido ya fue rechazado y confirmado","info"); return; }
+  var n=_hrNums(cli);
+  if(n.pagado>0.01){
+    showNotif("El pedido tiene un cobro cargado. Corregí el cobro antes de rechazarlo.","warn");
+    return;
+  }
+  var motivo=await _meMotivoRechazo();
+  if(motivo===null) return;
+  var ahora=new Date().toISOString();
+  var quien=(currentUser&&(currentUser.name||currentUser.id))||"";
+  var datos={rechazado:true,rechazadoEn:ahora,motivoRechazo:motivo||"",rechazadoPor:quien,entregado:false,rechazoConfirmado:false};
+  Object.keys(datos).forEach(function(k){ cli[k]=datos[k]; });
+  try{
+    await fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,datos,"Rechazado desde hoja de ruta: "+(cli.nom||""));
+  }catch(err){
+    showNotif("No se pudo guardar el rechazo. Revisá la conexión.","err");
+    return;
+  }
+  _auditar("editar","rechazo",ck,"Rechazó el pedido de "+(cli.nom||"")+" desde Hoja de Ruta");
+  if(typeof renderRutas==="function") renderRutas();
+  await _confirmarRechazo(rk,ck,{sinPregunta:true});
 }
 
 function _meMotivoRechazo(){
@@ -33810,6 +34709,22 @@ function _devAdminVer(rk,ck){
   if(!cli.devoluciones) cli.devoluciones=[];
   _devTarget={ cli:cli, readonly:true, persist:function(){ _devPersistir(rk, ck, cli); if(typeof renderRutas==="function") renderRutas(); if(typeof _ncDashRender==="function") _ncDashRender(); } };
   _devMostrar((cli.nom||"")+" · notas de crédito");
+}
+function _devHojaAbrir(rk,ck,e){
+  if(e) e.stopPropagation();
+  var cli=(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck])||null; if(!cli) return;
+  if(!cli.devoluciones) cli.devoluciones=[];
+  _devTarget={
+    cli:cli,
+    readonly:false,
+    forceApply:true,
+    persist:function(){
+      _devPersistir(rk,ck,cli);
+      if(typeof renderRutas==="function") renderRutas();
+      if(typeof _ncDashRender==="function") _ncDashRender();
+    }
+  };
+  _devMostrar((cli.nom||"")+" · rechazar productos");
 }
 function _devMostrar(sub){
   var m=document.getElementById("dev-modal"); if(!m||!_devTarget) return;
@@ -33975,14 +34890,32 @@ function _devAgregar(){
   var nota=(document.getElementById("dev-nota").value||"").trim();
   if(!_devTarget.cli.devoluciones) _devTarget.cli.devoluciones=[];
   // Buscar el precio unitario del producto en los items de ESTE pedido
-  var _pu=0, _cod="";
+  var _pu=0, _cod="", _maxPedido=0;
   var _items=(_devTarget.cli.items||[]);
-  for(var _z=0;_z<_items.length;_z++){ if(_devItemNom(_items[_z])===prod){ _pu=_items[_z].p||0; _cod=_items[_z].id||_items[_z].codigo||_items[_z].cod||""; break; } }
+  for(var _z=0;_z<_items.length;_z++){
+    if(_devItemNom(_items[_z])===prod){
+      _pu=_items[_z].p||0;
+      _cod=_items[_z].id||_items[_z].codigo||_items[_z].cod||"";
+      _maxPedido+=+(_devItemCant(_items[_z])||0);
+    }
+  }
+  if(_maxPedido>0){
+    var _yaDevuelto=(_devTarget.cli.devoluciones||[]).reduce(function(s,d){
+      if(!d||_devEstado(d)==="rechazada") return s;
+      var mismo=_cod ? String(d.codigo||"")===String(_cod) : d.producto===prod;
+      return s+(mismo?+(d.cantidad||1):0);
+    },0);
+    var _disponible=Math.max(0,_maxPedido-_yaDevuelto);
+    if(cant>_disponible){
+      if(typeof showNotif==="function") showNotif(_disponible>0?("Solo podés rechazar "+_disponible+" unidad(es) más de este producto"):"Este producto ya fue rechazado por completo","warn");
+      return;
+    }
+  }
   // Solo devolucion y faltante descuentan del importe (rotura la absorbe la empresa)
   var _descuenta=(motivo==="devolucion"||motivo==="faltante");
   var _monto=_descuenta ? Math.round(_pu*cant*100)/100 : 0;
   // Estado inicial: el repartidor NOTIFICA (queda pendiente); vendedor/admin la crean ya APLICADA.
-  var _estIni = _ncPuedeAplicar() ? 'aplicada' : 'notificada';
+  var _estIni = (_devTarget.forceApply || _ncPuedeAplicar()) ? 'aplicada' : 'notificada';
   var _d = {producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,codigo:_cod,ts:new Date().toISOString(), estado:_estIni, historial:[]};
   _ncLog(_d,'notificada');
   if(_estIni==='aplicada') _ncLog(_d,'aplicada');
@@ -35686,7 +36619,7 @@ function _rvtTocaHoy(f, fecha){
 function _rvtCli(uuid){ return (_clientesDB||{})[uuid] || null; }
 function _rvtClientes(){ return Object.values(_clientesDB||{}).filter(function(u){ return (u.role||"cliente")==="cliente"; }); }
 function _rvtVendedores(){
-  return Object.values(_clientesDB||{}).filter(function(u){ return u.role==="vendedor"; })
+  return Object.values(_clientesDB||{}).filter(function(u){ return _esUsuarioVendedor(u); })
     .sort(function(a,b){ return (a.name||"").localeCompare(b.name||"","es"); });
 }
 function _rvtNomVend(uid){ var n=uid; _rvtVendedores().forEach(function(v){ if(v.id===uid) n=v.name||uid; }); return n; }
