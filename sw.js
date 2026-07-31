@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.14
-const CACHE_NAME = 'distribix-v1.14';
-const CACHE_STATIC = 'distribix-static-v1.14';
+// DISTRIBIX Service Worker v1.15
+const CACHE_NAME = 'distribix-v1.15';
+const CACHE_STATIC = 'distribix-static-v1.15';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -14,6 +14,10 @@ const PANEL_CANDIDATES = [
 const APP_SHELL = PANEL_CANDIDATES.concat([
   './manifest.json',
   './distribix-logo-completo.png',
+  './favicon-distribix.ico',
+  './favicon-16.png',
+  './favicon-32.png',
+  './favicon-48.png',
   './apple-touch-icon.png',
   './icon-72.png',
   './icon-96.png',
