@@ -9223,7 +9223,7 @@ async function _sbGetRutas(){
   return result;
 }
 async function _sbInsertRuta(data){ var rows=await sbPost("rutas",{empresa_id:_sbEmpId,nombre:data.nombre,fecha:data.fecha||new Date().toISOString()}); return rows&&rows[0]?rows[0].id:null; }
-async function _sbInsertRutaCli(rutaId,data){ var body={ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:data.items||[],fecha:data.fecha||new Date().toISOString(),lista:data.lista||"",obs:data.obs||"",tipo_comprobante:data.tipoComprobante||null,firma:"",pagos_adicionales:[],comprobantes:[],audit_log:data.auditLog||[]}; if(data.pedidoId) body.pedido_id=data.pedidoId; var rows=await sbPost("ruta_clientes",body); return rows&&rows[0]?rows[0].id:null; }
+async function _sbInsertRutaCli(rutaId,data){ var body={ruta_id:rutaId,empresa_id:_sbEmpId,nom:data.nom||"",cliente_id:data.id||"",importe:data.importe||0,efectivo:data.efectivo||0,transferencia:data.transferencia||0,modo:data.modo||"ninguno",items:_itemsActivosPedido(data.items||[]),fecha:data.fecha||new Date().toISOString(),lista:data.lista||"",obs:data.obs||"",tipo_comprobante:data.tipoComprobante||null,firma:"",pagos_adicionales:[],comprobantes:[],audit_log:data.auditLog||[]}; if(data.pedidoId) body.pedido_id=data.pedidoId; if(data.dscGeneral) body.dsc_general=data.dscGeneral; var rows=await sbPost("ruta_clientes",body); return rows&&rows[0]?rows[0].id:null; }
 // Columnas agregadas por rechazos_ruta.sql. Si la base todavía no las tiene,
 // las escrituras las omiten en vez de fallar.
 var _RC_COLS_NUEVAS = ["rechazado","rechazado_en","motivo_rechazo","rechazado_por","rechazo_confirmado","reprogramado_de","reprogramado_en","dsc_general","pedido_id"];
@@ -16627,8 +16627,8 @@ async function generarPDF(m){
       var uObj=Object.values(empresaData.usuarios).find(function(u){return u.id===usuarioRemito;});
       if(uObj) usuarioNom=uObj.name||uObj.id;
     }
-    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}return it;}),total:totalNum,usuario:usuarioRemito,usuarioNom:usuarioNom};
-    var itemsCopy=ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}return it;});
+    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;}),total:totalNum,usuario:usuarioRemito,usuarioNom:usuarioNom,descuentos:{ahorroItems:ahorroItems,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal,subtotalLista:subtotalLista,dscGenTipo:dg?dg.tipo:null,dscGenValor:dg?dg.valor:null}};
+    var itemsCopy=ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;});
     var cliIdRem=document.getElementById("idCli-rem").value;
     fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Venta remito "+nom).then(async function(){
       // Buscar ruta abierta con menos de 30 clientes
@@ -16674,7 +16674,8 @@ async function generarPDF(m){
       }
       return rkPromise.then(function(rk){
         if(!rk||rk.startsWith("op_"))return;
-        var cd={nom:nom,id:cliIdRem,importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:itemsCopy,fecha:ahora.toISOString(),tipoComprobante:null};
+        var _dscRutaDirecta=montoDscGen>0?{tipo:dg.tipo,valor:dg.valor}:null;
+        var cd={nom:nom,id:cliIdRem,importe:totalNum,efectivo:0,transferencia:0,modo:"ninguno",items:itemsCopy,fecha:ahora.toISOString(),tipoComprobante:null,dscGeneral:_dscRutaDirecta};
         return fbPushQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes",cd,"Cliente ruta: "+nom).then(function(ck){if(ck&&!ck.startsWith("op_")){if(!rutasData[rk])rutasData[rk]={clientes:{}};if(!rutasData[rk].clientes)rutasData[rk].clientes={};rutasData[rk].clientes[ck]=cd;}});
       });
     }).catch(function(e){console.warn("Firebase:",e);});
@@ -18228,10 +18229,7 @@ async function imprimirPedidosDeRuta(rk){
   var _descuadres = [];
   clientes.forEach(function(_par){
     var c = _par[1] || {};
-    var _sum = (c.items||[]).reduce(function(s,i){
-      return s + (i.sub!==undefined ? i.sub : (i.p||0)*(i.c||1));
-    },0);
-    _sum = Math.round(_sum*100)/100;
+    var _sum = _calcularPedidoUnico(c).total;
     var _imp = Math.round((c.importe||0)*100)/100;
     // En Factura A el importe guardado YA incluye el IVA: lo neteamos para comparar.
     if(c.tipoComprobante==="factura_a") _imp = Math.round((_imp/1.21)*100)/100;
@@ -18276,6 +18274,7 @@ async function imprimirPedidosDeRuta(rk){
   for(var ci=0; ci<clientes.length; ci++){
     var ck  = clientes[ci][0];
     var cli = clientes[ci][1];
+    var _calcRutaPdf=_calcularPedidoUnico(cli);
     if(!isFirst) doc.addPage();
     isFirst = false;
 
@@ -18349,24 +18348,12 @@ async function imprimirPedidosDeRuta(rk){
 
     // ── Productos — siempre 6 columnas con descuento ──
     CY+=4; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Productos",10,CY); CY+=2;
-    var items=cli.items||[];
+    var items=_itemsSinGeneralEmbebido(cli,_calcRutaPdf);
     var head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
     var body=items.map(function(i){
-      // El descuento por producto se guarda como "dsc" cuando viene del pedido y
-      // como "disc" cuando se puso desde la hoja de ruta. Leemos los dos, si no
-      // la columna "Dscto." sale vacía aunque el descuento esté aplicado.
-      var _dI=i.dsc||i.disc||null;
-      var hasDsc=_dI&&_dI.valor>0;
-      var tieneOf=i.ofNormal&&i.ofPrecio&&i.ofAplicada;
-      var pL=tieneOf?i.ofNormal:(i.p||0);
-      var dscLbl;
-      if(tieneOf){ var ofD=Math.round((1-i.ofPrecio/i.ofNormal)*100); dscLbl="OFERTA -"+ofD+"%"; }
-      else if(hasDsc){ dscLbl=(_dI.tipo==="%"?"-"+_dI.valor+"%":"-$"+fM(_dI.valor)); }
-      else { dscLbl="—"; }
-      var sub=(i.sub!=null?i.sub:(i.p||0)*(i.c||1));
-      var pF=(hasDsc||tieneOf)?Math.round(sub/(i.c||1)*100)/100:(i.p||0);
+      var det=_detallePrecioItem(i);
       var _u=_itBulto(i);   // bulto completo → 1 bulto con precio de bulto
-      return[i.n||"", _u?((i.c||1)/_u):(i.c||1), "$"+fM(_u?pL*_u:pL), dscLbl, "$"+fM(_u?pF*_u:pF), "$"+fM(sub)];
+      return[i.n||"", _u?(det.cant/_u):det.cant, "$"+fM(_u?det.pLista*_u:det.pLista), det.label, "$"+fM(_u?det.pFinal*_u:det.pFinal), "$"+fM(det.sub)];
     });
     // Sin relleno de filas vacías: la tabla termina donde terminan los ítems y el
     // pie va justo debajo (o salta de hoja si no entra). Evita páginas semivacías.
@@ -18387,26 +18374,19 @@ async function imprimirPedidosDeRuta(rk){
     // Reservar también el alto de los datos fiscales / formas de pago, si no
     // el bloque se dibuja fuera de la hoja y no se ve.
     var yP=_pdfPieY(doc,4,Math.max(50, obsH+12+_altoCob+6));
-    var dsc=cli.descuentos||{};
-    var total=cli.importe||0;
-    var totalDsc=dsc.ahorroTotal||0;
-    // Respaldo: si el descuento guardado es 0 pero los items tienen ofertas,
-    // recalcular el ahorro desde los items (pedidos viejos podían no guardarlo bien).
-    if(totalDsc<=0 && Array.isArray(cli.items)){
-      var ahorroOf=cli.items.reduce(function(s,i){
-        if(i.ofAplicada && i.ofNormal && i.ofPrecio){ return s+((i.ofNormal-i.ofPrecio)*(i.c||1)); }
-        return s;
-      },0);
-      if(ahorroOf>0) totalDsc=Math.round(ahorroOf*100)/100;
-    }
-    // ¿Es Factura A? El importe guardado en ruta YA incluye el IVA 21%.
+    var dsc=_calcRutaPdf.descuentos;
+    var ahorroItems=_calcRutaPdf.ahorroItems;
+    var montoDscGen=_calcRutaPdf.montoDscGen;
+    var totalDsc=ahorroItems+montoDscGen;
+    var subtotLista=_calcRutaPdf.subtotalLista;
+    // ¿Es Factura A? El total impreso lleva IVA 21%.
     var _esFacturaA = _esFactA;
-    var _neto = total, _ivaMonto = 0;
+    var _neto = _calcRutaPdf.total, _ivaMonto = 0;
+    var total=_neto;
     if(_esFacturaA){
-      _neto = Math.round((total/1.21)*100)/100;      // total sin IVA
-      _ivaMonto = Math.round((total-_neto)*100)/100;  // IVA 21%
+      _ivaMonto = Math.round(_neto*0.21*100)/100;
+      total = Math.round((_neto+_ivaMonto)*100)/100;
     }
-    var subtotLista=(dsc.subtotalLista && dsc.subtotalLista>total) ? dsc.subtotalLista : ((_esFacturaA?_neto:total)+totalDsc);
 
     if(showObs){
       doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor.apply(doc,INK);
@@ -18428,15 +18408,21 @@ async function imprimirPedidosDeRuta(rk){
     // Subtotal lista
     doc.rect(tX,ty,tW,rowH);
     doc.text("Subtotal lista:",tX+2,ty+4);
-    doc.setFont("helvetica","normal"); doc.text("$"+fM(totalDsc>0?subtotLista:(_esFacturaA?_neto:total)),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
+    doc.setFont("helvetica","normal"); doc.text("$"+fM(subtotLista),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
 
-    // Dscto. total
-    doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-    doc.text("Dscto. total:",tX+2,ty+4);
-    doc.setFont("helvetica","normal");
-    if(totalDsc>0){doc.setTextColor.apply(doc,RED);doc.text("-$"+fM(totalDsc),tX+tW-2,ty+4,{align:"right"});doc.setTextColor.apply(doc,INK);}
-    else{doc.text("$0,00",tX+tW-2,ty+4,{align:"right"});}
-    ty+=rowH;
+    if(ahorroItems>0){
+      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH); doc.text("Dscto. productos:",tX+2,ty+4);
+      doc.setFont("helvetica","normal"); doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=rowH;
+    }
+    if(montoDscGen>0){
+      var _lblDg=_calcRutaPdf.dscGenTipo==="%"?"Dscto. gral. ("+_calcRutaPdf.dscGenValor+"%):":"Dscto. general:";
+      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH); doc.text(_lblDg,tX+2,ty+4);
+      doc.setFont("helvetica","normal"); doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(montoDscGen),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=rowH;
+    }
+    if(totalDsc===0){
+      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH); doc.text("Dscto. total:",tX+2,ty+4);
+      doc.setFont("helvetica","normal"); doc.text("$0,00",tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
+    }
 
     // IVA
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
@@ -18515,7 +18501,7 @@ function _devDescuentoCli(c){
 }
 function calcRuta(ruta){
   var cl=Object.values(ruta.clientes||{});
-  var tot=cl.reduce(function(s,c){return s+(c.rechazado?0:Math.max(0,(c.importe||0)-_devDescuentoCli(c)));},0);
+  var tot=cl.reduce(function(s,c){return s+(c.rechazado?0:_hrNums(c).tot);},0);
   var cob=cl.reduce(function(s,c){
     var base=(c.efectivo||0)+(c.transferencia||0);
     var adicional=(c.pagosAdicionales||[]).reduce(function(sa,p){return sa+(p.monto||0);},0);
@@ -19192,6 +19178,8 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
         transferencia: cli.transferencia||0,
         lista:      cli.lista||"",
         obs:        cli.obs||"",
+        pedido_id:  cli.pedidoId||null,
+        dsc_general:cli.dscGeneral||null,
         firma:      "",
         pagos_adicionales: [],
         comprobantes: []
@@ -19745,7 +19733,10 @@ var _hrETIQ = {
 function _hrNums(cli){
   var ef=cli.efectivo||0, tr=cli.transferencia||0;
   var desc=(typeof _devDescuentoCli==="function")?_devDescuentoCli(cli):0;
-  var tot=Math.max(0,(cli.importe||0)-desc);
+  // Si la parada está vinculada a Backup, usar sus productos/descuentos actuales.
+  // `importe` queda solo como respaldo para rutas antiguas sin pedido_id.
+  var importeActual=(typeof _importeRutaVigente==="function")?_importeRutaVigente(cli):(cli.importe||0);
+  var tot=Math.max(0,importeActual-desc);
   var ad=(cli.pagosAdicionales||[]).reduce(function(s,p){return s+(p.monto||0);},0);
   var pag=Math.round((ef+tr+ad)*100)/100;
   return {ef:ef, tr:tr, ad:ad, desc:desc,
@@ -19889,12 +19880,12 @@ function _hrBadges(rk, ck, cli, n, st){
     b+=' <span class="rc-item-dsc-badge" style="background:#1e2a4a;color:#fff">FACT. A</span>';
   else if(cli.tipoComprobante==="remito")
     b+=' <span class="rc-item-dsc-badge" style="background:var(--s3);color:var(--muted)">remito</span>';
-  var hasDscItem = cli.descuentos && cli.descuentos.ahorroItems>0;
-  var hasDscGen  = cli.dscGeneral || (cli.descuentos && cli.descuentos.montoDscGen>0);
+  var _calcBadge=_calcularPedidoUnico(cli||{});
+  var hasDscItem = _calcBadge.ahorroItems>0;
+  var hasDscGen  = _calcBadge.montoDscGen>0;
   if(hasDscItem) b+=' <span class="rc-item-dsc-badge" style="background:#fef3c7;color:#b45309">🏷️ dsc.</span>';
   if(hasDscGen){
-    var gv = cli.dscGeneral ? (cli.dscGeneral.tipo==="%"?cli.dscGeneral.valor+"%":"$"+fM(cli.dscGeneral.valor))
-                            : (cli.descuentos.dscGenTipo==="%"?cli.descuentos.dscGenValor+"%":"$"+fM(cli.descuentos.montoDscGen));
+    var gv = _calcBadge.dscGenTipo==="%"?_calcBadge.dscGenValor+"%":"$"+fM(_calcBadge.montoDscGen);
     b+=' <span class="rc-item-dsc-badge" style="background:#fee2e2;color:#b91c1c">🏷️ −'+_hrEsc(gv)+'</span>';
   }
   var ds=cli.devoluciones||[];
@@ -19931,7 +19922,16 @@ function _hrBlRech(cli){
   '</div>';
 }
 function _hrBlItems(rk, ck, cli, n){
-  var items=cli.items||[];
+  var calc=_calcularPedidoUnico(cli||{});
+  var items=_itemsSinGeneralEmbebido(cli,calc);
+  var todosFuente=cli.items||[];
+  if(cli.pedidoId && typeof getBackups==="function"){
+    try{
+      var bkFuente=(getBackups()||[]).find(function(x){return String(x._sbId||x.id)===String(cli.pedidoId);});
+      if(bkFuente&&Array.isArray(bkFuente.items)) todosFuente=bkFuente.items;
+    }catch(e){}
+  }
+  var cantPendientes=todosFuente.filter(function(i){return !!i.pendiente;}).length;
   var abierto=!!_hrItemsAbierto[rk+"|"+ck];
   var h='<button class="hr-items-t" onclick="_hrTogItems(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\',event)">📦 '+
     items.length+' producto'+(items.length!==1?"s":"")+' · $'+fM(n.tot)+
@@ -19949,6 +19949,16 @@ function _hrBlItems(rk, ck, cli, n){
          '<span class="hr-it-n">'+_hrEsc(_n)+'</span>'+
          '<span class="hr-it-s">$'+fM(_sub)+'</span></div>';
     });
+  }
+  if(calc.ahorroItems>0){
+    h+='<div class="bk-card-total-row" style="color:#b45309;font-size:11.5px;font-weight:700;padding-top:6px"><span>Dscto. productos</span><span>−$'+fM(calc.ahorroItems)+'</span></div>';
+  }
+  if(calc.montoDscGen>0){
+    var lblGen=calc.dscGenTipo==="%"?'Dscto. general ('+calc.dscGenValor+'%)':'Dscto. general';
+    h+='<div class="bk-card-total-row" style="color:#b45309;font-size:11.5px;font-weight:700"><span>'+lblGen+'</span><span>−$'+fM(calc.montoDscGen)+'</span></div>';
+  }
+  if(cantPendientes>0){
+    h+='<div style="font-size:11.5px;color:#9a3412;padding:7px 0 0;font-weight:700">⏳ '+cantPendientes+' producto'+(cantPendientes!==1?'s':'')+' pendiente'+(cantPendientes!==1?'s':'')+' excluido'+(cantPendientes!==1?'s':'')+' del cobro y del remito</div>';
   }
   if(cli.tipoComprobante==="factura_a"){
     var neto=Math.round((n.tot/1.21)*100)/100, iva=Math.round((n.tot-neto)*100)/100;
@@ -20387,10 +20397,13 @@ function renderEditItems(wrap, rk, ck){
 
   /* ── DESCUENTO GENERAL ── */
   var dscWrap=document.createElement("div");
-  var dscG=cli.dscGeneral||null; // {tipo:"%"|"$", valor:number}
+  var _calcDscVista=_calcularPedidoUnico(cli);
+  var dscG=_calcDscVista.montoDscGen>0
+    ? {tipo:_calcDscVista.dscGenValor>0?_calcDscVista.dscGenTipo:"$",valor:_calcDscVista.dscGenValor>0?_calcDscVista.dscGenValor:_calcDscVista.montoDscGen}
+    : null;
   dscWrap.className="rc-dsc-wrap"+(dscG?" rc-dsc-active":"");
-  var subtotalBase=items.reduce(function(s,it){return s+(it.p*(it.c||1));},0);
-  var subtotalActual=items.reduce(function(s,it){return s+(it.sub||0);},0);
+  var subtotalBase=_calcDscVista.subtotalItems;
+  var subtotalActual=_calcDscVista.total;
   dscWrap.innerHTML=
     '<div class="rc-dsc-title">🏷️ Descuento general'+(dscG?" — activo":"")+'</div>'+
     '<div class="rc-dsc-row">'+
@@ -20424,27 +20437,24 @@ function renderEditItems(wrap, rk, ck){
     var t=tipo.dataset.t;
     var val=parseFloat(dscWrap.querySelector(".rc-dsc-input").value)||0;
     if(val<=0){showNotif("Ingresá un valor mayor a 0","err");return;}
-    // Recalcular: el descuento se aplica sobre el subtotal sin discounts por item
-    var sumaBase=items.reduce(function(s,it){return s+(it.p*it.c);},0);
+    // Mantener los descuentos de cada producto y aplicar el general después.
+    // Si el pedido viene del formato viejo, primero sacar el general que estaba
+    // distribuido dentro de items[].sub.
+    var _calcAntes=_calcularPedidoUnico(cli);
+    var itemsBase=_itemsSinGeneralEmbebido(cli,_calcAntes);
+    var _calcBase=_calcularPedidoUnico({items:itemsBase,tipoComprobante:"remito"});
+    var sumaBase=_calcBase.subtotalItems;
     var montoDsc=t==="%"?sumaBase*val/100:val;
     if(montoDsc>=sumaBase){showNotif("El descuento no puede superar el total","err");return;}
-    // Distribuir proporcionalmente entre items
-    var factor=1-(montoDsc/sumaBase);
-    var itemsConDsc=items.map(function(it){
-      // El descuento general recalcula el subtotal desde el precio de lista, o sea
-      // que pisa cualquier descuento por producto. Limpiamos esos campos para que
-      // el remito no imprima un descuento por ítem que ya no está aplicado.
-      return Object.assign({},it,{sub:parseFloat((it.p*it.c*factor).toFixed(2)),disc:undefined,dsc:undefined});
-    });
-    var _netoDsc=parseFloat((sumaBase*factor).toFixed(2));   // neto, sin IVA
-    var patch={items:itemsConDsc,importe:_importeRutaConIVA(rk,ck,_netoDsc),dscGeneral:{tipo:t,valor:val}};
+    var _netoDsc=Math.round((sumaBase-montoDsc)*100)/100;
+    var patch={items:itemsBase,importe:_importeRutaConIVA(rk,ck,_netoDsc),dscGeneral:{tipo:t,valor:val}};
     if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
       Object.assign(rutasData[rk].clientes[ck],patch);
     }
     fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch,"Descuento de pedido")
       .then(function(){
-        actualizarVentaDeRuta(rk,ck,patch.importe,itemsConDsc);
-        _propagarEdicionAPedido(rk,ck,itemsConDsc,_netoDsc);
+        actualizarVentaDeRuta(rk,ck,patch.importe,itemsBase);
+        _propagarEdicionAPedido(rk,ck,itemsBase,_netoDsc,patch.dscGeneral);
         renderRutas();
         showNotif("Descuento aplicado — "+fM(montoDsc)+" de descuento","ok");
       }).catch(function(){showNotif("Error al guardar descuento","err");});
@@ -20453,14 +20463,15 @@ function renderEditItems(wrap, rk, ck){
   /* Quitar descuento general */
   var btnQDsc=dscWrap.querySelector(".rc-dsc-remove");
   if(btnQDsc) btnQDsc.onclick=function(){
-    var itemsOrig=items.map(function(it){return Object.assign({},it,{sub:it.p*it.c,disc:undefined,dsc:undefined});});
-    var totalOrig=itemsOrig.reduce(function(s,it){return s+it.sub;},0);
+    var _calcAntes=_calcularPedidoUnico(cli);
+    var itemsOrig=_itemsSinGeneralEmbebido(cli,_calcAntes);
+    var totalOrig=_calcularPedidoUnico({items:itemsOrig,tipoComprobante:"remito"}).subtotalItems;
     var patch={items:itemsOrig,importe:_importeRutaConIVA(rk,ck,totalOrig),dscGeneral:null};
     if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
       Object.assign(rutasData[rk].clientes[ck],patch);
     }
     fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch,"Quitar descuento de pedido")
-      .then(function(){actualizarVentaDeRuta(rk,ck,patch.importe,itemsOrig);_propagarEdicionAPedido(rk,ck,itemsOrig,totalOrig);renderRutas();showNotif("Descuento removido","ok");})
+      .then(function(){actualizarVentaDeRuta(rk,ck,patch.importe,itemsOrig);_propagarEdicionAPedido(rk,ck,itemsOrig,totalOrig,null);renderRutas();showNotif("Descuento removido","ok");})
       .catch(function(){showNotif("Error al guardar","err");});
   };
 
@@ -20476,9 +20487,7 @@ async function imprimirRemitoCli(rk, ck){
   var _esFactA = (cli.tipoComprobante === "factura_a");
   // cli.importe YA incluye el IVA cuando es Factura A; generarPDFDesdeBackup
   // espera el total SIN IVA (le aplica el 21% internamente), así que lo neteamos.
-  var _totalBk = _esFactA
-    ? Math.round((((cli.importe||0)/1.21))*100)/100
-    : (cli.importe||0);
+  var _totalBk = _calcularPedidoUnico(cli||{}).total;
 
   // Chequear el desfasaje ANTES de quemar un número de remito correlativo:
   // si el usuario cancela, no queremos haber consumido una numeración.
@@ -20512,7 +20521,9 @@ async function imprimirRemitoCli(rk, ck){
     total:      _totalBk,
     usuarioNom: ruta.repartidorNom||"",
     tipoComprobante: cli.tipoComprobante || "remito",
-    descuentos: cli.descuentos||null
+    descuentos: cli.descuentos||null,
+    dscGeneral: cli.dscGeneral||null,
+    pedidoId: cli.pedidoId||null
   };
   generarPDFDesdeBackup(bk, false);
 }
@@ -20547,7 +20558,7 @@ function _importeRutaConIVA(rk, ck, neto){
 //    tal cual: la ruta no los tiene y no queremos borrarlos.
 //  · Nunca rompe el guardado de la ruta: todo va adentro de un try/catch.
 // ══════════════════════════════════════════════════════════════════════
-async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal){
+async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal, dscGeneral){
   try{
     if(!_sbEmpId) return;
     var ruta = rutasData && rutasData[rk];
@@ -20562,13 +20573,14 @@ async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal){
       return (cliId && idB && cliId===idB) || (cliNom && nomB && cliNom===nomB);
     }
 
-    // ¿Hay más de una fila de este mismo cliente en la ruta? Entonces no sabemos
-    // cuál de sus pedidos estamos editando. No tocamos nada.
+    var pedidoExacto=cli.pedidoId||null;
+    // Solo para registros viejos sin pedido_id se mantiene la comprobación por
+    // cliente. Con pedido_id el vínculo es exacto aunque haya dos compras iguales.
     var _filasMismoCli = Object.keys(ruta.clientes||{}).filter(function(k){
       var c = ruta.clientes[k]||{};
       return _mismoCli(c.id||c.cliente_id, c.nom);
     });
-    if(_filasMismoCli.length !== 1){
+    if(!pedidoExacto && _filasMismoCli.length !== 1){
       console.warn("[propagarEdicionAPedido] "+_filasMismoCli.length+" filas de \""+(cli.nom||"")+"\" en la ruta; no se actualiza el pedido (ambiguo)");
       return;
     }
@@ -20580,15 +20592,18 @@ async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal){
       });
     }
     var arr   = getBackups() || [];
-    var cands = _filtrar(arr);
+    var cands = pedidoExacto
+      ? arr.filter(function(b){return String(b._sbId||b.id)===String(pedidoExacto);})
+      : _filtrar(arr);
     // Si la pantalla de Pedidos todavía no se abrió en esta sesión, la caché local
     // puede estar vacía o vieja. En ese caso preguntamos directo a Supabase.
     if(!cands.length){
       try{
-        var _rows = await sbGet("backup_pedidos",
-          "select=id,cliente_id,cliente_nom,items,total,tipo_comprobante,ruta_vinculada_id"+
-          "&ruta_vinculada_id=eq."+rk+"&empresa_id=eq."+_sbEmpId+"&limit=500") || [];
-        cands = _filtrar(_rows);
+        var _qPedido=pedidoExacto
+          ? "select=id,cliente_id,cliente_nom,items,total,tipo_comprobante,ruta_vinculada_id,descuentos&id=eq."+encodeURIComponent(String(pedidoExacto))+"&empresa_id=eq."+_sbEmpId+"&limit=1"
+          : "select=id,cliente_id,cliente_nom,items,total,tipo_comprobante,ruta_vinculada_id,descuentos&ruta_vinculada_id=eq."+rk+"&empresa_id=eq."+_sbEmpId+"&limit=500";
+        var _rows = await sbGet("backup_pedidos",_qPedido) || [];
+        cands = pedidoExacto?_rows:_filtrar(_rows);
       }catch(e){ console.warn("[propagarEdicionAPedido] no se pudo consultar Supabase:", e && e.message); return; }
     }
     if(cands.length !== 1){
@@ -20612,23 +20627,21 @@ async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal){
     });
     var itemsFinal = (itemsRuta||[]).concat(_pendConservados);
 
-    // ── Totales ──
-    // bk.total es SIEMPRE el neto (sin IVA) y SIN los pendientes, igual que lo
-    // calcula el editor de pedidos. nuevoTotal ya es exactamente eso.
+    // ── Totales y descuentos ──
+    // El general queda separado; items[].sub conserva solo el descuento propio
+    // del producto. Esta es la misma estructura que usa el PDF.
     var _esFactA   = (bk.tipoComprobante || bk.tipo_comprobante || cli.tipoComprobante) === "factura_a";
-    var _totalBase = Math.round((nuevoTotal||0)*100)/100;
+    if(dscGeneral===undefined) dscGeneral=cli.dscGeneral||null;
+    var _calcNuevo=_calcularPedidoUnico({items:itemsRuta,dscGeneral:dscGeneral,tipoComprobante:"remito"});
+    var _totalBase = _calcNuevo.total;
     var _conIva    = _esFactA ? Math.round(_totalBase*1.21*100)/100 : _totalBase;
 
-    // ── Descuentos ──
-    // Los subtotales que llegan de la ruta YA tienen el descuento aplicado adentro.
-    // Si dejáramos el objeto de descuentos viejo, el remito del pedido volvería a
-    // restar ese descuento y cobraría de menos. Lo recalculamos desde los productos.
-    var _sumLista = (itemsRuta||[]).reduce(function(s,i){ return s + (i.p||0)*(i.c||1); },0);
-    _sumLista = Math.round(_sumLista*100)/100;
-    var _ahorro = Math.round((_sumLista - _totalBase)*100)/100;
-    var _dscNuevo = (_ahorro > 0.5)
-      ? { ahorroItems:_ahorro, montoDscGen:0, ahorroTotal:_ahorro,
-          subtotalLista:_sumLista, dscGenTipo:null, dscGenValor:0 }
+    var _ahorroTotal=_calcNuevo.ahorroItems+_calcNuevo.montoDscGen;
+    var _dscNuevo = (_ahorroTotal > 0.005)
+      ? { ahorroItems:_calcNuevo.ahorroItems, montoDscGen:_calcNuevo.montoDscGen, ahorroTotal:_ahorroTotal,
+          subtotalLista:_calcNuevo.subtotalLista,
+          dscGenTipo:_calcNuevo.montoDscGen>0?_calcNuevo.dscGenTipo:null,
+          dscGenValor:_calcNuevo.montoDscGen>0?_calcNuevo.dscGenValor:0 }
       : null;
 
     // ── Guardar en Supabase (fuente de verdad) ──
@@ -20752,11 +20765,16 @@ function guardarItemsEditados(rk, ck, items, wrap){
   oldItems.forEach(function(it){
     if(!newMap[it.n]) changes.push("− "+it.n+" (quitado)");
   });
-  // nuevoTotal = neto (suma de los subtotales). nuevoImporte = lo que se cobra:
-  // igual al neto, salvo en Factura A donde lleva el IVA adentro.
-  var nuevoTotal   = items.reduce(function(s,it){return s+it.sub;},0);
+  // Normalizar pedidos viejos que tenían el descuento general repartido en
+  // cada subtotal y mantener el descuento general activo al editar cantidades.
+  var _calcViejo=_calcularPedidoUnico(cliOld||{});
+  if(_calcViejo.generalYaIncluido){
+    items=items.map(function(it){return Object.assign({},it,{sub:+(it.p||0)*+(it.c||0)});});
+  }
+  var _calcEditRuta=_calcularPedidoUnico({items:items,dscGeneral:(cliOld&&cliOld.dscGeneral)||null,tipoComprobante:"remito"});
+  var nuevoTotal   = _calcEditRuta.total;
   var nuevoImporte = _importeRutaConIVA(rk, ck, nuevoTotal);
-  var patch = {items: items, importe: nuevoImporte};
+  var patch = {items: items, importe: nuevoImporte, dscGeneral:(cliOld&&cliOld.dscGeneral)||null};
   if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
     rutasData[rk].clientes[ck].items = items;
     rutasData[rk].clientes[ck].importe = nuevoImporte;
@@ -20778,7 +20796,7 @@ function guardarItemsEditados(rk, ck, items, wrap){
       // La venta guarda el total con IVA incluido (igual que al aprobar el pedido).
       actualizarVentaDeRuta(rk, ck, nuevoImporte, items);
       // El pedido original, en cambio, guarda el NETO: él le suma el IVA aparte.
-      _propagarEdicionAPedido(rk, ck, items, nuevoTotal);
+      _propagarEdicionAPedido(rk, ck, items, nuevoTotal, patch.dscGeneral);
       renderRutas();
     })
     .catch(function(){ alert("Error al guardar cambios."); });
@@ -21717,14 +21735,128 @@ async function _bkReasignarNueva(){
   });
 }
 
-// ══ Helper único: importe que va a la hoja de ruta, con IVA si es Factura A ══
-// Centraliza el cálculo para que NUNCA se pierda el IVA al pasar un pedido a ruta.
-function _importeParaRuta(bk){
-  var base = (bk && (bk.total!=null ? bk.total : bk.importe)) || 0;
-  if(bk && bk.tipoComprobante === "factura_a"){
-    return Math.round(base * 1.21 * 100) / 100;
+// ══ Cálculo único de pedidos/remitos ══
+// Todos los PDF, Backup y Hoja de Ruta deben usar estas funciones. Así un
+// producto pendiente nunca se imprime ni suma, y el descuento general se
+// muestra separado del descuento propio de cada producto.
+function _itemsActivosPedido(items){
+  return (items||[]).filter(function(i){ return !i.pendiente; });
+}
+function _descuentosEfectivosPedido(obj){
+  obj=obj||{};
+  var d=Object.assign({},obj.descuentos||{});
+  // Recuperar el descuento del pedido original para rutas antiguas que solo
+  // guardaron items/importe, pero sí conservaron pedido_id.
+  if((!d.dscGenValor&&!d.montoDscGen) && obj.pedidoId && typeof getBackups==="function"){
+    try{
+      var bk=(getBackups()||[]).find(function(x){return String(x._sbId||x.id)===String(obj.pedidoId);});
+      if(bk&&bk.descuentos) d=Object.assign({},bk.descuentos,d);
+    }catch(e){}
   }
-  return Math.round(base * 100) / 100;
+  if(obj.dscGeneral && +obj.dscGeneral.valor>0){
+    d.dscGenTipo=obj.dscGeneral.tipo||"%";
+    d.dscGenValor=+obj.dscGeneral.valor;
+  }
+  return d;
+}
+function _calcularPedidoUnico(obj){
+  obj=obj||{};
+  var fuenteItems=obj.items||[];
+  // Si es una parada de ruta vinculada, el pedido original es la fuente más
+  // reciente para saber qué quedó pendiente. Esto repara además rutas viejas
+  // cuyo items no llegó a actualizarse al editar Backup.
+  if(obj.pedidoId && typeof getBackups==="function"){
+    try{
+      var _bkFuente=(getBackups()||[]).find(function(x){return String(x._sbId||x.id)===String(obj.pedidoId);});
+      if(_bkFuente&&Array.isArray(_bkFuente.items)) fuenteItems=_bkFuente.items;
+    }catch(e){}
+  }
+  var items=_itemsActivosPedido(fuenteItems);
+  var d=_descuentosEfectivosPedido(obj);
+  var subtotalLista=items.reduce(function(s,i){
+    var pl=(i.ofAplicada&&i.ofNormal)?+i.ofNormal:((i.promoAplicada&&i.promoNormal)?+i.promoNormal:+(i.p||0));
+    return s+pl*+(i.c||0);
+  },0);
+  var subtotalItems=items.reduce(function(s,i){
+    var sub=(i.sub!==undefined&&i.sub!==null)?+i.sub:+(i.p||0)*+(i.c||0);
+    return s+sub;
+  },0);
+  subtotalLista=Math.round(subtotalLista*100)/100;
+  subtotalItems=Math.round(subtotalItems*100)/100;
+
+  var tipo=d.dscGenTipo||"$", valor=+(d.dscGenValor||0), monto=0;
+  if(valor>0) monto=tipo==="%"?subtotalItems*valor/100:Math.min(valor,subtotalItems);
+  else if(+d.montoDscGen>0) monto=Math.min(+d.montoDscGen,subtotalItems);
+  monto=Math.round(monto*100)/100;
+
+  // Compatibilidad: antes Hoja de Ruta distribuía el descuento general dentro
+  // de items[].sub. Si la suma ya coincide con el importe neto, no descontarlo
+  // otra vez; reconstruir el subtotal anterior para mostrar el desglose correcto.
+  var imp=+(obj.importe||0);
+  var impNeto=obj.tipoComprobante==="factura_a"?Math.round((imp/1.21)*100)/100:Math.round(imp*100)/100;
+  var generalYaIncluido=!!(obj.dscGeneral&&valor>0&&imp>0&&Math.abs(subtotalItems-impNeto)<=1);
+  var subtotalAntesGeneral=subtotalItems;
+  var total;
+  if(generalYaIncluido){
+    total=impNeto;
+    subtotalAntesGeneral=tipo==="%"&&valor<100
+      ? Math.round((total/(1-valor/100))*100)/100
+      : Math.round((total+valor)*100)/100;
+    monto=Math.max(0,Math.round((subtotalAntesGeneral-total)*100)/100);
+    subtotalLista=Math.max(subtotalLista,subtotalAntesGeneral);
+  }else{
+    total=Math.max(0,Math.round((subtotalItems-monto)*100)/100);
+  }
+  var ahorroItems=Math.max(0,Math.round((subtotalLista-subtotalAntesGeneral)*100)/100);
+  return {items:items,descuentos:d,subtotalLista:subtotalLista,subtotalItems:subtotalAntesGeneral,
+    ahorroItems:ahorroItems,montoDscGen:monto,total:total,generalYaIncluido:generalYaIncluido,
+    dscGenTipo:tipo,dscGenValor:valor};
+}
+function _itemsSinGeneralEmbebido(obj,calc){
+  calc=calc||_calcularPedidoUnico(obj||{});
+  var items=(calc.items||[]).map(function(i){return Object.assign({},i);});
+  if(!calc.generalYaIncluido) return items.map(function(i){return Object.assign({},i);});
+  // El formato viejo había distribuido el descuento general en cada sub y
+  // borrado los descuentos de producto. Recuperar la base previa desde p*c.
+  return items.map(function(i){return Object.assign({},i,{sub:+(i.p||0)*+(i.c||0)});});
+}
+function _detallePrecioItem(i){
+  i=i||{};
+  var cant=+(i.c||1);
+  var tieneOf=!!(i.ofAplicada&&i.ofNormal&&i.ofPrecio);
+  var tienePromo=!!(i.promoAplicada&&i.promoNormal&&i.promoPrecio);
+  var pLista=tieneOf?+i.ofNormal:(tienePromo?+i.promoNormal:+(i.p||0));
+  var sub=(i.sub!==undefined&&i.sub!==null)?+i.sub:+(i.p||0)*cant;
+  var pFinal=cant?Math.round(sub/cant*100)/100:0;
+  var d=i.dsc||i.disc||null, label="—";
+  if(tieneOf){
+    label="OFERTA -"+Math.round((1-(+i.ofPrecio/+i.ofNormal))*100)+"%";
+  }else if(tienePromo){
+    label="PROMO -"+Math.round((1-(+i.promoPrecio/+i.promoNormal))*100)+"%";
+  }else if(d&&+d.valor>0){
+    label=d.tipo==="%"?"-"+d.valor+"%":"-$"+fM(d.valor);
+  }else if(pLista>0&&pFinal<pLista-0.005){
+    // Pedidos viejos pueden haber perdido dsc, aunque sub sí quedó rebajado.
+    var porc=Math.round((1-pFinal/pLista)*10000)/100;
+    label="-"+porc.toLocaleString("es-AR",{maximumFractionDigits:2})+"%";
+  }
+  return {cant:cant,pLista:pLista,pFinal:pFinal,sub:sub,label:label,tieneDescuento:label!=="—"};
+}
+
+// Importe que va a la hoja de ruta, con IVA si es Factura A.
+function _importeParaRuta(bk){
+  var calc=_calcularPedidoUnico(bk||{});
+  var usaCalculo=!!(bk&&(bk.pedidoId||(Array.isArray(bk.items)&&bk.items.length)));
+  var base=usaCalculo?calc.total:((bk&&(bk.total!=null?bk.total:bk.importe))||0);
+  if(bk && bk.tipoComprobante === "factura_a") base*=1.21;
+  return Math.round(base*100)/100;
+}
+// Los pedidos activos vinculados usan el total vivo de Backup. Una entrega ya
+// cerrada conserva su importe histórico y no cambia si después se edita Backup.
+function _importeRutaVigente(cli){
+  if(!cli) return 0;
+  if(cli.pedidoId && !cli.entregado && !cli.rechazado) return _importeParaRuta(cli);
+  return Math.round(+(cli.importe||0)*100)/100;
 }
 
 // Lleva a la sección Hoja de Ruta y abre la ruta vinculada al pedido
@@ -21806,14 +21938,18 @@ async function _confirmarReasignar(){
     if(!bk) continue;
     try {
       var nom = bk.clienteNom||"Mostrador";
-      var items = bk.items||[];
+      var calcPedido=_calcularPedidoUnico(bk);
+      var items = calcPedido.items;
       var total = _importeParaRuta(bk);
+      var dscRuta=calcPedido.montoDscGen>0
+        ? {tipo:calcPedido.dscGenValor>0?calcPedido.dscGenTipo:"$",valor:calcPedido.dscGenValor>0?calcPedido.dscGenValor:calcPedido.montoDscGen}
+        : null;
       var pedidoId=bk._sbId||bk.id;
       var _oldRuta = bk.rutaVinculadaId || bk.ruta_vinculada_id;
       var cliData = {
         nom:nom,id:bk.clienteId||"",pedidoId:pedidoId,items:items,importe:total,
         tipoComprobante:bk.tipoComprobante||"remito",lista:bk.lista||"Clientes",
-        obs:bk.obs||"",fecha:bk.fecha||new Date().toISOString(),modo:"ninguno"
+        obs:bk.obs||"",fecha:bk.fecha||new Date().toISOString(),modo:"ninguno",dscGeneral:dscRuta
       };
 
       // Buscar por pedido_id: es el vínculo exacto y no confunde dos compras del
@@ -21854,7 +21990,7 @@ async function _confirmarReasignar(){
         ruta_id:rutaDestKey,empresa_id:_sbEmpId,nom:nom,cliente_id:bk.clienteId||"",
         pedido_id:pedidoId,items:items,importe:total,
         tipo_comprobante:bk.tipoComprobante||"remito",lista:bk.lista||"Clientes",
-        obs:bk.obs||"",fecha:bk.fecha||new Date().toISOString(),modo:"ninguno"
+        obs:bk.obs||"",fecha:bk.fecha||new Date().toISOString(),modo:"ninguno",dsc_general:dscRuta
       };
       var keeper=existentes[0]||null, ck;
       if(keeper){
@@ -22230,19 +22366,11 @@ function renderBackup(){
     else if(!esTiendaBk && (bk.usuarioNom||bk.usuario)) vndBadge += '<span style="font-size:10px;color:var(--muted);margin-left:4px">👤 '+(bk.usuarioNom||bk.usuario)+'</span>';
     // Para Factura A: calcular totalConIVA si no está guardado (pedidos viejos)
     // Recalcular total con descuentos para mostrar en tarjeta
-    var _dscBkCard = bk.descuentos||{};
-    var _subtotCard = (bk.items||[]).reduce(function(s,i){
-      return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1));
-    },0);
-    var _dscGenCard = _dscBkCard.montoDscGen||0;
-    if(!_dscGenCard && _dscBkCard.dscGenTipo && _dscBkCard.dscGenValor>0){
-      _dscGenCard = _dscBkCard.dscGenTipo==="%"
-        ? Math.round(_subtotCard*_dscBkCard.dscGenValor/100*100)/100
-        : Math.min(_dscBkCard.dscGenValor,_subtotCard);
-    }
-    var _totalCard = Math.round((_subtotCard-_dscGenCard)*100)/100;
-    var _hayDscCard = (_dscBkCard.subtotalLista && _dscBkCard.subtotalLista > _totalCard) || _dscGenCard>0;
-    var _totalMostrar = _hayDscCard ? _totalCard : (bk.total||_totalCard);
+    // Una sola cuenta para tarjeta, detalle, Hoja de Ruta y PDF. No confiar en
+    // resúmenes viejos de descuentos: se reconstruyen desde los ítems vigentes.
+    var _calcBkCard = _calcularPedidoUnico(bk||{});
+    var _dscBkCard = _calcBkCard.descuentos||{};
+    var _totalMostrar = _calcBkCard.total;
     var _totalConIVA = bk.tipoComprobante === "factura_a"
       ? Math.round(_totalMostrar*1.21*100)/100
       : 0;
@@ -22300,9 +22428,9 @@ function renderBackup(){
       : '';
     // Badge descuentos
     var dscBadge = '';
-    var _dscInfo = bk.descuentos||{};
-    var _tieneDescItem = (_dscInfo.ahorroItems||0) > 0 || (bk.items||[]).some(function(i){ return i.dsc && i.dsc.valor > 0; });
-    var _tieneDescGen  = (_dscInfo.montoDscGen||0) > 0 || (_dscInfo.dscGenValor||0) > 0;
+    var _dscInfo = _calcBkCard;
+    var _tieneDescItem = _dscInfo.ahorroItems > 0;
+    var _tieneDescGen  = _dscInfo.montoDscGen > 0;
     if(_tieneDescItem && _tieneDescGen){
       dscBadge = '<span style="font-size:10px;background:#fce7f3;color:#9d174d;border-radius:5px;padding:2px 7px;font-weight:600;margin-left:4px">🏷️ dsc. items+gral</span>';
     } else if(_tieneDescGen){
@@ -22350,7 +22478,7 @@ function renderBackup(){
           (_totalConIVA > 0
             ? '<div style="font-weight:700;font-size:14px">$'+fM(_totalConIVA)+'</div>'+
               '<div style="font-size:9.5px;color:#1e2a4a;font-weight:700">🟦 c/Fact. A</div>'
-            : '<div style="font-weight:700;font-size:14px">$'+fM(bk.total||0)+'</div>')+
+            : '<div style="font-weight:700;font-size:14px">$'+fM(_totalMostrar)+'</div>')+
         '</div>';
       chk.onclick = function(e){ e.stopPropagation(); _bkToggleItem(bk.id); renderBackup(); };
       card.appendChild(chk);
@@ -22378,7 +22506,7 @@ function renderBackup(){
             ? '<div class="bk-card-total">$'+fM(_totalConIVA)+'</div>'+
               '<div style="font-size:10px;color:var(--muted);font-weight:600;margin-top:1px">sin fact.: $'+fM(_totalMostrar)+'</div>'+
               '<div style="font-size:9.5px;color:#1e2a4a;font-weight:700;margin-top:1px">🟦 c/Factura A</div>'
-            : '<div class="bk-card-total">$'+fM(bk.total||0)+'</div>')+
+            : '<div class="bk-card-total">$'+fM(_totalMostrar)+'</div>')+
         '</div>'+
         '<span class="bk-card-caret">'+(isOpen?"▲":"▼")+'</span>'+
       '</div>';
@@ -22398,10 +22526,9 @@ function renderBackup(){
         r.className = "bk-card-item";
         var pend = !!it.pendiente;
         if(pend) r.style.cssText = "background:#fff7ed;border-left:3px solid #f97316;padding-left:6px;border-radius:4px;margin-bottom:2px;";
-        var dscHtml = (it.dsc && it.dsc.valor)
-          ? '<span style="font-size:10px;color:#b45309;font-weight:600;margin-left:4px">'+
-            (it.dsc.tipo==="%"?"-"+it.dsc.valor+"%":"-$"+fM(it.dsc.valor))+
-            '</span>'
+        var _detBkItem=_detallePrecioItem(it);
+        var dscHtml = _detBkItem.tieneDescuento
+          ? '<span style="font-size:10px;color:#b45309;font-weight:600;margin-left:4px">'+_detBkItem.label+'</span>'
           : '';
         var pendBadge = pend ? '<span style="font-size:9px;background:#f97316;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700;margin-left:5px">PENDIENTE</span>' : '';
         // Badge de oferta (si el item tenía oferta)
@@ -22437,9 +22564,9 @@ function renderBackup(){
         itemsDiv.appendChild(ofRow);
       }
       /* Descuentos desglosados */
-      var dsc = bk.descuentos;
-      if(dsc && (dsc.ahorroTotal > 0)){
-        if(dsc.subtotalLista && dsc.subtotalLista !== bk.total){
+      var dsc = _calcBkCard;
+      if(dsc && (dsc.ahorroItems>0 || dsc.montoDscGen>0)){
+        if(dsc.subtotalLista && Math.abs(dsc.subtotalLista-dsc.total)>0.005){
           var subRow = document.createElement("div");
           subRow.className = "bk-card-total-row";
           subRow.style.cssText = "color:var(--muted);font-size:11.5px";
@@ -22463,15 +22590,7 @@ function renderBackup(){
         }
       }
       /* Total row */
-      var _dscDet = bk.descuentos||{};
-      var _subDet = (bk.items||[]).reduce(function(s,i){return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1));},0);
-      var _gdDet  = _dscDet.montoDscGen||0;
-      if(!_gdDet && _dscDet.dscGenTipo && _dscDet.dscGenValor>0){
-        _gdDet = _dscDet.dscGenTipo==="%"?Math.round(_subDet*_dscDet.dscGenValor/100*100)/100:Math.min(_dscDet.dscGenValor,_subDet);
-      }
-      var _totDet = Math.round((_subDet-_gdDet)*100)/100;
-      var _hayDscDet = (_dscDet.subtotalLista&&_dscDet.subtotalLista>_totDet)||_gdDet>0;
-      var _totalDet = _hayDscDet ? _totDet : (bk.total||_totDet);
+      var _totalDet = _calcBkCard.total;
       if(bk.tipoComprobante === "factura_a"){
         // Factura A → mostrar subtotal sin IVA, IVA, y total con factura
         var _ivaDet = Math.round(_totalDet*0.21*100)/100;
@@ -23404,12 +23523,14 @@ function _editBkAplicarDsc(){
     ? Math.round(subtotItems*valor/100*100)/100
     : Math.min(valor, subtotItems);
 
+  var _calcProductos=_calcularPedidoUnico({items:_editBkItem.items||[],tipoComprobante:"remito"});
+
   // Guardar en el formato que el PDF y la tarjeta ya entienden
   _editBkItem.descuentos = {
-    ahorroItems:   0,
+    ahorroItems:   _calcProductos.ahorroItems,
     montoDscGen:   montoDsc,
-    ahorroTotal:   montoDsc,
-    subtotalLista: subtotItems,
+    ahorroTotal:   _calcProductos.ahorroItems+montoDsc,
+    subtotalLista: _calcProductos.subtotalLista,
     dscGenTipo:    _editBkDscTipo,
     dscGenValor:   valor
   };
@@ -23523,12 +23644,19 @@ async function _propagarEdicionARuta(bk){
     var ruta = rutasData[rk];
     if(!ruta || !ruta.clientes) return; // la ruta ya no existe o está vacía
 
-    // Buscar el cliente dentro de la ruta que corresponde a este pedido.
-    // Se identifica por cliente_id (si lo hay) o por nombre.
+    // Buscar primero por pedido_id: un mismo cliente puede tener más de un
+    // pedido en la ruta y buscar solo por nombre actualizaba el equivocado.
+    var bkPedidoId=String(bk._sbId||bk.id||"");
     var bkCliId  = String(bk.clienteId || bk.cliente_id || "");
     var bkCliNom = (bk.clienteNom || bk.cliente_nom || "").toLowerCase().trim();
     var rcKey = null;
     Object.entries(ruta.clientes).forEach(function(e){
+      if(rcKey) return;
+      var c = e[1];
+      if(bkPedidoId && String(c.pedidoId||"")===bkPedidoId){ rcKey=e[0]; return; }
+    });
+    // Compatibilidad con paradas viejas sin pedido_id.
+    if(!rcKey) Object.entries(ruta.clientes).forEach(function(e){
       if(rcKey) return;
       var c = e[1];
       var cId  = String(c.id || c.cliente_id || "");
@@ -23540,20 +23668,26 @@ async function _propagarEdicionARuta(bk){
     if(!rcKey) return; // no se encontró el pedido en la ruta (quizás se borró de la HR)
 
     // Items que van a la ruta: solo los NO pendientes
-    var itemsRuta = (bk.items||[]).filter(function(i){ return !i.pendiente; });
+    var calcRuta=_calcularPedidoUnico(bk);
+    var itemsRuta = calcRuta.items;
     var nuevoImporte = _importeParaRuta(bk);
+    var dscRuta=calcRuta.montoDscGen>0
+      ? {tipo:calcRuta.dscGenValor>0?calcRuta.dscGenTipo:"$",valor:calcRuta.dscGenValor>0?calcRuta.dscGenValor:calcRuta.montoDscGen}
+      : null;
 
     // Actualizar en Supabase
-    await sbPatch("ruta_clientes","id=eq."+rcKey+"&ruta_id=eq."+rk, {
+    await sbPatch("ruta_clientes","id=eq."+rcKey+"&ruta_id=eq."+rk+"&empresa_id=eq."+_sbEmpId, {
       items: itemsRuta,
       importe: nuevoImporte,
-      tipo_comprobante: bk.tipoComprobante || "remito"
+      tipo_comprobante: bk.tipoComprobante || "remito",
+      dsc_general: dscRuta
     });
     // Actualizar en memoria para que el PDF y la vista salgan al día
     if(rutasData[rk] && rutasData[rk].clientes && rutasData[rk].clientes[rcKey]){
       rutasData[rk].clientes[rcKey].items = itemsRuta;
       rutasData[rk].clientes[rcKey].importe = nuevoImporte;
       rutasData[rk].clientes[rcKey].tipoComprobante = bk.tipoComprobante || "remito";
+      rutasData[rk].clientes[rcKey].dscGeneral = dscRuta;
     }
     showNotif("🔄 Hoja de ruta actualizada","ok");
   } catch(e){ console.warn("[propagarEdicionARuta] error:", e.message); }
@@ -23710,22 +23844,16 @@ async function confirmarBackupComoRemito(bkParam){
   if(!bk) return;
   var ahora = new Date();
   var nom = bk.clienteNom||"Mostrador";
-  var items = bk.items||[];
-  var dscBk = bk.descuentos||{};
-
-  // Calcular total con descuentos
-  var _subtotItems = items.filter(function(i){return !i.pendiente;}).reduce(function(s,i){
-    return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1));
-  },0);
-  var _montoDscGen = dscBk.montoDscGen||0;
-  if(!_montoDscGen && dscBk.dscGenTipo && dscBk.dscGenValor>0){
-    _montoDscGen = dscBk.dscGenTipo==="%"
-      ? Math.round(_subtotItems*dscBk.dscGenValor/100*100)/100
-      : Math.min(dscBk.dscGenValor,_subtotItems);
-  }
-  var _totalBase = (_montoDscGen>0 || dscBk.subtotalLista)
-    ? Math.round((_subtotItems-_montoDscGen)*100)/100
-    : (bk.total || Math.round((_subtotItems-_montoDscGen)*100)/100);
+  var _calcAprobacion=_calcularPedidoUnico(bk);
+  var items = _calcAprobacion.items;
+  var _totalBase = _calcAprobacion.total;
+  var _ahorroAprob=_calcAprobacion.ahorroItems+_calcAprobacion.montoDscGen;
+  var _dscCanon=_ahorroAprob>0.005?{
+    ahorroItems:_calcAprobacion.ahorroItems,montoDscGen:_calcAprobacion.montoDscGen,
+    ahorroTotal:_ahorroAprob,subtotalLista:_calcAprobacion.subtotalLista,
+    dscGenTipo:_calcAprobacion.montoDscGen>0?_calcAprobacion.dscGenTipo:null,
+    dscGenValor:_calcAprobacion.montoDscGen>0?_calcAprobacion.dscGenValor:0
+  }:null;
 
   // Si es Factura A, el total a cobrar incluye IVA
   var esFacturaA = (bk.tipoComprobante === "factura_a");
@@ -23749,7 +23877,7 @@ async function confirmarBackupComoRemito(bkParam){
       if(p.codigo!=null && p.codigo!=="")_costoMap[String(p.codigo)]=_c;
     });
   } catch(e){ console.warn("[Aprobar] no se pudo cargar costos:", e.message); }
-  var itemsAprobados = items.filter(function(i){ return !i.pendiente; }).map(function(i){
+  var itemsAprobados = items.map(function(i){
     // Conservar sub original (ya tiene descuentos aplicados), dsc y todos los campos
     var _cst = _costoMap[String(i.id)];
     return {
@@ -23776,7 +23904,7 @@ async function confirmarBackupComoRemito(bkParam){
     total:       totalNum,
     usuario:     vendedorId,
     usuario_nom: vendedorNom,
-    descuentos:  bk.descuentos||null,
+    descuentos:  _dscCanon,
     tipo:        "remito",
     aprobado:    true
   };
@@ -23795,6 +23923,10 @@ async function confirmarBackupComoRemito(bkParam){
     await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {
       tipo:            "remito",
       tipo_comprobante: bk.tipoComprobante || "remito",
+      items:           itemsAprobados,
+      descuentos:      _dscCanon,
+      total:           _totalBase,
+      total_con_iva:   totalNum,
       aprobado:        true,
       stock_devuelto:  false,
       stock_version:   +(bk.stockVersion||0),
@@ -23805,8 +23937,23 @@ async function confirmarBackupComoRemito(bkParam){
   }
   var arr2 = getBackups();
   var idx2 = arr2.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId; });
-  if(idx2>=0){ arr2[idx2].tipo="remito"; arr2[idx2].aprobado=true; arr2[idx2].stockDevuelto=false; saveBackups(arr2); }
-  bk.tipo="remito"; bk.aprobado=true; bk.stockDevuelto=false;
+  if(idx2>=0){
+    arr2[idx2].tipo="remito";
+    arr2[idx2].items=itemsAprobados;
+    arr2[idx2].descuentos=_dscCanon;
+    arr2[idx2].total=_totalBase;
+    arr2[idx2].totalConIva=totalNum;
+    arr2[idx2].aprobado=true;
+    arr2[idx2].stockDevuelto=false;
+    saveBackups(arr2);
+  }
+  bk.tipo="remito";
+  bk.items=itemsAprobados;
+  bk.descuentos=_dscCanon;
+  bk.total=_totalBase;
+  bk.totalConIva=totalNum;
+  bk.aprobado=true;
+  bk.stockDevuelto=false;
 
   if(_editBkItem) cerrarModal("modal-editar-backup");
   renderBackup();
@@ -23857,20 +24004,7 @@ async function _compartirPDF(doc, fname, titulo){
 // ya pagó. Esto compara los dos números y frena antes de emitir.
 // ══════════════════════════════════════════════════════════════════
 function _totalRecalculadoRemito(bk){
-  var its = (bk && bk.items) || [];
-  var subtotItems = its.reduce(function(s,i){
-    return s + (i.sub!==undefined ? i.sub : (i.p||0)*(i.c||1));
-  },0);
-  subtotItems = Math.round(subtotItems*100)/100;
-  var d = (bk && bk.descuentos) || {};
-  var mg = d.montoDscGen || 0;
-  if(!mg && d.dscGenTipo && d.dscGenValor>0){
-    mg = d.dscGenTipo==="%"
-      ? Math.round(subtotItems*d.dscGenValor/100*100)/100
-      : Math.min(d.dscGenValor, subtotItems);
-  }
-  mg = Math.round(mg*100)/100;
-  return Math.round((subtotItems - mg)*100)/100;
+  return _calcularPedidoUnico(bk||{}).total;
 }
 
 function _chequearTotalRemito(bk){
@@ -24011,31 +24145,15 @@ function generarPDFDesdeBackup(bk, compartir){
   // ── Productos — SIEMPRE con columna Descuento ──
   CY+=4; doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.text("Productos",10,CY); CY+=2;
 
-  var items=bk.items||[];
+  var _calcPdfPedido=_calcularPedidoUnico(bk);
+  // Pendientes no forman parte de la venta: no deben aparecer en el remito.
+  // Para rutas antiguas también normaliza el descuento general que estaba
+  // distribuido dentro de cada subtotal.
+  var items=_itemsSinGeneralEmbebido(bk,_calcPdfPedido);
   var head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
   var body=items.map(function(i){
-    // El descuento por producto se guarda como "dsc" cuando viene del pedido y
-    // como "disc" cuando se puso desde la hoja de ruta. Leemos los dos, si no
-    // la columna "Dscto." sale vacía aunque el descuento esté aplicado.
-    var _dI = i.dsc || i.disc || null;
-    var hasDsc = _dI && _dI.valor>0;
-    var tieneOf = i.ofNormal && i.ofPrecio && i.ofAplicada;
-    // P. Lista: si tiene oferta aplicada, mostramos el precio NORMAL como lista
-    var pL  = Math.round((tieneOf ? i.ofNormal : (i.p||0))*100)/100;
-    // Etiqueta de descuento: oferta tiene prioridad de mostrarse
-    var dscLbl;
-    if(tieneOf){
-      var ofDesc = Math.round((1 - i.ofPrecio/i.ofNormal)*100);
-      dscLbl = "OFERTA -"+ofDesc+"%";
-    } else if(hasDsc){
-      dscLbl = (_dI.tipo==="%"?"-"+_dI.valor+"%":"-$"+fM(_dI.valor));
-    } else {
-      dscLbl = "—";
-    }
-    var subSin = i.sub!==undefined ? i.sub : (i.p||0)*(i.c||1);
-    // P. Final: el precio efectivo por unidad (ya incluye oferta y/o dscto)
-    var pF = Math.round(subSin/(i.c||1)*100)/100;
-    return[i.n||"", i.c||1, "$"+fM(pL), dscLbl, "$"+fM(pF), "$"+fM(subSin)];
+    var det=_detallePrecioItem(i);
+    return[i.n||"", det.cant, "$"+fM(det.pLista), det.label, "$"+fM(det.pFinal), "$"+fM(det.sub)];
   });
   // Sin relleno de filas vacías: la tabla termina donde terminan los ítems y el
   // pie va justo debajo (o salta de hoja si no entra). Evita páginas semivacías.
@@ -24053,26 +24171,13 @@ function generarPDFDesdeBackup(bk, compartir){
 
   // ── Pie: Obs + Totales COMPLETOS siempre ──
   var yP=doc.lastAutoTable.finalY+4;
-  var dsc=bk.descuentos||{};
-
-  // Calcular todo SIEMPRE desde los items reales (no usar dsc.subtotalLista
-  // guardado, que puede estar desactualizado y no coincidir con la tabla).
-  //   i.p   = precio de lista (P. Lista)
-  //   i.sub = subtotal con descuento por ítem aplicado
-  var subtotLista = items.reduce(function(s,i){ return s+(i.p||0)*(i.c||1); },0);
-  var subtotItems = items.reduce(function(s,i){ return s+(i.sub!==undefined?i.sub:(i.p||0)*(i.c||1)); },0);
-  subtotLista = Math.round(subtotLista*100)/100;
-  subtotItems = Math.round(subtotItems*100)/100;
-  var ahorroItems = Math.max(0, Math.round((subtotLista-subtotItems)*100)/100);
-  var montoDscGen = dsc.montoDscGen || 0;
-  if(!montoDscGen && dsc.dscGenTipo && dsc.dscGenValor>0){
-    montoDscGen = dsc.dscGenTipo==="%"
-      ? Math.round(subtotItems*dsc.dscGenValor/100*100)/100
-      : Math.min(dsc.dscGenValor, subtotItems);
-  }
-  montoDscGen = Math.round(montoDscGen*100)/100;
+  var dsc=_calcPdfPedido.descuentos;
+  var subtotLista = _calcPdfPedido.subtotalLista;
+  var subtotItems = _calcPdfPedido.subtotalItems;
+  var ahorroItems = _calcPdfPedido.ahorroItems;
+  var montoDscGen = _calcPdfPedido.montoDscGen;
   var totalDsc = ahorroItems + montoDscGen;
-  var total = Math.round((subtotItems - montoDscGen)*100)/100;
+  var total = _calcPdfPedido.total;
   var ivaAmt    = Math.round(total*0.21*100)/100;
   var totalFinal = esFactura ? Math.round(total*1.21*100)/100 : total;
 
@@ -24136,7 +24241,7 @@ function generarPDFDesdeBackup(bk, compartir){
 
   // Dscto. general (si hay)
   if(montoDscGen>0){
-    var dscGenLbl = dsc.dscGenTipo==="%" ? "Dscto. gral. ("+dsc.dscGenValor+"%)" : "Dscto. general";
+    var dscGenLbl = _calcPdfPedido.dscGenTipo==="%" ? "Dscto. gral. ("+_calcPdfPedido.dscGenValor+"%)" : "Dscto. general";
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
     doc.text(dscGenLbl+":",tX+2,ty+4.7);
     doc.setFont("helvetica","normal");
@@ -26330,7 +26435,8 @@ function _meGuardarCobro(i){
 }
 function _meImporteNeto(cli){
   var desc = (typeof _devDescuentoCli==="function") ? _devDescuentoCli(cli) : 0;
-  return Math.max(0, (cli && cli.importe || 0) - desc);
+  var importeActual=(typeof _importeRutaVigente==="function")?_importeRutaVigente(cli):(cli&&cli.importe||0);
+  return Math.max(0, importeActual-desc);
 }
 var _epParadaIdx = -1;
 function _meAbrirPago(i){
