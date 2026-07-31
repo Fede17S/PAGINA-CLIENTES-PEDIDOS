@@ -9505,6 +9505,16 @@ async function _sbInsertBackup(data){
     return it;
   });
 
+  if(!Array.isArray(data.historial) || !data.historial.length){
+    var unidadesHist=itemsLimpios.reduce(function(s,it){return s+(+it.c||0);},0);
+    data.historial=[_bkHistEvento("creado","Pedido creado",[
+      "Cliente: "+(data.clienteNom||"Mostrador"),
+      "Vendedor: "+(data.usuarioNom||data.usuario||"Sin vendedor"),
+      itemsLimpios.length+" productos · "+unidadesHist+" unidades",
+      "Total: $"+fM(data.total||0)
+    ])];
+  }
+
   var body = {
     empresa_id:    _sbEmpId,
     local_id:      data.id||null,
@@ -9519,7 +9529,8 @@ async function _sbInsertBackup(data){
     tipo_comprobante: data.tipoComprobante||null,
     usuario:       (data.usuario||"").slice(0,100),
     usuario_nom:   (data.usuarioNom||"").slice(0,200),
-    descuentos:    data.descuentos||null
+    descuentos:    data.descuentos||null,
+    historial:     data.historial
   };
   if(data.fechaEntrega) body.fecha_entrega = data.fechaEntrega;
   if(data.diaEntrega)   body.dia_entrega   = data.diaEntrega;
@@ -16376,7 +16387,8 @@ async function generarPDF(m){
   // subtotalLista = precio de LISTA (sin ninguna oferta). Si el item tiene oferta,
   // i.p ya viene rebajado, así que usamos i.ofNormal (el precio original de lista).
   var subtotalLista    = ordenes[t].reduce(function(s,i){
-    var precioLista = (i.ofAplicada && i.ofNormal) ? i.ofNormal : i.p;
+    var precioLista = (i.ofAplicada && i.ofNormal) ? i.ofNormal
+      : ((i.promoAplicada && i.promoNormal) ? i.promoNormal : i.p);
     return s+(precioLista*i.c);
   },0);
   var subtotalItemsDsc = ordenes[t].reduce(function(s,i){return s+i.sub;},0);
@@ -16587,7 +16599,7 @@ async function generarPDF(m){
     // Descuento por ítems
     if(ahorroItems>0){
       doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
-      doc.text("Dsc. productos:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0);
+      doc.text("Descuento promo:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0);
       doc.text("-$"+fM(ahorroItems),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
     }
     // Descuento general
@@ -16697,6 +16709,12 @@ async function generarPDF(m){
         it.ofNormal = i.ofNormal;       // precio sin oferta
         it.ofPrecio = i.ofPrecio;       // precio con oferta
         it.ofAplicada = !!i.ofAplicada; // si el vendedor la aplicó
+      }
+      // Info de promoción por cantidad (precio normal, promo y estado).
+      if(i.promoNormal && i.promoPrecio){
+        it.promoNormal = i.promoNormal;
+        it.promoPrecio = i.promoPrecio;
+        it.promoAplicada = !!i.promoAplicada;
       }
       return it;
     }),
@@ -18415,7 +18433,7 @@ async function imprimirPedidosDeRuta(rk){
     doc.setFont("helvetica","normal"); doc.text("$"+fM(subtotLista),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
 
     if(ahorroItems>0){
-      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH); doc.text("Dscto. productos:",tX+2,ty+4);
+      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH); doc.text("Descuento promo:",tX+2,ty+4);
       doc.setFont("helvetica","normal"); doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=rowH;
     }
     if(montoDscGen>0){
@@ -19955,7 +19973,7 @@ function _hrBlItems(rk, ck, cli, n){
     });
   }
   if(calc.ahorroItems>0){
-    h+='<div class="bk-card-total-row" style="color:#b45309;font-size:11.5px;font-weight:700;padding-top:6px"><span>Dscto. productos</span><span>−$'+fM(calc.ahorroItems)+'</span></div>';
+    h+='<div class="bk-card-total-row" style="color:#b45309;font-size:11.5px;font-weight:700;padding-top:6px"><span>Descuento promo</span><span>−$'+fM(calc.ahorroItems)+'</span></div>';
   }
   if(calc.montoDscGen>0){
     var lblGen=calc.dscGenTipo==="%"?'Dscto. general ('+calc.dscGenValor+'%)':'Dscto. general';
@@ -20499,6 +20517,9 @@ async function imprimirRemitoCli(rk, ck){
     items: cli.items||[],
     total: _totalBk,
     descuentos: cli.descuentos||null,
+    dscGeneral: cli.dscGeneral||null,
+    pedidoId: cli.pedidoId||null,
+    lista: cli.lista||"Clientes",
     tipoComprobante: cli.tipoComprobante || "remito"
   };
   if(!_chequearTotalRemito(_chk)) return;
@@ -21295,6 +21316,95 @@ function descargarPDFRuta(rk){
 var BK_KEY_BASE = "dm_backup_pedidos";
 var backupAbierto = null;
 
+// ── Historial por pedido ──────────────────────────────────────────────
+function _bkHistQuien(){
+  return currentUser ? (currentUser.name||currentUser.id||"Usuario") : "Sistema";
+}
+function _bkHistEvento(tipo,detalle,cambios,extra){
+  return Object.assign({
+    fecha:new Date().toISOString(),
+    tipo:tipo||"cambio",
+    detalle:detalle||"Cambio en el pedido",
+    cambios:Array.isArray(cambios)?cambios:[],
+    usuario:_bkHistQuien()
+  },extra||{});
+}
+function _bkHistAgregar(bk,evento){
+  var hist=Array.isArray(bk&&bk.historial)?bk.historial.slice():[];
+  if(evento) hist.push(evento);
+  if(hist.length>120) hist=hist.slice(-120);
+  if(bk) bk.historial=hist;
+  return hist;
+}
+function _bkHistDscItem(it){
+  if(!it) return "sin descuento";
+  if(it.ofAplicada&&it.ofNormal&&it.ofPrecio) return "oferta "+Math.round((1-it.ofPrecio/it.ofNormal)*100)+"%";
+  if(it.promoAplicada&&it.promoNormal&&it.promoPrecio) return "promo "+Math.round((1-it.promoPrecio/it.promoNormal)*100)+"%";
+  var d=it.dsc||it.disc;
+  if(d&&+d.valor>0) return d.tipo==="%"?(+d.valor+"%"):"$"+fM(+d.valor);
+  var base=+(it.p||0)*+(it.c||0), sub=(it.sub!=null)?+it.sub:base;
+  if(base>0&&sub<base-0.005) return _editBkFmtDsc((1-sub/base)*100)+"%";
+  return "sin descuento";
+}
+function _bkHistDscGeneral(bk){
+  var d=(bk&&bk.descuentos)||{};
+  if(+d.dscGenValor>0) return d.dscGenTipo==="%"?(+d.dscGenValor+"%"):"$"+fM(+d.dscGenValor);
+  if(+d.montoDscGen>0) return "$"+fM(+d.montoDscGen);
+  return "sin descuento";
+}
+function _bkHistClaveItem(it,idx){
+  return String(it.id||it.codigo||it.cod||it.n||"item")+"|"+(it._esCaja?"caja":"unidad")+"|"+(idx||0);
+}
+function _bkHistComparar(antes,despues){
+  antes=antes||{}; despues=despues||{};
+  var cambios=[];
+  var cliA=antes.clienteNom||antes.cliente_nom||"Sin cliente";
+  var cliD=despues.clienteNom||despues.cliente_nom||"Sin cliente";
+  if(String(cliA)!==String(cliD)) cambios.push("Cliente: "+cliA+" → "+cliD);
+  var venA=antes.usuarioNom||antes.usuario_nom||antes.usuario||"Sin vendedor";
+  var venD=despues.usuarioNom||despues.usuario_nom||despues.usuario||"Sin vendedor";
+  if(String(venA)!==String(venD)) cambios.push("Vendedor: "+venA+" → "+venD);
+
+  function indexar(items){
+    var out={};
+    (items||[]).forEach(function(it,ix){
+      var base=String(it.id||it.codigo||it.cod||it.n||"item")+"|"+(it._esCaja?"caja":"unidad");
+      var key=base, n=1; while(out[key]) key=base+"#"+(n++);
+      out[key]=it;
+    });
+    return out;
+  }
+  var ia=indexar(antes.items), id=indexar(despues.items);
+  Object.keys(ia).forEach(function(k){
+    var a=ia[k], d=id[k], nom=a.n||a.nombre||"Producto";
+    if(!d){ cambios.push("Producto eliminado: "+nom+" ×"+(a.c||0)); return; }
+    if(+(a.c||0)!==+(d.c||0)) cambios.push("Cantidad de "+nom+": "+(a.c||0)+" → "+(d.c||0));
+    if(Math.abs(+(a.p||0)-+(d.p||0))>0.005) cambios.push("Precio de "+nom+": $"+fM(a.p||0)+" → $"+fM(d.p||0));
+    var da=_bkHistDscItem(a), dd=_bkHistDscItem(d);
+    if(da!==dd) cambios.push("Descuento de "+nom+": "+da+" → "+dd);
+    if(!!a.pendiente!==!!d.pendiente) cambios.push(nom+(d.pendiente?" quedó pendiente":" volvió al pedido"));
+  });
+  Object.keys(id).forEach(function(k){
+    if(!ia[k]){ var d=id[k]; cambios.push("Producto agregado: "+(d.n||d.nombre||"Producto")+" ×"+(d.c||0)); }
+  });
+  var dgA=_bkHistDscGeneral(antes), dgD=_bkHistDscGeneral(despues);
+  if(dgA!==dgD) cambios.push("Descuento general: "+dgA+" → "+dgD);
+  var tcA=antes.tipoComprobante||antes.tipo_comprobante||"remito";
+  var tcD=despues.tipoComprobante||despues.tipo_comprobante||"remito";
+  if(tcA!==tcD) cambios.push("Comprobante: "+tcA+" → "+tcD);
+  var totA=+(antes.total||0), totD=+(despues.total||0);
+  if(Math.abs(totA-totD)>0.01) cambios.push("Total: $"+fM(totA)+" → $"+fM(totD));
+  return cambios;
+}
+
+function _bkHistTitulo(h){
+  var tit={creado:"Pedido creado",edicion:"Pedido editado",vendedor:"Vendedor cambiado",cliente:"Cliente cambiado",estado:"Estado actualizado",aprobado:"Pedido aprobado",rechazado:"Pedido rechazado",reaprobado:"Pedido reaprobado",refacturado:"Precios actualizados",faltante:"Producto faltante"};
+  return tit[h.tipo]||h.detalle||h.accion||h.tipo||"Movimiento";
+}
+function _bkHistIcono(h){
+  return ({creado:"🆕",edicion:"✏️",vendedor:"👤",cliente:"🏪",estado:"📱",aprobado:"✅",rechazado:"❌",reaprobado:"↩️",refacturado:"🔄",faltante:"⚠️"})[h.tipo]||"•";
+}
+
 // ══ BACKUP PEDIDOS — SISTEMA CONFIABLE ══
 // Supabase es la fuente de verdad. localStorage es solo caché de lectura.
 
@@ -21746,6 +21856,27 @@ async function _bkReasignarNueva(){
 function _itemsActivosPedido(items){
   return (items||[]).filter(function(i){ return !i.pendiente; });
 }
+// Compatibilidad con pedidos creados por versiones que guardaban el precio
+// promocional, pero perdían la marca de PROMO al elegir el comprobante.
+function _completarPromoItemPedido(it, lista){
+  if(!it || it.ofAplicada || (it.promoAplicada&&it.promoNormal&&it.promoPrecio)) return it;
+  if(typeof dbStock==="undefined" || !Array.isArray(dbStock)) return it;
+  var prod=dbStock.find(function(p){return String(p.id)===String(it.id);});
+  if(!prod) return it;
+  var tramos=(typeof _tramosDe==="function")?_tramosDe(prod):[];
+  if(!tramos.length) return it;
+  var cant=+(it.c||0), tramo=null;
+  tramos.forEach(function(t){if(t&&cant>=+t.desde) tramo=t;});
+  if(!tramo) return it;
+  var precioPromo=+tramo.precio, precioGuardado=+(it.p||0);
+  if(precioPromo<=0 || Math.abs(precioGuardado-precioPromo)>0.02) return it;
+  var precioNormal=(typeof _precioDe==="function")?_precioDe(prod,lista||"Clientes"):0;
+  if(!(precioNormal>precioPromo+0.005)) return it;
+  it.promoNormal=precioNormal;
+  it.promoPrecio=precioPromo;
+  it.promoAplicada=true;
+  return it;
+}
 function _descuentosEfectivosPedido(obj){
   obj=obj||{};
   var d=Object.assign({},obj.descuentos||{});
@@ -21775,7 +21906,9 @@ function _calcularPedidoUnico(obj){
       if(_bkFuente&&Array.isArray(_bkFuente.items)) fuenteItems=_bkFuente.items;
     }catch(e){}
   }
-  var items=_itemsActivosPedido(fuenteItems);
+  var items=_itemsActivosPedido(fuenteItems).map(function(i){
+    return _completarPromoItemPedido(Object.assign({},i),obj.lista||"Clientes");
+  });
   var d=_descuentosEfectivosPedido(obj);
   var subtotalLista=items.reduce(function(s,i){
     var pl=(i.ofAplicada&&i.ofNormal)?+i.ofNormal:((i.promoAplicada&&i.promoNormal)?+i.promoNormal:+(i.p||0));
@@ -22373,6 +22506,9 @@ function renderBackup(){
     // Una sola cuenta para tarjeta, detalle, Hoja de Ruta y PDF. No confiar en
     // resúmenes viejos de descuentos: se reconstruyen desde los ítems vigentes.
     var _calcBkCard = _calcularPedidoUnico(bk||{});
+    // Completar visualmente promociones de pedidos que quedaron guardados solo
+    // con el precio promo, sin sus metadatos.
+    (bk.items||[]).forEach(function(it){_completarPromoItemPedido(it,bk.lista||"Clientes");});
     var _dscBkCard = _calcBkCard.descuentos||{};
     var _totalMostrar = _calcBkCard.total;
     var _totalConIVA = bk.tipoComprobante === "factura_a"
@@ -22545,9 +22681,14 @@ function renderBackup(){
             ofHtml = '<span style="font-size:9.5px;background:var(--s3);color:var(--muted);border-radius:4px;padding:1px 5px;font-weight:600;margin-left:5px" title="Tenía oferta disponible no aplicada">🔥 oferta no aplicada</span>';
           }
         }
+        var promoHtml = "";
+        if(it.promoAplicada && it.promoNormal && it.promoPrecio){
+          var promoDesc=Math.round((1-it.promoPrecio/it.promoNormal)*100);
+          promoHtml='<span style="font-size:9.5px;background:oklch(92% 0.07 150);color:oklch(38% 0.12 150);border-radius:4px;padding:1px 5px;font-weight:700;margin-left:5px" title="Promoción aplicada: de $'+fM(it.promoNormal)+' a $'+fM(it.promoPrecio)+'">🏷️ PROMO −'+promoDesc+'%</span>';
+        }
         r.innerHTML =
           '<span class="bk-ci-cant" style="'+(pend?'color:#9a3412;':'')+'">'+it.c+'×</span>'+
-          '<span class="bk-ci-name" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">'+it.n+dscHtml+ofHtml+pendBadge+'</span>'+
+          '<span class="bk-ci-name" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">'+it.n+dscHtml+ofHtml+promoHtml+pendBadge+'</span>'+
           '<span class="bk-ci-sub" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">$'+fM(it.sub)+'</span>';
         itemsDiv.appendChild(r);
       });
@@ -22567,6 +22708,16 @@ function renderBackup(){
         }
         itemsDiv.appendChild(ofRow);
       }
+      // Resumen separado de promociones por cantidad.
+      var promoItems=(bk.items||[]).filter(function(it){return it.promoAplicada&&it.promoNormal&&it.promoPrecio;});
+      if(promoItems.length){
+        var ahorroPromo=promoItems.reduce(function(s,it){return s+(it.promoNormal-it.promoPrecio)*it.c;},0);
+        var promoRow=document.createElement("div");
+        promoRow.className="bk-card-total-row";
+        promoRow.style.cssText="color:oklch(42% 0.12 150);font-size:11.5px;font-weight:600;background:oklch(96% 0.04 150);border-radius:6px;padding:5px 8px;margin-top:3px";
+        promoRow.innerHTML='<span>🏷️ Promos aplicadas ('+promoItems.length+')</span><span>−$'+fM(ahorroPromo)+'</span>';
+        itemsDiv.appendChild(promoRow);
+      }
       /* Descuentos desglosados */
       var dsc = _calcBkCard;
       if(dsc && (dsc.ahorroItems>0 || dsc.montoDscGen>0)){
@@ -22581,7 +22732,7 @@ function renderBackup(){
           var dscRow = document.createElement("div");
           dscRow.className = "bk-card-total-row";
           dscRow.style.cssText = "color:#b45309;font-size:11.5px;font-weight:600";
-          dscRow.innerHTML = '<span>Dsc. productos</span><span>-$'+fM(dsc.ahorroItems)+'</span>';
+          dscRow.innerHTML = '<span>Descuento promo</span><span>-$'+fM(dsc.ahorroItems)+'</span>';
           itemsDiv.appendChild(dscRow);
         }
         if(dsc.montoDscGen > 0){
@@ -22817,18 +22968,40 @@ function renderBackup(){
       detail.appendChild(estadoVnd);
     }
 
-    if((bk.historial||[]).length){
-      var histDiv=document.createElement("div");
-      histDiv.style.cssText="margin:8px 12px 4px;padding:10px 12px;background:var(--s1);border:1px solid var(--border);border-radius:10px";
-      histDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📋 Historial de cambios</div>'+
-        (bk.historial||[]).map(function(h){
-          var fh=""; try{ fh=new Date(h.fecha).toLocaleString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(e){}
-          var prods=(h.productos||[]).map(function(pp){ return (pp.n||pp.nombre||"?")+(pp.c?(" \u00d7"+pp.c):""); }).join(", ");
-          if(h.tipo==="faltante") return '<div style="font-size:12.5px;color:var(--text);padding:5px 0;border-top:1px solid var(--border)"><b style="color:#b91c1c">\u26a0\ufe0f Faltante</b> \u2014 '+prods+(h.monto?(' <span style="color:var(--muted)">(\u2212$'+fM(h.monto)+')</span>'):'')+'<div style="font-size:10.5px;color:var(--muted);margin-top:1px">'+(h.por?(h.por+' \u00b7 '):'')+fh+'</div></div>';
-          return '<div style="font-size:12.5px;padding:5px 0;border-top:1px solid var(--border)">'+(h.detalle||h.tipo||"cambio")+'<div style="font-size:10.5px;color:var(--muted)">'+fh+'</div></div>';
-        }).join("");
-      detail.appendChild(histDiv);
+    var histArr=Array.isArray(bk.historial)?bk.historial:[];
+    var histNuevo=document.createElement("div");
+    histNuevo.style.cssText="margin:10px 12px 6px;background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden";
+    var histHead='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--s2);border-bottom:1px solid var(--border)">'+
+      '<span style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.5px">📋 Historial de movimientos</span>'+
+      '<span style="font-size:10px;font-weight:800;background:var(--accent-bg);color:var(--accent);padding:2px 7px;border-radius:999px">'+histArr.length+'</span></div>';
+    var histBody;
+    if(!histArr.length){
+      histBody='<div style="padding:13px 12px;font-size:12px;color:var(--muted);text-align:center">Todavía no hay movimientos registrados para este pedido.</div>';
+    }else{
+      histBody='<div style="max-height:260px;overflow:auto;padding:2px 12px">'+histArr.slice().reverse().map(function(h){
+        var fRaw=h.fecha||h.ts, fh="";
+        try{ fh=new Date(fRaw).toLocaleString("es-AR",{day:"2-digit",month:"short",year:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(e){}
+        var quien=h.usuario||h.por||h.quien||"Sistema";
+        var tipo=h.tipo||(h.accion==="refacturado"?"refacturado":"cambio");
+        var titulo=_bkHistTitulo(Object.assign({},h,{tipo:tipo}));
+        var cambios=Array.isArray(h.cambios)?h.cambios.slice():[];
+        if(tipo==="faltante"&&h.productos){
+          cambios.unshift("Productos: "+h.productos.map(function(pp){return (pp.n||pp.nombre||"?")+(pp.c?(" ×"+pp.c):"");}).join(", "));
+          if(h.monto) cambios.push("Descontado del pedido: $"+fM(h.monto));
+        }
+        if(!cambios.length&&h.detalle&&h.detalle!==titulo) cambios.push(h.detalle);
+        if(!cambios.length&&h.total_anterior!=null) cambios.push("Total: $"+fM(h.total_anterior)+" → $"+fM(h.total_nuevo));
+        return '<div style="padding:9px 0;border-bottom:1px solid var(--border2)">'+
+          '<div style="display:flex;align-items:flex-start;gap:7px"><span style="font-size:14px;line-height:1.2">'+_bkHistIcono({tipo:tipo})+'</span><div style="min-width:0;flex:1">'+
+            '<div style="font-size:12.5px;font-weight:750;color:var(--text)">'+escHtml(titulo)+'</div>'+
+            (cambios.length?'<div style="font-size:11.5px;color:var(--text2);line-height:1.45;margin-top:3px">'+cambios.map(function(c){return '<div>• '+escHtml(c)+'</div>';}).join("")+'</div>':'')+
+            '<div style="font-size:10.5px;color:var(--muted);margin-top:4px">'+escHtml(quien)+(fh?' · '+fh:'')+'</div>'+
+          '</div></div></div>';
+      }).join("")+'</div>';
     }
+    histNuevo.innerHTML=histHead+histBody;
+    detail.appendChild(histNuevo);
+
     if(_bkDesktop && _bkPanel){
       if(isOpen){ _bkPanel.appendChild(detail); }
     } else {
@@ -23015,6 +23188,7 @@ async function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   bk.items = (bk._ordenes || bk.items || []).map(function(i){
     var it = { id:i.id, n:i.n, c:i.c, p:i.p, sub:i.sub, esPeso:i.esPeso||false, gramos:i.gramos||null, dsc:i.disc||i.dsc||null };
     if(i.ofNormal && i.ofPrecio){ it.ofNormal=i.ofNormal; it.ofPrecio=i.ofPrecio; it.ofAplicada=!!i.ofAplicada; }
+    if(i.promoNormal && i.promoPrecio){ it.promoNormal=i.promoNormal; it.promoPrecio=i.promoPrecio; it.promoAplicada=!!i.promoAplicada; }
     return it;
   });
 
@@ -23094,6 +23268,7 @@ function _pedidoOkCerrar(){
 var _editBkItem = null;
 var _editBkSelProd = null;
 var _editBkOriginalItems = [];
+var _editBkOriginal = null;
 
 // Los pedidos antiguos pueden conservar el subtotal rebajado (sub), pero no
 // el objeto dsc que necesita el editor. Lo reconstruimos sin alterar el monto.
@@ -23123,7 +23298,9 @@ var _editBkSoloArmador = false;
 function abrirEditarBackup(bk, soloArmador){
   _editBkSoloArmador = !!soloArmador;
   _editBkItem = JSON.parse(JSON.stringify(bk)); // copia profunda
+  _editBkOriginal = JSON.parse(JSON.stringify(bk));
   _editBkOriginalItems = JSON.parse(JSON.stringify((bk&&bk.items)||[]));
+  (_editBkItem.items||[]).forEach(function(it){_completarPromoItemPedido(it,_editBkItem.lista||"Clientes");});
   _editBkMaterializarDscHeredados(_editBkItem.items);
   _editBkDscItemOpen = -1;
   _editBkDscItemTipo = {};
@@ -23340,6 +23517,10 @@ function _renderEditBkItems(){
         ? ' <span style="font-size:10px;background:oklch(92% 0.07 150);color:oklch(38% 0.12 150);border-radius:4px;padding:1px 5px;font-weight:700">🔥 −'+ofDesc+'%</span>'
         : ' <span style="font-size:10px;background:var(--s3);color:var(--muted);border-radius:4px;padding:1px 5px;font-weight:600">🔥 oferta off</span>';
     }
+    var tienePromo=it.promoAplicada&&it.promoNormal&&it.promoPrecio;
+    var promoBadge=tienePromo
+      ? ' <span style="font-size:10px;background:oklch(92% 0.07 150);color:oklch(38% 0.12 150);border-radius:4px;padding:1px 5px;font-weight:700">🏷️ PROMO −'+Math.round((1-it.promoPrecio/it.promoNormal)*100)+'%</span>'
+      : '';
 
     var fila = '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border2);'+rowBg+'">'+
       '<input type="number" min="0.01" step="any" value="'+it.c+'"'+
@@ -23351,7 +23532,7 @@ function _renderEditBkItems(){
       '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+textSt+'">'+it.n+
         (pend ? ' <span style="font-size:10px;background:#f97316;color:#fff;border-radius:4px;padding:1px 5px;font-weight:700">PENDIENTE</span>' : '')+
         (hasDsc ? ' <span style="font-size:10px;background:var(--accent-bg);color:var(--accent);border-radius:4px;padding:1px 5px;font-weight:700">'+dscLbl+'</span>' : '')+
-        ofBadge+
+        ofBadge+promoBadge+
       '</span>'+
       '<span id="edit-bk-sub-'+i+'" style="font-size:13px;flex-shrink:0;min-width:68px;text-align:right;'+subSt+'">$'+fM(subConDsc)+'</span>'+
       (tieneOf && !_editBkSoloArmador ? '<button onclick="_editBkToggleOferta('+i+')" title="'+(it.ofAplicada?"Cancelar oferta de este producto":"Aplicar oferta de este producto")+'"'+
@@ -23547,6 +23728,8 @@ function editBkCant(idx, val){
     return;
   }
   it.c = v;
+  // Si cambia la cantidad, activar/quitar el tramo promocional que corresponda.
+  if(typeof _recalcPromoVigente==="function") _recalcPromoVigente(it);
   // Recalcular subtotal respetando el descuento por ítem si lo tiene
   var base = v * (it.p||0);
   it.sub = (it.dsc && it.dsc.valor>0)
@@ -23824,6 +24007,15 @@ async function guardarEdicionBackup(){
     }
   // Recalcular desde los renglones para no guardar un descuento viejo/fijo.
   _editBkSincronizarResumenDescuentos();
+  var _cambiosHist=_bkHistComparar(_editBkOriginal||{},_editBkItem);
+  if(_cambiosHist.length){
+    var _histTmp={historial:Array.isArray(_editBkOriginal&&_editBkOriginal.historial)?_editBkOriginal.historial.slice():[]};
+    _editBkItem.historial=_bkHistAgregar(_histTmp,_bkHistEvento(
+      "edicion",
+      _cambiosHist.length===1?_cambiosHist[0]:(_cambiosHist.length+" cambios en el pedido"),
+      _cambiosHist
+    ));
+  }
   // Armar el objeto completo con todos los campos editados
   var _esFactA = _editBkItem.tipoComprobante === "factura_a";
   var _totalBase = _editBkItem.total || 0;
@@ -23836,7 +24028,8 @@ async function guardarEdicionBackup(){
     cliente_id:  _editBkItem.clienteId  || _editBkItem.cliente_id  || "",
     lista:       _editBkItem.lista      || "Clientes",
     obs:         _editBkItem.obs        || "",
-    descuentos:  _editBkItem.descuentos || null
+    descuentos:  _editBkItem.descuentos || null,
+    historial:   _editBkItem.historial || []
   };
 
   // Ajustar solo la diferencia de inventario antes de confirmar el cambio.
@@ -23854,7 +24047,7 @@ async function guardarEdicionBackup(){
       items: patch.items, total: patch.total,
       tipoComprobante: patch.tipo_comprobante, totalConIVA: patch.total_con_iva,
       clienteNom: patch.cliente_nom, clienteId: patch.cliente_id, lista: patch.lista,
-      descuentos: patch.descuentos
+      descuentos: patch.descuentos, historial: patch.historial
     });
     guardado=true;
   }
@@ -23866,6 +24059,7 @@ async function guardarEdicionBackup(){
   if(idx>=0) arr[idx] = JSON.parse(JSON.stringify(_editBkItem));
   saveBackups(arr);
   _editBkOriginalItems=JSON.parse(JSON.stringify(_editBkItem.items||[]));
+  _editBkOriginal=JSON.parse(JSON.stringify(_editBkItem));
   cerrarModal("modal-editar-backup");
   renderBackup();
   _checkPendientes();
@@ -24008,6 +24202,13 @@ async function confirmarBackupComoRemito(bkParam){
 
   // 3) Marcar el backup como convertido — NO crear un nuevo registro
   var sbId = bk._sbId || bk._fbKey || bk.id;
+  var _tipoHistAprob=bk.aprobado===false?"reaprobado":"aprobado";
+  var _histAprobTmp={historial:Array.isArray(bk.historial)?bk.historial.slice():[]};
+  var _histAprob=_bkHistAgregar(_histAprobTmp,_bkHistEvento(
+    _tipoHistAprob,
+    _tipoHistAprob==="reaprobado"?"Pedido reaprobado":"Pedido aprobado",
+    ["Total aprobado: $"+fM(_totalBase),"Vendedor: "+vendedorNom]
+  ));
   if(sbId && _sbEmpId){
     await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {
       tipo:            "remito",
@@ -24021,7 +24222,8 @@ async function confirmarBackupComoRemito(bkParam){
       stock_version:   +(bk.stockVersion||0),
       reaprobado_en:   bk.reaprobadoEn||null,
       estado:          "recibido",
-      ruta_vinculada_id:null
+      ruta_vinculada_id:null,
+      historial:       _histAprob
     });
   }
   var arr2 = getBackups();
@@ -24034,6 +24236,7 @@ async function confirmarBackupComoRemito(bkParam){
     arr2[idx2].totalConIva=totalNum;
     arr2[idx2].aprobado=true;
     arr2[idx2].stockDevuelto=false;
+    arr2[idx2].historial=_histAprob;
     saveBackups(arr2);
   }
   bk.tipo="remito";
@@ -24043,6 +24246,7 @@ async function confirmarBackupComoRemito(bkParam){
   bk.totalConIva=totalNum;
   bk.aprobado=true;
   bk.stockDevuelto=false;
+  bk.historial=_histAprob;
 
   if(_editBkItem) cerrarModal("modal-editar-backup");
   renderBackup();
@@ -24252,7 +24456,7 @@ function generarPDFDesdeBackup(bk, compartir){
     alternateRowStyles:{fillColor:[255,255,255]},
     columnStyles:{0:{cellWidth:70},1:{halign:"center",cellWidth:14},2:{halign:"right",cellWidth:24},3:{halign:"center",cellWidth:24},4:{halign:"right",cellWidth:22},5:{halign:"right",cellWidth:26}},
     didParseCell:function(d){
-      if(d.section==="body"&&d.column.index===3&&d.cell.raw&&(String(d.cell.raw).startsWith("-")||String(d.cell.raw).indexOf("OFERTA")!==-1)){
+      if(d.section==="body"&&d.column.index===3&&d.cell.raw&&(String(d.cell.raw).startsWith("-")||String(d.cell.raw).indexOf("OFERTA")!==-1||String(d.cell.raw).indexOf("PROMO")!==-1)){
         d.cell.styles.textColor=RED; d.cell.styles.fontStyle="bold"; d.cell.styles.fontSize=8.5;
       }
     }
@@ -24322,7 +24526,7 @@ function generarPDFDesdeBackup(bk, compartir){
   // Dscto. por ítems (si hay)
   if(ahorroItems>0){
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
-    doc.text("Dscto. productos:",tX+2,ty+4.7);
+    doc.text("Descuento promo:",tX+2,ty+4.7);
     doc.setFont("helvetica","normal");
     doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4.7,{align:"right"}); doc.setTextColor.apply(doc,INK);
     ty+=rowH;
@@ -31442,15 +31646,22 @@ async function _asignarVndBk(bkId, sel){
   if(!val){ return; }
   var parts = val.split("|");
   var uid = parts[0], nom = parts.slice(1).join("|");
-  // Actualizar en Supabase
-  await sbPatch("backup_pedidos","id=eq."+bkId+"&empresa_id=eq."+_sbEmpId, {usuario:uid, usuario_nom:nom}).catch(function(){});
-  // Actualizar en localStorage y en memoria
   var arr = getBackups();
   var idx = arr.findIndex(function(x){ return x.id===bkId||x._sbId===bkId; });
-  if(idx>=0){ arr[idx].usuario=uid; arr[idx].usuarioNom=nom; saveBackups(arr); }
+  var objetivo=idx>=0?arr[idx]:null;
+  var anterior=objetivo?(objetivo.usuarioNom||objetivo.usuario||"Sin vendedor"):"Sin vendedor";
+  if(String(anterior)===String(nom)){ showNotif("Ese vendedor ya está asignado","info"); return; }
+  var tmp={historial:objetivo&&Array.isArray(objetivo.historial)?objetivo.historial.slice():[]};
+  var hist=_bkHistAgregar(tmp,_bkHistEvento("vendedor","Vendedor cambiado",["Vendedor: "+anterior+" → "+nom]));
+  // Actualizar en Supabase junto con el historial.
+  try{
+    await sbPatch("backup_pedidos","id=eq."+bkId+"&empresa_id=eq."+_sbEmpId, {usuario:uid, usuario_nom:nom, historial:hist});
+  }catch(e){ showNotif("No se pudo cambiar el vendedor: "+(e.message||""),"err"); return; }
+  // Actualizar en localStorage y en memoria
+  if(idx>=0){ arr[idx].usuario=uid; arr[idx].usuarioNom=nom; arr[idx].historial=hist; saveBackups(arr); }
   var bkList = _backupCache||[];
   var bk2 = bkList.find(function(x){ return x.id===bkId||x._sbId===bkId; });
-  if(bk2){ bk2.usuario=uid; bk2.usuarioNom=nom; }
+  if(bk2){ bk2.usuario=uid; bk2.usuarioNom=nom; bk2.historial=hist; }
   showNotif("✓ Vendedor asignado: "+nom,"ok");
   renderBackup();
 }
@@ -31458,16 +31669,28 @@ async function _asignarVndBk(bkId, sel){
 // Cambia el estado de un pedido de la tienda (recibido/preparando/enviado/entregado)
 async function _cambiarEstadoPedido(bk, nuevoEstado){
   var sbId = bk._sbId || bk._fbKey || bk.id;
+  var estadoAnterior = bk.estado || "recibido";
+  if(String(estadoAnterior)===String(nuevoEstado)) return;
+  var nombresEstado={recibido:"Recibido",preparando:"Preparando",enviado:"Enviado",entregado:"Entregado"};
+  var tmpHist={historial:Array.isArray(bk.historial)?bk.historial.slice():[]};
+  var historial=_bkHistAgregar(tmpHist,_bkHistEvento(
+    "estado",
+    "Estado del pedido actualizado",
+    ["Estado: "+(nombresEstado[estadoAnterior]||estadoAnterior)+" → "+(nombresEstado[nuevoEstado]||nuevoEstado)]
+  ));
   if(sbId && _sbEmpId){
     try {
-      await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {estado:nuevoEstado});
+      await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {estado:nuevoEstado,historial:historial});
     } catch(e){ console.warn("Error actualizando estado del pedido:", e); alert("No se pudo actualizar el estado. Revisá la conexión."); return; }
   }
   // Actualizar en localStorage y en memoria
   var arr = getBackups();
   var idx = arr.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId || x._fbKey===sbId; });
-  if(idx>=0){ arr[idx].estado = nuevoEstado; saveBackups(arr); }
+  if(idx>=0){ arr[idx].estado = nuevoEstado; arr[idx].historial=historial; saveBackups(arr); }
   bk.estado = nuevoEstado;
+  bk.historial = historial;
+  var cacheBk=(_backupCache||[]).find(function(x){ return x.id===bk.id || x._sbId===sbId || x._fbKey===sbId; });
+  if(cacheBk){ cacheBk.estado=nuevoEstado; cacheBk.historial=historial; }
   backupAbierto = bk.id;
   renderBackup();
   // Ofrecer avisar al cliente por WhatsApp (si el pedido tiene teléfono guardado)
@@ -31588,8 +31811,11 @@ async function _bkActualizarPrecios(bk){
     var ok=await _confirmar({icono:"🔄",titulo:"Actualizar precios / refacturar",mensaje:detalle+"\n\nSe conservan cantidades y descuentos, y no se mueve stock.",ok:"Actualizar precios",cancelar:"Cancelar"});
     if(!ok) return;
     var ahora=new Date().toISOString();
-    var hist=(bk.historial||[]).slice();
-    hist.push({fecha:ahora,accion:"refacturado",usuario:(currentUser&&(currentUser.name||currentUser.id))||"",total_anterior:viejo,total_nuevo:total});
+    var _histRefTmp={historial:Array.isArray(bk.historial)?bk.historial.slice():[]};
+    var hist=_bkHistAgregar(_histRefTmp,_bkHistEvento("refacturado","Precios actualizados / refacturación",[
+      "Total: $"+fM(viejo)+" → $"+fM(total),
+      nuevos.length+" productos actualizados"+(faltan.length?" · "+faltan.length+" sin precio nuevo":"")
+    ],{fecha:ahora,total_anterior:viejo,total_nuevo:total}));
     await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,{
       items:nuevos,total:total,total_con_iva:Math.round(total*1.21*100)/100,
       descuentos:d,precios_actualizados_en:ahora,historial:hist
@@ -31642,13 +31868,18 @@ async function _cambiarAprobacion(bk, aprobado){
       }
       await _ventaAnularPedido(bk,"Pedido rechazado desde Backup de pedidos");
       var ahoraR=new Date().toISOString();
+      var _histRechTmp={historial:Array.isArray(bk.historial)?bk.historial.slice():[]};
+      var _histRech=_bkHistAgregar(_histRechTmp,_bkHistEvento("rechazado","Pedido rechazado",[
+        "Motivo: "+(bk.motivoRechazo||"Rechazado desde Backup de pedidos"),
+        "El stock de "+_itemsReales.length+" productos volvió al inventario"
+      ]));
       await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,{
         aprobado:false, estado:"rechazado", stock_devuelto:true,
         rechazado_en:ahoraR, motivo_rechazo:bk.motivoRechazo||"Rechazado desde Backup de pedidos",
-        ruta_vinculada_id:null
+        ruta_vinculada_id:null, historial:_histRech
       });
       bk.aprobado=false; bk.stockDevuelto=true; bk._stkDevuelto=true;
-      bk.estado="rechazado"; bk.rechazadoEn=ahoraR; bk.rutaVinculadaId=null;
+      bk.estado="rechazado"; bk.rechazadoEn=ahoraR; bk.rutaVinculadaId=null; bk.historial=_histRech;
     }
   }catch(e){
     console.warn("[Aprobación segura]",e);
@@ -35528,6 +35759,10 @@ async function _rechazoBuscarBackup(rutaId,cliKey,cli){
 
 async function _rechazoPasarABackup(rutaId,cliKey,cli,ahora){
   var bk=await _rechazoBuscarBackup(rutaId,cliKey,cli);
+  var _histRechRuta=_bkHistEvento("rechazado","Pedido rechazado desde reparto",[
+    "Motivo: "+(cli.motivoRechazo||"Rechazado en reparto"),
+    "Se quitó de la hoja de ruta y el stock volvió al inventario"
+  ],{fecha:ahora});
   if(!bk){
     // Paradas antiguas o cargadas manualmente pueden no tener backup. Crear el
     // registro rechazado directamente, sin volver a tocar el stock.
@@ -35541,18 +35776,21 @@ async function _rechazoPasarABackup(rutaId,cliKey,cli,ahora){
       aprobado:false,estado:"rechazado",stock_devuelto:true,stock_version:0,
       rechazado_en:ahora,motivo_rechazo:cli.motivoRechazo||"Rechazado en reparto",
       rechazo_ruta_id:String(rutaId),rechazo_ruta_cliente_id:String(cliKey),
-      usuario:"",usuario_nom:""
+      usuario:"",usuario_nom:"",historial:[_histRechRuta]
     });
     if(!creados||!creados[0]) throw new Error("No se pudo crear el pedido en Rechazados.");
     bk=_bkDesdeFilaRechazo(creados[0]);
   }else{
     await _ventaAnularPedido(bk,cli.motivoRechazo||"Rechazado en reparto");
+    var _histRutaTmp={historial:Array.isArray(bk.historial)?bk.historial.slice():[]};
+    var _histRuta=_bkHistAgregar(_histRutaTmp,_histRechRuta);
     await sbPatch("backup_pedidos","id=eq."+(bk._sbId||bk.id)+"&empresa_id=eq."+_sbEmpId,{
       aprobado:false,estado:"rechazado",stock_devuelto:true,
       rechazado_en:ahora,motivo_rechazo:cli.motivoRechazo||"Rechazado en reparto",
       rechazo_ruta_id:String(rutaId),rechazo_ruta_cliente_id:String(cliKey),
-      ruta_vinculada_id:null
+      ruta_vinculada_id:null,historial:_histRuta
     });
+    bk.historial=_histRuta;
   }
   bk.aprobado=false; bk.estado="rechazado"; bk.stockDevuelto=true; bk._stkDevuelto=true;
   bk.rechazadoEn=ahora; bk.motivoRechazo=cli.motivoRechazo||"Rechazado en reparto";
