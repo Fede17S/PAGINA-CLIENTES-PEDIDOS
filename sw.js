@@ -1,6 +1,6 @@
-// DistriMax / CoreDistri Service Worker v1.3
-const CACHE_NAME = 'distrimax-v1.3';
-const CACHE_STATIC = 'distrimax-static-v1.3';
+// DISTRIBIX Service Worker v1.5
+const CACHE_NAME = 'distribix-v1.5';
+const CACHE_STATIC = 'distribix-static-v1.5';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -13,6 +13,7 @@ const PANEL_CANDIDATES = [
 
 const APP_SHELL = PANEL_CANDIDATES.concat([
   './manifest.json',
+  './distribix-logo-completo.png',
   './icon-192.png',
   './icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
