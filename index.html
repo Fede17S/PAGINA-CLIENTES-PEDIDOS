@@ -23095,11 +23095,38 @@ var _editBkItem = null;
 var _editBkSelProd = null;
 var _editBkOriginalItems = [];
 
+// Los pedidos antiguos pueden conservar el subtotal rebajado (sub), pero no
+// el objeto dsc que necesita el editor. Lo reconstruimos sin alterar el monto.
+function _editBkDscEfectivo(it){
+  if(!it) return null;
+  if(it.dsc && +it.dsc.valor>0){
+    return {tipo:it.dsc.tipo||"%",valor:+it.dsc.valor,heredado:false};
+  }
+  var base=+(it.c||0)*+(it.p||0);
+  var sub=(it.sub!==undefined&&it.sub!==null)?+it.sub:base;
+  if(base>0 && isFinite(sub) && sub<base-0.005){
+    return {tipo:"%",valor:(1-sub/base)*100,heredado:true};
+  }
+  return null;
+}
+function _editBkMaterializarDscHeredados(items){
+  (items||[]).forEach(function(it){
+    var d=_editBkDscEfectivo(it);
+    if(d&&d.heredado) it.dsc={tipo:d.tipo,valor:d.valor};
+  });
+}
+function _editBkFmtDsc(valor,maxDec){
+  return (+valor||0).toLocaleString("es-AR",{maximumFractionDigits:maxDec==null?2:maxDec});
+}
+
 var _editBkSoloArmador = false;
 function abrirEditarBackup(bk, soloArmador){
   _editBkSoloArmador = !!soloArmador;
   _editBkItem = JSON.parse(JSON.stringify(bk)); // copia profunda
   _editBkOriginalItems = JSON.parse(JSON.stringify((bk&&bk.items)||[]));
+  _editBkMaterializarDscHeredados(_editBkItem.items);
+  _editBkDscItemOpen = -1;
+  _editBkDscItemTipo = {};
   // Cargar clientes y ESPERAR antes de mostrar el modal
   var _doAbrir = function(){
     var aprobado = _editBkItem.aprobado === true || _editBkItem.aprobado === false;
@@ -23287,15 +23314,23 @@ function _renderEditBkItems(){
     wrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Sin productos. Agregá uno arriba.</div>';
     return;
   }
-  wrap.innerHTML = items.map(function(it,i){
+  var cantConDsc=items.filter(function(it){return !!_editBkDscEfectivo(it);}).length;
+  var accionesDsc=(!_editBkSoloArmador&&cantConDsc)
+    ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;margin:0 0 4px;background:var(--accent-bg);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:8px">'+
+        '<span style="font-size:12px;color:var(--accent);font-weight:700">🏷️ '+cantConDsc+' producto'+(cantConDsc!==1?'s':'')+' con descuento</span>'+
+        '<button type="button" onclick="_editBkQuitarTodosDscItems()" style="padding:6px 9px;background:#fff;color:var(--red);border:1px solid var(--red);border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer">Quitar todos</button>'+
+      '</div>'
+    : '';
+  wrap.innerHTML = accionesDsc+items.map(function(it,i){
     var pend = !!it.pendiente;
     var rowBg = pend ? "background:#fff7ed;border-left:3px solid #f97316;" : "";
     var textSt = pend ? "text-decoration:line-through;color:#9a3412;" : "";
     var subSt  = pend ? "color:#9a3412;text-decoration:line-through;" : "font-weight:700;";
-    var hasDsc = it.dsc && it.dsc.valor>0;
+    var dscInfo = _editBkDscEfectivo(it);
+    var hasDsc = !!dscInfo;
     var abierto = (_editBkDscItemOpen===i);
     var subConDsc = _subDe(it);
-    var dscLbl = hasDsc ? (it.dsc.tipo==="%"?"−"+it.dsc.valor+"%":"−$"+fM(it.dsc.valor)) : "";
+    var dscLbl = hasDsc ? (dscInfo.tipo==="%"?"−"+_editBkFmtDsc(dscInfo.valor)+"%":"−$"+fM(dscInfo.valor)) : "";
     // Info de oferta de este item
     var tieneOf = it.ofNormal && it.ofPrecio;
     var ofDesc = tieneOf ? Math.round((1-it.ofPrecio/it.ofNormal)*100) : 0;
@@ -23335,10 +23370,10 @@ function _renderEditBkItems(){
       fila += '<div style="display:flex;gap:8px;align-items:center;padding:8px 0 12px;border-bottom:1px solid var(--border2)">'+
         '<span style="font-size:12px;color:var(--muted);font-weight:600">Dscto:</span>'+
         '<div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden">'+
-          '<button type="button" onclick="_editBkSetDscItemTipo('+i+',\'%\')" style="padding:6px 11px;border:none;background:'+((!hasDsc||it.dsc.tipo==="%")?"var(--accent)":"var(--s2)")+';color:'+((!hasDsc||it.dsc.tipo==="%")?"#fff":"var(--text)")+';font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">%</button>'+
-          '<button type="button" onclick="_editBkSetDscItemTipo('+i+',\'$\')" style="padding:6px 11px;border:none;background:'+((hasDsc&&it.dsc.tipo==="$")?"var(--accent)":"var(--s2)")+';color:'+((hasDsc&&it.dsc.tipo==="$")?"#fff":"var(--text)")+';font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">$</button>'+
+          '<button type="button" onclick="_editBkSetDscItemTipo('+i+',\'%\')" style="padding:6px 11px;border:none;background:'+((!hasDsc||dscInfo.tipo==="%")?"var(--accent)":"var(--s2)")+';color:'+((!hasDsc||dscInfo.tipo==="%")?"#fff":"var(--text)")+';font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">%</button>'+
+          '<button type="button" onclick="_editBkSetDscItemTipo('+i+',\'$\')" style="padding:6px 11px;border:none;background:'+((hasDsc&&dscInfo.tipo==="$")?"var(--accent)":"var(--s2)")+';color:'+((hasDsc&&dscInfo.tipo==="$")?"#fff":"var(--text)")+';font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">$</button>'+
         '</div>'+
-        '<input type="number" min="0" step="any" id="edit-bk-dscitem-'+i+'" placeholder="0" value="'+(hasDsc?it.dsc.valor:"")+'" oninput="_editBkAplicarDscItem('+i+',this.value)" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center">'+
+        '<input type="number" min="0" step="any" id="edit-bk-dscitem-'+i+'" placeholder="0" value="'+(hasDsc?Math.round(dscInfo.valor*10000)/10000:"")+'" oninput="_editBkAplicarDscItem('+i+',this.value)" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center">'+
         (hasDsc ? '<button type="button" onclick="_editBkQuitarDscItem('+i+')" style="padding:6px 10px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:6px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">Quitar</button>' : '')+
       '</div>';
     }
@@ -23427,8 +23462,55 @@ function _editBkQuitarDscItem(idx){
   delete it.dsc;
   it.sub = (it.c||0)*(it.p||0);
   delete _editBkDscItemTipo[idx];
+  _editBkRecalcTotal();
   _renderEditBkItems();
   _editBkDscItemOpen = idx;
+}
+
+async function _editBkQuitarTodosDscItems(){
+  if(!_editBkItem) return;
+  var conDsc=(_editBkItem.items||[]).filter(function(it){return !!_editBkDscEfectivo(it);});
+  if(!conDsc.length) return;
+  var ok=await _confirmar({
+    icono:"🏷️",
+    titulo:"Quitar descuentos de productos",
+    mensaje:"Se quitarán los descuentos de "+conDsc.length+" producto"+(conDsc.length!==1?"s":"")+". El descuento general del pedido, si existe, se mantiene.",
+    ok:"Quitar descuentos",
+    peligro:true
+  });
+  if(!ok) return;
+  conDsc.forEach(function(it){
+    delete it.dsc;
+    it.sub=+(it.c||0)*+(it.p||0);
+  });
+  _editBkDscItemOpen=-1;
+  _editBkDscItemTipo={};
+  _editBkRecalcTotal();
+  _renderEditBkItems();
+  showNotif("Descuentos de productos quitados. Guardá los cambios para confirmarlo.","ok");
+}
+
+// Deja el resumen alineado con los renglones antes de guardar. No toca
+// cantidades ni stock; únicamente vuelve a calcular descuentos y total.
+function _editBkSincronizarResumenDescuentos(){
+  if(!_editBkItem) return null;
+  var anterior=_editBkItem.descuentos||{};
+  var tipo=anterior.dscGenTipo||"$";
+  var valor=+(anterior.dscGenValor||0);
+  if(valor<=0 && +anterior.montoDscGen>0){ tipo="$"; valor=+anterior.montoDscGen; }
+  var baseDsc=valor>0?{dscGenTipo:tipo,dscGenValor:valor}:null;
+  var calc=_calcularPedidoUnico({items:_editBkItem.items||[],descuentos:baseDsc,tipoComprobante:"remito"});
+  var ahorro=Math.round((calc.ahorroItems+calc.montoDscGen)*100)/100;
+  _editBkItem.descuentos=ahorro>0.005?{
+    ahorroItems:calc.ahorroItems,
+    montoDscGen:calc.montoDscGen,
+    ahorroTotal:ahorro,
+    subtotalLista:calc.subtotalLista,
+    dscGenTipo:calc.montoDscGen>0?calc.dscGenTipo:null,
+    dscGenValor:calc.montoDscGen>0?calc.dscGenValor:0
+  }:null;
+  _editBkItem.total=calc.total;
+  return calc;
 }
 
 function _editBkRecalcTotal(){
@@ -23447,8 +23529,9 @@ function _editBkRecalcTotal(){
   if(_editBkItem.descuentos && _editBkItem.descuentos.dscGenValor>0){
     _editBkAplicarDsc();
   } else {
+    _editBkSincronizarResumenDescuentos();
     var totalEl = document.getElementById("edit-bk-total");
-    if(totalEl) totalEl.textContent = "$"+fM(total);
+    if(totalEl) totalEl.textContent = "$"+fM(_editBkItem.total);
   }
 }
 
@@ -23739,6 +23822,8 @@ async function guardarEdicionBackup(){
       stockData=fresco;
       if(!_stkValidarPedido(_editBkItem.items,_editBkOriginalItems,true).ok) return;
     }
+  // Recalcular desde los renglones para no guardar un descuento viejo/fijo.
+  _editBkSincronizarResumenDescuentos();
   // Armar el objeto completo con todos los campos editados
   var _esFactA = _editBkItem.tipoComprobante === "factura_a";
   var _totalBase = _editBkItem.total || 0;
