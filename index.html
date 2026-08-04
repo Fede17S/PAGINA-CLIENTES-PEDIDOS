@@ -3910,7 +3910,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.03-login2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.03-rutas1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -9508,10 +9508,71 @@ async function _sbPatchUsuario(id,u){
   return true;
 }
 
+function _sbRutaClientesDesdeCache(rutaIds){
+  var cached=_sbCacheLoad("ruta_clientes","");
+  if(cached===null) return null;
+  var permitidas={};
+  (rutaIds||[]).forEach(function(id){ permitidas[String(id)]=true; });
+  return (cached||[]).filter(function(c){ return permitidas[String(c.ruta_id)]; });
+}
+
+// PostgREST limita la cantidad de filas que puede devolver una consulta. Antes
+// se pedian todos los clientes de todas las rutas de una sola vez: al superar
+// ese limite, las asignaciones mas nuevas existian en Supabase pero no llegaban
+// a Hoja de Ruta. Se cargan en lotes y paginas para no perder ninguna parada.
+async function _sbGetRutaClientesPaginados(rutaIds,columnas){
+  rutaIds=(rutaIds||[]).filter(Boolean);
+  if(!rutaIds.length) return [];
+  if(!navigator.onLine) return _sbRutaClientesDesdeCache(rutaIds);
+
+  var TAM_LOTE_RUTAS=40;
+  var TAM_PAGINA=500;
+  var todos=[];
+  var vistos={};
+  try{
+    for(var li=0;li<rutaIds.length;li+=TAM_LOTE_RUTAS){
+      var lote=rutaIds.slice(li,li+TAM_LOTE_RUTAS);
+      var offset=0;
+      while(true){
+        var q="select="+columnas+
+          "&empresa_id=eq."+_sbEmpId+
+          "&ruta_id=in.("+lote.join(",")+")"+
+          "&order=created_at.asc,id.asc"+
+          "&limit="+TAM_PAGINA+"&offset="+offset;
+        // Lectura directa: sbGet usa un cache comun por tabla y una pagina vieja
+        // podria repetirse para distintos offsets cuando la conexion se corta.
+        var pagina=await _sbGetRaw("ruta_clientes",q);
+        if(!Array.isArray(pagina)) return null;
+        pagina.forEach(function(c){
+          var key=String(c.id||"");
+          if(!key||vistos[key]) return;
+          vistos[key]=true;
+          todos.push(c);
+        });
+        if(pagina.length<TAM_PAGINA) break;
+        offset+=TAM_PAGINA;
+      }
+    }
+  }catch(e){
+    var msg=String((e&&e.message)||"");
+    var esRed=/failed to fetch|network|load failed|timeout|conexi/i.test(msg);
+    if(esRed){
+      var desdeCache=_sbRutaClientesDesdeCache(rutaIds);
+      if(desdeCache!==null) return desdeCache;
+    }
+    console.warn("[Hoja de Ruta] No se pudieron cargar columnas de ruta_clientes:",msg);
+    return null;
+  }
+
+  // Una unica copia offline completa, ya unificada y sin paginas repetidas.
+  _sbCacheSave("ruta_clientes","select=*&empresa_id=eq."+_sbEmpId,todos);
+  return todos;
+}
+
 async function _sbGetRutas(){
   var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
   if(!rutas||!rutas.length) return null;
-  var ids=rutas.map(function(r){return r.id;}).join(",");
+  var ids=rutas.map(function(r){return r.id;});
   // Columnas livianas: NO traemos `comprobantes` (fotos) ni `firma`, que pesan
   // cientos de KB cada una. Se cargan recién cuando se abre ese cliente.
   // `n_comprobantes` es una columna calculada; si la base todavía no la tiene,
@@ -9524,11 +9585,11 @@ async function _sbGetRutas(){
   // `dsc_general` va aparte a propósito: si se sumara a _RC_EXTRA y esa columna
   // faltara, se caería TODO el bloque extra (incluido el rechazo) de una.
   var _RC_DSC = ",dsc_general";
-  var clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_EXTRA+_RC_DSC+_RC_PED+"&ruta_id=in.("+ids+")&order=created_at.asc");
-  if(clis===null) clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_EXTRA+_RC_DSC+"&ruta_id=in.("+ids+")&order=created_at.asc");
-  if(clis===null) clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_EXTRA+"&ruta_id=in.("+ids+")&order=created_at.asc");
-  if(clis===null) clis=await sbGet("ruta_clientes","select="+_RC_COLS+_RC_DSC+"&ruta_id=in.("+ids+")&order=created_at.asc");
-  if(clis===null) clis=await sbGet("ruta_clientes","select="+_RC_COLS+"&ruta_id=in.("+ids+")&order=created_at.asc");
+  var clis=await _sbGetRutaClientesPaginados(ids,_RC_COLS+_RC_EXTRA+_RC_DSC+_RC_PED);
+  if(clis===null) clis=await _sbGetRutaClientesPaginados(ids,_RC_COLS+_RC_EXTRA+_RC_DSC);
+  if(clis===null) clis=await _sbGetRutaClientesPaginados(ids,_RC_COLS+_RC_EXTRA);
+  if(clis===null) clis=await _sbGetRutaClientesPaginados(ids,_RC_COLS+_RC_DSC);
+  if(clis===null) clis=await _sbGetRutaClientesPaginados(ids,_RC_COLS);
   var result={};
   rutas.forEach(function(r){
     var cm={};
@@ -22518,8 +22579,9 @@ async function _confirmarReasignar(){
       };
       var keeper=existentes[0]||null, ck;
       if(keeper){
-        await sbPatch("ruta_clientes","id=eq."+keeper.id+"&empresa_id=eq."+_sbEmpId,payload);
-        ck=keeper.id;
+        var movida=await sbPatch("ruta_clientes","id=eq."+keeper.id+"&empresa_id=eq."+_sbEmpId,payload);
+        if(!movida||!movida[0]) throw new Error("Supabase no confirmo el movimiento dentro de la hoja de ruta");
+        ck=movida[0].id||keeper.id;
       }else{
         var inserted=await sbPost("ruta_clientes",payload);
         if(!inserted||!inserted[0]) throw new Error("Supabase no confirmó la asignación");
@@ -22531,7 +22593,14 @@ async function _confirmarReasignar(){
           await sbDel("ruta_clientes","id=eq."+existentes[ex].id+"&empresa_id=eq."+_sbEmpId);
         }
       }
-      await sbPatch("backup_pedidos","id=eq."+pedidoId+"&empresa_id=eq."+_sbEmpId,{ruta_vinculada_id:rutaDestKey});
+      // Comprobar en el servidor que la parada quedo realmente vinculada antes
+      // de mostrar la etiqueta HR en Backup Pedidos.
+      var confirmada=await _sbGetRaw("ruta_clientes","select=id,ruta_id,pedido_id&empresa_id=eq."+_sbEmpId+
+        "&id=eq."+ck+"&ruta_id=eq."+rutaDestKey+"&pedido_id=eq."+encodeURIComponent(String(pedidoId))+"&limit=1");
+      if(!confirmada||!confirmada.length) throw new Error("La hoja de ruta no confirmo el pedido; no se actualizo la etiqueta");
+
+      var bkMarcado=await sbPatch("backup_pedidos","id=eq."+pedidoId+"&empresa_id=eq."+_sbEmpId,{ruta_vinculada_id:rutaDestKey});
+      if(!bkMarcado||!bkMarcado[0]) throw new Error("Supabase no confirmo la etiqueta de hoja de ruta en el pedido");
 
       // Memoria: retirar el pedido de cualquier ruta y dejarlo solo en la más reciente.
       Object.keys(rutasData||{}).forEach(function(rk){
