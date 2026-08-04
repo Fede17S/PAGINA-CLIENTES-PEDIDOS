@@ -3914,7 +3914,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.04-reparto1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.04-descuentos2</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -16013,6 +16013,39 @@ function _pedTotalConOfertas(aplicar){
     return s + precio*i.c;
   },0);
 }
+
+// Detecta descuentos manuales acumulados sobre una promo/oferta. No bloquea
+// una decisión consciente, pero obliga a ver el precio final antes de seguir.
+function _pedRiesgosDescuento(items,lista){
+  return _itemsActivosPedido(items||[]).map(function(original){
+    var it=_completarPromoItemPedido(Object.assign({},original),lista||"Clientes");
+    var d=it.dsc||it.disc, tieneManual=!!(d&&+d.valor>0);
+    if(!tieneManual) return null;
+    var det=_detallePrecioItem(it), cant=+(det.cant||0);
+    var promoActiva=det.pLista>+(it.p||0)+0.005;
+    var pctTotal=det.pLista>0?Math.round((1-det.pFinal/det.pLista)*10000)/100:0;
+    if(!promoActiva && pctTotal<25) return null;
+    return {n:it.n||"Producto",cant:cant,pLista:det.pLista,pFinal:det.pFinal,
+      pctTotal:pctTotal,promoActiva:promoActiva,dsc:d};
+  }).filter(Boolean);
+}
+async function _pedConfirmarDescuentosFuertes(items,lista){
+  var riesgos=_pedRiesgosDescuento(items,lista);
+  if(!riesgos.length) return true;
+  var detalle=riesgos.slice(0,5).map(function(r){
+    var manual=r.dsc.tipo==="%"?r.dsc.valor+"%":"$"+fM(r.dsc.valor)+" en el renglon";
+    return "• "+r.n+": $"+fM(r.pLista)+" → $"+fM(r.pFinal)+" c/u (−"+
+      r.pctTotal.toLocaleString("es-AR",{maximumFractionDigits:2})+"%). Manual: "+manual+".";
+  }).join("\n");
+  return await _confirmar({
+    icono:"⚠️",
+    titulo:"Descuento fuerte acumulado",
+    mensaje:"Hay una promocion/oferta y ademas un descuento manual sobre el mismo producto. Las dos rebajas se estan sumando:\n\n"+detalle+"\n\nRevisa el pedido para evitar vender por debajo del precio esperado.",
+    ok:"Confirmar igualmente",
+    cancelar:"Revisar pedido",
+    peligro:true
+  });
+}
 // Confirmar pedido: refresca Supabase y vuelve a validar todo el carrito.
 // Esta segunda barrera evita confirmar una cantidad que otro vendedor consumio
 // mientras el pedido estaba abierto.
@@ -16832,6 +16865,7 @@ async function generarPDF(m){
     return;
   }
   if(!empresaKey){alert("Error: empresaKey vacío. Cerrá sesión y volvé a entrar.");return;}
+  if(!(await _pedConfirmarDescuentosFuertes(ordenes[t]||[],tipoLista[t]||"Clientes"))) return;
   try{
   // ── Diseño de remito profesional (formato ELANDERS) ──
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
@@ -16867,6 +16901,9 @@ async function generarPDF(m){
   },0);
   var subtotalItemsDsc = ordenes[t].reduce(function(s,i){return s+i.sub;},0);
   var ahorroItems      = subtotalLista - subtotalItemsDsc;
+  var _desgloseItemsPdf=_desgloseDescuentosItems(ordenes[t]);
+  var ahorroPromos     = _desgloseItemsPdf.ahorroPromos;
+  var ahorroManual     = Math.max(0,Math.round((ahorroItems-ahorroPromos)*100)/100);
   var dg               = dscGen[t];
   var montoDscGen      = 0;
   if(dg) montoDscGen = dg.tipo==="%" ? subtotalItemsDsc*dg.valor/100 : Math.min(dg.valor, subtotalItemsDsc);
@@ -16977,7 +17014,7 @@ async function generarPDF(m){
   doc.text("Productos",10,CY); CY+=2;
 
   // Determinar si hay descuentos por ítem
-  var tieneDescItemos = ordenes[t].some(function(i){ return i.disc && i.disc.valor>0; });
+  var tieneDescItemos = ordenes[t].some(function(i){ var d=i.dsc||i.disc; return d && d.valor>0; });
   var hayOfPromo = ordenes[t].some(function(i){ return (i.ofAplicada&&i.ofNormal&&i.ofPrecio) || (i.promoAplicada&&i.promoNormal&&i.promoPrecio); });
   var head, body;
 
@@ -16985,21 +17022,12 @@ async function generarPDF(m){
     // Tabla completa con columna de descuento
     head=[["Descripción","Cant.","P. Lista","Dscto.","P. Final","Subtotal"]];
     body=ordenes[t].map(function(i){
-      var hasDsc=i.disc&&i.disc.valor>0;
-      var tieneOf=i.ofNormal&&i.ofPrecio&&i.ofAplicada;
-      var tienePromo=i.promoNormal&&i.promoPrecio&&i.promoAplicada;
-      var precioLista=tieneOf?i.ofNormal:(tienePromo?i.promoNormal:i.p); // precio "antes" si hay oferta/promo
-      var dscLabel;
-      if(tieneOf){ var ofD=Math.round((1-i.ofPrecio/i.ofNormal)*100); dscLabel="OFERTA -"+ofD+"%"; }
-      else if(tienePromo){ var prD=Math.round((1-i.promoPrecio/i.promoNormal)*100); dscLabel="PROMO -"+prD+"%"; }
-      else if(hasDsc){ dscLabel=(i.disc.tipo==="%"?"-"+i.disc.valor+"%":"-$"+fM(i.disc.valor)); }
-      else { dscLabel=""; }
-      var precioFinal=Math.round(i.sub/i.c*100)/100;
+      var det=_detallePrecioItem(i);
       var _ubD=_itBulto(i);   // bulto completo → mostrar 1 bulto con precio de bulto
-      var _cantD=_ubD ? (i.c/_ubD) : (i.esPeso?_pgFmtPeso(i.c):i.c);
-      var _plD=_ubD ? precioLista*_ubD : precioLista;
-      var _pfD=_ubD ? precioFinal*_ubD : precioFinal;
-      return[i.n, _cantD, "$"+fM(_plD)+(i.esPeso?"/kg":""), dscLabel||"—", (hasDsc||tieneOf||tienePromo)?"$"+fM(_pfD):"—", "$"+fM(i.sub)];
+      var _cantD=_ubD ? (det.cant/_ubD) : (i.esPeso?_pgFmtPeso(det.cant):det.cant);
+      var _plD=_ubD ? det.pLista*_ubD : det.pLista;
+      var _pfD=_ubD ? det.pFinal*_ubD : det.pFinal;
+      return[i.n, _cantD, "$"+fM(_plD)+(i.esPeso?"/kg":""), det.label, "$"+fM(_pfD), "$"+fM(det.sub)];
     });
     var minRows2; (function(){
       var _rowH=7.4, _topY=(typeof CY!=="undefined"?CY:88)+2, _pie=72;
@@ -17070,11 +17098,16 @@ async function generarPDF(m){
     doc.setDrawColor.apply(doc,LINE); doc.setLineWidth(0.3); doc.rect(tX,ty,tW,7);
     doc.text("Subtotal lista:",tX+3,ty+5); doc.setFont("helvetica","normal");
     doc.text("$"+fM(subtotalLista),tX+tW-3,ty+5,{align:"right"}); ty+=7;
-    // Descuento por ítems
-    if(ahorroItems>0){
+    // Promociones/ofertas y descuentos manuales se muestran por separado.
+    if(ahorroPromos>0){
       doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
       doc.text("Descuento promo:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0);
-      doc.text("-$"+fM(ahorroItems),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
+      doc.text("-$"+fM(ahorroPromos),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
+    }
+    if(ahorroManual>0){
+      doc.setFont("helvetica","bold"); doc.setDrawColor.apply(doc,LINE); doc.rect(tX,ty,tW,7);
+      doc.text("Dsc. manual productos:",tX+3,ty+5); doc.setFont("helvetica","normal"); doc.setTextColor(160,60,0);
+      doc.text("-$"+fM(ahorroManual),tX+tW-3,ty+5,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=7;
     }
     // Descuento general
     if(montoDscGen>0){
@@ -17117,7 +17150,7 @@ async function generarPDF(m){
       var uObj=Object.values(empresaData.usuarios).find(function(u){return u.id===usuarioRemito;});
       if(uObj) usuarioNom=uObj.name||uObj.id;
     }
-    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;}),total:totalNum,usuario:usuarioRemito,usuarioNom:usuarioNom,descuentos:{ahorroItems:ahorroItems,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal,subtotalLista:subtotalLista,dscGenTipo:dg?dg.tipo:null,dscGenValor:dg?dg.valor:null}};
+    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;}),total:totalNum,usuario:usuarioRemito,usuarioNom:usuarioNom,descuentos:{ahorroItems:ahorroItems,ahorroPromos:ahorroPromos,ahorroManual:ahorroManual,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal,subtotalLista:subtotalLista,dscGenTipo:dg?dg.tipo:null,dscGenValor:dg?dg.valor:null}};
     var itemsCopy=ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;});
     var cliIdRem=document.getElementById("idCli-rem").value;
     fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Venta remito "+nom).then(async function(){
@@ -17198,6 +17231,8 @@ async function generarPDF(m){
     aprobado:   null, tipoComprobante: null,
     descuentos: {
       ahorroItems: ahorroItems,
+      ahorroPromos: ahorroPromos,
+      ahorroManual: ahorroManual,
       montoDscGen: montoDscGen,
       ahorroTotal: ahorroTotal,
       subtotalLista: subtotalLista,
@@ -18716,6 +18751,12 @@ async function imprimirPedidosDeRuta(rk){
   var clientes = Object.entries(ruta.clientes||{});
   if(!clientes.length){ showNotif("No hay pedidos en esta ruta","err"); return; }
   if(!(await _confirmar({icono:"🖨️",titulo:"Generar PDF",mensaje:"¿Generar un PDF con los "+clientes.length+" pedidos de esta ruta?",ok:"Generar"}))) return;
+  var _itemsRutaAdvertencia=[];
+  clientes.forEach(function(par){
+    var cli=par[1]||{};
+    _calcularPedidoUnico(cli).items.forEach(function(it){_itemsRutaAdvertencia.push(it);});
+  });
+  if(!(await _pedConfirmarDescuentosFuertes(_itemsRutaAdvertencia,"Clientes"))) return;
 
   // ── GUARDA ANTI-DESFASAJE (lote) ──────────────────────────────────
   // Este PDF imprime como TOTAL el importe del cliente, pero dibuja la tabla
@@ -18872,6 +18913,8 @@ async function imprimirPedidosDeRuta(rk){
     var yP=_pdfPieY(doc,4,Math.max(50, obsH+12+_altoCob+6));
     var dsc=_calcRutaPdf.descuentos;
     var ahorroItems=_calcRutaPdf.ahorroItems;
+    var ahorroPromos=_calcRutaPdf.ahorroPromos||0;
+    var ahorroManual=_calcRutaPdf.ahorroManual||0;
     var montoDscGen=_calcRutaPdf.montoDscGen;
     var totalDsc=ahorroItems+montoDscGen;
     var subtotLista=_calcRutaPdf.subtotalLista;
@@ -18906,9 +18949,13 @@ async function imprimirPedidosDeRuta(rk){
     doc.text("Subtotal lista:",tX+2,ty+4);
     doc.setFont("helvetica","normal"); doc.text("$"+fM(subtotLista),tX+tW-2,ty+4,{align:"right"}); ty+=rowH;
 
-    if(ahorroItems>0){
+    if(ahorroPromos>0){
       doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH); doc.text("Descuento promo:",tX+2,ty+4);
-      doc.setFont("helvetica","normal"); doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=rowH;
+      doc.setFont("helvetica","normal"); doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroPromos),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=rowH;
+    }
+    if(ahorroManual>0){
+      doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH); doc.text("Dsc. manual productos:",tX+2,ty+4);
+      doc.setFont("helvetica","normal"); doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroManual),tX+tW-2,ty+4,{align:"right"}); doc.setTextColor.apply(doc,INK); ty+=rowH;
     }
     if(montoDscGen>0){
       var _lblDg=_calcRutaPdf.dscGenTipo==="%"?"Dscto. gral. ("+_calcRutaPdf.dscGenValor+"%):":"Dscto. general:";
@@ -22330,6 +22377,33 @@ async function _bkReasignarNueva(){
 function _itemsActivosPedido(items){
   return (items||[]).filter(function(i){ return !i.pendiente; });
 }
+
+// Separa lo que baja por oferta/promo de lo que baja por un descuento manual.
+// Antes se sumaban ambos importes bajo "Descuento promo" y el remito ocultaba
+// que un producto podia tener las dos rebajas acumuladas.
+function _desgloseDescuentosItems(items){
+  var ahorroPromos=0, ahorroManual=0;
+  _itemsActivosPedido(items||[]).forEach(function(i){
+    var cant=+(i.c||0), precio=+(i.p||0);
+    if(cant<=0) return;
+    var lista=(i.ofAplicada&&+i.ofNormal>0)?+i.ofNormal:
+      ((i.promoAplicada&&+i.promoNormal>0)?+i.promoNormal:precio);
+    var basePromo=Math.max(0,precio*cant);
+    var sub=(i.sub!==undefined&&i.sub!==null)?+i.sub:basePromo;
+    if(i.sub===undefined||i.sub===null){
+      var d=i.dsc||i.disc;
+      if(d&&+d.valor>0){
+        sub=d.tipo==="%"?Math.max(0,basePromo*(1-(+d.valor)/100)):Math.max(0,basePromo-(+d.valor));
+      }
+    }
+    ahorroPromos+=Math.max(0,lista*cant-basePromo);
+    ahorroManual+=Math.max(0,basePromo-sub);
+  });
+  return {
+    ahorroPromos:Math.round(ahorroPromos*100)/100,
+    ahorroManual:Math.round(ahorroManual*100)/100
+  };
+}
 // Compatibilidad con pedidos creados por versiones que guardaban el precio
 // promocional, pero perdían la marca de PROMO al elegir el comprobante.
 function _completarPromoItemPedido(it, lista){
@@ -22392,6 +22466,7 @@ function _calcularPedidoUnico(obj){
   var items=_itemsActivosPedido(fuenteItems).map(function(i){
     return _completarPromoItemPedido(Object.assign({},i),obj.lista||"Clientes");
   });
+  var desgloseItems=_desgloseDescuentosItems(items);
   var d=_descuentosEfectivosPedido(obj);
   var subtotalLista=items.reduce(function(s,i){
     var pl=(i.ofAplicada&&i.ofNormal)?+i.ofNormal:((i.promoAplicada&&i.promoNormal)?+i.promoNormal:+(i.p||0));
@@ -22428,8 +22503,13 @@ function _calcularPedidoUnico(obj){
     total=Math.max(0,Math.round((subtotalItems-monto)*100)/100);
   }
   var ahorroItems=Math.max(0,Math.round((subtotalLista-subtotalAntesGeneral)*100)/100);
+  // En rutas antiguas el descuento general podia venir embebido en sub. El
+  // total calculado arriba manda: limitar el desglose para no contar de mas.
+  var ahorroPromos=Math.min(ahorroItems,desgloseItems.ahorroPromos);
+  var ahorroManual=Math.max(0,Math.round((ahorroItems-ahorroPromos)*100)/100);
   return {items:items,descuentos:d,subtotalLista:subtotalLista,subtotalItems:subtotalAntesGeneral,
-    ahorroItems:ahorroItems,montoDscGen:monto,total:total,generalYaIncluido:generalYaIncluido,
+    ahorroItems:ahorroItems,ahorroPromos:ahorroPromos,ahorroManual:ahorroManual,
+    montoDscGen:monto,total:total,generalYaIncluido:generalYaIncluido,
     dscGenTipo:tipo,dscGenValor:valor};
 }
 function _itemsSinGeneralEmbebido(obj,calc){
@@ -22446,16 +22526,24 @@ function _detallePrecioItem(i){
   var tieneOf=!!(i.ofAplicada&&i.ofNormal&&i.ofPrecio);
   var tienePromo=!!(i.promoAplicada&&i.promoNormal&&i.promoPrecio);
   var pLista=tieneOf?+i.ofNormal:(tienePromo?+i.promoNormal:+(i.p||0));
+  var pAntesManual=+(i.p||0);
   var sub=(i.sub!==undefined&&i.sub!==null)?+i.sub:+(i.p||0)*cant;
   var pFinal=cant?Math.round(sub/cant*100)/100:0;
-  var d=i.dsc||i.disc||null, label="—";
-  if(tieneOf){
-    label="OFERTA -"+Math.round((1-(+i.ofPrecio/+i.ofNormal))*100)+"%";
-  }else if(tienePromo){
-    label="PROMO -"+Math.round((1-(+i.promoPrecio/+i.promoNormal))*100)+"%";
-  }else if(d&&+d.valor>0){
-    label=d.tipo==="%"?"-"+d.valor+"%":"-$"+fM(d.valor);
-  }else if(pLista>0&&pFinal<pLista-0.005){
+  var d=i.dsc||i.disc||null, partes=[];
+  // El porcentaje se calcula con el precio realmente guardado en el pedido,
+  // no con metadatos que pudieron actualizarse despues.
+  if(pLista>0&&pAntesManual<pLista-0.005){
+    var pctPromo=Math.round((1-pAntesManual/pLista)*10000)/100;
+    partes.push((tieneOf?"OFERTA":(tienePromo?"PROMO":"PRECIO"))+" -"+pctPromo.toLocaleString("es-AR",{maximumFractionDigits:2})+"%");
+  }
+  if(d&&+d.valor>0){
+    partes.push(d.tipo==="%"?"D. ITEM -"+d.valor+"%":"D. ITEM -$"+fM(d.valor));
+  }else if(pAntesManual>0&&pFinal<pAntesManual-0.005){
+    var pctManual=Math.round((1-pFinal/pAntesManual)*10000)/100;
+    partes.push("D. ITEM -"+pctManual.toLocaleString("es-AR",{maximumFractionDigits:2})+"%");
+  }
+  var label=partes.join(" + ")||"—";
+  if(label==="—"&&pLista>0&&pFinal<pLista-0.005){
     // Pedidos viejos pueden haber perdido dsc, aunque sub sí quedó rebajado.
     var porc=Math.round((1-pFinal/pLista)*10000)/100;
     label="-"+porc.toLocaleString("es-AR",{maximumFractionDigits:2})+"%";
@@ -23161,20 +23249,13 @@ function renderBackup(){
         var ofHtml = "";
         if(it.ofNormal && it.ofPrecio){
           var ofDesc = Math.round((1-it.ofPrecio/it.ofNormal)*100);
-          if(it.ofAplicada){
-            ofHtml = '<span style="font-size:9.5px;background:oklch(92% 0.07 150);color:oklch(38% 0.12 150);border-radius:4px;padding:1px 5px;font-weight:700;margin-left:5px" title="Oferta aplicada: de $'+fM(it.ofNormal)+' a $'+fM(it.ofPrecio)+'">🔥 −'+ofDesc+'%</span>';
-          } else {
+          if(!it.ofAplicada){
             ofHtml = '<span style="font-size:9.5px;background:var(--s3);color:var(--muted);border-radius:4px;padding:1px 5px;font-weight:600;margin-left:5px" title="Tenía oferta disponible no aplicada">🔥 oferta no aplicada</span>';
           }
         }
-        var promoHtml = "";
-        if(it.promoAplicada && it.promoNormal && it.promoPrecio){
-          var promoDesc=Math.round((1-it.promoPrecio/it.promoNormal)*100);
-          promoHtml='<span style="font-size:9.5px;background:oklch(92% 0.07 150);color:oklch(38% 0.12 150);border-radius:4px;padding:1px 5px;font-weight:700;margin-left:5px" title="Promoción aplicada: de $'+fM(it.promoNormal)+' a $'+fM(it.promoPrecio)+'">🏷️ PROMO −'+promoDesc+'%</span>';
-        }
         r.innerHTML =
           '<span class="bk-ci-cant" style="'+(pend?'color:#9a3412;':'')+'">'+it.c+'×</span>'+
-          '<span class="bk-ci-name" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">'+it.n+dscHtml+ofHtml+promoHtml+pendBadge+'</span>'+
+          '<span class="bk-ci-name" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">'+it.n+dscHtml+ofHtml+pendBadge+'</span>'+
           '<span class="bk-ci-sub" style="'+(pend?'text-decoration:line-through;color:#9a3412;':'')+'">$'+fM(it.sub)+'</span>';
         itemsDiv.appendChild(r);
       });
@@ -23214,11 +23295,11 @@ function renderBackup(){
           subRow.innerHTML = '<span>Subtotal lista</span><span>$'+fM(dsc.subtotalLista)+'</span>';
           itemsDiv.appendChild(subRow);
         }
-        if(dsc.ahorroItems > 0){
+        if(dsc.ahorroManual > 0){
           var dscRow = document.createElement("div");
           dscRow.className = "bk-card-total-row";
           dscRow.style.cssText = "color:#b45309;font-size:11.5px;font-weight:600";
-          dscRow.innerHTML = '<span>Descuento promo</span><span>-$'+fM(dsc.ahorroItems)+'</span>';
+          dscRow.innerHTML = '<span>Descuento manual productos</span><span>-$'+fM(dsc.ahorroManual)+'</span>';
           itemsDiv.appendChild(dscRow);
         }
         if(dsc.montoDscGen > 0){
@@ -24170,6 +24251,8 @@ function _editBkSincronizarResumenDescuentos(){
   var ahorro=Math.round((calc.ahorroItems+calc.montoDscGen)*100)/100;
   _editBkItem.descuentos=ahorro>0.005?{
     ahorroItems:calc.ahorroItems,
+    ahorroPromos:calc.ahorroPromos||0,
+    ahorroManual:calc.ahorroManual||0,
     montoDscGen:calc.montoDscGen,
     ahorroTotal:ahorro,
     subtotalLista:calc.subtotalLista,
@@ -24558,6 +24641,16 @@ async function guardarEdicionBackup(){
   if(_editBkItem && _editBkItem.rutaVinculadaId){
     await _propagarEdicionARuta(_editBkItem);
   }
+  // Si el pedido ya estaba aprobado, la venta/comision debe quedar con los
+  // mismos items y total que Backup y Hoja de Ruta.
+  if(_editBkItem && _editBkItem.aprobado===true){
+    try{
+      await _sincronizarVentaAprobadaEditada(_editBkItem);
+    }catch(_ventaEditErr){
+      console.warn("[edicion venta aprobada]",_ventaEditErr);
+      showNotif("⚠️ El pedido se guardo, pero no se pudo actualizar la venta/comision. Reintenta Guardar.","warn");
+    }
+  }
   }catch(e){
     console.warn("Error guardando edición de backup:",e);
     if(stockMov){
@@ -24608,6 +24701,39 @@ async function _ventaGuardarPedido(bk, payload){
   return creada[0].id;
 }
 
+async function _sincronizarVentaAprobadaEditada(bk){
+  if(!bk||bk.aprobado!==true||!_sbEmpId) return;
+  var calc=_calcularPedidoUnico(bk);
+  var ahorro=Math.round((calc.ahorroItems+calc.montoDscGen)*100)/100;
+  var dscCanon=ahorro>0.005?{
+    ahorroItems:calc.ahorroItems,
+    ahorroPromos:calc.ahorroPromos||0,
+    ahorroManual:calc.ahorroManual||0,
+    montoDscGen:calc.montoDscGen,
+    ahorroTotal:ahorro,
+    subtotalLista:calc.subtotalLista,
+    dscGenTipo:calc.montoDscGen>0?calc.dscGenTipo:null,
+    dscGenValor:calc.montoDscGen>0?calc.dscGenValor:0
+  }:null;
+  var totalVenta=bk.tipoComprobante==="factura_a"
+    ? Math.round(calc.total*1.21*100)/100
+    : calc.total;
+  await _ventaGuardarPedido(bk,{
+    empresa_id:_sbEmpId,
+    fecha:bk.fecha||new Date().toISOString(),
+    cliente_id:bk.clienteId||bk.cliente_id||"",
+    cliente_nom:bk.clienteNom||bk.cliente_nom||"",
+    lista:bk.lista||"Clientes",
+    items:calc.items,
+    total:totalVenta,
+    usuario:bk.usuario||undefined,
+    usuario_nom:bk.usuarioNom||undefined,
+    descuentos:dscCanon,
+    tipo:"remito",
+    aprobado:true
+  });
+}
+
 async function confirmarBackupComoRemito(bkParam){
   var bk = bkParam || _editBkItem;
   if(!bk) return;
@@ -24618,7 +24744,10 @@ async function confirmarBackupComoRemito(bkParam){
   var _totalBase = _calcAprobacion.total;
   var _ahorroAprob=_calcAprobacion.ahorroItems+_calcAprobacion.montoDscGen;
   var _dscCanon=_ahorroAprob>0.005?{
-    ahorroItems:_calcAprobacion.ahorroItems,montoDscGen:_calcAprobacion.montoDscGen,
+    ahorroItems:_calcAprobacion.ahorroItems,
+    ahorroPromos:_calcAprobacion.ahorroPromos||0,
+    ahorroManual:_calcAprobacion.ahorroManual||0,
+    montoDscGen:_calcAprobacion.montoDscGen,
     ahorroTotal:_ahorroAprob,subtotalLista:_calcAprobacion.subtotalLista,
     dscGenTipo:_calcAprobacion.montoDscGen>0?_calcAprobacion.dscGenTipo:null,
     dscGenValor:_calcAprobacion.montoDscGen>0?_calcAprobacion.dscGenValor:0
@@ -24831,8 +24960,9 @@ function _chequearTotalRemito(bk){
   return ok;
 }
 
-function generarPDFDesdeBackup(bk, compartir){
+async function generarPDFDesdeBackup(bk, compartir){
   if(!_chequearTotalRemito(bk)) return;
+  if(!(await _pedConfirmarDescuentosFuertes((bk&&bk.items)||[],(bk&&bk.lista)||"Clientes"))) return;
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
   var INK=[20,20,20], LINE=[180,180,180], RED=[160,60,0];
   var nom      = bk.clienteNom||bk.cliente_nom||bk.cliente||"Mostrador";
@@ -24967,6 +25097,8 @@ function generarPDFDesdeBackup(bk, compartir){
   var subtotLista = _calcPdfPedido.subtotalLista;
   var subtotItems = _calcPdfPedido.subtotalItems;
   var ahorroItems = _calcPdfPedido.ahorroItems;
+  var ahorroPromos = _calcPdfPedido.ahorroPromos||0;
+  var ahorroManual = _calcPdfPedido.ahorroManual||0;
   var montoDscGen = _calcPdfPedido.montoDscGen;
   var totalDsc = ahorroItems + montoDscGen;
   var total = _calcPdfPedido.total;
@@ -24983,9 +25115,15 @@ function generarPDFDesdeBackup(bk, compartir){
 
   // ── Salto de página si el bloque de pie (obs + totales) no entra ──
   // Cantidad de filas de totales que se van a dibujar (varía según descuentos/IVA).
-  var _nFilasTot = 2;                 // Subtotal lista + TOTAL (mínimo)
-  if(totalDsc>0) _nFilasTot += 2;     // Subtotal final + Descuento
-  _nFilasTot += 1;                    // IVA (siempre se dibuja la fila)
+  var _nFilasTot = 3;                 // Subtotal lista + IVA + TOTAL
+  if(totalDsc>0){
+    if(ahorroPromos>0) _nFilasTot++;
+    if(ahorroManual>0) _nFilasTot++;
+    if(montoDscGen>0) _nFilasTot++;
+    _nFilasTot++;                      // Subtotal final
+  }else{
+    _nFilasTot++;                      // Dscto. total $0
+  }
   var _altoTotales = _nFilasTot*rowH + totalH;
   var _altoCobros = (typeof _pdfAltoCobros==="function") ? _pdfAltoCobros() : 0;
   var _altoPie = Math.max(obsH+12+_altoCobros, _altoTotales) + 6; // alto del bloque + margen
@@ -25022,12 +25160,19 @@ function generarPDFDesdeBackup(bk, compartir){
   doc.setFont("helvetica","normal"); doc.setFontSize(9);
   doc.text("$"+fM(subtotLista),tX+tW-2,ty+4.7,{align:"right"}); ty+=rowH;
 
-  // Dscto. por ítems (si hay)
-  if(ahorroItems>0){
+  // Promociones/ofertas y descuentos manuales se muestran por separado.
+  if(ahorroPromos>0){
     doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
     doc.text("Descuento promo:",tX+2,ty+4.7);
     doc.setFont("helvetica","normal");
-    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroItems),tX+tW-2,ty+4.7,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroPromos),tX+tW-2,ty+4.7,{align:"right"}); doc.setTextColor.apply(doc,INK);
+    ty+=rowH;
+  }
+  if(ahorroManual>0){
+    doc.setFont("helvetica","bold"); doc.rect(tX,ty,tW,rowH);
+    doc.text("Dsc. manual productos:",tX+2,ty+4.7);
+    doc.setFont("helvetica","normal");
+    doc.setTextColor.apply(doc,RED); doc.text("-$"+fM(ahorroManual),tX+tW-2,ty+4.7,{align:"right"}); doc.setTextColor.apply(doc,INK);
     ty+=rowH;
   }
 
