@@ -806,6 +806,7 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
 .cart-it-info { flex:1; min-width:0; }
 .cart-it-nom { font-size:13px; font-weight:600; color:var(--text); line-height:1.3; }
 .cart-it-price { font-size:11px; color:var(--muted); margin-top:2px; }
+.cart-promo-pill { display:inline-flex;align-items:center;gap:3px;margin-left:4px;padding:2px 6px;border-radius:99px;background:oklch(92% 0.07 150);color:oklch(38% 0.12 150);font-size:9.5px;font-weight:800;white-space:nowrap;vertical-align:middle; }
 .cart-it-step { display:flex; align-items:center; gap:2px; background:var(--s2); border-radius:9px; padding:2px; flex-shrink:0; }
 .cart-it-step button { width:28px; height:28px; border:none; background:var(--accent,#c9933a); color:#fff; border-radius:6px; font-size:16px; font-weight:700; cursor:pointer; line-height:1; }
 .cart-it-step span { min-width:26px; text-align:center; font-weight:800; font-size:14px; color:var(--text); }
@@ -1964,16 +1965,19 @@ html[data-theme="dark"] .hr-sec button.hr-act-rech{background:#351517;color:#fca
 .me-bigbtn-rechazar { background:#fef2f2; color:#dc2626; border:1.5px solid #dc2626; flex:1 1 48%; margin-top:4px; padding:11px 10px; font-size:14px; }
 .me-bigbtn-reprog { background:#eff6ff; color:#2563eb; border:1.5px solid #2563eb; flex:1 1 48%; margin-top:4px; padding:11px 10px; font-size:14px; }
 /* Comprobante de entrega (foto + firma) en la tarjeta de próxima parada */
-.me-prueba { margin-top:10px; padding-top:9px; border-top:1px dashed rgba(255,255,255,.18); }
+.me-prueba { margin-top:10px; padding-top:9px; border-top:1px dashed var(--border); }
 .me-prueba-lbl { font-size:10.5px; letter-spacing:.4px; text-transform:uppercase; opacity:.65; margin-bottom:6px; font-weight:700; }
-.me-prueba-btns { display:flex; gap:8px; }
-.me-pbtn { flex:1; padding:10px 8px; border-radius:10px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
-  background:rgba(255,255,255,.08); color:#e8eaf0; border:1.5px solid rgba(255,255,255,.25); }
+.me-prueba-btns { display:flex; gap:8px; flex-wrap:wrap; }
+.me-pbtn { flex:1 1 105px; padding:10px 8px; border-radius:10px; font-family:inherit; font-size:12.5px; font-weight:750; cursor:pointer;
+  background:var(--s3); color:var(--text2); border:1.5px solid var(--border); }
+.me-pbtn-camera { background:#eff6ff; color:#1d4ed8; border-color:#93c5fd; }
+.me-pbtn-gallery { background:#faf5ff; color:#7e22ce; border-color:#d8b4fe; }
 .me-pbtn-ok { background:#dcfce7; color:#166534; border-color:#16a34a; }
 .me-route-all { width:100%; padding:11px; border-radius:11px; border:1px dashed var(--accent,#c2613c); background:transparent; color:var(--accent,#c2613c); font-size:13px; font-weight:700; cursor:pointer; margin-bottom:14px; }
 .me-route-all:hover { background:var(--s2); }
 .me-list-head { font-size:12px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:4px 2px 8px; }
 .parada-card.cercana { border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.18); }
+.parada-card.seleccionada { border-color:var(--accent,#c2613c); box-shadow:0 0 0 3px color-mix(in oklch,var(--accent,#c2613c) 22%,transparent); }
 .pc-estado { font-size:10.5px; font-weight:700; margin-top:2px; }
 .pc-ok { color:#16a34a; } .pc-pend { color:var(--amber); }
 .pc-near { font-size:10px; font-weight:700; color:#2563eb; background:rgba(37,99,235,.12); border-radius:6px; padding:1px 6px; margin-left:6px; }
@@ -3910,7 +3914,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.03-rutas1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.04-reparto1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -15950,6 +15954,22 @@ function _cartCalc(){
   return {subBase:subBase, subItemDsc:subItemDsc, montoDsc:montoDsc, total:total, dg:dg};
 }
 
+// Revalida todas las promociones antes de mostrar o confirmar el pedido. Esto
+// tambien corrige lineas que ya estaban en el carrito cuando se actualizo el
+// panel o que habian quedado con el precio normal por el bug de ofertaHasta.
+function _cartRevalidarPromos(){
+  var cambios=0;
+  (ordenes['ped']||[]).forEach(function(it){
+    if(!it || it._esCaja || it.esPeso) return;
+    var precioAntes=+(it.p||0);
+    var activaAntes=!!it.promoAplicada;
+    _recalcPromoVigente(it);
+    _cartRecalcSub(it);
+    if(precioAntes!==+(it.p||0) || activaAntes!==!!it.promoAplicada) cambios++;
+  });
+  return cambios;
+}
+
 function _famMinValidarPedido(items,avisar){
   var totales={};
   (items||[]).forEach(function(it){
@@ -16001,6 +16021,7 @@ async function _confirmarPedido(){
   if(_confirmandoPedidoStock) return;
   _confirmandoPedidoStock=true;
   try{
+    _cartRevalidarPromos();
     var famOk=_famMinValidarPedido(ordenes['ped']||[],true);
     if(!famOk.ok){
       _abrirCartModal();
@@ -16083,6 +16104,12 @@ function _abrirCartModal(){
   if(!m) return;
   var cli=document.getElementById("nomCli-ped");
   var cc=document.getElementById("cart-cli");
+  var promosCorregidas=_cartRevalidarPromos();
+  if(promosCorregidas){
+    renderItems('ped');
+    if(typeof _pgRender==="function") _pgRender();
+    showNotif("Promo por cantidad aplicada en "+promosCorregidas+" producto"+(promosCorregidas!==1?"s":""),"ok");
+  }
   if(cc) cc.textContent = (cli&&cli.value)? "· "+cli.value : "";
   _cartObsOpen = null;   // arranca plegada, salvo que ya haya una observación escrita
   _renderCartModal();
@@ -16109,9 +16136,15 @@ function _renderCartModal(){
     // Info de oferta
     var tieneOf = it.ofNormal && it.ofPrecio;
     var ofDesc = tieneOf ? Math.round((1-it.ofPrecio/it.ofNormal)*100) : 0;
+    var tienePromo = !!(it.promoAplicada && it.promoNormal && it.promoPrecio);
+    var promoDesc = tienePromo ? Math.round((1-it.promoPrecio/it.promoNormal)*100) : 0;
     var precioHtml;
     if(tieneOf && it.ofAplicada){
       precioHtml = '<span style="text-decoration:line-through;color:var(--muted)">$'+fM(it.ofNormal)+'</span> <b style="color:#d9402b">$'+fM(it.ofPrecio)+'</b> c/u <span style="font-size:10px;background:oklch(92% 0.07 150);color:oklch(38% 0.12 150);padding:1px 5px;border-radius:5px;font-weight:700">🔥 −'+ofDesc+'%</span>';
+    } else if(tienePromo){
+      precioHtml = '<span style="text-decoration:line-through;color:var(--muted)">$'+fM(it.promoNormal)+'</span> '+
+        '<b style="color:oklch(42% 0.12 150)">$'+fM(it.promoPrecio)+'</b> c/u '+
+        '<span class="cart-promo-pill">PROMO ACTIVA · −'+promoDesc+'%</span>';
     } else {
       precioHtml = '$'+fM(it.p)+' c/u';
     }
@@ -16140,6 +16173,11 @@ function _renderCartModal(){
   }).join("");
   var c=_cartCalc();
   var dg=c.dg;
+  var promosActivas=items.filter(function(it){ return it.promoAplicada&&it.promoNormal&&it.promoPrecio; });
+  var ahorroPromos=promosActivas.reduce(function(s,it){ return s+Math.max(0,(+it.promoNormal- +it.promoPrecio)*+(it.c||0)); },0);
+  var promoRow=promosActivas.length
+    ? '<div class="cart-line" style="padding:7px 9px;margin-bottom:5px;border-radius:8px;background:oklch(96% 0.04 150);color:oklch(38% 0.12 150);font-weight:700"><span>PROMOS ACTIVAS ('+promosActivas.length+')</span><b>Ahorran $'+fM(ahorroPromos)+'</b></div>'
+    : '';
   var dscRow = (dg && c.montoDsc>0)
     ? '<div class="cart-line"><span>Descuento '+(dg.tipo==="%"?"("+dg.valor+"%)":"fijo")+'</span><b style="color:var(--green)">−$'+fM(c.montoDsc)+'</b></div>'
     : '';
@@ -16159,6 +16197,7 @@ function _renderCartModal(){
     _cartObsHTML()+
     _famMinAvisoCarrito()+
     '<div class="cart-totals">'+
+      promoRow+
       '<div class="cart-line"><span>Subtotal</span><span>$'+fM(c.subItemDsc)+'</span></div>'+
       dscRow+
       '<div class="cart-line cart-total"><span>Total</span><b>$'+fM(c.total)+'</b></div>'+
@@ -16255,12 +16294,8 @@ function _recalcPromoVigente(it){
   if(!p) return false;
   var _tr = (typeof _tramosDe==="function") ? _tramosDe(p) : [];
   if(!_tr.length) return false;                     // sin tramos configurados
-  // Respetar la fecha "válido hasta" (misma que usa el resto del precio especial)
-  var _hastaP = p.ofertaHasta || p.oferta_hasta;
-  if(_hastaP){
-    var _hoyP=new Date(); _hoyP.setHours(0,0,0,0);
-    if(_fechaSegura(_hastaP) < _hoyP) return false;
-  }
+  // ofertaHasta pertenece exclusivamente a OFERTAS. Una oferta vieja no puede
+  // bloquear la PROMO por cantidad configurada en precioPromo/tramos.
   // El tramo que aplica es el de mayor "desde" que la cantidad alcance
   var _cant=(it.c||0), _tApl=null;
   for(var _i=0;_i<_tr.length;_i++){ if(_cant>=_tr[_i].desde) _tApl=_tr[_i]; }
@@ -26501,6 +26536,7 @@ var _mapaParadas = [];
 var _geocodeCache = {};
 var _rutaMapaKey = null;
 var _mePosicion = null; // {lat,lng} GPS position
+var _meParadaElegidaKey = null; // permite atender cualquier cliente, sin orden forzado
 
 function iniciarMapaEntregas() {
   cargarGeocodeCache();
@@ -26788,6 +26824,7 @@ function poblarSelectorMapaRutas() {
 
 function seleccionarRutaMapa() {
   _rutaMapaKey = document.getElementById("mapa-ruta-sel").value;
+  _meParadaElegidaKey = null;
 }
 
 function cargarGeocodeCache() {
@@ -26878,6 +26915,7 @@ function optimizarOrden(puntos, startLat, startLng) {
 async function optimizarYMostrar(modo) {
   modo = modo || "optima";   // "optima" = recorrido más corto; "manual" = orden de la lista
   _rutaMapaKey = document.getElementById("mapa-ruta-sel").value;
+  _meParadaElegidaKey = null;
   if (!_rutaMapaKey) { showNotif("Elegí una hoja de ruta primero","err"); return; }
   var ruta = rutasData[_rutaMapaKey];
   if (!ruta) return;
@@ -27082,6 +27120,17 @@ function renderParadas(ordered) {
 
   // Próxima parada (primera pendiente) y más cercana al GPS
   var proxIdx=-1; for(var k=0;k<ordered.length;k++){ if(!ordered[k].cli.entregado&&!ordered[k].cli.rechazado){ proxIdx=k; break; } }
+  var sugeridoIdx=proxIdx;
+  var elegidaIdx=-1;
+  if(_meParadaElegidaKey!==null){
+    for(var ek=0;ek<ordered.length;ek++){
+      if(String(ordered[ek].cliKey)===String(_meParadaElegidaKey)){ elegidaIdx=ek; break; }
+    }
+  }
+  // La sugerencia sigue existiendo, pero nunca obliga: al tocar otro cliente,
+  // esa parada pasa a ocupar la tarjeta completa de acciones.
+  if(elegidaIdx>=0) proxIdx=elegidaIdx;
+  var paradaElegidaManualmente=elegidaIdx>=0;
   var nearIdx=-1;
   if(_mePosicion){ var bd=Infinity; ordered.forEach(function(p,i){ if(p.cli.entregado||p.cli.rechazado||!p.hasCoords)return; var d=getDistKm(_mePosicion.lat,_mePosicion.lng,p.lat,p.lng); if(d<bd){bd=d;nearIdx=i;} }); }
 
@@ -27102,23 +27151,38 @@ function renderParadas(ordered) {
     var _ppComps = Array.isArray(pp.cli.comprobantes) ? pp.cli.comprobantes : null;
     var _ppNFotos = _ppComps ? _ppComps.length : (pp.cli.nComprobantes||0);
     var _ppFirmado = !!(pp.cli.tieneFirma || pp.cli.firmadoEn || (pp.cli.firma && String(pp.cli.firma).length>20));
-    html+='<div class="me-next">'+
-      '<div class="me-next-tag">▶ PRÓXIMA PARADA'+(proxIdx===nearIdx?' · la más cercana':'')+'</div>'+
-      '<div class="me-next-nom" onclick="focusParada('+proxIdx+','+pp.lat+','+pp.lng+')">'+(proxIdx+1)+'. '+escHtml(pp.cli.nom||"")+'</div>'+
-      '<div class="me-next-dir">'+(pp.dir?'📍 '+escHtml(pp.dir):'<span style="color:#fde68a">⚠️ Sin dirección</span>')+'</div>'+
-      '<div class="me-next-money"><span>Total $'+fM(pp.cli.importe||0)+'</span>'+(ppSaldo>0?'<span class="me-pend">Cobrar $'+fM(ppSaldo)+'</span>':'<span class="me-ok">✓ Cobrado</span>')+'</div>'+
-      '<div class="me-next-actions">'+
-        '<button class="me-bigbtn me-bigbtn-nav" onclick="_meNav('+proxIdx+')">🧭 Navegar</button>'+
-        (pp.tel?'<a href="tel:'+_meTel(pp.tel)+'" class="me-bigbtn me-bigbtn-call">📞</a>':'')+
+    var _ppPendiente=!pp.cli.entregado&&!pp.cli.rechazado;
+    var _ppEtiqueta=pp.cli.rechazado
+      ? "PARADA RECHAZADA"
+      : (pp.cli.entregado
+        ? "PARADA ENTREGADA"
+        : (paradaElegidaManualmente ? "PARADA SELECCIONADA · elegiste atenderla ahora" : "PROXIMA PARADA"+(proxIdx===nearIdx?" · la mas cercana":"")));
+    var _ppAcciones=
+      '<button class="me-bigbtn me-bigbtn-nav" onclick="_meNav('+proxIdx+')">🧭 Navegar</button>'+
+      (pp.tel?'<a href="tel:'+_meTel(pp.tel)+'" class="me-bigbtn me-bigbtn-call">📞</a>':'');
+    if(_ppPendiente){
+      _ppAcciones+=
         '<button class="me-bigbtn me-bigbtn-done" onclick="_meAbrirPago('+proxIdx+')">✅ Entregar</button>'+
         (ppSaldo>0?'<button class="me-bigbtn me-bigbtn-fiado" onclick="_meEntregarSinPago('+proxIdx+')">📦 Sin pago</button>':'')+
         '<button class="me-bigbtn me-bigbtn-rechazar" onclick="_meRechazar('+proxIdx+')">❌ Rechazado</button>'+
-        '<button class="me-bigbtn me-bigbtn-reprog" onclick="_meReprogramar('+proxIdx+')">📅 Reprogramar</button>'+
-      '</div>'+
+        '<button class="me-bigbtn me-bigbtn-reprog" onclick="_meReprogramar('+proxIdx+')">📅 Reprogramar</button>';
+    }else{
+      _ppAcciones+='<button class="me-bigbtn" disabled style="background:var(--s3);color:var(--muted);border:1px solid var(--border)">'+
+        (pp.cli.rechazado?'Rechazado':'Entregado')+'</button>';
+    }
+    var _ppFotoBtns=_ppNFotos
+      ? '<button class="me-pbtn me-pbtn-ok" onclick="_meVerComprobante('+proxIdx+')">👁️ Ver comprobante'+(_ppNFotos>1?' ('+_ppNFotos+')':'')+'</button>'
+      : '<button class="me-pbtn me-pbtn-camera" onclick="_meFotoEntrega('+proxIdx+',\'camara\')">📷 Abrir camara</button>'+
+        '<button class="me-pbtn me-pbtn-gallery" onclick="_meFotoEntrega('+proxIdx+',\'galeria\')">🖼️ Galeria</button>';
+    html+='<div class="me-next">'+
+      '<div class="me-next-tag">'+_ppEtiqueta+'</div>'+
+      '<div class="me-next-nom" onclick="focusParada('+proxIdx+','+pp.lat+','+pp.lng+')">'+(proxIdx+1)+'. '+escHtml(pp.cli.nom||"")+'</div>'+
+      '<div class="me-next-dir">'+(pp.dir?'📍 '+escHtml(pp.dir):'<span style="color:#fde68a">⚠️ Sin dirección</span>')+'</div>'+
+      '<div class="me-next-money"><span>Total $'+fM(pp.cli.importe||0)+'</span>'+(ppSaldo>0?'<span class="me-pend">Cobrar $'+fM(ppSaldo)+'</span>':'<span class="me-ok">✓ Cobrado</span>')+'</div>'+
+      '<div class="me-next-actions">'+_ppAcciones+'</div>'+
       '<div class="me-prueba">'+
         '<div class="me-prueba-lbl">Comprobante de entrega</div>'+
-        '<div class="me-prueba-btns">'+
-          '<button class="me-pbtn'+(_ppNFotos?' me-pbtn-ok':'')+'" onclick="_meFotoEntrega('+proxIdx+')">📷 '+(_ppNFotos?('Foto ('+_ppNFotos+')'):'Sacar foto')+'</button>'+
+        '<div class="me-prueba-btns">'+_ppFotoBtns+
           '<button class="me-pbtn'+(_ppFirmado?' me-pbtn-ok':'')+'" onclick="_meFirmaEntrega('+proxIdx+')">✍️ '+(_ppFirmado?'Firmado ✓':'Firma')+'</button>'+
         '</div>'+
       '</div>'+
@@ -27132,7 +27196,7 @@ function renderParadas(ordered) {
   html+='<button class="me-route-all" style="background:#0f8a4a;color:#fff;margin-top:8px" onclick="_meCierreReparto()">📋 Cierre del reparto (rendición)</button>';
 
   // Lista completa
-  html+='<div class="me-list-head">Todas las paradas</div>';
+  html+='<div class="me-list-head">Todas las paradas · Tocá un cliente para atenderlo ahora</div>';
   ordered.forEach(function(p,i){
     var u=_meNavUrls(p);
     var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
@@ -27145,8 +27209,8 @@ function renderParadas(ordered) {
       : (saldo>0 ? '<div class="pc-estado pc-pend">$'+fM(saldo)+' pend.</div>' : '<div class="pc-estado pc-ok">✓ Cobrado</div>');
     var nearTag = (i===nearIdx && !p.cli.entregado) ? '<span class="pc-near">📍 más cercana</span>' : '';
 
-    html+='<div class="parada-card'+(p.cli.entregado?" entregada":"")+(i===nearIdx&&!p.cli.entregado?" cercana":"")+'" id="parada-'+i+'">'+
-      '<div class="parada-head" onclick="focusParada('+i+','+p.lat+','+p.lng+')">'+
+    html+='<div class="parada-card'+(p.cli.entregado?" entregada":"")+(i===nearIdx&&!p.cli.entregado?" cercana":"")+(String(p.cliKey)===String(_meParadaElegidaKey)?" seleccionada":"")+'" id="parada-'+i+'">'+
+      '<div class="parada-head" onclick="_meSeleccionarParada('+i+')">'+
         '<div class="parada-num" style="background:'+color+'">'+(p.cli.entregado?"✓":(i+1))+'</div>'+
         '<div class="parada-info">'+
           '<div class="parada-nom">'+escHtml(p.cli.nom||"")+nearTag+'</div>'+
@@ -27293,11 +27357,31 @@ async function _meEntregar(i){
   showNotif(navigator.onLine ? "✅ Entregado" : "✅ Entregado (se subirá al volver la señal)","ok");
 }
 // ── COMPROBANTE DE ENTREGA (reparto) ──
-// Foto: reutiliza el sistema de comprobantes (abre la cámara, comprime y guarda).
-function _meFotoEntrega(i){
+// Foto: reutiliza el sistema de comprobantes (camara o galeria, comprime y guarda).
+function _meFotoEntrega(i, origen){
   var p=_mapaParadas[i]; if(!p) return;
-  if(typeof compIniciarSubida!=="function"){ showNotif("No se pudo abrir la cámara","err"); return; }
-  compIniciarSubida(_rutaMapaKey, p.cliKey);
+  if(typeof compIniciarSubida!=="function"){ showNotif("No se pudo abrir el selector de imagen","err"); return; }
+  compIniciarSubida(_rutaMapaKey, p.cliKey, origen||"camara");
+}
+
+// Abre el comprobante mas reciente desde la ficha principal del reparto.
+async function _meVerComprobante(i){
+  var p=_mapaParadas[i]; if(!p) return;
+  if(p.cli.comprobantes===undefined && typeof _rcCargarPruebas==="function"){
+    await _rcCargarPruebas(_rutaMapaKey, p.cliKey);
+  }
+  var actual=rutasData[_rutaMapaKey]&&rutasData[_rutaMapaKey].clientes&&rutasData[_rutaMapaKey].clientes[p.cliKey];
+  var comps=Array.isArray((actual||p.cli).comprobantes)
+    ? (actual||p.cli).comprobantes
+    : Object.values((actual||p.cli).comprobantes||{});
+  if(!comps.length){
+    showNotif("No se encontro el comprobante. Podes cargar uno nuevo.","warn");
+    renderParadas(_mapaParadas);
+    return;
+  }
+  var comp=comps[comps.length-1];
+  var fecha=new Date(comp.ts||Date.now()).toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  if(typeof compLbAbrir==="function") compLbAbrir(comp.url,fecha);
 }
 // Firma: reutiliza el modal de firma del cliente.
 function _meFirmaEntrega(i){
@@ -27326,6 +27410,21 @@ function _meAbrirRutaCompleta(){
   var way=pts.slice(0,-1).map(function(p){return p.lat+","+p.lng;}).join("|");
   var url="https://www.google.com/maps/dir/?api=1"+(origin?"&origin="+origin:"")+"&destination="+dest.lat+","+dest.lng+(way?"&waypoints="+encodeURIComponent(way):"")+"&travelmode=driving";
   window.open(url,"_blank");
+}
+
+// Elegir una parada solo cambia el foco de trabajo; no altera el orden guardado de la ruta.
+function _meSeleccionarParada(i){
+  var p=_mapaParadas[i]; if(!p) return;
+  _meParadaElegidaKey=String(p.cliKey);
+  renderParadas(_mapaParadas);
+  if(p.hasCoords && _mapaLeaflet){
+    _mapaLeaflet.setView([p.lat,p.lng],16);
+    if(_mapaMarkers[i+1]) _mapaMarkers[i+1].openPopup();
+  }
+  setTimeout(function(){
+    var ficha=document.querySelector(".me-next");
+    if(ficha && ficha.scrollIntoView) ficha.scrollIntoView({behavior:"smooth",block:"start"});
+  },30);
 }
 
 function focusParada(i, lat, lng) {
@@ -28778,9 +28877,10 @@ function renderComprobantes(wrap, rk, ck, compObj) {
   wrap.appendChild(grid);
 }
 
-function compIniciarSubida(rk, ck) {
+function compIniciarSubida(rk, ck, origen) {
   _compTarget = {rk:rk, ck:ck};
-  var input = document.getElementById("comp-file-input");
+  var input = document.getElementById(origen==="galeria" ? "comp-gallery-input" : "comp-file-input");
+  if(!input){ showNotif("No se pudo abrir el selector de imagen","err"); return; }
   input.value = "";
   input.click();
 }
@@ -28989,6 +29089,7 @@ document.addEventListener("DOMContentLoaded",function(){
   <div id="comp-lb-info"></div>
 </div>
 <input type="file" id="comp-file-input" accept="image/*" capture="environment" style="display:none" onchange="compHandleFile(event)">
+<input type="file" id="comp-gallery-input" accept="image/*" style="display:none" onchange="compHandleFile(event)">
 
 <!-- ══════════════════════════════════════════
      CATÁLOGO DE PEDIDOS — Bottom Sheet
