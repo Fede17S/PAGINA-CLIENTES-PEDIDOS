@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.18
-const CACHE_NAME = 'distribix-v1.18';
-const CACHE_STATIC = 'distribix-static-v1.18';
+// DISTRIBIX Service Worker v1.24
+const CACHE_NAME = 'distribix-v1.24';
+const CACHE_STATIC = 'distribix-static-v1.24';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
