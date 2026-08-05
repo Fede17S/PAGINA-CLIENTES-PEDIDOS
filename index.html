@@ -3914,7 +3914,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.04-descuentos2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.05-stockblindado1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -6960,6 +6960,35 @@ _sysAlertMount();
     </div>
   </div>
 </div>
+<!-- MODAL NOTIFICAR ESTADO POR WHATSAPP -->
+<div class="modal-bg" id="modal-bk-notificar" style="z-index:9700" onclick="if(event.target===this)cerrarModal('modal-bk-notificar')">
+  <div class="modal-box" style="max-width:480px;overflow:hidden;padding:0">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">💬 Notificar por WhatsApp</div>
+        <div id="bk-notif-cliente" style="font-size:11.5px;color:var(--muted);margin-top:3px"></div>
+      </div>
+      <button class="modal-cls" onclick="cerrarModal('modal-bk-notificar')">✕</button>
+    </div>
+    <div style="padding:16px">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.55px;margin-bottom:8px">¿Qué estado querés informar?</div>
+      <div id="bk-notif-estados" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+        <button type="button" class="bk-notif-opt" data-est="recibido" onclick="_bkNotifElegir('recibido')" style="padding:11px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-weight:700;cursor:pointer">📥 Recibido</button>
+        <button type="button" class="bk-notif-opt" data-est="preparando" onclick="_bkNotifElegir('preparando')" style="padding:11px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-weight:700;cursor:pointer">📦 Preparando</button>
+        <button type="button" class="bk-notif-opt" data-est="enviado" onclick="_bkNotifElegir('enviado')" style="padding:11px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-weight:700;cursor:pointer">🚚 Enviado</button>
+        <button type="button" class="bk-notif-opt" data-est="entregado" onclick="_bkNotifElegir('entregado')" style="padding:11px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-weight:700;cursor:pointer">✅ Entregado</button>
+      </div>
+      <div style="margin-top:14px;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.55px">Vista previa</div>
+      <div id="bk-notif-preview" style="margin-top:7px;padding:12px 13px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:11px;color:#14532d;font-size:13px;line-height:1.45;white-space:pre-wrap"></div>
+      <div style="font-size:10.5px;color:var(--muted);margin:9px 2px 14px">Este botón solo prepara el mensaje. No aprueba, rechaza ni cambia el estado guardado del pedido.</div>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="mbtn mbtn-ghost" onclick="cerrarModal('modal-bk-notificar')" style="flex:0 0 auto">Cancelar</button>
+        <button type="button" id="bk-notif-enviar" onclick="_bkNotifEnviar()" style="flex:1;padding:11px 14px;border:0;border-radius:10px;background:#25d366;color:#073b20;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer">Abrir WhatsApp →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR BACKUP PEDIDO -->
 <div class="modal-bg" id="modal-editar-backup">
   <div class="modal-box" style="max-width:520px;max-height:90vh;display:flex;flex-direction:column">
@@ -7992,7 +8021,7 @@ async function _precalentarCacheOffline(){
     ["listas_precios","select=*&empresa_id=eq."+_sbEmpId],
     ["stock",      "select=*&empresa_id=eq."+_sbEmpId],
     ["rutas",      "select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=120"],
-    ["ruta_clientes","select=id,ruta_id,cliente_id,nom,importe,tipo_comprobante,efectivo,transferencia,modo,items,fecha,firmado_en,pagos_adicionales,devoluciones,entregado,entregado_en,audit_log,remito_num,lista,obs,dsc_general,rechazado,rechazado_en,motivo_rechazo,rechazado_por,rechazo_confirmado,reprogramado_de,reprogramado_en&empresa_id=eq."+_sbEmpId+"&order=created_at.desc&limit=1600"],
+    ["ruta_clientes","select=id,ruta_id,cliente_id,nom,importe,tipo_comprobante,efectivo,transferencia,modo,items,fecha,firmado_en,pagos_adicionales,devoluciones,entregado,entregado_en,audit_log,remito_num,lista,obs,dsc_general,pedido_id,rechazado,rechazado_en,motivo_rechazo,rechazado_por,rechazo_confirmado,reprogramado_de,reprogramado_en&empresa_id=eq."+_sbEmpId+"&order=created_at.desc&limit=1600"],
   ];
   for(var i=0;i<tablas.length;i++){
     var t=tablas[i];
@@ -8679,6 +8708,7 @@ function fbPatch(path, data){
     if(data.tipo!==undefined)            bkBody.tipo=data.tipo;
     if(data.tipoComprobante!==undefined) bkBody.tipo_comprobante=data.tipoComprobante;
     if(data.aprobado!==undefined)        bkBody.aprobado=data.aprobado;
+    if(data.estado!==undefined)          bkBody.estado=data.estado;
     if(data.items!==undefined)           bkBody.items=data.items;
     if(data.total!==undefined)           bkBody.total=data.total;
     if(data.totalConIVA!==undefined)     bkBody.total_con_iva=data.totalConIVA;
@@ -8721,7 +8751,7 @@ function fbDel(path){
 // ── Implementaciones ──
 async function _sbGetAllEmpresas(){
   var [emps, users] = await Promise.all([
-    sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,onboarding_done"),
+    sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,onboarding_done,control_stock"),
     sbGet("usuarios","select=id,empresa_id,uid,name,role,roles,lista,direccion,telefono,zona,zona_id,recepciona,nota,catalogo,lat,lng,comision,meta,foto")
   ]);
   if(!emps) return null;
@@ -8882,15 +8912,14 @@ function _stkClaveStock(id){
   }
   return null;
 }
-// Si el producto tiene una ficha de stock, se respeta siempre. El interruptor
-// control_stock además obliga a controlar y bloquea cuando todavía no se pudo
-// cargar el inventario.
+// El interruptor de la empresa es la ÚNICA autoridad. Si está apagado, la
+// distribuidora trabaja en preventa: una ficha de inventario existente no debe
+// bloquear, descontar ni devolver stock automáticamente.
 function _stkDebeControlarProducto(id){
-  return _ctrlStockOn() || _stkClaveStock(id)!==null;
+  return _ctrlStockOn();
 }
 function _stkPedidoRequiereControl(items){
-  if(_ctrlStockOn()) return true;
-  return (items||[]).some(function(it){ return it && _stkClaveStock(it.id||it.codigo||it.cod)!==null; });
+  return _ctrlStockOn() && (items||[]).length>0;
 }
 // La tabla de stock se guarda por CÓDIGO de producto (el "6", el "346"...),
 // no por el id interno largo. Esta función devuelve el código a usar.
@@ -8900,14 +8929,12 @@ function _stkCodDe(p, key){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// APAGADO AUTOMÁTICO POR FALTA DE STOCK
-// Cuando un producto se queda sin unidades, se pone solo en "No disponible"
-// (queda guardado en la base, igual que si apretaras el botón a mano).
-// Cuando vuelve a haber mercadería, el sistema lo prende de nuevo — pero SOLO
-// si lo había apagado él. Lo que apagaste vos a mano no se toca nunca.
-// La lista de "los apagué yo" se guarda en este navegador. Si se pierde, el
-// producto simplemente queda apagado y lo volvés a habilitar a mano.
-// Solo corre en la sesión del admin, así no escriben cinco vendedores a la vez.
+// DISPONIBILIDAD AUTOMÁTICA POR STOCK
+// El agotado se resuelve en pantalla con _sinStock(): no se vuelve a grabar
+// activo=false en productos. La versión anterior sí lo hacía y recordaba el
+// motivo solamente en el navegador del admin; al reponer desde otro equipo el
+// producto podía quedar bloqueado aun teniendo unidades. Se conserva únicamente
+// la recuperación de esas marcas antiguas para volver a habilitarlas al reponer.
 // ══════════════════════════════════════════════════════════════════
 var _autoApagUlt = 0, _autoApagEnCurso = false;
 function _autoApagKey(){ return "dm_autoapag_" + (_sbEmpId||"x"); }
@@ -8917,54 +8944,41 @@ function _autoApagLeer(){
 function _autoApagGuardar(arr){
   try{ localStorage.setItem(_autoApagKey(), JSON.stringify(arr.slice(0,5000))); }catch(e){}
 }
-function _stkAutoApagarSinStock(){
+function _stkAutoApagarSinStock(forzar){
   try{
-    if(typeof _ctrlStockOn!=="function" || !_ctrlStockOn()) return;   // control apagado → no hace nada
+    var controlActivo = (typeof _ctrlStockOn==="function" && _ctrlStockOn());
     if(!_sbEmpId || _autoApagEnCurso) return;
-    if((Date.now() - _autoApagUlt) < 15000) return;                   // como mucho una pasada cada 15 s
+    if(!forzar && (Date.now() - _autoApagUlt) < 15000) return;        // como mucho una pasada cada 15 s
     // Solo el admin escribe
     var _rs = [];
     try{ _rs = (typeof _normalizarRoles==="function" && currentUser) ? _normalizarRoles(currentUser.roles) : []; }catch(e){}
     var _rol = currentUser ? (currentUser.role||"") : "";
     if(_rol!=="admin" && _rs.indexOf("admin")===-1) return;
-    if(!stockData || !Object.keys(stockData).length) return;           // sin stock cargado no se decide nada
+    if(controlActivo && (!stockData || !Object.keys(stockData).length)) return; // con control activo hace falta inventario
     if(typeof _prodData==="undefined" || !_prodData || !Object.keys(_prodData).length) return;
 
     var marcados = _autoApagLeer(), marcSet = {};
     marcados.forEach(function(k){ marcSet[k]=1; });
-    var apagar = [], prender = [], activosConStock = 0;
+    var prender = [];
 
     Object.keys(_prodData).forEach(function(k){
       var p = _prodData[k]; if(!p || !p.nombre) return;
+      if(p.activo!==false || !marcSet[k]) return;
+      // Al pasar a preventa se recuperan de inmediato los productos que una
+      // versión anterior había ocultado automáticamente por falta de stock.
+      if(!controlActivo){ prender.push({k:k,p:p}); return; }
       var cod = _stkCodDe(p, k);
       // Si el producto NO figura en el inventario, no se toca: puede ser algo
       // que nunca cargaste en stock y no sería justo apagarlo.
       if(cod==null || stockData[cod]===undefined) return;
       var disp = _stkDisponible(cod);
-      if(p.activo===false){
-        if(disp > 0 && marcSet[k]) prender.push({k:k,p:p});            // volvió la mercadería y lo había apagado yo
-      } else {
-        activosConStock++;
-        if(disp <= 0) apagar.push({k:k,p:p});
-      }
+      if(disp > 0) prender.push({k:k,p:p});                            // volvió la mercadería y lo había apagado yo
     });
-
-    // ── FRENO DE SEGURIDAD ──
-    // Si de golpe habría que apagar más de la mitad del catálogo, algo anda mal
-    // (el stock se cargó a medias, se mezclaron los códigos...). En vez de dejarte
-    // la tienda vacía, no toca nada y avisa.
-    if(apagar.length > 5 && activosConStock > 0 && apagar.length > activosConStock * 0.5){
-      console.warn("[Stock] Freno de seguridad: se iban a apagar "+apagar.length+" de "+activosConStock+" productos. No se tocó nada.");
-      if(typeof showNotif==="function") showNotif("⚠️ Muchos productos figuran sin stock ("+apagar.length+"). No se apagó ninguno por las dudas — revisá el inventario.","err");
-      _autoApagUlt = Date.now();
-      return;
-    }
-    if(!apagar.length && !prender.length) return;
+    if(!prender.length) return;
 
     _autoApagEnCurso = true;
     _autoApagUlt = Date.now();
     var cambios = [];
-    apagar.forEach(function(o){ cambios.push({k:o.k,p:o.p,val:false}); if(!marcSet[o.k]){ marcados.push(o.k); marcSet[o.k]=1; } });
     prender.forEach(function(o){ cambios.push({k:o.k,p:o.p,val:true}); marcSet[o.k]=0; });
     marcados = marcados.filter(function(k){ return marcSet[k]; });
     _autoApagGuardar(marcados);
@@ -8982,8 +8996,9 @@ function _stkAutoApagarSinStock(){
         if(typeof renderProductos==="function" && document.getElementById("prod-grid")) renderProductos();
         if(typeof _pgRender==="function") _pgRender();
         if(typeof showNotif==="function"){
-          if(apagar.length) showNotif("🚫 "+apagar.length+" producto(s) sin stock pasaron a No disponible","ok");
-          if(prender.length) showNotif("🟢 "+prender.length+" producto(s) volvieron a estar disponibles","ok");
+          if(prender.length) showNotif(controlActivo
+            ? "🟢 "+prender.length+" producto(s) volvieron a estar disponibles"
+            : "🟢 "+prender.length+" producto(s) habilitados para preventa","ok");
         }
         return;
       }
@@ -9068,42 +9083,41 @@ async function _stkDevolver(ref, items, motivo){
     return r;
   }catch(e){ console.warn("[Stock] devolver:", e.message); throw e; }
 }
-// Ajuste simple, para las empresas que NO tienen prendido el control de stock
-// en la configuración: no hay RPC atómica, se suma/resta sobre lo que hay.
+// Compatibilidad con movimientos locales antiguos. Nunca se ejecuta en
+// preventa: el inventario sólo cambia automáticamente con control activo.
 function _stkSimple(arr, signo, motivo){
   try{
+    if(!_ctrlStockOn()) return {omitido:true,controlStock:false};
     var its = (arr||[]).map(function(o){ return { id:o.codigo, c: signo * o.cant }; });
     if(typeof descontarStock==="function") descontarStock(its, motivo||"Movimiento de stock");
   }catch(e){ console.warn("[Stock] ajuste simple:", e.message); }
 }
 function _stkAplicarSoloLocal(items,signo){
   try{
+    if(!_ctrlStockOn()) return;
     _stkItems(items).forEach(function(it){
       stockData[it.codigo]=Math.max(0,+(stockData[it.codigo]||0)+signo*it.cant);
     });
     try{ _sbCacheSave("stock","offline-local",Object.keys(stockData||{}).map(function(c){return {codigo:c,cantidad:stockData[c],reservado:0};})); }catch(e){}
   }catch(e){}
 }
-// Devolución al stock que funciona con y sin control de stock activado
+// Devolución automática únicamente con control de stock activado.
 async function _stkDevolverAuto(ref, items, motivo){
+  if(!_ctrlStockOn()) return {omitido:true,controlStock:false};
   var arr=_stkItems(items); if(!arr.length) return null;
   if(!navigator.onLine){
     _stkAplicarSoloLocal(items,1);
     await _enqueue("STOCK_RETURN","stock/"+String(ref),{ref:String(ref),items:items,motivo:motivo||"Devolución al stock"},motivo||"Devolución al stock");
     return {queued:true};
   }
-  if(!_stkPedidoRequiereControl(items)){ _stkSimple(arr, -1, motivo||"Devolución al stock"); return {simple:true}; }
   var r = await _stkDevolver(ref, items, motivo);
   return r;
 }
 // ── SALIDA DIRECTA (modelo nuevo) ───────────────────────────────────────────
-// El pedido descuenta el stock FÍSICO apenas se envía, sin pasar por el paso
-// intermedio de "reservado". Por atrás hacemos reserva + salida con la MISMA
-// referencia: el reservado neto queda en 0 y el físico baja UNA sola vez.
-// Como stk_reservar es idempotente por referencia, si el pedido ya se había
-// procesado (un reintento de sincronización) devuelve repetido y no se
-// descuenta dos veces.
+// Con control activo, el pedido descuenta el stock FÍSICO apenas se envía. La
+// referencia estable vuelve idempotente cada operación. En preventa se omite.
 async function _stkSalidaDirecta(ref, items, motivo){
+  if(!_ctrlStockOn()) return {omitido:true,controlStock:false};
   if(!_sbEmpId || !ref) return null;
   var arr=_stkItems(items); if(!arr.length) return null;
   if(!navigator.onLine){
@@ -9111,9 +9125,6 @@ async function _stkSalidaDirecta(ref, items, motivo){
     await _enqueue("STOCK_OUT","stock/"+String(ref),{ref:String(ref),items:items,motivo:motivo||"Salida de stock"},motivo||"Salida de stock");
     return {queued:true};
   }
-  // Productos con ficha de inventario se controlan aunque el interruptor general
-  // esté apagado. Los productos sin ficha conservan el modo preventa.
-  if(!_stkPedidoRequiereControl(items)){ _stkSimple(arr, 1, motivo||"Pedido enviado"); return null; }
   var usr = (currentUser?(currentUser.name||currentUser.id):"sistema");
   var r;
   // Motor nuevo: validación + descuento en una única transacción con bloqueo
@@ -9201,6 +9212,7 @@ async function _stkRefrescar(){
 var _pedStockUlt = 0, _pedStockEnCurso = false;
 function _asegurarStockParaPedido(){
   try{
+    if(!_ctrlStockOn()) return;
     if(!_sbEmpId) return;
     if(_pedStockEnCurso) return;
     var vacio = (!stockData || !Object.keys(stockData).length);
@@ -9218,7 +9230,18 @@ function _asegurarStockParaPedido(){
   }catch(e){ _pedStockEnCurso = false; }
 }
 async function _sbGetStockConfig(){ var rows=await sbGet("stock","select=codigo,umbral&empresa_id=eq."+_sbEmpId); var r={};(rows||[]).forEach(function(s){r[s.codigo]={umbral:s.umbral};});return r; }
-async function _sbPatchStock(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],cantidad:e[1],updated_at:new Date().toISOString()}, "empresa_id,codigo"); })); }
+async function _sbPatchStock(data){
+  return Promise.all(Object.entries(data).map(function(e){
+    var cantidad=Number(e[1]);
+    if(!isFinite(cantidad)) throw new Error("Cantidad de stock inválida para "+e[0]);
+    if(cantidad<0){
+      var err=new Error("El stock no puede quedar negativo ("+e[0]+": "+cantidad+")");
+      err.code="STOCK_NEGATIVO_NO_PERMITIDO";
+      throw err;
+    }
+    return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],cantidad:cantidad,updated_at:new Date().toISOString()}, "empresa_id,codigo");
+  }));
+}
 async function _sbPatchStockConfig(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],umbral:e[1].umbral}, "empresa_id,codigo"); })); }
 
 // ── Stock Movimientos ──
@@ -9240,6 +9263,60 @@ async function _stkRegistrarMovimiento(codigo, anterior, nuevo, motivo, tipo){
   try {
     await sbPost("stock_movimientos", _body);
   } catch(e){ console.warn("[Stock] No se pudo registrar movimiento:",e.message); }
+}
+
+// Ajuste manual seguro: Supabase compara el valor que mostraba la pantalla con
+// el valor real antes de guardar. Si otro usuario o pedido lo cambió, no pisa el
+// dato nuevo y obliga a refrescar. Stock + historial se guardan juntos.
+async function _stkAjustarManualAtomico(codigo, nuevo, esperado, motivo, tipo){
+  if(!_sbEmpId) throw new Error("No hay una empresa conectada");
+  if(!navigator.onLine) throw new Error("Necesitás conexión para ajustar el stock");
+  codigo=String(codigo||"").trim();
+  nuevo=parseInt(nuevo,10); esperado=parseInt(esperado,10);
+  if(!codigo || isNaN(nuevo) || isNaN(esperado)) throw new Error("Cantidad de stock inválida");
+  try{
+    return await _stkRpc("stock_ajustar_manual_atomico",{
+      p_empresa:_sbEmpId,
+      p_codigo:codigo,
+      p_nuevo:nuevo,
+      p_esperado:esperado,
+      p_usuario:(currentUser?(currentUser.name||currentUser.id):"sistema"),
+      p_motivo:motivo||"Ajuste manual",
+      p_tipo:tipo||"ajuste"
+    });
+  }catch(e){
+    var msg=String((e&&e.message)||e||"");
+    if(/STOCK_CAMBIO_CONCURRENTE/i.test(msg)){
+      var ec=new Error("El stock cambió mientras esta pantalla estaba abierta. Ya lo actualizamos: revisalo antes de guardar otra vez.");
+      ec.code="STOCK_CAMBIO_CONCURRENTE";
+      throw ec;
+    }
+    if(/PGRST202|42883|could not find.*stock_ajustar_manual_atomico|does not exist/i.test(msg)){
+      var ef=new Error("Falta aplicar supabase_blindaje_edicion_backup_stock.sql en Supabase");
+      ef.code="STOCK_MOTOR_FALTANTE";
+      throw ef;
+    }
+    throw e;
+  }
+}
+
+function _stkEsCambioManualGrande(anterior,nuevo){
+  var d=Math.abs((+nuevo||0)-(+anterior||0));
+  return d>=50 || (d>=20 && ((+anterior||0)<=0 || d>=Math.max(20,Math.abs(+anterior||0)*0.5)));
+}
+async function _stkConfirmarCambioManual(codigo,anterior,nuevo){
+  if(!_stkEsCambioManualGrande(anterior,nuevo)) return true;
+  var delta=(+nuevo||0)-(+anterior||0);
+  var prod=(dbStock||[]).find(function(p){return String(p.id)===String(codigo);});
+  var nom=prod?(prod.n||prod.nombre||codigo):codigo;
+  return await _confirmar({
+    icono:"⚠️",
+    titulo:"Revisar ajuste grande",
+    mensaje:nom+"\n\nStock actual: "+anterior+" u.\nNuevo stock: "+nuevo+" u.\nCambio: "+(delta>0?"+":"")+delta+" u.\n\nConfirmá solamente si contaste físicamente esa cantidad.",
+    ok:"Sí, guardar "+nuevo+" u.",
+    cancelar:"Volver a revisar",
+    peligro:true
+  });
 }
 
 async function _stkGetMovimientos(codigo){
@@ -9384,7 +9461,9 @@ async function _migrarFotosStorage(){
 }
 
 async function _sbGetProductos(force){
-  var _ckey = "productos_"+_sbEmpId;
+  // v2 fuerza una recarga única: la caché anterior no incluía todos los datos
+  // de caja/bulto y podía revivir una presentación incompleta tras actualizar.
+  var _ckey = "productos_v2_"+_sbEmpId;
   // Versión actual del catálogo (consulta minúscula, ~bytes)
   var _ver = null;
   try { var _vr = await sbGet("empresas","select=cat_ver&id=eq."+_sbEmpId); if(_vr && _vr[0]) _ver = _vr[0].cat_ver; } catch(e){}
@@ -9394,29 +9473,41 @@ async function _sbGetProductos(force){
   }
   var SEL_NOV="select=id,codigo,nombre,detalles,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo,fotos,creado_en";
   var SEL_TEMP=SEL_NOV+",temporada";
+  var SEL_BULTO=SEL_TEMP+",precio_caja,unidad_bulto,vende_por,peso_display";
   var SEL_NEW="select=id,codigo,nombre,detalles,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo,fotos";
   var SEL_OLD="select=id,codigo,nombre,categoria,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo";
   var _colas="&empresa_id=eq."+_sbEmpId+"&order=nombre.asc";
   // Se prueba de la más completa a la más vieja. sbGet devuelve null si la
   // consulta falla (ej: falta una columna), así que encadenamos con null-check.
-  var rows = await sbGet("productos",SEL_TEMP+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
+  var rows = await sbGet("productos",SEL_BULTO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
+  if(!rows) rows = await sbGet("productos",SEL_BULTO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
+  if(!rows) rows = await sbGet("productos",SEL_BULTO+",tramos"+_colas);
+  if(!rows) rows = await sbGet("productos",SEL_BULTO+_colas);
+  if(!rows) rows = await sbGet("productos",SEL_TEMP+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
   if(!rows) rows = await sbGet("productos",SEL_TEMP+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
   if(!rows) rows = await sbGet("productos",SEL_NOV+",tramos"+_colas);
   if(!rows) rows = await sbGet("productos",SEL_NOV+_colas);
   if(!rows) rows = await sbGet("productos",SEL_NEW+_colas);
   if(!rows) rows = await sbGet("productos",SEL_OLD+_colas);
   if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,temporada:p.temporada||"",precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,tramos:(Array.isArray(p.tramos)?p.tramos:null),ofertaNombre:p.oferta_nombre||"",ofertaDesde:p.oferta_desde||null,ofertaDias:(Array.isArray(p.oferta_dias)?p.oferta_dias:null),ofertaHoraDesde:p.oferta_hora_desde||"",ofertaHoraHasta:p.oferta_hora_hasta||"",ofertaListas:(Array.isArray(p.oferta_listas)?p.oferta_listas:null),ofertaTope:p.oferta_tope||0,ofertaUsadas:p.oferta_usadas||0,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",vendePor:p.vende_por||"unidad",pesoDisplay:p.peso_display||"kg",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[],creadoEn:p.creado_en||null};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
-async function _sbInsertProducto(p){ var _body={empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,temporada:p.temporada||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null};
+async function _sbInsertProducto(p){ var _body={empresa_id:_sbEmpId,codigo:p.codigo||"",nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,temporada:p.temporada||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,precio_caja:p.precioCaja||null,unidad_bulto:p.unidadBulto||"bulto",vende_por:p.vendePor||"unidad",peso_display:p.pesoDisplay||"kg",min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null};
   if(p.tramos!==undefined) _body.tramos=p.tramos;
   var rows;
   try{ rows=await sbPost("productos",_body); }
   catch(e){
     var msg=(e&&e.message)||"";
-    if(_body.tramos!==undefined && /column|does not exist|PGRST204|schema cache/i.test(msg)){
-      delete _body.tramos;
-      console.warn("[productos] Falta la columna tramos. Correr precios_por_tramos.sql en Supabase.");
+    if(!/column|does not exist|PGRST204|schema cache/i.test(msg)) throw e;
+    // Compatibilidad con bases antiguas: primero sacar tramos y, si todavía
+    // falta una columna, sacar solamente los metadatos nuevos de presentación.
+    delete _body.tramos;
+    try{ rows=await sbPost("productos",_body); }
+    catch(e2){
+      var msg2=(e2&&e2.message)||"";
+      if(!/column|does not exist|PGRST204|schema cache/i.test(msg2)) throw e2;
+      ["precio_caja","unidad_bulto","vende_por","peso_display"].forEach(function(k){delete _body[k];});
+      console.warn("[productos] Faltan columnas de presentación por bulto en Supabase.");
       rows=await sbPost("productos",_body);
-    } else { throw e; }
+    }
   }
   _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
 async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.detalles!==undefined)b.detalles=p.detalles;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.temporada!==undefined)b.temporada=p.temporada||null;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.tramos!==undefined)b.tramos=p.tramos;if(p.ofertaNombre!==undefined)b.oferta_nombre=p.ofertaNombre;if(p.ofertaDesde!==undefined)b.oferta_desde=p.ofertaDesde;if(p.ofertaDias!==undefined)b.oferta_dias=p.ofertaDias;if(p.ofertaHoraDesde!==undefined)b.oferta_hora_desde=p.ofertaHoraDesde;if(p.ofertaHoraHasta!==undefined)b.oferta_hora_hasta=p.ofertaHoraHasta;if(p.ofertaListas!==undefined)b.oferta_listas=p.ofertaListas;if(p.ofertaTope!==undefined)b.oferta_tope=p.ofertaTope;if(p.ofertaUsadas!==undefined)b.oferta_usadas=p.ofertaUsadas;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.vendePor!==undefined)b.vende_por=p.vendePor;if(p.pesoDisplay!==undefined)b.peso_display=p.pesoDisplay;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; })
@@ -9686,8 +9777,17 @@ async function _sbPatchRutaCli(rutaId,cliId,data){
   if(data.reprogramadoDe!==undefined)    b.reprogramado_de=data.reprogramadoDe;
   if(data.reprogramadoEn!==undefined)    b.reprogramado_en=data.reprogramadoEn||null;
   if(Object.keys(b).length===0) return null;
+  // `id` ya identifica de forma única a la parada. Filtrar también por ruta_id
+  // hacía que un mapa con la ruta recién movida devolviera 0 filas sin error.
+  // Ese falso éxito era la causa de que Reparto dijera "Entregado" mientras la
+  // Hoja de Ruta seguía pendiente. empresa_id mantiene el aislamiento por RLS.
+  var match="id=eq."+encodeURIComponent(String(cliId))+"&empresa_id=eq."+_sbEmpId;
+  function confirmar(rows){
+    if(!rows||!rows.length) throw new Error("Supabase no encontró la parada para guardar el cambio");
+    return rows;
+  }
   try{
-    return await sbPatch("ruta_clientes","id=eq."+cliId+"&ruta_id=eq."+rutaId,b);
+    return confirmar(await sbPatch("ruta_clientes",match,b));
   }catch(e){
     var msg=(e&&e.message)||"";
     // Si la base todavía no tiene las columnas nuevas, guardar al menos el resto
@@ -9697,7 +9797,7 @@ async function _sbPatchRutaCli(rutaId,cliId,data){
       Object.keys(b).forEach(function(k){ if(_RC_COLS_NUEVAS.indexOf(k)===-1) b2[k]=b[k]; });
       console.warn("[ruta_clientes] Faltan columnas nuevas (rechazo / dsc_general). Correr rechazos_ruta.sql y ruta_dsc_general.sql en Supabase.");
       if(!Object.keys(b2).length) return null;
-      return sbPatch("ruta_clientes","id=eq."+cliId+"&ruta_id=eq."+rutaId,b2);
+      return confirmar(await sbPatch("ruta_clientes",match,b2));
     }
     throw e;
   }
@@ -9840,6 +9940,7 @@ async function _sbGetBackup(){
       lista:          b.lista        || "Clientes",
       obs:            b.obs          || "",
       historial:      b.historial    || [],
+      _remitoNum:     b.remito_num   || "",
       items:          b.items        || [],
       total:          b.total        || 0,
       totalConIVA:    b.total_con_iva || Math.round((b.total||0)*1.21*100)/100,
@@ -9877,14 +9978,16 @@ async function _sbGetBackup(){
 
 async function _sbInsertBackup(data){
   if(typeof _trackUso==="function") _trackUso("nuevo_pedido");
+  // Un pedido confirmado debe existir primero en Supabase. Esto evita mostrar
+  // el PDF o borrar el formulario cuando la conexión sólo parecía funcionar.
+  if(!_sbEmpId || !navigator.onLine){
+    var _syncErr=new Error("Necesitás conexión para confirmar el pedido. Los productos siguen en pantalla para que vuelvas a intentar.");
+    _syncErr.code="PEDIDO_NO_CONFIRMADO";
+    throw _syncErr;
+  }
   // Rechequeo final, inmediatamente antes de crear el pedido. La pantalla puede
   // haber quedado abierta mientras otro vendedor agotaba el mismo producto.
   if(_stkPedidoRequiereControl(data.items||[])){
-    if(!navigator.onLine){
-      var _offErr=new Error("Necesitás conexión para verificar el stock antes de confirmar.");
-      _offErr.code="STOCK_NO_VERIFICADO";
-      throw _offErr;
-    }
     var _stockFresco=await _sbGetStockFull();
     if(!_stockFresco){
       var _loadErr=new Error("No se pudo obtener el stock actualizado.");
@@ -9906,6 +10009,8 @@ async function _sbInsertBackup(data){
   var itemsLimpios = (data.items||[]).map(function(i){
     var it = { id:i.id, n:i.n, c:i.c, p:i.p, sub:i.sub, esPeso:i.esPeso||false, gramos:i.gramos||null,
              dsc: i.dsc ? {tipo:i.dsc.tipo, valor:i.dsc.valor} : null };
+    if(i._esCaja) it._esCaja=true;
+    if(+(i._ub||0)>1) it._ub=+i._ub;
     // Congelar el COSTO del día en que se hace el pedido (para ganancia con costo histórico)
     if(i.cost!=null) it.cost=i.cost;
     else { try{ var _pp=(typeof _prodData!=="undefined"&&_prodData)?_prodData[i.id]:null; if(_pp && _pp.precioBase!=null && _pp.precioBase>0) it.cost=_pp.precioBase; }catch(e){} }
@@ -9955,24 +10060,41 @@ async function _sbInsertBackup(data){
   };
   if(data.fechaEntrega) body.fecha_entrega = data.fechaEntrega;
   if(data.diaEntrega)   body.dia_entrega   = data.diaEntrega;
-  // Agregar lista solo si existe la columna (silencia el error)
   if(data.lista) body.lista = data.lista;
+  // Los remitos directos pueden llegar con un número ya reservado. En Nuevo
+  // Pedido queda vacío: la función atómica lo asigna junto con el INSERT.
+  if(data._remitoNum) body.remito_num = String(data._remitoNum);
 
-  var rows = await sbPost("backup_pedidos", body);
-  var _newId = rows&&rows[0] ? rows[0].id : null;
-  // MOTOR DE STOCK: al enviarse el pedido la mercadería SALE del stock (baja el físico).
-  // Es el ÚNICO punto de descuento del sistema. Vuelve solo si el admin rechaza el
-  // pedido, si se borra, o por un rechazo/devolución del reparto aprobado por el admin.
-  if(_newId){
-    try{
-      await _stkSalidaDirecta(_newId, data.items);
-    }catch(e){
-      console.warn("[Stock] no se pudo descontar:", e.message);
-      // Si otro vendedor consumió el stock entre la validación y el INSERT, o
-      // Supabase no pudo verificarlo, borrar el pedido recién creado.
-      try{ await sbDel("backup_pedidos","id=eq."+_newId+"&empresa_id=eq."+_sbEmpId); }catch(_delErr){}
-      throw e;
-    }
+  var _rpcRes;
+  try{
+    _rpcRes=await sbFetch("POST","/rest/v1/rpc/pedido_confirmar_atomico",{
+      p_empresa:_sbEmpId,
+      p_local_id:String(data.id||""),
+      p_pedido:body,
+      p_items_stock:_stkItems(data.items||[]),
+      p_usuario:(currentUser?(currentUser.name||currentUser.id):"sistema")
+    });
+  }catch(e){
+    var _rpcMsg=String((e&&e.message)||"");
+    if(/STOCK_INSUFICIENTE|stock insuficiente|sin stock/i.test(_rpcMsg)) e.code="STOCK_INSUFICIENTE";
+    else if(/EMPRESA_NO_AUTORIZADA/i.test(_rpcMsg)) e.code="EMPRESA_NO_AUTORIZADA";
+    else e.code=e.code||"PEDIDO_NO_CONFIRMADO";
+    throw e;
+  }
+  var _resultado=Array.isArray(_rpcRes)?_rpcRes[0]:_rpcRes;
+  var _newId=_resultado&&(_resultado.pedido_id||_resultado.id);
+  if(!_resultado || _resultado.ok!==true || !_newId || !_resultado.remito_num){
+    var _badRpc=new Error("Supabase no confirmó el pedido o el número de remito.");
+    _badRpc.code="PEDIDO_NO_CONFIRMADO";
+    throw _badRpc;
+  }
+  data._remitoNum=String(_resultado.remito_num);
+  data._sbId=String(_newId);
+  data._fbKey=String(_newId);
+  // El pedido ya quedó confirmado. Un fallo al refrescar la pantalla no debe
+  // convertir un éxito real en un falso error ni provocar un segundo pedido.
+  if(_ctrlStockOn()){
+    try{ await _stkRefrescar(); }catch(_refreshErr){ console.warn("[Stock] pedido confirmado; no se pudo refrescar la vista:",_refreshErr.message); }
   }
   return _newId;
 }
@@ -10246,10 +10368,21 @@ function _cargarClientesDesdeCache(cached){
     _locModo = (currentUser && currentUser.loc_modo) || "momentos";
     aplicarBranding();
     // Re-verificar estado desde Supabase (puede haber cambiado desde el último login)
-    sbGet("empresas","select=id,estado,vence,plan,loc_hora_ini,loc_hora_fin,clientes_compartidos&id=eq."+_sbEmpId).then(function(emps){
+    sbGet("empresas","select=id,estado,vence,plan,loc_hora_ini,loc_hora_fin,clientes_compartidos,control_stock&id=eq."+_sbEmpId).then(function(emps){
       var empActual = (emps && emps[0]) ? emps[0] : (s.empresaData||{});
       if(!checkEmpresaAccess(empActual)){ localStorage.removeItem("dm_session"); document.documentElement.classList.remove("has-session"); return; }
-      if(emps && emps[0]){ empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan; empresaData.loc_hora_ini=emps[0].loc_hora_ini; empresaData.loc_hora_fin=emps[0].loc_hora_fin; empresaData.clientes_compartidos=emps[0].clientes_compartidos; }
+      if(emps && emps[0]){
+        empresaData.estado=emps[0].estado; empresaData.vence=emps[0].vence; empresaData.plan=emps[0].plan;
+        empresaData.loc_hora_ini=emps[0].loc_hora_ini; empresaData.loc_hora_fin=emps[0].loc_hora_fin;
+        empresaData.clientes_compartidos=emps[0].clientes_compartidos;
+        empresaData.control_stock=emps[0].control_stock===true;
+        // Mantener el modo disponible también al reabrir sin conexión.
+        try{
+          if(!s.empresaData) s.empresaData={};
+          s.empresaData.control_stock=empresaData.control_stock;
+          localStorage.setItem("dm_session",JSON.stringify(s));
+        }catch(_sesStock){}
+      }
       _loadReadCache(); _loadQueue(); _updateBanner(); _initConnectionBanner();
       aplicarRestricciones(); cargarListasPrecios();
       // Precalentar cache offline 8s después del login para no bloquear la UI
@@ -10890,7 +11023,7 @@ function doLogin(){
   err.textContent="🔄 Conectando…";
 
   // 1. Buscar empresa por código en Supabase
-  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin,clientes_compartidos,cat_orden,onboarding_done&codigo=eq."+encodeURIComponent(empCod))
+  sbGet("empresas","select=id,codigo,nombre,color,logo,appname,plan,estado,vence,loc_hora_ini,loc_hora_fin,clientes_compartidos,cat_orden,onboarding_done,control_stock&codigo=eq."+encodeURIComponent(empCod))
   .then(function(emps){
     if(!emps||!emps.length){ err.textContent="❌ Empresa '"+empCod+"' no encontrada"; return; }
     var emp = emps[0];
@@ -11047,7 +11180,7 @@ function doLogin(){
           localStorage.setItem("dm_session", JSON.stringify({
             empresaKey: emp.id,
             user:       currentUser,
-            empresaData: { id: emp.id, nombre: emp.nombre, codigo: emp.codigo, color: emp.color, plan: emp.plan, estado: emp.estado, onboarding_done: emp.onboarding_done }
+            empresaData: { id: emp.id, nombre: emp.nombre, codigo: emp.codigo, color: emp.color, plan: emp.plan, estado: emp.estado, onboarding_done: emp.onboarding_done, control_stock:emp.control_stock===true }
           }));
         } catch(e2) { console.warn('Session save failed:', e2); }
       }
@@ -11534,7 +11667,7 @@ function _ctrlStockOn(){ return !!(empresaData && empresaData.control_stock); }
 // o que está por entrar. En ese caso NO se bloquea: se muestra, se puede agregar
 // al pedido, y se avisa que no tiene stock cargado.
 function _stkSinFicha(id){
-  if(!_ctrlStockOn()) return _stkClaveStock(id)===null;
+  if(!_ctrlStockOn()) return false;
   if(!stockData || Object.keys(stockData).length===0) return false;
   return _stkClaveStock(id)===null;
 }
@@ -11616,6 +11749,16 @@ async function guardarControlStock(){
     var chk = await sbGet("empresas","select=control_stock&id=eq."+_sbEmpId);
     if(!chk || !chk[0] || chk[0].control_stock!==val){ showNotif("No se guardó: falta la columna. ¿Corriste control_stock.sql?","err"); return; }
     if(empresaData) empresaData.control_stock = val;
+    try{
+      var _sesCtrl=JSON.parse(localStorage.getItem("dm_session")||"{}");
+      if(!_sesCtrl.empresaData) _sesCtrl.empresaData={};
+      _sesCtrl.empresaData.control_stock=val;
+      localStorage.setItem("dm_session",JSON.stringify(_sesCtrl));
+    }catch(_sesCtrlErr){}
+    if(!val){
+      // El modo preventa no arrastra bloqueos visuales de versiones antiguas.
+      try{ setTimeout(function(){ _stkAutoApagarSinStock(true); },0); }catch(e){}
+    }
     if(typeof _pgRender==="function") _pgRender();
     showNotif(val ? "✅ Control de stock activado — los productos sin stock se bloquean" : "Control de stock desactivado (modo preventa)","ok");
   } catch(e){
@@ -12908,7 +13051,7 @@ function aplicarRol(){
 // ══════════════ BOTTOM NAV MÓVIL (expandable tabs) ══════════════
 // Define qué tabs ve cada rol en la barra inferior. Se eligen las
 // secciones más usadas; el resto sigue accesible desde el menú lateral.
-function _buildBottomNav(role){
+function _buildBottomNavLegacy(role){
   var TABS_POR_ROL = {
     admin:      [
       {grupo:"Ventas y reparto"},
@@ -13020,6 +13163,97 @@ function _buildBottomNav(role){
              'onclick="_bnGo(\''+t.id+'\')" aria-label="'+t.lbl+'">'+
              '<span class="nft-ico" aria-hidden="true">'+t.ico+'</span>'+
              '<span>'+t.lbl+'</span>'+
+           '</button>';
+  }).join("");
+
+  _bnSyncActive();
+}
+
+// El menu movil se arma desde los botones que aplicarRol() ya habilito en el
+// menu lateral. Asi escritorio y movil comparten una sola matriz de permisos:
+// cualquier rol nuevo, combinacion de roles o seccion futura aparece en ambos
+// lugares sin mantener una segunda lista manual.
+function _navFabTabsDesdeSidebar(){
+  var nav = document.querySelector("#sidebar .sb-nav");
+  if(!nav) return [];
+
+  var tabs = [];
+  var vistos = {};
+  var grupoPendiente = "";
+  var ultimoGrupo = "";
+
+  Array.prototype.forEach.call(nav.children, function(el){
+    if(el.classList.contains("sb-group-lbl")){
+      grupoPendiente = (el.textContent || "").trim();
+      return;
+    }
+    if(!el.classList.contains("sb-item") || !el.id || el.id.indexOf("nav-") !== 0) return;
+
+    var visible = el.style.display !== "none";
+    try { visible = visible && window.getComputedStyle(el).display !== "none"; } catch(e){}
+    if(!visible) return;
+
+    var id = el.id.slice(4);
+    if(!id || vistos[id]) return;
+    vistos[id] = true;
+
+    if(grupoPendiente && grupoPendiente !== ultimoGrupo){
+      tabs.push({grupo:grupoPendiente});
+      ultimoGrupo = grupoPendiente;
+    }
+
+    var icoEl = el.querySelector(".sb-icon");
+    var copia = el.cloneNode(true);
+    Array.prototype.forEach.call(copia.querySelectorAll("*"), function(n){ n.remove(); });
+    var lbl = (copia.textContent || "").replace(/\s+/g, " ").trim();
+    if(!lbl && typeof TITLES !== "undefined") lbl = TITLES[id] || "";
+
+    tabs.push({
+      id:id,
+      ico:icoEl ? (icoEl.textContent || "").trim() : "•",
+      lbl:lbl || id
+    });
+  });
+  return tabs;
+}
+
+function _navFabEsc(valor){
+  return String(valor == null ? "" : valor)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;");
+}
+
+function _buildBottomNav(role){
+  var tabs = _navFabTabsDesdeSidebar();
+  if(!tabs.length){
+    _buildBottomNavLegacy(role);
+    return;
+  }
+
+  var grid = document.getElementById("nav-fab-grid");
+  var fab = document.getElementById("nav-fab");
+  if(!grid || !fab) return;
+
+  var cantidadSecciones = tabs.filter(function(t){ return !!t.id; }).length;
+  if(cantidadSecciones < 2){
+    fab.style.display = "none";
+    grid.innerHTML = "";
+    return;
+  }
+  fab.style.removeProperty("display");
+
+  var idx = 0;
+  grid.innerHTML = tabs.map(function(t){
+    if(t.grupo) return '<div class="nav-fab-grupo">'+_navFabEsc(t.grupo)+'</div>';
+    var delay = idx++ * 28;
+    return '<button class="nav-fab-tile" role="menuitem" data-tab="'+_navFabEsc(t.id)+'" '+
+             'style="transition-delay:'+delay+'ms" '+
+             'onclick="_bnGo(\''+_navFabEsc(t.id)+'\')" aria-label="'+_navFabEsc(t.lbl)+'">'+
+             '<span class="nft-ico" aria-hidden="true">'+_navFabEsc(t.ico)+'</span>'+
+             '<span>'+_navFabEsc(t.lbl)+'</span>'+
            '</button>';
   }).join("");
 
@@ -14630,7 +14864,7 @@ function filtrar(t){
       })();
       var qty=stockData[p.id];
       var stkHtml="";
-      if(qty!==undefined){
+      if(_ctrlStockOn() && qty!==undefined){
         stkHtml='<span class="'+ddStkClass(p.id,qty)+'">'+stkBadgeLabel(qty)+'</span>';
       } else if(_stkSinFicha(p.id)){
         // Nunca se cargó al inventario: se puede vender igual, pero avisando
@@ -14701,10 +14935,11 @@ function _mostrarPromoBtn(t, p, precioNormal){
   var btn = document.createElement("button");
   btn.className = "btn";
   btn.style.cssText = "width:100%;background:oklch(93% 0.06 35);color:oklch(35% 0.12 35);border:1.5px solid oklch(85% 0.08 35);padding:10px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation";
-  btn.innerHTML = '🏷️ Aplicar precio PROMO: $'+fM(p.precioPromo)+' (x'+p.cantPromo+' o más) en vez de $'+fM(precioNormal);
+  var _promoUnit=_promoPrecioUnitarioSeguro(p,p.precioPromo,precioNormal,{n:p.n});
+  btn.innerHTML = '🏷️ Aplicar precio PROMO: $'+fM(_promoUnit)+' c/u (x'+p.cantPromo+' o más) en vez de $'+fM(precioNormal);
   btn.onclick = function(){
-    itemSel[t] = Object.assign({}, p, {pre: p.precioPromo});
-    document.getElementById("bus-"+t).value = p.n+" [PROMO $"+fM(p.precioPromo)+"]";
+    itemSel[t] = Object.assign({}, p, {pre: _promoUnit, precioPromo:_promoUnit});
+    document.getElementById("bus-"+t).value = p.n+" [PROMO $"+fM(_promoUnit)+"]";
     wrap.style.display = "none";
     showNotif("🏷️ Precio promo aplicado","ok");
   };
@@ -14721,9 +14956,8 @@ function _mostrarPromoBtn(t, p, precioNormal){
 // Devuelve 0 si es venta por unidad suelta (ahí sí se muestran las unidades).
 function _itBulto(i){
   if(!i) return 0;
-  var ub = 0;
-  if(i._esCaja && (i._ub||0) > 1) ub = i._ub;
-  else { var m = String(i.n||"").match(/\(\s*[^()]*x\s*(\d+)\s*\)\s*$/i); if(m) ub = parseInt(m[1],10)||0; }
+  var nombreCaja=/\(\s*[^()]*x\s*\d+\s*\)\s*$/i.test(String(i.n||""));
+  var ub = (i._esCaja||nombreCaja) ? _unidadesBultoSeguras(null,i) : 0;
   if(ub > 1 && i.c > 0 && (i.c % ub === 0)) return ub;   // sólo si son bultos enteros
   return 0;
 }
@@ -16060,21 +16294,21 @@ async function _confirmarPedido(){
       _abrirCartModal();
       return;
     }
-    // Siempre consultar la base en esta última instancia. Así también se
-    // detectan productos con ficha de stock aunque el interruptor general esté
-    // apagado, sin bloquear productos que realmente trabajan en preventa.
-    if(!navigator.onLine){
-      showNotif("🚫 Necesitás conexión para comprobar el stock antes de confirmar.","err");
-      return;
-    }
-    try{
-      var fresco=await _sbGetStockFull();
-      if(fresco) stockData=fresco;
-    }catch(e){
-      showNotif("🚫 No se pudo actualizar el stock. Intentá nuevamente.","err");
-      return;
-    }
+    // Rechequeo final únicamente cuando la empresa activó el control. En modo
+    // preventa no se consulta, limita ni descuenta inventario.
     if(_stkPedidoRequiereControl(ordenes['ped']||[])){
+      if(!navigator.onLine){
+        showNotif("🚫 Necesitás conexión para comprobar el stock antes de confirmar.","err");
+        return;
+      }
+      try{
+        var fresco=await _sbGetStockFull();
+        if(!fresco) throw new Error("stock no disponible");
+        stockData=fresco;
+      }catch(e){
+        showNotif("🚫 No se pudo actualizar el stock. Intentá nuevamente.","err");
+        return;
+      }
       if(!_stkValidarPedido(ordenes['ped'],null,true).ok){
         if(typeof _pgRender==="function") _pgRender();
         if(typeof _renderCartModal==="function") _renderCartModal();
@@ -16332,10 +16566,13 @@ function _recalcPromoVigente(it){
   // El tramo que aplica es el de mayor "desde" que la cantidad alcance
   var _cant=(it.c||0), _tApl=null;
   for(var _i=0;_i<_tr.length;_i++){ if(_cant>=_tr[_i].desde) _tApl=_tr[_i]; }
-  var _pp = _tApl ? _tApl.precio : null;
   var _cp = _tr[0].desde;
   var lista=tipoLista['ped']||"Clientes";
   var preNormal=_precioDe(p,lista);
+  // Algunas fichas antiguas guardaron el TOTAL del pack en el tramo. Si, por
+  // ejemplo, 5 velas cuestan $26.200, el precio unitario correcto es $5.240;
+  // nunca se debe volver a multiplicar $26.200 por las cinco unidades.
+  var _pp = _tApl ? _promoPrecioUnitarioSeguro(p,_tApl.precio,preNormal,it) : null;
   var aplica=!!_tApl;
   var antes=!!it.promoAplicada;
   if(aplica && !antes){
@@ -16446,8 +16683,8 @@ async function agregar(t){
       if(_op && _op<itemSel[t].pre){ _ofN=itemSel[t].pre; _ofP=_op; }
     }
   }
-  var _pp=itemSel[t].precioPromo, _cp=itemSel[t].cantPromo;
   var _precioNormal=itemSel[t].pre;
+  var _pp=_promoPrecioUnitarioSeguro(itemSel[t],itemSel[t].precioPromo,_precioNormal,{n:itemSel[t].n}), _cp=itemSel[t].cantPromo;
   // Consolidar por producto: ver si ya está en el pedido para sumar la cantidad total
   var exist=ordenes[t].find(function(x){return x.id===itemSel[t].id && !x._esCaja;});
   var cantTotal=cant + (exist?exist.c:0);
@@ -16888,8 +17125,13 @@ async function generarPDF(m){
   var cliZona = cliData?(cliData.zona||""):"";
   var cliRec  = cliData?(cliData.rec||cliData.recepciona||""):"";"";
   var ed=_getEmpDatos();
-  var remitoNum = await _nextRemitoNum();
-  if(remitoNum==null){ return; } // No se pudo obtener número correlativo: abortar (ya se avisó al usuario)
+  // En Nuevo Pedido el número se reserva dentro de la misma transacción que
+  // guarda el backup y descuenta stock. Un remito directo conserva su flujo.
+  var remitoNum = "";
+  if(m!=="pedido"){
+    remitoNum = await _nextRemitoNum();
+    if(remitoNum==null){ return; }
+  }
 
   // Cálculos
   // subtotalLista = precio de LISTA (sin ninguna oferta). Si el item tiene oferta,
@@ -17150,8 +17392,8 @@ async function generarPDF(m){
       var uObj=Object.values(empresaData.usuarios).find(function(u){return u.id===usuarioRemito;});
       if(uObj) usuarioNom=uObj.name||uObj.id;
     }
-    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;}),total:totalNum,usuario:usuarioRemito,usuarioNom:usuarioNom,descuentos:{ahorroItems:ahorroItems,ahorroPromos:ahorroPromos,ahorroManual:ahorroManual,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal,subtotalLista:subtotalLista,dscGenTipo:dg?dg.tipo:null,dscGenValor:dg?dg.valor:null}};
-    var itemsCopy=ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;});
+    var venta={fecha:ahora.toISOString(),mes:ahora.getMonth(),anio:ahora.getFullYear(),clienteId:document.getElementById("idCli-rem").value,clienteNom:nom,lista:tipoLista[t],items:ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i._esCaja)it._esCaja=true;if(+(i._ub||0)>1)it._ub=+i._ub;if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;}),total:totalNum,usuario:usuarioRemito,usuarioNom:usuarioNom,descuentos:{ahorroItems:ahorroItems,ahorroPromos:ahorroPromos,ahorroManual:ahorroManual,montoDscGen:montoDscGen,ahorroTotal:ahorroTotal,subtotalLista:subtotalLista,dscGenTipo:dg?dg.tipo:null,dscGenValor:dg?dg.valor:null}};
+    var itemsCopy=ordenes[t].map(function(i){var it={id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};if(i._esCaja)it._esCaja=true;if(+(i._ub||0)>1)it._ub=+i._ub;if(i.ofNormal&&i.ofPrecio){it.ofNormal=i.ofNormal;it.ofPrecio=i.ofPrecio;it.ofAplicada=!!i.ofAplicada;}if(i.promoNormal&&i.promoPrecio){it.promoNormal=i.promoNormal;it.promoPrecio=i.promoPrecio;it.promoAplicada=!!i.promoAplicada;}return it;});
     var cliIdRem=document.getElementById("idCli-rem").value;
     fbPushQ("empresas/"+empresaKey+"/ventas", venta, "Venta remito "+nom).then(async function(){
       // Buscar ruta abierta con menos de 30 clientes
@@ -17211,6 +17453,8 @@ async function generarPDF(m){
     items:ordenes[t].map(function(i){
       var it = {id:i.id,n:i.n,c:i.c,p:i.p,sub:i.sub,
              dsc:i.disc?{tipo:i.disc.tipo,valor:i.disc.valor}:null};
+      if(i._esCaja) it._esCaja=true;
+      if(+(i._ub||0)>1) it._ub=+i._ub;
       // Info de oferta (si el producto tenía oferta vigente)
       if(i.ofNormal && i.ofPrecio){
         it.ofNormal = i.ofNormal;       // precio sin oferta
@@ -17753,6 +17997,7 @@ async function _importarStockXLSX(ev){
       if(val===""||val===null||val===undefined){ saltados++; continue; } // sin cargar, no tocar
       var n = parseInt(val);
       if(isNaN(n)){ saltados++; continue; }
+      if(n<0){ throw new Error('El archivo contiene stock negativo para el código "'+cod+'". Corregilo antes de importar.'); }
       cambios[cod] = n;
       contados++;
     }
@@ -18119,7 +18364,7 @@ function renderStock(){
         '</div>'+
         '<div class="stk-qty-wrap">'+
           '<button class="stk-btn-minus" data-pid="'+p.id+'" data-d="-1">−</button>'+
-          '<input type="number" class="stk-qty-input" id="stk-qty-'+p.id+'" value="'+qty+'" data-pid="'+p.id+'">'+
+          '<input type="number" min="0" class="stk-qty-input" id="stk-qty-'+p.id+'" value="'+Math.max(0,qty)+'" data-pid="'+p.id+'">'+
           '<button class="stk-btn-plus" data-pid="'+p.id+'" data-d="1">+</button>'+
         '</div>'+
         '<button class="stk-hist-btn" data-pid="'+p.id+'" data-nom="'+p.n.replace(/"/g,'&quot;')+'" title="Ver historial de movimientos">📋</button>'+
@@ -18133,51 +18378,39 @@ function renderStock(){
   });
 }
 
-function cambiarStock(pid, delta){
+async function cambiarStock(pid, delta){
   var inp=document.getElementById("stk-qty-"+pid);
   var actual=parseInt((inp?inp.value:0)||0);
-  var nuevo=actual+delta;
+  var nuevo=Math.max(0,actual+delta);
   if(inp)inp.value=nuevo;
-  _guardarStockProd(pid, nuevo, delta>0 ? "Entrada manual (+"+delta+")" : "Salida manual ("+delta+")");
+  await _guardarStockProd(pid, nuevo, delta>0 ? "Entrada manual (+"+delta+")" : "Salida manual ("+delta+")");
 }
 
-function setStock(pid, val){
-  var nuevo=parseInt(val); if(isNaN(nuevo))nuevo=0;
+async function setStock(pid, val){
+  var nuevo=parseInt(val); if(isNaN(nuevo))nuevo=0; nuevo=Math.max(0,nuevo);
   var inp=document.getElementById("stk-qty-"+pid);
   if(inp)inp.value=nuevo;
-  _guardarStockProd(pid, nuevo, "Ajuste directo → "+nuevo+" u.");
+  await _guardarStockProd(pid, nuevo, "Ajuste directo → "+nuevo+" u.");
 }
 
-function _guardarStockProd(pid, qty, motivo){
+async function _guardarStockProd(pid, qty, motivo){
+  qty=Math.max(0,Number(qty)||0);
   var anterior = stockData[pid]!==undefined ? stockData[pid] : 0;
-  stockData[pid]=qty;
-  var patch={}; patch[pid]=qty;
-  // Guardar en Supabase (fuente principal del stock)
-  if(_sbEmpId){
-    _sbPatchStock(patch)
-      .then(function(res){
-        // Verificar que Supabase realmente devolvió la fila guardada
-        var okGuardado = res && (Array.isArray(res) ? res.some(function(r){ return r && r.some && r.some(function(x){return x;}); }) : true);
-        renderStock();
-        _stkRegistrarMovimiento(pid, anterior, qty, motivo||"Ajuste manual");
-      })
-      .catch(function(e){
-        // Si falla, revertir en pantalla para no mostrar un dato que no se guardó
-        stockData[pid]=anterior;
-        renderStock();
-        var msg=(e&&e.message)||"";
-        // Mensaje claro según el tipo de error
-        if(/permission|denied|policy|rls|row-level/i.test(msg)){
-          showNotif("No se pudo guardar: la base bloqueó la escritura (permisos). Revisá que corriste stock_motor.sql.","err");
-        } else if(/column|does not exist|undefined column/i.test(msg)){
-          showNotif("No se pudo guardar: falta una columna en la tabla stock. Corré stock_motor.sql en Supabase.","err");
-        } else {
-          showNotif("No se pudo guardar el stock: "+msg.slice(0,80),"err");
-        }
-        console.error("[Stock] Error al guardar:", msg);
-      });
-  } else {
+  if(qty===anterior){ renderStock(); return true; }
+  if(!(await _stkConfirmarCambioManual(pid,anterior,qty))){ renderStock(); return false; }
+  if(!_sbEmpId){ stockData[pid]=qty; renderStock(); return true; }
+  try{
+    var res=await _stkAjustarManualAtomico(pid,qty,anterior,motivo||"Ajuste manual","ajuste");
+    stockData[pid]=(res&&res.nuevo!==undefined)?+res.nuevo:qty;
     renderStock();
+    showNotif("📦 Stock actualizado: "+anterior+" → "+stockData[pid],"ok");
+    return true;
+  }catch(e){
+    try{ await _stkRefrescar(); }catch(_e){}
+    renderStock();
+    showNotif("No se pudo guardar el stock: "+((e&&e.message)||"").slice(0,150),"err");
+    console.error("[Stock] Error al guardar:",e);
+    return false;
   }
 }
 
@@ -18624,24 +18857,34 @@ function _recordarDeudaWhatsApp(cliNom, saldo){
 }
 
 function descontarStock(items, motivo){
-  if(!items||!items.length||!empresaKey)return;
-  var patch={}, changed=false;
+  if(!_ctrlStockOn() || !items||!items.length||!empresaKey)return;
+  var patch={}, changed=false, bloqueados=[];
   var movs = [];
   items.forEach(function(it){
     var actual=stockData[it.id]!==undefined ? stockData[it.id] : null;
     if(actual!==null){
       var nuevo=actual-it.c;
+      if(nuevo<0){ bloqueados.push(it.id); return; }
       patch[it.id]=nuevo;
       movs.push({pid:it.id, anterior:actual, nuevo:nuevo});
-      stockData[it.id]=nuevo;
       changed=true;
     }
   });
+  if(bloqueados.length){
+    console.error("[Stock] se bloqueó un ajuste que dejaba stock negativo:",bloqueados);
+    if(typeof showNotif==="function") showNotif("🚫 Movimiento cancelado: el stock no puede quedar negativo.","err");
+    return;
+  }
   if(changed){
+    Object.keys(patch).forEach(function(id){ stockData[id]=patch[id]; });
     if(_sbEmpId){
       var mot = motivo||"Descuento stock";
       // Guardar las nuevas cantidades en la tabla stock de Supabase (fuente principal)
-      _sbPatchStock(patch).catch(function(e){ console.warn("[Stock] No se pudo guardar en Supabase:", e&&e.message); });
+      _sbPatchStock(patch).catch(function(e){
+        movs.forEach(function(m){ stockData[m.pid]=m.anterior; });
+        console.warn("[Stock] No se pudo guardar en Supabase:", e&&e.message);
+        if(typeof showNotif==="function") showNotif("No se pudo guardar el movimiento de stock; se revirtió.","err");
+      });
       // Registrar cada movimiento en el historial
       movs.forEach(function(m){ _stkRegistrarMovimiento(m.pid, m.anterior, m.nuevo, mot); });
     }
@@ -18724,6 +18967,10 @@ function cargarRutasFirebase(){
   setStatus("fb-hoja-status","sync","☁️ Cargando…");
   fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
     var all = d || local || {};
+    // Una versión anterior podía mostrar la entrega solo en Reparto aunque el
+    // UPDATE hubiera afectado cero filas. Si esa entrega reciente sigue en la
+    // copia local del mismo dispositivo, recuperarla automáticamente una vez.
+    var recuperadas=_recuperarEntregasLocales(all,local);
     if(local&&(!navigator.onLine||(_offlineQueue&&_offlineQueue.length))) all=_fusionarRutasOffline(all,local);
     if(role === "repartidor"){
       // En este panel, currentUser.id ES el uid del usuario, y currentUser._sbId es el UUID de Supabase.
@@ -18743,6 +18990,7 @@ function cargarRutasFirebase(){
     _poblarFiltrosMesRuta();
     renderRutas();
     _guardarRutasOffline();
+    if(recuperadas&&navigator.onLine) setTimeout(function(){_syncQueue();},120);
   }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
 }
 async function imprimirPedidosDeRuta(rk){
@@ -19706,48 +19954,9 @@ async function _moverCliEntreRutas(rkOrigen, rkDest, selectedSet){
     if(!cli){ console.warn('[Mover] ck no encontrado en clientes:', ck); fail++; continue; }
 
     try {
-      // Insertar copia en ruta destino
-      var inserted = await sbPost("ruta_clientes",{
-        ruta_id:    rkDest,
-        empresa_id: _sbEmpId,
-        nom:        cli.nom||"",
-        cliente_id: cli.id||cli._rcId||"",
-        items:      cli.items||[],
-        importe:    cli.importe||0,
-        tipo_comprobante: cli.tipoComprobante||null,
-        fecha:      cli.fecha||new Date().toISOString(),
-        modo:       cli.modo||"ninguno",
-        efectivo:   cli.efectivo||0,
-        transferencia: cli.transferencia||0,
-        lista:      cli.lista||"",
-        obs:        cli.obs||"",
-        pedido_id:  cli.pedidoId||null,
-        dsc_general:cli.dscGeneral||null,
-        firma:      "",
-        pagos_adicionales: [],
-        comprobantes: []
-      });
-
-      if(!inserted||!inserted[0]){
-        throw new Error("Insert no retornó ID — verificá la tabla ruta_clientes en Supabase");
-      }
-
-      var nck = inserted[0].id;
-
-      // Actualizar memoria local destino
-      if(!rutasData[rkDest])         rutasData[rkDest]         = {clientes:{}};
-      if(!rutasData[rkDest].clientes) rutasData[rkDest].clientes = {};
-      rutasData[rkDest].clientes[nck] = Object.assign({}, cli, {_rcId: nck});
-
-      // Borrar de ruta origen en Supabase
-      console.log('[Mover] Borrando ck='+ck+' de ruta='+rkOrigen);
-      try {
-        await sbDel("ruta_clientes", "id=eq."+ck+"&empresa_id=eq."+_sbEmpId);
-      } catch(delErr) {
-        console.warn('[Mover] Delete con empresa_id falló, reintentando sin empresa_id:', delErr.message);
-        await sbDel("ruta_clientes", "id=eq."+ck);
-      }
-      delete rutasData[rkOrigen].clientes[ck];
+      // Mover la MISMA fila. El pedido tiene una clave única por empresa y no se
+      // puede crear una copia en destino antes de borrar el original.
+      await _moverClienteRutaQ(rkOrigen,ck,rkDest,cli,"Mover pedido entre rutas");
       ok++;
       console.log('[Mover] ✓', cli.nom, '→', rkDest);
 
@@ -20395,25 +20604,28 @@ function _hrCorregir(rk,ck,e){
 }
 /* El botón grande: entrega y cobra de una. Si no hay importe cargado,
    solamente marca entregado (sin el "¿seguro?" — es el paso normal del día). */
-function _hrGuardar(rk,ck,e){
+async function _hrGuardar(rk,ck,e){
   if(e) e.stopPropagation();
   var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null; if(!cli) return;
   var efEl=document.getElementById("ef-"+rk+"-"+ck), trEl=document.getElementById("tr-"+rk+"-"+ck);
   var ef=efEl?_parseImporte(efEl.value):0, tr=trEl?_parseImporte(trEl.value):0;
   var tot=Math.round((ef+tr)*100)/100;
-
-  if(!cli.entregado){
-    var ahora=new Date().toISOString();
-    cli.entregado=true; cli.entregadoEn=ahora;
-    try{ fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(cli.nom||ck)); }
-    catch(err){ try{ fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(cli.nom||ck)); }catch(e2){} }
-  }
-  if(tot>0){ guardarPago(rk,ck); }   // guardarPago ya persiste y ajusta la cuenta corriente
+  var anterior={efectivo:cli.efectivo||0,transferencia:cli.transferencia||0};
+  var ahora=cli.entregadoEn||new Date().toISOString();
+  var modo=tot>0?((ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo")):(cli.modo||"ninguno");
+  cli.efectivo=ef; cli.transferencia=tr; cli.modo=modo;
+  cli.entregado=true; cli.entregadoEn=ahora;
+  var confirmado=await _mePersistirParada(rk,ck,{
+    efectivo:ef,transferencia:tr,modo:modo,entregado:true,entregadoEn:ahora
+  },"Entrega y cobro: "+(cli.nom||ck),anterior);
   delete _hrEditCobro[rk+"|"+ck];
   delete _hrMasAbierto[rk+"|"+ck];
   if(clienteAbierto[rk]===ck) delete clienteAbierto[rk];
   renderRutas();
-  try{ showNotif(tot>0 ? ("✅ Entregado y cobrado $"+fM(tot)) : "✅ Marcado como entregado","ok"); }catch(err){}
+  try{
+    var msg=tot>0 ? ("✅ Entregado y cobrado $"+fM(tot)) : "✅ Marcado como entregado";
+    showNotif(confirmado?msg:(msg+" — pendiente de sincronizar"),confirmado?"ok":"warn");
+  }catch(err){}
 }
 
 /* ── Bloques de la tarjeta de cliente ── */
@@ -21957,38 +22169,23 @@ function saveBackups(arr){
 }
 
 async function guardarBackup(item){
-  // Con stock controlado la confirmación es síncrona: no se muestra "pedido
-  // completado" hasta que Supabase haya validado y descontado atómicamente.
-  if(_stkPedidoRequiereControl(item.items||[])){
-    if(!_sbEmpId || !navigator.onLine){
-      var _gbOffline=new Error("Necesitás conexión para verificar el stock antes de confirmar.");
-      _gbOffline.code="STOCK_NO_VERIFICADO";
-      throw _gbOffline;
-    }
-    var _gbId=await _sbInsertBackup(item);
-    if(!_gbId) throw new Error("Supabase no devolvió el número del pedido.");
-    item._localTs=Date.now();
-    item._sbId=_gbId;
-    item._fbKey=_gbId;
-    item._synced=true;
-    _bkAddToLocal(item);
-    _bkQueueRemove(item.id);
-    renderBackup();
-    return _gbId;
+  // Siempre síncrono, también en preventa. El control_stock decide si se
+  // descuenta mercadería; no decide si el pedido puede quedar sólo en el móvil.
+  if(!_sbEmpId || !navigator.onLine){
+    var _gbOffline=new Error("Necesitás conexión para confirmar el pedido. No se perdió nada: corregí la conexión y volvé a tocar Confirmar.");
+    _gbOffline.code="PEDIDO_NO_CONFIRMADO";
+    throw _gbOffline;
   }
-  // 1. Guardar en caché local INMEDIATAMENTE — siempre, pase lo que pase
-  item._localTs = Date.now();
-  item._synced  = false;
+  var _gbId=await _sbInsertBackup(item);
+  if(!_gbId) throw new Error("Supabase no devolvió el identificador del pedido.");
+  item._localTs=Date.now();
+  item._sbId=_gbId;
+  item._fbKey=_gbId;
+  item._synced=true;
   _bkAddToLocal(item);
+  _bkQueueRemove(item.id);
   renderBackup();
-
-  // 2. Agregar a cola persistente ANTES de intentar Supabase
-  _bkQueueAdd(item);
-
-  // 3. Intentar subir a Supabase si hay conexión
-  if(_sbEmpId && navigator.onLine){
-    _sbInsertBackupConReintento(item, 5, 2000);
-  }
+  return _gbId;
 }
 
 // ── Cola persistente en localStorage ──
@@ -22020,22 +22217,8 @@ function _bkAddToLocal(item){
 async function _sbInsertBackupConReintento(item, intentosRestantes, delayMs){
   if(!_sbEmpId) return;
   try {
-    // Verificación robusta por id local (idempotency key): exacta, sin problemas de encoding/fecha/nombre
-    var existe = null;
-    if(item.id){
-      try { existe = await sbGet("backup_pedidos","select=id&empresa_id=eq."+_sbEmpId+"&local_id=eq."+encodeURIComponent(item.id)); } catch(e){}
-    }
-    // Fallback: por _sbId si ya tenía UUID real
-    if((!existe || !existe.length) && item._sbId && !(""+item._sbId).startsWith("bk_")){
-      try { existe = await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId); } catch(e){}
-    }
-    if(existe && existe.length){
-      item._sbId=existe[0].id; item._synced=true;
-      _bkAddToLocal(item); _bkQueueRemove(item.id);
-      console.log('[Backup] ✅ Ya existía en Supabase:', existe[0].id);
-      return;
-    }
-
+    // La idempotencia vive en Supabase. Aunque se pierda la respuesta de red,
+    // repetir el mismo local_id devuelve el mismo pedido y el mismo remito.
     var newId = await _sbInsertBackup(item);
     if(newId){
       item._sbId=newId; item._fbKey=newId; item._synced=true;
@@ -22404,10 +22587,65 @@ function _desgloseDescuentosItems(items){
     ahorroManual:Math.round(ahorroManual*100)/100
   };
 }
+// Obtiene las unidades reales de un pack sin interpretar como bulto medidas
+// como "x 150 ml". Primero manda la configuración; el nombre es sólo respaldo
+// para pedidos viejos que perdieron _esCaja/_ub al guardarse.
+function _unidadesBultoSeguras(prod,it){
+  var ub=+(it&&it._ub || prod&&prod.unidadesBulto || prod&&prod.unidades_bulto || 0);
+  if(isFinite(ub) && ub>1) return Math.round(ub);
+  var nom=String((it&&it.n)||(prod&&(prod.n||prod.nombre))||"");
+  var m=nom.match(/\b(?:pack|caja|bulto|display|bl[ií]ster|paquete)\s*(?:de\s*)?x?\s*(\d{1,3})\b/i);
+  if(!m) m=nom.match(/\(\s*[^()]*\bx\s*(\d{1,3})\s*\)\s*$/i);
+  ub=m?(parseInt(m[1],10)||0):0;
+  return ub>1?ub:0;
+}
+// Normaliza únicamente el caso inequívoco "precio total del pack": el valor
+// cargado supera al precio unitario normal, pero dividido por las unidades del
+// bulto sí representa un descuento. Los precios unitarios válidos no se tocan.
+function _promoPrecioUnitarioSeguro(prod,precioPromo,precioNormal,it){
+  var raw=+precioPromo, normal=+precioNormal;
+  if(!(raw>0) || !(normal>0)) return raw;
+  var ub=_unidadesBultoSeguras(prod,it);
+  if(ub>1 && raw>normal+0.005){
+    var unit=Math.round((raw/ub)*100)/100;
+    if(unit>0 && unit<normal-0.005) return unit;
+  }
+  return raw;
+}
+function _normalizarPromoBultoItem(it,lista){
+  if(!it || !it.promoAplicada) return it;
+  var prod=null;
+  if(typeof dbStock!=="undefined" && Array.isArray(dbStock)){
+    prod=dbStock.find(function(p){return String(p.id)===String(it.id);})||null;
+  }
+  var normal=+(it.promoNormal||0);
+  if(!(normal>0) && prod && typeof _precioDe==="function") normal=+_precioDe(prod,lista||"Clientes");
+  var raw=+(it.promoPrecio||it.p||0);
+  var unit=_promoPrecioUnitarioSeguro(prod,raw,normal,it);
+  if(!(unit>0) || Math.abs(unit-raw)<=0.005) return it;
+
+  var cant=+(it.c||0), baseVieja=+(it.p||raw)*cant;
+  var subViejo=(it.sub!==undefined&&it.sub!==null)?+it.sub:baseVieja;
+  var baseNueva=unit*cant, d=it.dsc||it.disc, subNuevo=baseNueva;
+  if(d&&+d.valor>0){
+    subNuevo=d.tipo==="%"?Math.max(0,baseNueva*(1-(+d.valor)/100)):Math.max(0,baseNueva-(+d.valor));
+  }else if(baseVieja>0 && subViejo<baseVieja-0.005){
+    // Conserva un eventual descuento manual legado que estuviera embebido en sub.
+    subNuevo=baseNueva*Math.max(0,subViejo/baseVieja);
+  }
+  it.p=unit;
+  it.promoNormal=normal;
+  it.promoPrecio=unit;
+  it.sub=Math.round(subNuevo*100)/100;
+  it._promoBultoCorregido=true;
+  return it;
+}
 // Compatibilidad con pedidos creados por versiones que guardaban el precio
 // promocional, pero perdían la marca de PROMO al elegir el comprobante.
 function _completarPromoItemPedido(it, lista){
-  if(!it || (it.ofAplicada&&it.ofNormal&&it.ofPrecio) || (it.promoAplicada&&it.promoNormal&&it.promoPrecio)) return it;
+  if(!it) return it;
+  if(it.promoAplicada) _normalizarPromoBultoItem(it,lista);
+  if((it.ofAplicada&&it.ofNormal&&it.ofPrecio) || (it.promoAplicada&&it.promoNormal&&it.promoPrecio)) return it;
   if(typeof dbStock==="undefined" || !Array.isArray(dbStock)) return it;
   var prod=dbStock.find(function(p){return String(p.id)===String(it.id);});
   if(!prod) return it;
@@ -22426,13 +22664,14 @@ function _completarPromoItemPedido(it, lista){
   var cant=+(it.c||0), tramo=null;
   tramos.forEach(function(t){if(t&&cant>=+t.desde) tramo=t;});
   if(!tramo) return it;
-  var precioPromo=+tramo.precio;
-  if(precioPromo<=0 || Math.abs(precioGuardado-precioPromo)>0.02) return it;
+  var precioPromoRaw=+tramo.precio;
+  var precioPromo=_promoPrecioUnitarioSeguro(prod,precioPromoRaw,precioNormal,it);
+  if(precioPromo<=0 || (Math.abs(precioGuardado-precioPromo)>0.02 && Math.abs(precioGuardado-precioPromoRaw)>0.02)) return it;
   if(!(precioNormal>precioPromo+0.005)) return it;
   it.promoNormal=precioNormal;
-  it.promoPrecio=precioPromo;
+  it.promoPrecio=precioGuardado;
   it.promoAplicada=true;
-  return it;
+  return _normalizarPromoBultoItem(it,lista);
 }
 function _descuentosEfectivosPedido(obj){
   obj=obj||{};
@@ -22706,9 +22945,22 @@ async function _confirmarReasignar(){
         if(!movida||!movida[0]) throw new Error("Supabase no confirmo el movimiento dentro de la hoja de ruta");
         ck=movida[0].id||keeper.id;
       }else{
-        var inserted=await sbPost("ruta_clientes",payload);
-        if(!inserted||!inserted[0]) throw new Error("Supabase no confirmó la asignación");
-        ck=inserted[0].id;
+        try{
+          var inserted=await sbPost("ruta_clientes",payload);
+          if(!inserted||!inserted[0]) throw new Error("Supabase no confirmó la asignación");
+          ck=inserted[0].id;
+        }catch(insertErr){
+          // Otro equipo pudo asignar el mismo pedido después de nuestra búsqueda.
+          // El índice único hace su trabajo; en vez de dejar un error pendiente,
+          // se encuentra la fila ganadora y se la mueve a la ruta recién elegida.
+          if(!_esConflictoPedidoRuta(insertErr)) throw insertErr;
+          var carrera=await _sbGetRaw("ruta_clientes","select=id,ruta_id&empresa_id=eq."+_sbEmpId+
+            "&pedido_id=eq."+encodeURIComponent(String(pedidoId))+"&limit=1")||[];
+          if(!carrera[0]) throw insertErr;
+          var movidaCarrera=await sbPatch("ruta_clientes","id=eq."+carrera[0].id+"&empresa_id=eq."+_sbEmpId,payload);
+          if(!movidaCarrera||!movidaCarrera[0]) throw insertErr;
+          ck=movidaCarrera[0].id||carrera[0].id;
+        }
       }
       // Si había copias históricas, borrar todas salvo la fila recién movida.
       for(var ex=0;ex<existentes.length;ex++){
@@ -23500,6 +23752,12 @@ function renderBackup(){
       if(bk.aprobado===false){ var btnPrecio=document.createElement("button"); btnPrecio.className="bk-act-btn"; btnPrecio.style.cssText="flex:1 1 190px;background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;font-weight:700"; btnPrecio.innerHTML="🔄 Actualizar precios / refacturar"; btnPrecio.onclick=function(e){e.stopPropagation();_bkActualizarPrecios(bk);}; aprobar.appendChild(btnPrecio); }
       if(bk.aprobado!==true){ var btnAprob=document.createElement("button"); btnAprob.className="bk-act-btn"; btnAprob.style.cssText="flex:1 1 150px;background:#e8f5ee;color:#0f8a4a;border-color:#a7f3d0;font-weight:700"; btnAprob.innerHTML=bk.aprobado===false?"↩ Reaprobar pedido":"✓ Aprobar"; btnAprob.onclick=function(e){e.stopPropagation();_cambiarAprobacion(bk,true);}; aprobar.appendChild(btnAprob); }
       if(bk.aprobado!==false){ var btnRech=document.createElement("button"); btnRech.className="bk-act-btn"; btnRech.style.cssText="flex:1;background:#fff0f0;color:#b91c1c;border-color:#fca5a5;font-weight:700"; btnRech.innerHTML="✗ Rechazar"; btnRech.onclick=function(e){e.stopPropagation();_cambiarAprobacion(bk,false);}; aprobar.appendChild(btnRech); }
+      var btnNotif=document.createElement("button");
+      btnNotif.className="bk-act-btn";
+      btnNotif.style.cssText="flex:1 1 150px;background:#ecfdf3;color:#087443;border-color:#86efac;font-weight:700";
+      btnNotif.innerHTML="💬 Notificar";
+      btnNotif.onclick=function(e){ e.stopPropagation(); _bkAbrirNotificar(bk); };
+      aprobar.appendChild(btnNotif);
       if(aprobar.children.length) detail.appendChild(aprobar);
       // Selector de estado del pedido (solo para pedidos de la tienda online)
       if(_esPedidoTienda(bk)){
@@ -23754,6 +24012,8 @@ async function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   // Construir items desde _ordenes (los del pedido actual, con descuentos)
   bk.items = (bk._ordenes || bk.items || []).map(function(i){
     var it = { id:i.id, n:i.n, c:i.c, p:i.p, sub:i.sub, esPeso:i.esPeso||false, gramos:i.gramos||null, dsc:i.disc||i.dsc||null };
+    if(i._esCaja) it._esCaja=true;
+    if(+(i._ub||0)>1) it._ub=+i._ub;
     if(i.ofNormal && i.ofPrecio){ it.ofNormal=i.ofNormal; it.ofPrecio=i.ofPrecio; it.ofAplicada=!!i.ofAplicada; }
     if(i.promoNormal && i.promoPrecio){ it.promoNormal=i.promoNormal; it.promoPrecio=i.promoPrecio; it.promoAplicada=!!i.promoAplicada; }
     return it;
@@ -24601,26 +24861,36 @@ async function guardarEdicionBackup(){
     historial:   _editBkItem.historial || []
   };
 
-  // Ajustar solo la diferencia de inventario antes de confirmar el cambio.
-  stockMov=await _bkAplicarStockEdicion(_editBkItem._sbId||_editBkItem.id,_editBkOriginalItems,_editBkItem.items);
-
-  // Actualizar en Supabase (fuente de verdad) y esperar la respuesta.
-  var guardado=false;
-  if(_editBkItem._sbId && _sbEmpId){
-    await sbPatch("backup_pedidos","id=eq."+_editBkItem._sbId+"&empresa_id=eq."+_sbEmpId, patch);
-    guardado=true;
+  // Pedido + diferencia de inventario + movimientos se confirman en UNA sola
+  // transacción de Supabase. Si falta stock o cambió el pedido, no se guarda nada.
+  if(!_editBkItem._sbId || !_sbEmpId){
+    throw new Error("Este pedido todavía no está sincronizado con Supabase y no se puede editar de forma segura");
   }
-  // Fallback para pedidos antiguos que aun no tienen id de Supabase.
-  if(!guardado && _editBkItem._fbKey && empresaKey){
-    await fbPatch("empresas/"+empresaKey+"/backupPedidos/"+_editBkItem._fbKey, {
-      items: patch.items, total: patch.total,
-      tipoComprobante: patch.tipo_comprobante, totalConIVA: patch.total_con_iva,
-      clienteNom: patch.cliente_nom, clienteId: patch.cliente_id, lista: patch.lista,
-      descuentos: patch.descuentos, historial: patch.historial
+  if(!navigator.onLine) throw new Error("Necesitás conexión para editar el pedido y verificar el stock");
+  var rpcEdit;
+  try{
+    rpcEdit=await _stkRpc("pedido_editar_atomico",{
+      p_empresa:_sbEmpId,
+      p_pedido_id:_editBkItem._sbId,
+      p_patch:patch,
+      p_items_esperados:_editBkOriginalItems,
+      p_usuario:(currentUser?(currentUser.name||currentUser.id):"sistema")
     });
-    guardado=true;
+  }catch(eRpcEdit){
+    var _msgEdit=String((eRpcEdit&&eRpcEdit.message)||eRpcEdit||"");
+    if(/PGRST202|42883|could not find.*pedido_editar_atomico|does not exist/i.test(_msgEdit)){
+      throw new Error("Falta aplicar supabase_blindaje_edicion_backup_stock.sql en Supabase");
+    }
+    if(/PEDIDO_CAMBIO_CONCURRENTE/i.test(_msgEdit)){
+      throw new Error("Otro usuario modificó este pedido mientras lo tenías abierto. Cerralo, actualizá y volvé a editarlo.");
+    }
+    throw eRpcEdit;
   }
-  if(!guardado) throw new Error("El pedido no tiene un identificador válido para actualizarlo");
+  stockMov={
+    salen:(rpcEdit&&Array.isArray(rpcEdit.salen))?rpcEdit.salen:[],
+    vuelven:(rpcEdit&&Array.isArray(rpcEdit.vuelven))?rpcEdit.vuelven:[]
+  };
+  if(_ctrlStockOn()) await _stkRefrescar();
 
   // Recién después de que la base confirmó, actualizar la copia local.
   var arr = getBackups();
@@ -24653,9 +24923,6 @@ async function guardarEdicionBackup(){
   }
   }catch(e){
     console.warn("Error guardando edición de backup:",e);
-    if(stockMov){
-      try{ await _bkRevertirStockEdicion(stockMov); }catch(_rbErr){ console.warn("No se pudo revertir stock:",_rbErr); }
-    }
     showNotif("🚫 No se guardó el pedido: "+(e.message||"error desconocido"),"err");
   }finally{
     if(btn){ btn.disabled=false; btn.textContent="💾 Guardar cambios"; }
@@ -24789,6 +25056,8 @@ async function confirmarBackupComoRemito(bkParam){
       dsc: i.dsc || null,                 // descuento por ítem
       cost:(i.cost!=null && i.cost>0) ? i.cost : ((_cst!=null && _cst>0) ? _cst : null)  // costo del día del pedido (o actual si el pedido no lo guardó)
     };
+    if(i._esCaja) _itemAprobado._esCaja=true;
+    if(+(i._ub||0)>1) _itemAprobado._ub=+i._ub;
     // La aprobación no debe borrar el origen promocional del precio.
     if(i.et) _itemAprobado.et=i.et;
     if(i.ofNormal&&i.ofPrecio){
@@ -26330,6 +26599,45 @@ function _fusionarRutasOffline(base,local){
   return out;
 }
 
+// Autorreparación acotada para el fallo antiguo Reparto → Hoja de Ruta.
+// Solo recupera entregas de los últimos 7 días que están confirmadas en la
+// copia local, siguen pendientes en Supabase y no fueron rechazadas. No toca
+// pedidos viejos ni vuelve a registrar la cuenta corriente.
+function _recuperarEntregasLocales(server,local){
+  if(!navigator.onLine||!server||!local) return 0;
+  var ahora=Date.now(), recuperadas=0;
+  Object.keys(local).forEach(function(rk){
+    var lr=local[rk], sr=server[rk];
+    if(!lr||!sr||!lr.clientes||!sr.clientes) return;
+    Object.keys(lr.clientes).forEach(function(ck){
+      var lc=lr.clientes[ck], sc=sr.clientes[ck];
+      if(!lc||!sc||lc.entregado!==true||sc.entregado===true||lc.rechazado||sc.rechazado) return;
+      var ts=Date.parse(lc.entregadoEn||"");
+      if(!isFinite(ts)||ts>ahora+300000||ahora-ts>7*24*60*60*1000) return;
+      var path="empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck;
+      var yaPendiente=(_offlineQueue||[]).some(function(op){
+        return op&&op.method==="PATCH"&&op.path===path&&op.data&&op.data.entregado===true;
+      });
+      var cambios={
+        entregado:true,
+        entregadoEn:lc.entregadoEn,
+        efectivo:+(lc.efectivo||0),
+        transferencia:+(lc.transferencia||0),
+        modo:lc.modo||((lc.transferencia||0)>0?"transferencia":"efectivo")
+      };
+      Object.assign(sc,cambios);
+      if(!yaPendiente){
+        _enqueue("PATCH",path,cambios,"Recuperación automática de entrega: "+(lc.nom||ck));
+        recuperadas++;
+      }
+    });
+  });
+  if(recuperadas){
+    try{ showNotif("🔄 Recuperando "+recuperadas+" entrega"+(recuperadas!==1?"s":"")+" que había"+(recuperadas===1?"":"n")+" quedado solo en Reparto","warn"); }catch(e){}
+  }
+  return recuperadas;
+}
+
 /* ─ Persistencia de queue ─ */
 function _loadQueue(){
   try {
@@ -26446,6 +26754,99 @@ function _syncQueueParalelaVieja(){
   });
 }
 
+function _esConflictoPedidoRuta(err){
+  var msg=String((err&&err.message)||err||"");
+  return /23505|duplicate key|ruta_clientes_empresa_pedido_uidx/i.test(msg);
+}
+
+async function _buscarFilaMovimientoRuta(md,pedidoId){
+  var rows=[];
+  // Primero se busca la fila exacta que el usuario está viendo. Así el movimiento
+  // conserva cobros, comprobantes, firma y cualquier cambio hecho en reparto.
+  if(md&&md.srcCli && !/^local_/i.test(String(md.srcCli))){
+    rows=await _sbGetRaw("ruta_clientes","select=id,ruta_id,pedido_id,audit_log&id=eq."+
+      encodeURIComponent(String(md.srcCli))+"&empresa_id=eq."+_sbEmpId+"&limit=1")||[];
+  }
+  // Si la operación ya se aplicó parcialmente, la fila puede estar en destino.
+  // pedido_id permite encontrarla sin importar en qué hoja haya quedado.
+  if(!rows.length&&pedidoId){
+    rows=await _sbGetRaw("ruta_clientes","select=id,ruta_id,pedido_id,audit_log&empresa_id=eq."+_sbEmpId+
+      "&pedido_id=eq."+encodeURIComponent(String(pedidoId))+"&limit=1")||[];
+  }
+  return rows[0]||null;
+}
+
+async function _moverFilaRutaExistente(fila,md,pedidoId,marker,fecha){
+  var logs=Array.isArray(fila&&fila.audit_log)?fila.audit_log.slice():[];
+  if(!logs.some(function(l){return l&&l.offlineMoveId===marker;})){
+    logs.push({offlineMoveId:marker,fecha:fecha||new Date().toISOString(),accion:"movido_ruta"});
+  }
+  var body={ruta_id:md.dst,audit_log:logs};
+  if(pedidoId) body.pedido_id=pedidoId;
+  var moved=await sbPatch("ruta_clientes","id=eq."+fila.id+"&empresa_id=eq."+_sbEmpId,body);
+  if(!moved||!moved[0]) throw new Error("Supabase no confirmó el movimiento de la parada");
+  return moved[0].id||fila.id;
+}
+
+// Movimiento idempotente de una parada. Nunca inserta primero una copia: actualiza
+// la fila existente y, si quedó una operación vieja en la cola, la reconvierte al
+// vuelo. Un reintento puede ejecutarse muchas veces sin duplicar el pedido.
+async function _moverRutaClienteServidor(md,op){
+  md=md||{};
+  if(!md.dst) throw new Error("Falta la hoja de ruta destino");
+  var cli=md.cli||{};
+  var pedidoId=cli.pedidoId||cli.pedido_id||md.pedidoId||null;
+  var marker="route_move:"+((op&&op.id)||("auto_"+String(md.srcCli||pedidoId||Date.now())));
+  var fecha=(op&&op.ts)||new Date().toISOString();
+  var fila=await _buscarFilaMovimientoRuta(md,pedidoId);
+  var nk=null;
+
+  if(fila){
+    try{
+      nk=await _moverFilaRutaExistente(fila,md,pedidoId,marker,fecha);
+    }catch(err){
+      // Una carrera entre dos dispositivos puede vincular pedido_id justo entre
+      // la lectura y el PATCH. Se toma la fila ganadora y se completa allí.
+      if(!_esConflictoPedidoRuta(err)||!pedidoId) throw err;
+      var canon=await _sbGetRaw("ruta_clientes","select=id,ruta_id,pedido_id,audit_log&empresa_id=eq."+_sbEmpId+
+        "&pedido_id=eq."+encodeURIComponent(String(pedidoId))+"&limit=1")||[];
+      if(!canon[0]) throw err;
+      nk=await _moverFilaRutaExistente(canon[0],md,pedidoId,marker,fecha);
+      if(fila.id!==canon[0].id){
+        await sbDel("ruta_clientes","id=eq."+fila.id+"&empresa_id=eq."+_sbEmpId);
+      }
+    }
+  }else{
+    // Compatibilidad para una parada realmente ausente. Si otro equipo la crea
+    // al mismo tiempo, el conflicto único se transforma automáticamente en PATCH.
+    var copia=Object.assign({},cli);
+    copia.pedidoId=pedidoId||copia.pedidoId||null;
+    copia.auditLog=(Array.isArray(copia.auditLog)?copia.auditLog:[]).concat([{
+      offlineMoveId:marker,fecha:fecha,accion:"movido_ruta_recuperado"
+    }]);
+    try{
+      nk=await _sbInsertRutaCli(md.dst,copia);
+    }catch(insertErr){
+      if(!_esConflictoPedidoRuta(insertErr)||!pedidoId) throw insertErr;
+      var existente=await _sbGetRaw("ruta_clientes","select=id,ruta_id,pedido_id,audit_log&empresa_id=eq."+_sbEmpId+
+        "&pedido_id=eq."+encodeURIComponent(String(pedidoId))+"&limit=1")||[];
+      if(!existente[0]) throw insertErr;
+      nk=await _moverFilaRutaExistente(existente[0],md,pedidoId,marker,fecha);
+    }
+    if(!nk) throw new Error("No se pudo recuperar la parada en la ruta de destino");
+  }
+
+  // La etiqueta de Backup Pedidos se actualiza después de confirmar la parada.
+  // Si se corta la red acá, el mismo op queda en cola y el reintento completa
+  // ambos datos sin volver a insertar nada.
+  if(pedidoId){
+    var bk=await sbPatch("backup_pedidos","id=eq."+encodeURIComponent(String(pedidoId))+
+      "&empresa_id=eq."+_sbEmpId,{ruta_vinculada_id:md.dst});
+    if(!bk||!bk[0]) console.warn("[Mover] La parada se movió, pero el pedido ya no existe en Backup Pedidos:",pedidoId);
+  }
+  return nk;
+}
+
 async function _replayOfflineOp(op){
   if(op.method==="RPC") return sbFetch("POST",op.path,op.data);
   if(op.method==="SB_POST") return sbPost(op.path,op.data);
@@ -26474,26 +26875,7 @@ async function _replayOfflineOp(op){
     return sbPatch("ruta_clientes","id=eq."+dd.cliId+"&empresa_id=eq."+_sbEmpId,{comprobantes:aa});
   }
   if(op.method==="ROUTE_MOVE"){
-    var md=op.data||{}, marker="offline_move:"+op.id, nk=null;
-    // El marcador vuelve idempotente el movimiento: si se cortó internet después
-    // del alta, el reintento encuentra la copia y no duplica el pedido.
-    var existentes=await _sbGetRaw("ruta_clientes","select=id,audit_log&ruta_id=eq."+md.dst+"&empresa_id=eq."+_sbEmpId+"&limit=1000");
-    (existentes||[]).some(function(row){
-      var logs=Array.isArray(row.audit_log)?row.audit_log:[];
-      if(logs.some(function(l){return l&&l.offlineMoveId===marker;})){ nk=row.id; return true; }
-      return false;
-    });
-    if(!nk){
-      var copia=Object.assign({},md.cli||{});
-      copia.auditLog=(Array.isArray(copia.auditLog)?copia.auditLog:[]).concat([{
-        offlineMoveId:marker, fecha:op.ts||new Date().toISOString(), accion:"movido_offline"
-      }]);
-      nk=await _sbInsertRutaCli(md.dst,copia);
-      if(!nk) throw new Error("No se pudo crear el pedido en la ruta de destino");
-      await _sbPatchRutaCli(md.dst,nk,copia);
-    }
-    await sbDel("ruta_clientes","id=eq."+md.srcCli+"&ruta_id=eq."+md.src);
-    return nk;
+    return _moverRutaClienteServidor(op.data||{},op);
   }
   return true;
 }
@@ -27407,18 +27789,93 @@ function _meInjectPagoInputs(rk,ck,ef,tr){
     el.value = (idx===0?ef:tr);
   });
 }
-function _meGuardarCobro(i){
+
+// Reparto y Hoja de Ruta guardan ahora el estado completo de la parada en un
+// solo PATCH confirmado. Si la red falla, ese mismo PATCH queda primero en la
+// cola y el movimiento de cuenta corriente queda detrás, respetando el orden.
+async function _mePersistirParada(rk,ck,cambios,desc,pagoAnterior){
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  if(!cli) throw new Error("No se encontró la parada en memoria");
+  var path="empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck;
+  var rows=await fbPatchQ(path,cambios,desc||("Cambio de reparto: "+(cli.nom||ck)));
+  var confirmado=Array.isArray(rows)&&rows.length>0;
+
+  if(pagoAnterior){
+    var efNuevo=+(cambios.efectivo||0), trNuevo=+(cambios.transferencia||0);
+    var efAnterior=+(pagoAnterior.efectivo||0), trAnterior=+(pagoAnterior.transferencia||0);
+    var delta=Math.round(((efNuevo-efAnterior)+(trNuevo-trAnterior))*100)/100;
+    if(Math.abs(delta)>0.01){
+      var modo=cambios.modo||cli.modo||"efectivo";
+      var partes=[];
+      if(Math.abs(efNuevo-efAnterior)>0.01) partes.push("Efectivo $"+fM(efNuevo-efAnterior));
+      if(Math.abs(trNuevo-trAnterior)>0.01) partes.push("Transfer. $"+fM(trNuevo-trAnterior));
+      var pagoPayload={
+        p_op_id:"pay_delivery_"+rk+"_"+ck+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
+        p_empresa_id:_sbEmpId,
+        p_cliente_nom:cli.nom,
+        p_delta:-delta,
+        p_monto:delta,
+        p_forma:modo,
+        p_nota:"Pago "+modo+" — "+cli.nom+(partes.length?" ("+partes.join(" + ")+")":""),
+        p_usuario:currentUser?currentUser.id:"repartidor",
+        p_fecha:new Date().toISOString()
+      };
+      if(confirmado){
+        await _registrarPagoCC(pagoPayload);
+      }else{
+        // El PATCH ya quedó encolado por fbPatchQ. Agregar la cuenta corriente
+        // después evita descontar saldo antes de que exista el cobro en la ruta.
+        await _enqueue("RPC","/rest/v1/rpc/cc_registrar_pago",pagoPayload,"Pago CC: "+(cli.nom||""));
+      }
+    }
+  }
+  return confirmado;
+}
+
+// Mantiene el estado del pedido original alineado con una entrega hecha desde
+// Reparto. Esta escritura va después de ruta_clientes: también offline queda
+// encolada detrás de la entrega y no puede anunciar un pedido todavía pendiente.
+async function _meMarcarPedidoEntregadoDesdeReparto(rk,ck){
+  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
+  var pedidoId=cli&&(cli.pedidoId||cli.pedido_id);
+  if(!pedidoId) return true; // rutas antiguas sin vínculo exacto
+
+  var arr=typeof getBackups==="function"?(getBackups()||[]):[];
+  var bk=arr.find(function(x){ return String(x._sbId||x._fbKey||x.id)===String(pedidoId); });
+  if(bk&&bk.estado==="entregado") return true;
+
+  try{
+    var rows=await fbPatchQ(
+      "empresas/"+empresaKey+"/backupPedidos/"+pedidoId,
+      {estado:"entregado"},
+      "Pedido entregado desde Reparto: "+(cli.nom||ck)
+    );
+    var confirmado=Array.isArray(rows)&&rows.length>0;
+
+    if(bk){ bk.estado="entregado"; saveBackups(arr); }
+    var cacheBk=(_backupCache||[]).find(function(x){ return String(x._sbId||x._fbKey||x.id)===String(pedidoId); });
+    if(cacheBk) cacheBk.estado="entregado";
+    return confirmado;
+  }catch(e){
+    console.warn("[Reparto] No se pudo sincronizar el estado entregado del pedido:",e);
+    return false;
+  }
+}
+
+async function _meGuardarCobro(i){
   var p=_mapaParadas[i]; if(!p) return;
   var rk=_rutaMapaKey, ck=p.cliKey;
   var ef=_parseImporte((document.getElementById("me-ef-"+i)||{}).value||"0");
   var tr=_parseImporte((document.getElementById("me-tr-"+i)||{}).value||"0");
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  if(cli){ cli.modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo"); }
-  _meInjectPagoInputs(rk,ck,ef,tr);
-  guardarPago(rk,ck); // patch + cuentas corrientes (offline-aware)
+  if(!cli) return;
+  var anterior={efectivo:cli.efectivo||0,transferencia:cli.transferencia||0};
+  var modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo");
+  cli.modo=modo; cli.efectivo=ef; cli.transferencia=tr;
   p.cli.efectivo=ef; p.cli.transferencia=tr;
+  var confirmado=await _mePersistirParada(rk,ck,{efectivo:ef,transferencia:tr,modo:modo},"Cobro reparto: "+(cli.nom||ck),anterior);
   renderParadas(_mapaParadas);
-  showNotif(navigator.onLine ? "💰 Cobro guardado" : "💰 Cobro guardado (se subirá al volver la señal)","ok");
+  showNotif(confirmado ? "💰 Cobro guardado y confirmado" : "💰 Cobro guardado — pendiente de sincronizar",confirmado?"ok":"warn");
 }
 function _meImporteNeto(cli){
   var desc = (typeof _devDescuentoCli==="function") ? _devDescuentoCli(cli) : 0;
@@ -27465,21 +27922,24 @@ async function _epConfirmar(){
   var rk=_rutaMapaKey, ck=p.cliKey, ahora=new Date().toISOString();
   var ef=_parseImporte((document.getElementById("ep-ef")||{}).value||"0");
   var tr=_parseImporte((document.getElementById("ep-tr")||{}).value||"0");
-  // Guardar cobro
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  if(cli){ cli.modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo"); }
-  _meInjectPagoInputs(rk,ck,ef,tr);
-  guardarPago(rk,ck);
+  if(!cli) return;
+  var anterior={efectivo:cli.efectivo||0,transferencia:cli.transferencia||0};
+  var modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo");
+  cli.modo=modo; cli.efectivo=ef; cli.transferencia=tr;
   p.cli.efectivo=ef; p.cli.transferencia=tr;
-  // Marcar entregado
   p.cli.entregado=true; p.cli.entregadoEn=ahora;
-  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].entregado=true; rutasData[rk].clientes[ck].entregadoEn=ahora; }
-  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(p.cli.nom||""));
+  cli.entregado=true; cli.entregadoEn=ahora;
+  var confirmado=await _mePersistirParada(rk,ck,{
+    efectivo:ef,transferencia:tr,modo:modo,entregado:true,entregadoEn:ahora
+  },"Entrega y cobro: "+(p.cli.nom||ck),anterior);
+  await _meMarcarPedidoEntregadoDesdeReparto(rk,ck);
   cerrarModal("modal-entrega-pago");
   renderParadas(_mapaParadas);
   if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setOpacity){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
   var saldo=Math.round((_meImporteNeto(p.cli)-ef-tr)*100)/100;
-  showNotif((ef+tr>0? "Entregado y cobrado $"+fM(ef+tr) : "Entregado") + (saldo>0.5? " · fiado $"+fM(saldo):""),"ok");
+  var mensaje=(ef+tr>0? "Entregado y cobrado $"+fM(ef+tr) : "Entregado")+(saldo>0.5?" · fiado $"+fM(saldo):"");
+  showNotif(confirmado?mensaje:(mensaje+" — pendiente de sincronizar"),confirmado?"ok":"warn");
 }
 async function _epSinPago(){
   cerrarModal("modal-entrega-pago");
@@ -27496,10 +27956,11 @@ async function _meEntregar(i){
   var rk=_rutaMapaKey, ck=p.cliKey, ahora=new Date().toISOString();
   p.cli.entregado=true; p.cli.entregadoEn=ahora;
   if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].entregado=true; rutasData[rk].clientes[ck].entregadoEn=ahora; }
-  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(p.cli.nom||ck));
+  var confirmado=await _mePersistirParada(rk,ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(p.cli.nom||ck));
+  await _meMarcarPedidoEntregadoDesdeReparto(rk,ck);
   renderParadas(_mapaParadas);
   if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setIcon){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
-  showNotif(navigator.onLine ? "✅ Entregado" : "✅ Entregado (se subirá al volver la señal)","ok");
+  showNotif(confirmado ? "✅ Entrega confirmada" : "✅ Entrega guardada — pendiente de sincronizar",confirmado?"ok":"warn");
 }
 // ── COMPROBANTE DE ENTREGA (reparto) ──
 // Foto: reutiliza el sistema de comprobantes (camara o galeria, comprime y guarda).
@@ -31406,7 +31867,7 @@ async function _stkColgAplicar(){
 function _mprodStkDelta(d){
   var qEl=document.getElementById("mprod-stock-qty"); if(!qEl) return;
   var n=parseInt(String(qEl.value).replace(/[^0-9-]/g,""),10); if(isNaN(n)) n=0;
-  qEl.value = n + d;
+  qEl.value = Math.max(0,n + d);
 }
 async function _mprodStkGuardar(){
   var pid=_mprodStkId;
@@ -31415,15 +31876,18 @@ async function _mprodStkGuardar(){
   var cod = _mprodStkCod || _mprodStkCodDe(pid) || pid;
   var qEl=document.getElementById("mprod-stock-qty"), uEl=document.getElementById("mprod-stock-umbral");
   var btn=document.getElementById("mprod-stock-btn");
-  var n=parseInt(String((qEl||{}).value||"0").replace(/[^0-9-]/g,""),10); if(isNaN(n)) n=0;
+  var n=parseInt(String((qEl||{}).value||"0").replace(/[^0-9-]/g,""),10); if(isNaN(n)) n=0; n=Math.max(0,n); if(qEl) qEl.value=n;
   var u=parseInt(String((uEl||{}).value||"").replace(/[^0-9]/g,""),10); if(isNaN(u)||u<0) u=5;
   var anterior = +(stockData[cod]||0);
+  if(n!==anterior && !(await _stkConfirmarCambioManual(cod,anterior,n))){
+    if(qEl) qEl.value=anterior;
+    return;
+  }
   if(btn){ btn.disabled=true; btn.textContent="Guardando…"; }
   try{
     if(n!==anterior){
-      stockData[cod]=n;
-      await _sbPatchStock((function(){ var o={}; o[cod]=n; return o; })());
-      if(typeof _stkRegistrarMovimiento==="function") _stkRegistrarMovimiento(cod, anterior, n, "Ajuste desde el producto");
+      var res=await _stkAjustarManualAtomico(cod,n,anterior,"Ajuste desde el producto","ajuste");
+      stockData[cod]=(res&&res.nuevo!==undefined)?+res.nuevo:n;
     }
     if(!stockConfig[cod]) stockConfig[cod]={};
     if(stockConfig[cod].umbral!==u){
@@ -31435,9 +31899,11 @@ async function _mprodStkGuardar(){
     if(typeof renderProductos==="function") renderProductos();
     showNotif("📦 Stock actualizado","ok");
   }catch(e){
-    stockData[cod]=anterior;      // revertir si no se pudo guardar
+    // La base manda. Si había otra venta/edición simultánea, refrescar evita
+    // volver a mostrar y guardar un valor viejo.
+    try{ await _stkRefrescar(); }catch(_refreshErr){}
     _mprodStockRender(pid);
-    showNotif("No se pudo guardar el stock: "+((e&&e.message)||"").slice(0,70),"err");
+    showNotif("No se pudo guardar el stock: "+((e&&e.message)||"").slice(0,150),"err");
   }
   if(btn){ btn.disabled=false; btn.textContent="Guardar stock"; }
 }
@@ -32496,6 +32962,77 @@ async function _ofrecerAvisoWhatsApp(bk, estado){
   }
 }
 
+// Notificacion manual desde Backup Pedidos. Solo prepara WhatsApp: no escribe
+// en Supabase y no modifica el estado, la aprobacion, el stock ni la comision.
+var _bkNotifPedido=null;
+var _bkNotifEstado="recibido";
+function _bkNotifDatos(bk,estado){
+  if(!bk) return null;
+  var tel=_telDePedido(bk);
+  if(!tel) return null;
+  var nombreNeg=(typeof empresaData!=="undefined"&&empresaData&&(empresaData.nombre||empresaData.appname))||"la tienda";
+  var codigo=bk.trackCode||bk.track_code||"";
+  var track=codigo?(" (código "+codigo+")"):"";
+  var mensajes={
+    recibido:"¡Hola! 👋 Recibimos tu pedido"+track+" en "+nombreNeg+". Ya lo estamos procesando. ¡Gracias por tu compra!",
+    preparando:"📦 ¡Buenas noticias! Tu pedido"+track+" en "+nombreNeg+" ya está en preparación. Te avisamos cuando salga.",
+    enviado:"🚚 ¡Tu pedido"+track+" de "+nombreNeg+" ya está en camino! Pronto lo vas a recibir.",
+    entregado:"✅ Tu pedido"+track+" de "+nombreNeg+" fue entregado. ¡Esperamos que disfrutes tu compra! Gracias por elegirnos. 🙌"
+  };
+  var extra=(typeof _getEmpExtra==="function"?(_getEmpExtra()||{}):{});
+  // "Preparando" usa siempre su texto propio: reutilizar la plantilla de
+  // confirmado podría comunicar un estado distinto al que eligió el usuario.
+  var plantilla=({recibido:extra.waMsgConfirmado,enviado:extra.waMsgReparto,entregado:extra.waMsgEntregado})[estado];
+  var msg;
+  if(plantilla&&String(plantilla).trim()){
+    var cliente=bk.clienteNom||bk.cliente_nom||bk.cliente||"";
+    var total=(bk.total!=null&&bk.total!=="")?("$"+fM(bk.total)):"";
+    msg=String(plantilla).replace(/\{cliente\}/g,cliente).replace(/\{codigo\}/g,codigo).replace(/\{total\}/g,total);
+  }else{
+    msg=mensajes[estado]||mensajes.recibido;
+  }
+  return {tel:tel,msg:msg};
+}
+function _bkAbrirNotificar(bk){
+  if(!bk) return;
+  if(!_telDePedido(bk)){
+    showNotif("Este cliente no tiene un teléfono cargado para WhatsApp","warn");
+    return;
+  }
+  _bkNotifPedido=bk;
+  _bkNotifEstado=["recibido","preparando","enviado","entregado"].indexOf(bk.estado)>=0?bk.estado:"recibido";
+  var cli=document.getElementById("bk-notif-cliente");
+  if(cli) cli.textContent=(bk.clienteNom||"Cliente")+" · "+_telLindo(_telDePedido(bk));
+  _bkNotifRender();
+  abrirModal("modal-bk-notificar");
+}
+function _bkNotifElegir(estado){
+  if(["recibido","preparando","enviado","entregado"].indexOf(estado)<0) return;
+  _bkNotifEstado=estado;
+  _bkNotifRender();
+}
+function _bkNotifRender(){
+  var datos=_bkNotifDatos(_bkNotifPedido,_bkNotifEstado);
+  document.querySelectorAll("#bk-notif-estados .bk-notif-opt").forEach(function(btn){
+    var activo=btn.getAttribute("data-est")===_bkNotifEstado;
+    btn.style.background=activo?"#15803d":"var(--s2)";
+    btn.style.borderColor=activo?"#15803d":"var(--border)";
+    btn.style.color=activo?"#fff":"var(--text)";
+    btn.style.boxShadow=activo?"0 5px 14px rgba(21,128,61,.18)":"none";
+  });
+  var preview=document.getElementById("bk-notif-preview");
+  if(preview) preview.textContent=datos?datos.msg:"No se pudo preparar el mensaje.";
+  var enviar=document.getElementById("bk-notif-enviar");
+  if(enviar) enviar.disabled=!datos;
+}
+function _bkNotifEnviar(){
+  var datos=_bkNotifDatos(_bkNotifPedido,_bkNotifEstado);
+  if(!datos){ showNotif("No se pudo preparar el mensaje de WhatsApp","err"); return; }
+  window.open("https://wa.me/"+datos.tel+"?text="+encodeURIComponent(datos.msg),"_blank");
+  cerrarModal("modal-bk-notificar");
+  showNotif("💬 Mensaje preparado en WhatsApp","ok");
+}
+
 async function _bkActualizarPrecios(bk){
   if(!bk||bk.aprobado!==false){ showNotif("La refacturación está disponible para pedidos rechazados","err"); return; }
   if(!navigator.onLine){ showNotif("Necesitás conexión para traer los precios actuales","err"); return; }
@@ -32652,11 +33189,8 @@ async function _cambiarAprobacion(bk, aprobado){
   setTimeout(_restore, 70); setTimeout(_restore, 180);
   showNotif(aprobado===true ? (eraRechazado?"✅ Pedido reaprobado: stock y comisión actualizados. Asignalo a una ruta.":"✅ Pedido aprobado. Asignalo a una ruta con \"Asignar a Ruta\".") : "❌ Pedido rechazado — stock y comisión actualizados", aprobado?"ok":"err");
 
-  // Al aprobar, ofrecer avisarle al cliente por WhatsApp.
-  // Solo aparece si el cliente tiene el teléfono cargado.
-  if(aprobado===true && typeof _ofrecerAvisoWhatsApp==="function"){
-    try{ await _ofrecerAvisoWhatsApp(bk, "recibido"); }catch(e){}
-  }
+  // Aprobar es una operación interna: no cambia el pedido a entregado ni
+  // dispara avisos. La entrega se comunica solamente desde Reparto.
 }
 // Detecta el contenedor que realmente scrollea alrededor de la lista de backups
 function _bkScrollEl(){
@@ -34167,14 +34701,14 @@ function _invRender(){
       '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(p.n||"")+'</div>'+
       '<div style="font-size:10.5px;color:var(--muted)">'+escHtml(String(p.id))+' · sistema: <b>'+sist+'</b></div></div>'+
       difHtml+
-      '<input type="number" value="'+(tiene?c:"")+'" placeholder="—" onchange="_invSet(\''+p.id+'\',this.value)" '+
+      '<input type="number" min="0" value="'+(tiene?c:"")+'" placeholder="—" onchange="_invSet(\''+p.id+'\',this.value)" '+
       'style="width:66px;padding:7px;text-align:center;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:8px;background:var(--s1);color:var(--text)">'+
     '</div>';
   }).join("");
 }
 function _invSet(id, val){
   if(val==="" || val===null){ delete _invContado[id]; }
-  else { var n=parseInt(val); _invContado[id] = isNaN(n)?0:n; }
+  else { var n=parseInt(val); _invContado[id] = Math.max(0,isNaN(n)?0:n); }
   _invRender();
 }
 async function _invAplicar(){
@@ -35144,7 +35678,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v7';
+  var CACHE_NAME = 'distribix-v11';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
@@ -36234,10 +36768,11 @@ async function _meEntregarSinPago(i){
   var rk=_rutaMapaKey, ck=p.cliKey, ahora=new Date().toISOString();
   p.cli.entregado=true; p.cli.entregadoEn=ahora;
   if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].entregado=true; rutasData[rk].clientes[ck].entregadoEn=ahora; }
-  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{entregado:true,entregadoEn:ahora},"Entrega fiado: "+(p.cli.nom||ck));
+  var confirmado=await _mePersistirParada(rk,ck,{entregado:true,entregadoEn:ahora},"Entrega fiado: "+(p.cli.nom||ck));
+  await _meMarcarPedidoEntregadoDesdeReparto(rk,ck);
   renderParadas(_mapaParadas);
   if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setOpacity){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
-  showNotif("📦 Entregado sin pago (fiado)","ok");
+  showNotif(confirmado?"📦 Entregado sin pago (fiado)":"📦 Entrega fiada guardada — pendiente de sincronizar",confirmado?"ok":"warn");
 }
 
 // Marca una parada como RECHAZADA (el cliente no recibió el pedido).
