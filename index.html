@@ -3993,7 +3993,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.10-modalconfirm1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.11-precioventa1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -6258,8 +6258,8 @@ _sysAlertMount();
         <div class="prod-io-export-icon">📦</div>
         <div class="prod-io-export-copy">
           <h3>Copia editable del catálogo</h3>
-          <p>Incluye el ID real, código, familia, precio base, unidad, stock e imagen. Podés editarla y volver a importarla con las mismas columnas.</p>
-          <div class="prod-io-export-note">Las listas de venta se recalculan desde el precio base. Las promociones, fotos internas y configuraciones avanzadas no se borran.</div>
+          <p>Incluye el ID real, código, familia, precio base, precio de venta, unidad, stock e imagen. Podés editarla y volver a importarla con las mismas columnas.</p>
+          <div class="prod-io-export-note">PRECIO DE VENTA corresponde a la lista Clientes. Si cambiás también el PRECIO BASE, las otras listas se recalculan con sus porcentajes y el precio de venta escrito se respeta. Las promociones y configuraciones avanzadas no se borran.</div>
         </div>
       </div>
       <div class="prod-io-export-actions">
@@ -21503,8 +21503,8 @@ async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal, dscGeneral
     if(!cands.length){
       try{
         var _qPedido=pedidoExacto
-          ? "select=id,cliente_id,cliente_nom,items,total,tipo_comprobante,ruta_vinculada_id,descuentos&id=eq."+encodeURIComponent(String(pedidoExacto))+"&empresa_id=eq."+_sbEmpId+"&limit=1"
-          : "select=id,cliente_id,cliente_nom,items,total,tipo_comprobante,ruta_vinculada_id,descuentos&ruta_vinculada_id=eq."+rk+"&empresa_id=eq."+_sbEmpId+"&limit=500";
+          ? "select=id,fecha,cliente_id,cliente_nom,lista,items,total,tipo_comprobante,ruta_vinculada_id,descuentos,aprobado,usuario,usuario_nom&id=eq."+encodeURIComponent(String(pedidoExacto))+"&empresa_id=eq."+_sbEmpId+"&limit=1"
+          : "select=id,fecha,cliente_id,cliente_nom,lista,items,total,tipo_comprobante,ruta_vinculada_id,descuentos,aprobado,usuario,usuario_nom&ruta_vinculada_id=eq."+rk+"&empresa_id=eq."+_sbEmpId+"&limit=500";
         var _rows = await sbGet("backup_pedidos",_qPedido) || [];
         cands = pedidoExacto?_rows:_filtrar(_rows);
       }catch(e){ console.warn("[propagarEdicionAPedido] no se pudo consultar Supabase:", e && e.message); return; }
@@ -21563,6 +21563,30 @@ async function _propagarEdicionAPedido(rk, ck, itemsRuta, nuevoTotal, dscGeneral
       arr[_ix].totalConIVA= _conIva;
       arr[_ix].descuentos = _dscNuevo;
       saveBackups(arr);
+    }
+    // Una edicion desde Hoja de Ruta tambien actualiza ESA MISMA venta.
+    // pedido_id evita tocar otro remito del mismo cliente y la sincronizacion
+    // idempotente impide crear una segunda comision.
+    if(bk.aprobado===true){
+      try{
+        await _sincronizarVentaAprobadaEditada({
+          _sbId:sbId,
+          aprobado:true,
+          fecha:bk.fecha||cli.fecha,
+          clienteId:bk.clienteId||bk.cliente_id||cli.id||"",
+          clienteNom:bk.clienteNom||bk.cliente_nom||cli.nom||"",
+          lista:bk.lista||cli.lista||"Clientes",
+          items:itemsFinal,
+          total:_totalBase,
+          totalConIVA:_conIva,
+          tipoComprobante:bk.tipoComprobante||bk.tipo_comprobante||cli.tipoComprobante||"remito",
+          usuario:bk.usuario||"",
+          usuarioNom:bk.usuarioNom||bk.usuario_nom||"",
+          descuentos:_dscNuevo
+        });
+      }catch(eVentaRuta){
+        console.warn("[propagarEdicionAPedido] el pedido se guardo pero la comision no pudo sincronizarse:",eVentaRuta&&eVentaRuta.message);
+      }
     }
     // Fallback Firebase, si ese pedido tiene clave
     if(bk._fbKey && empresaKey){
@@ -21705,24 +21729,52 @@ function guardarItemsEditados(rk, ck, items, wrap){
     .catch(function(){ alert("Error al guardar cambios."); });
 }
 
-function actualizarVentaDeRuta(rk, ck, nuevoTotal, items){
+async function actualizarVentaDeRuta(rk, ck, nuevoTotal, items){
   var cli = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  if(!cli||!cli.fecha) return;
-  fbGet("empresas/"+empresaKey+"/ventas")
-    .then(function(ventas){
-      if(!ventas) return;
-      var cliNom = cli.nom||"";
-      var cliDate = (cli.fecha||"").slice(0,10);
-      var match = Object.entries(ventas).find(function(e){
-        var v = e[1];
-        return v.clienteNom===cliNom && (v.fecha||"").slice(0,10)===cliDate;
+  if(!cli||!cli.fecha||!_sbEmpId) return;
+  var pedidoId=cli.pedidoId||cli.pedido_id||null;
+  try{
+    if(pedidoId){
+      var br=await sbGet("backup_pedidos","select=id,fecha,cliente_id,cliente_nom,lista,usuario,usuario_nom,descuentos,tipo_comprobante,aprobado"+
+        "&id=eq."+encodeURIComponent(String(pedidoId))+"&empresa_id=eq."+_sbEmpId+"&limit=1")||[];
+      var b=br[0];
+      if(!b||b.aprobado!==true) return;
+      await _ventaGuardarPedido({
+        _sbId:b.id,
+        fecha:b.fecha||cli.fecha,
+        clienteNom:b.cliente_nom||cli.nom||"",
+        usuario:b.usuario||""
+      },{
+        empresa_id:_sbEmpId,
+        fecha:b.fecha||cli.fecha,
+        cliente_id:b.cliente_id||cli.id||"",
+        cliente_nom:b.cliente_nom||cli.nom||"",
+        lista:b.lista||cli.lista||"Clientes",
+        items:items||[],
+        total:+(nuevoTotal||0),
+        total_con_iva:+(nuevoTotal||0),
+        usuario:b.usuario||"",
+        usuario_nom:b.usuario_nom||b.usuario||"",
+        descuentos:b.descuentos||null,
+        tipo:"remito",
+        tipo_comprobante:b.tipo_comprobante||cli.tipoComprobante||"remito",
+        aprobado:true
       });
-      if(match){
-        var fbKey = match[0];
-        fbPatch("empresas/"+empresaKey+"/ventas/"+fbKey, {total:nuevoTotal, items:items})
-          .catch(function(){});
-      }
-    }).catch(function(){});
+      return;
+    }
+    // Compatibilidad conservadora para paradas antiguas: fecha exacta y nombre,
+    // nunca solo el dia. Si hay mas de una candidata no se toca ninguna.
+    var viejas=await sbGet("ventas","select=id,cliente_nom&empresa_id=eq."+_sbEmpId+
+      "&fecha=eq."+encodeURIComponent(String(cli.fecha))+"&anulada=eq.false&limit=10")||[];
+    viejas=viejas.filter(function(v){return _ventaClaveTexto(v.cliente_nom)===_ventaClaveTexto(cli.nom);});
+    if(viejas.length===1){
+      await sbPatch("ventas","id=eq."+viejas[0].id+"&empresa_id=eq."+_sbEmpId,{total:+(nuevoTotal||0),items:items||[]});
+    }else if(viejas.length>1){
+      console.warn("[actualizarVentaDeRuta] coincidencia ambigua; no se actualizo ninguna venta");
+    }
+  }catch(e){
+    console.warn("[actualizarVentaDeRuta] no se pudo sincronizar la venta:",e&&e.message);
+  }
 }
 
 
@@ -25173,14 +25225,21 @@ async function _ventaBuscarDePedido(bk){
 
 async function _ventaAnularPedido(bk, motivo){
   if(!_sbEmpId||!bk) return;
-  var v=await _ventaBuscarDePedido(bk);
-  if(!v) return;
-  await sbPatch("ventas","id=eq."+v.id+"&empresa_id=eq."+_sbEmpId,{
-    pedido_id:bk._sbId||bk._fbKey||bk.id,
-    anulada:true,
-    anulada_en:new Date().toISOString(),
-    motivo_anulacion:motivo||"Pedido rechazado"
-  });
+  var halladas=await _ventasBuscarDePedido(bk);
+  var todas=(halladas.principal?[halladas.principal]:[]).concat(halladas.duplicados||[]);
+  if(!todas.length) return;
+  var ahora=new Date().toISOString(), pedidoId=bk._sbId||bk._fbKey||bk.id;
+  await Promise.all(todas.map(function(v,i){
+    var patch={
+      anulada:true,
+      anulada_en:ahora,
+      motivo_anulacion:motivo||"Pedido rechazado"
+    };
+    // Solo la fila canonica adopta pedido_id; las copias quedan como evidencia
+    // historica anulada sin chocar con la restriccion unica.
+    if(i===0) patch.pedido_id=pedidoId;
+    return sbPatch("ventas","id=eq."+v.id+"&empresa_id=eq."+_sbEmpId,patch);
+  }));
 }
 
 async function _ventaGuardarPedido(bk, payload){
@@ -32788,6 +32847,7 @@ var PROD_IO_COLUMNS = [
   {key:"categoria",   header:"CATEGORIA",      aliases:["categoria","category","cat","rubro"]},
   {key:"familia",     header:"FAMILIA",        aliases:["familia","grupo","family"]},
   {key:"precioBase",  header:"PRECIO BASE",    aliases:["preciobase","preciocompra","preciocosto","costo","base","compra","costounitario"]},
+  {key:"precioVenta", header:"PRECIO DE VENTA",aliases:["preciodeventa","precioventa","ventaprecio","pvp","precioclientes","precioventaclientes"]},
   {key:"unidadBulto", header:"UNIDAD MEDIDA",  aliases:["unidadmedida","unidaddemedida","unidadbulto","tipounidad","presentacion"]},
   {key:"stock",       header:"STOCK",          aliases:["stock","cantidad","cant","qty","existencia","inventario"]},
   {key:"foto",        header:"URL IMAGEN",     aliases:["urlimagen","urlfoto","imagenurl","imageurl","foto","photo","img","url"]}
@@ -32822,6 +32882,14 @@ function _prodIoNumero(v){
 }
 function _prodIoMismoNumero(a,b){ return Math.abs((+a||0)-(+b||0))<0.005; }
 function _prodIoMismoTexto(a,b){ return String(a==null?"":a).trim()===String(b==null?"":b).trim(); }
+function _prodIoPrecioVentaDe(p){
+  if(!p)return 0;
+  var enLista=p.precios&&p.precios.cli!=null?_prodIoNumero(p.precios.cli):null;
+  if(enLista!==null&&Number.isFinite(enLista)&&enLista>0)return enLista;
+  var directo=p.precioClientes!==undefined?p.precioClientes:p.precio_clientes;
+  var n=_prodIoNumero(directo);
+  return n!==null&&Number.isFinite(n)?n:0;
+}
 
 function abrirProdIO(tab){
   var panel=document.getElementById("prod-csv-panel");
@@ -33005,9 +33073,11 @@ function _analizarProdIO(){
     row.unidadBulto=String(raw.unidadBulto||"").trim().toLowerCase();
     row.foto=String(raw.foto||"").trim();
     row.precioBase=_prodIoNumero(raw.precioBase);
+    row.precioVenta=_prodIoNumero(raw.precioVenta);
     row.stock=_prodIoNumero(raw.stock);
     if(row.productId&&!_prodIoEsUuid(row.productId))row.errors.push("ID PRODUCTO inválido");
     if(row.precioBase!==null&&(!Number.isFinite(row.precioBase)||row.precioBase<=0))row.errors.push("PRECIO BASE debe ser mayor que 0");
+    if(row.precioVenta!==null&&(!Number.isFinite(row.precioVenta)||row.precioVenta<=0))row.errors.push("PRECIO DE VENTA debe ser mayor que 0");
     if(row.stock!==null&&(!Number.isFinite(row.stock)||row.stock<0))row.errors.push("STOCK debe ser 0 o mayor");
     if(row.unidadBulto&&PROD_IO_UNIDADES.indexOf(row.unidadBulto)<0)row.errors.push("UNIDAD MEDIDA no válida");
     if(row.foto&&!/^https?:\/\//i.test(row.foto))row.errors.push("URL IMAGEN debe comenzar con http:// o https://");
@@ -33070,12 +33140,22 @@ function _analizarProdIO(){
       if(row.applyFamily&&!_prodIoMismoTexto(row.familiaFinal,target.familia)){row.patch.familia=row.familiaFinal;row.changed.push("familia");}
       if(row.unidadBulto&&!_prodIoMismoTexto(row.unidadBulto,target.unidadBulto||"bulto")){row.patch.unidadBulto=row.unidadBulto;row.changed.push("unidad");}
       if(row.foto&&!_prodIoMismoTexto(row.foto,target.foto)){row.patch.foto=row.foto;row.changed.push("imagen");}
-      if(row.precioBase!==null&&!_prodIoMismoNumero(row.precioBase,target.precioBase)){
+      var precioVentaActual=_prodIoPrecioVentaDe(target);
+      var cambiaBase=row.precioBase!==null&&!_prodIoMismoNumero(row.precioBase,target.precioBase);
+      var cambiaVenta=row.precioVenta!==null&&!_prodIoMismoNumero(row.precioVenta,precioVentaActual);
+      if(cambiaBase){
         var lp=_prodIoCalcularListas(row.precioBase);
-        row.patch.precioBase=row.precioBase;row.patch.precioClientes=lp.precioClientes;row.patch.precioPatagonia=lp.precioPatagonia;row.patch.precios=lp.precios;row.changed.push("precio");
+        if(row.precioVenta!==null){lp.precioClientes=row.precioVenta;lp.precios.cli=row.precioVenta;}
+        row.patch.precioBase=row.precioBase;row.patch.precioClientes=lp.precioClientes;row.patch.precioPatagonia=lp.precioPatagonia;row.patch.precios=lp.precios;row.changed.push("precio base");
+        if(cambiaVenta)row.changed.push("precio de venta");
+      }else if(cambiaVenta){
+        var preciosActuales=Object.assign({},target.precios||{});
+        preciosActuales.cli=row.precioVenta;
+        row.patch.precioClientes=row.precioVenta;row.patch.precios=preciosActuales;row.changed.push("precio de venta");
       }
     }else if(!row.errors.length){
       var precios=_prodIoCalcularListas(row.precioBase);
+      if(row.precioVenta!==null){precios.precioClientes=row.precioVenta;precios.precios.cli=row.precioVenta;}
       row.insertId=_prodIoStableUuid(_sbEmpId+"|"+row.codigo);
       row.newProduct={
         id:row.insertId,codigo:row.codigo,nombre:row.nombre,categoria:row.categoria||"Sin categoría",
@@ -33130,12 +33210,13 @@ function _renderProdIOPreview(){
       '<td><b>'+escHtml(r.nombre||(r.target&&r.target.nombre)||"—")+'</b></td>'+
       '<td>'+escHtml(fam)+'</td>'+
       '<td>'+(r.precioBase===null?"Conservar":(Number.isFinite(r.precioBase)?_fmt(r.precioBase):"Inválido"))+'</td>'+
+      '<td>'+(r.precioVenta===null?"Conservar":(Number.isFinite(r.precioVenta)?_fmt(r.precioVenta):"Inválido"))+'</td>'+
       '<td>'+(r.stock===null?"Conservar":(Number.isFinite(r.stock)?r.stock:"Inválido"))+'</td>'+
       '<td>'+_prodIoBadge(r)+'<span class="prod-io-row-note">'+escHtml(notes)+'</span></td>'+
       '</tr>';
   }).join("");
   var wrap=document.getElementById("prod-csv-table-wrap");
-  if(wrap)wrap.innerHTML='<table class="prod-io-table"><thead><tr><th>Fila</th><th>Código / ID</th><th>Producto</th><th>Familia final</th><th>Precio base</th><th>Stock</th><th>Resultado</th></tr></thead><tbody>'+rows+"</tbody></table>";
+  if(wrap)wrap.innerHTML='<table class="prod-io-table"><thead><tr><th>Fila</th><th>Código / ID</th><th>Producto</th><th>Familia final</th><th>Precio base</th><th>Precio de venta</th><th>Stock</th><th>Resultado</th></tr></thead><tbody>'+rows+"</tbody></table>";
   var result=document.getElementById("prod-csv-result");if(result)result.style.display="none";
   var btn=document.getElementById("btn-importar-prod-csv");
   if(btn){btn.disabled=valid===0;btn.textContent=valid?"Aplicar "+valid+" cambio"+(valid!==1?"s":""):"Sin cambios para aplicar";}
@@ -33148,7 +33229,7 @@ function _prodIoPlanToken(){
 async function _obtenerFilasExportacion(){
   if(!_sbEmpId)throw new Error("Sin empresa cargada");
   var res=await Promise.all([
-    sbGet("productos","select=id,codigo,nombre,categoria,familia,precio_base,unidad_bulto,foto&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"),
+    sbGet("productos","select=id,codigo,nombre,categoria,familia,precio_base,precio_clientes,precios,unidad_bulto,foto&empresa_id=eq."+_sbEmpId+"&order=nombre.asc"),
     sbGet("stock","select=codigo,cantidad&empresa_id=eq."+_sbEmpId)
   ]);
   var stockMap={};
@@ -33158,7 +33239,7 @@ async function _obtenerFilasExportacion(){
     return {
       productId:p.id||"",codigo:String(p.codigo||"").trim(),nombre:p.nombre||"",
       categoria:String(p.categoria||"Sin categoría").replace(/^"+|"+$/g,"").trim(),
-      familia:p.familia||"",precioBase:+p.precio_base||0,unidadBulto:p.unidad_bulto||"bulto",
+      familia:p.familia||"",precioBase:+p.precio_base||0,precioVenta:_prodIoPrecioVentaDe(p),unidadBulto:p.unidad_bulto||"bulto",
       stock:stockMap[_prodIoNormCode(p.codigo)]||0,foto:foto
     };
   });
@@ -33171,8 +33252,8 @@ function _prodIoNombreArchivo(ext){
 }
 function _prodIoArmarWorkbook(data){
   var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(data);
-  ws["!cols"]=[{wch:38},{wch:16},{wch:42},{wch:23},{wch:24},{wch:15},{wch:16},{wch:11},{wch:55}];
-  ws["!autofilter"]={ref:"A1:I"+Math.max(1,data.length)};
+  ws["!cols"]=[{wch:38},{wch:16},{wch:42},{wch:23},{wch:24},{wch:15},{wch:17},{wch:16},{wch:11},{wch:55}];
+  ws["!autofilter"]={ref:"A1:J"+Math.max(1,data.length)};
   ws["!freeze"]={xSplit:0,ySplit:1};
   if(ws["!ref"]){
     var range=XLSX.utils.decode_range(ws["!ref"]);
@@ -33181,7 +33262,7 @@ function _prodIoArmarWorkbook(data){
       if(ws[a])ws[a].s={font:{bold:true,color:{rgb:"FFFFFF"}},fill:{fgColor:{rgb:"173A70"}},alignment:{horizontal:"center"}};
     }
     for(var rr=1;rr<=range.e.r;rr++){
-      ["F","H"].forEach(function(col){var cell=ws[col+(rr+1)];if(cell)cell.z="#,##0.00";});
+      ["F","G","I"].forEach(function(col){var cell=ws[col+(rr+1)];if(cell)cell.z="#,##0.00";});
     }
   }
   XLSX.utils.book_append_sheet(wb,ws,"Productos");
@@ -33191,9 +33272,11 @@ function _prodIoArmarWorkbook(data){
     ["2. ID PRODUCTO identifica exactamente un producto existente. No lo copies entre productos."],
     ["3. Para productos nuevos, dejá ID PRODUCTO vacío y completá un CODIGO único."],
     ["4. Una FAMILIA vacía nunca elimina la familia actual."],
-    ["5. PRECIO BASE recalcula automáticamente todas las listas de venta."],
-    ["6. STOCK vacío conserva el actual; el número 0 establece stock en cero."],
-    ["7. Las promociones y configuraciones no incluidas en esta planilla se conservan."]
+    ["5. PRECIO BASE vacío conserva el costo actual; si cambia, recalcula las listas según sus porcentajes."],
+    ["6. PRECIO DE VENTA corresponde a la lista Clientes. Vacío conserva el actual; si está escrito, ese valor tiene prioridad sobre el cálculo desde PRECIO BASE."],
+    ["7. Para un producto nuevo, PRECIO BASE es obligatorio. PRECIO DE VENTA puede quedar vacío para calcularse automáticamente."],
+    ["8. STOCK vacío conserva el actual; el número 0 establece stock en cero."],
+    ["9. Las promociones y configuraciones no incluidas en esta planilla se conservan."]
   ];
   var wi=XLSX.utils.aoa_to_sheet(info);wi["!cols"]=[{wch:105}];XLSX.utils.book_append_sheet(wb,wi,"LEEME");
   return wb;
@@ -34734,6 +34817,78 @@ function _poblarFiltrosMesRuta(){
     }).join('');
 }
 
+function _ventaFechaClave(fecha){
+  if(!fecha) return "";
+  var d=new Date(fecha);
+  return isNaN(d.getTime())?String(fecha):d.toISOString();
+}
+
+// Para comisiones, Backup aprobado es la fuente vigente del pedido. "ventas"
+// conserva tambiÃ©n remitos manuales y registros histÃ³ricos, por eso se combinan
+// por pedido_id (o por la fecha exacta en datos anteriores) y cada pedido entra
+// una sola vez con su importe, vendedor e items actuales.
+function _consolidarVentasConBackups(ventasData, backupRows){
+  var ventas=ventasData?Object.entries(ventasData).map(function(e){
+    return Object.assign({},e[1],{fbKey:e[0],_src:"venta"});
+  }):[];
+  var porPedido={}, porFecha={}, usados={};
+  ventas.forEach(function(v){
+    var pid=String(v.pedidoId||v.pedido_id||"");
+    var fk=_ventaFechaClave(v.fecha);
+    if(pid){ if(!porPedido[pid]) porPedido[pid]=[]; porPedido[pid].push(v); }
+    if(fk){ if(!porFecha[fk]) porFecha[fk]=[]; porFecha[fk].push(v); }
+  });
+  var canon=[];
+  (backupRows||[]).forEach(function(bk){
+    var pid=String(bk.id||"");
+    if(!pid) return;
+    var fechaKey=_ventaFechaClave(bk.fecha);
+    var vinculadas=(porPedido[pid]||[]).slice();
+    var legacy=(porFecha[fechaKey]||[]).filter(function(v){
+      var vp=String(v.pedidoId||v.pedido_id||"");
+      return !vp||vp===pid;
+    });
+    var candidatas=vinculadas.concat(legacy.filter(function(v){return vinculadas.indexOf(v)<0;}));
+    var nom=_ventaClaveTexto(bk.cliente_nom||"");
+    var usr=String(bk.usuario||"");
+    candidatas.sort(function(a,b){
+      function score(v){
+        return (String(v.pedidoId||v.pedido_id||"")===pid?8:0)+
+          (_ventaClaveTexto(v.clienteNom||v.cliente_nom)===nom?4:0)+
+          (usr&&String(v.usuario||"")===usr?2:0);
+      }
+      return score(b)-score(a)||String(a.fbKey||"").localeCompare(String(b.fbKey||""));
+    });
+    candidatas.forEach(function(v){if(v.fbKey) usados[v.fbKey]=true;});
+    var principal=candidatas[0]||{};
+    var items=[];
+    try{ items=typeof bk.items==="string"?JSON.parse(bk.items):(bk.items||[]); }catch(e){}
+    var esFactA=bk.tipo_comprobante==="factura_a";
+    var total=esFactA?+(bk.total_con_iva||Math.round(+(bk.total||0)*1.21*100)/100):+(bk.total||0);
+    var d=new Date(bk.fecha);
+    canon.push(Object.assign({},principal,{
+      fbKey:principal.fbKey||("pedido:"+pid),
+      pedidoId:pid,
+      fecha:bk.fecha,
+      mes:d.getMonth(),
+      anio:d.getFullYear(),
+      clienteId:bk.cliente_id||"",
+      clienteNom:bk.cliente_nom||"",
+      lista:bk.lista||"Clientes",
+      items:items,
+      total:total,
+      usuario:bk.usuario||"",
+      usuarioNom:bk.usuario_nom||bk.usuario||"",
+      descuentos:bk.descuentos||null,
+      tipoComprobante:bk.tipo_comprobante||"remito",
+      _src:"backup",
+      _ventaId:principal.fbKey||null
+    }));
+  });
+  ventas.forEach(function(v){if(!usados[v.fbKey]) canon.push(v);});
+  return canon.sort(function(a,b){return new Date(b.fecha)-new Date(a.fecha);});
+}
+
 async function cargarVendedores(){
   // Ocultar el tab de Ubicación si el rastreo no está habilitado para esta empresa
   try {
@@ -34748,35 +34903,11 @@ async function cargarVendedores(){
     var [ventasData, backupRows] = await Promise.all([
       _sbGetVentas(),
       sbGet("backup_pedidos",
-        "select=fecha,total,cliente_nom,usuario,usuario_nom,items,descuentos"+
+        "select=id,fecha,total,total_con_iva,tipo_comprobante,cliente_id,cliente_nom,lista,usuario,usuario_nom,items,descuentos"+
         "&empresa_id=eq."+_sbEmpId+"&aprobado=eq.true&order=fecha.desc")
     ]);
 
-    _vndVentas = ventasData ? Object.entries(ventasData).map(function(e){ return Object.assign({},e[1],{fbKey:e[0],_src:"venta"}); }) : [];
-
-    // Agregar backup_pedidos de vendedores que NO tienen ventas confirmadas
-    var vendedoresEnVentas = new Set(_vndVentas.map(function(v){ return v.usuario; }));
-    (backupRows||[]).forEach(function(bk){
-      var vid = bk.usuario || "";
-      if(!vid) return;
-      if(vendedoresEnVentas.has(vid)) return;
-      var itemsParsed = [];
-      try { itemsParsed = typeof bk.items === "string" ? JSON.parse(bk.items) : (bk.items||[]); } catch(e){}
-      _vndVentas.push({
-        fecha:      bk.fecha,
-        mes:        new Date(bk.fecha).getMonth(),
-        anio:       new Date(bk.fecha).getFullYear(),
-        clienteId:  "",
-        clienteNom: bk.cliente_nom||"",
-        lista:      "",
-        items:      itemsParsed,
-        total:      bk.total||0,
-        usuario:    vid,
-        usuarioNom: bk.usuario_nom||vid,
-        descuentos: bk.descuentos||null,
-        _src:       "backup"
-      });
-    });
+    _vndVentas = _consolidarVentasConBackups(ventasData,backupRows);
 
     // Los pedidos por tienda sin acreditar no cuentan como un "vendedor" en el ranking
     _vndVentas = _vndVentas.filter(function(v){ return v.usuario !== "tienda"; });
@@ -35010,7 +35141,9 @@ function renderVendedores(){
           ventasOrd.map(function(v){
             var fecha=new Date(v.fecha).toLocaleDateString("es-AR",{day:"numeric",month:"short"});
             var itemsHTML=(v.items||[]).map(function(it){return '<div class="mv-prod-row"><span style="flex:1">'+escHtml(it.n)+'</span><span style="color:var(--muted)">×'+it.c+'</span><span style="font-weight:700;width:80px;text-align:right">$'+fM(it.sub!=null?it.sub:it.p*it.c)+'</span></div>';}).join('');
-            var delBtn=_verCom?'<button onclick="event.stopPropagation();borrarVentaVnd(\''+v.fbKey+'\',\''+escHtml(vnd.nombre)+'\','+v.total+')" title="Eliminar este remito" style="flex-shrink:0;padding:3px 8px;border:1px solid #fca5a5;background:#fff0f0;color:#b91c1c;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑</button>':'';
+            // Los pedidos consolidados se corrigen/rechazan desde Backup. Solo
+            // los remitos manuales independientes conservan el botÃ³n de borrar.
+            var delBtn=(_verCom&&v._src==="venta")?'<button onclick="event.stopPropagation();borrarVentaVnd(\''+v.fbKey+'\',\''+escHtml(vnd.nombre)+'\','+v.total+')" title="Eliminar este remito" style="flex-shrink:0;padding:3px 8px;border:1px solid #fca5a5;background:#fff0f0;color:#b91c1c;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑</button>':'';
             return '<div class="vnd-detail-row" onclick="event.stopPropagation();var nx=this.nextElementSibling;nx.classList.toggle(&quot;open&quot;)"><span class="vnd-det-date">'+fecha+'</span><span class="vnd-det-cli">'+escHtml(v.clienteNom||"")+'</span><span class="vnd-det-tot">$'+fM(v.total)+'</span>'+delBtn+'</div>'+
               '<div class="mv-remito-detail" style="border-radius:0;margin-bottom:0">'+(itemsHTML||'<div style="font-size:11px;color:var(--muted)">Sin detalle</div>')+'</div>';
           }).join('')+
@@ -36193,7 +36326,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v19';
+  var CACHE_NAME = 'distribix-v21';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
