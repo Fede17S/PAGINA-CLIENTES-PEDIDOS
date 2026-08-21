@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.45
-const CACHE_NAME = 'distribix-v1.46';
-const CACHE_STATIC = 'distribix-static-v1.45';
+// DISTRIBIX Service Worker v1.47 — sincronización canónica de rutas
+const CACHE_NAME = 'distribix-v1.47';
+const CACHE_STATIC = 'distribix-static-v1.47';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
