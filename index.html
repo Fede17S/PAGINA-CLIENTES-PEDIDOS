@@ -3993,7 +3993,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.11-precioventa1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.20-sync-rutas1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -9773,8 +9773,16 @@ async function _sbGetRutaClientesPaginados(rutaIds,columnas){
 }
 
 async function _sbGetRutas(){
-  var rutas=await sbGet("rutas","select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc");
-  if(!rutas||!rutas.length) return null;
+  var _rutasParams="select=id,nombre,fecha,repartidor_id,repartidor_nom,hr_num,zona_id,finalizada,finalizada_en&empresa_id=eq."+_sbEmpId+"&order=fecha.desc";
+  // Con internet, Hoja de Ruta debe leer la respuesta real de Supabase.
+  // `sbGet()` puede devolver cache ante un error HTTP y hacer pasar datos viejos
+  // por actuales; el cache queda reservado para el modo sin conexión.
+  var rutas=navigator.onLine
+    ? await _sbGetRaw("rutas",_rutasParams)
+    : await sbGet("rutas",_rutasParams);
+  if(rutas===null||rutas===undefined) return null;
+  if(navigator.onLine) _sbCacheSave("rutas",_rutasParams,rutas);
+  if(!rutas.length) return {};
   var ids=rutas.map(function(r){return r.id;});
   // Columnas livianas: NO traemos `comprobantes` (fotos) ni `firma`, que pesan
   // cientos de KB cada una. Se cargan recién cuando se abre ese cliente.
@@ -10506,7 +10514,9 @@ function _cargarClientesDesdeCache(cached){
       var cachedUsers = _sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
       if(cachedUsers && cachedUsers.length){ _cargarClientesDesdeCache(cachedUsers); }
       var rutasLocal=_cargarRutasOffline();
-      if(rutasLocal&&(!navigator.onLine||(_offlineQueue&&_offlineQueue.length))) rutasData=_fusionarRutasOffline(rutasData||{},rutasLocal);
+      // La copia completa solo se abre sin conexión. Tener una operación
+      // pendiente de otro módulo no autoriza a pisar rutas nuevas de Supabase.
+      if(rutasLocal&&!navigator.onLine) rutasData=_fusionarRutasOffline(rutasData||{},rutasLocal);
       iniciarApp(); setTimeout(_checkNotifButton,1000);
       setTimeout(_initTrackingUbicacion, 3000);
       _bkPendingQueue=_bkQueueGet();
@@ -19100,43 +19110,65 @@ async function guardarAsignacion(){
   }
 }
 
-function cargarRutasFirebase(){
-  _soloVerRuta = null;  // al recargar la sección, mostrar todas las rutas
-  var role = currentUser ? (currentUser.role||"vendedor") : "vendedor";
+var _rutasServidorPromise=null;
+var _rutasUltimaCarga=0;
+
+function _filtrarRutasParaUsuario(all){
+  var role=currentUser?(currentUser.role||"vendedor"):"vendedor";
+  if(role!=="repartidor") return all||{};
+  // En este panel, currentUser.id es el uid y currentUser._sbId el UUID.
+  var miUid=currentUser&&currentUser.id, miSbId=currentUser&&currentUser._sbId;
+  var filtradas={};
+  Object.entries(all||{}).forEach(function(e){
+    var asignado=e[1]&&e[1].repartidorId;
+    if(asignado&&(asignado===miUid||asignado===miSbId)) filtradas[e[0]]=e[1];
+  });
+  return filtradas;
+}
+
+function _cargarRutasServidorSeguras(){
   var local=_cargarRutasOffline();
-  if(local&&(!navigator.onLine||(_offlineQueue&&_offlineQueue.length))){
+  if(!navigator.onLine){
+    return Promise.resolve(_fusionarRutasOffline(rutasData||{},local||{}));
+  }
+  if(_rutasServidorPromise) return _rutasServidorPromise;
+  _rutasServidorPromise=fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
+    if(d===null||d===undefined) throw new Error("Supabase no devolvió las hojas de ruta");
+    _rutasUltimaCarga=Date.now();
+    // Online: partir SIEMPRE de Supabase y sumar solo los cambios exactos en cola.
+    return _aplicarPendientesRutas(d,local);
+  }).then(function(v){
+    _rutasServidorPromise=null;
+    return v;
+  },function(err){
+    _rutasServidorPromise=null;
+    throw err;
+  });
+  return _rutasServidorPromise;
+}
+
+function cargarRutasFirebase(opciones){
+  opciones=opciones||{};
+  if(!opciones.preservarVista) _soloVerRuta=null;
+  var local=_cargarRutasOffline();
+  if(local&&!navigator.onLine){
     rutasData=_fusionarRutasOffline(rutasData||{},local);
     _poblarFiltrosMesRuta();
     renderRutas();
   }
-  setStatus("fb-hoja-status","sync","☁️ Cargando…");
-  fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
-    var all = d || local || {};
-    // Una versión anterior podía mostrar la entrega solo en Reparto aunque el
-    // UPDATE hubiera afectado cero filas. Si esa entrega reciente sigue en la
-    // copia local del mismo dispositivo, recuperarla automáticamente una vez.
-    var recuperadas=_recuperarEntregasLocales(all,local);
-    if(local&&(!navigator.onLine||(_offlineQueue&&_offlineQueue.length))) all=_fusionarRutasOffline(all,local);
-    if(role === "repartidor"){
-      // En este panel, currentUser.id ES el uid del usuario, y currentUser._sbId es el UUID de Supabase.
-      // La asignación guarda el uid en repartidorId, así que comparamos contra ambos por robustez.
-      var miUid = currentUser.id;       // el uid (ej. "juan")
-      var miSbId = currentUser._sbId;   // el UUID de Supabase
-      var filtradas = {};
-      Object.entries(all).forEach(function(e){
-        var asignado = e[1].repartidorId;
-        if(asignado && (asignado === miUid || asignado === miSbId)) filtradas[e[0]] = e[1];
-      });
-      rutasData = filtradas;
-    } else {
-      rutasData = all;
-    }
-    setStatus("fb-hoja-status","ok","✅");
+  if(!opciones.silencioso) setStatus("fb-hoja-status","sync","☁️ Cargando…");
+  return _cargarRutasServidorSeguras().then(function(all){
+    rutasData=_filtrarRutasParaUsuario(all);
+    if(!opciones.silencioso) setStatus("fb-hoja-status","ok","✅");
     _poblarFiltrosMesRuta();
     renderRutas();
     _guardarRutasOffline();
-    if(recuperadas&&navigator.onLine) setTimeout(function(){_syncQueue();},120);
-  }).catch(function(){ setStatus("fb-hoja-status","err","❌"); });
+    return rutasData;
+  }).catch(function(err){
+    if(!opciones.silencioso) setStatus("fb-hoja-status","err","❌");
+    console.warn("[Hoja de Ruta] No se pudo actualizar desde Supabase:",err&&err.message);
+    return rutasData||{};
+  });
 }
 async function imprimirPedidosDeRuta(rk){
   var ruta = rutasData[rk];
@@ -26922,44 +26954,163 @@ function _fusionarRutasOffline(base,local){
   return out;
 }
 
-// Autorreparación acotada para el fallo antiguo Reparto → Hoja de Ruta.
-// Solo recupera entregas de los últimos 7 días que están confirmadas en la
-// copia local, siguen pendientes en Supabase y no fueron rechazadas. No toca
-// pedidos viejos ni vuelve a registrar la cuenta corriente.
-function _recuperarEntregasLocales(server,local){
-  if(!navigator.onLine||!server||!local) return 0;
-  var ahora=Date.now(), recuperadas=0;
-  Object.keys(local).forEach(function(rk){
-    var lr=local[rk], sr=server[rk];
-    if(!lr||!sr||!lr.clientes||!sr.clientes) return;
-    Object.keys(lr.clientes).forEach(function(ck){
-      var lc=lr.clientes[ck], sc=sr.clientes[ck];
-      if(!lc||!sc||lc.entregado!==true||sc.entregado===true||lc.rechazado||sc.rechazado) return;
-      var ts=Date.parse(lc.entregadoEn||"");
-      if(!isFinite(ts)||ts>ahora+300000||ahora-ts>7*24*60*60*1000) return;
-      var path="empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck;
-      var yaPendiente=(_offlineQueue||[]).some(function(op){
-        return op&&op.method==="PATCH"&&op.path===path&&op.data&&op.data.entregado===true;
-      });
-      var cambios={
-        entregado:true,
-        entregadoEn:lc.entregadoEn,
-        efectivo:+(lc.efectivo||0),
-        transferencia:+(lc.transferencia||0),
-        modo:lc.modo||((lc.transferencia||0)>0?"transferencia":"efectivo")
-      };
-      Object.assign(sc,cambios);
-      if(!yaPendiente){
-        _enqueue("PATCH",path,cambios,"Recuperación automática de entrega: "+(lc.nom||ck));
-        recuperadas++;
-      }
+// Copia liviana del resultado canónico. Las rutas y los mapas de clientes se
+// clonan para poder aplicar cambios optimistas sin modificar la respuesta que
+// llegó de Supabase ni compartir objetos entre dos cargas simultáneas.
+function _clonarRutasServidor(base){
+  var out={};
+  Object.keys(base||{}).forEach(function(rk){
+    var r=base[rk]||{};
+    out[rk]=Object.assign({},r,{clientes:Object.assign({},r.clientes||{})});
+  });
+  return out;
+}
+
+function _esIdRutaLocal(id){ return /^(?:op_|local_)/i.test(String(id||"")); }
+
+function _rutaPendienteAsegurar(out,rk,local){
+  if(out[rk]) return out[rk];
+  // Solo se crea desde la copia local si la ruta todavía tiene un ID temporal:
+  // eso prueba que es un alta pendiente de ESTE dispositivo. Un UUID ausente en
+  // Supabase nunca se revive desde cache porque pudo borrarse en otro equipo.
+  if(!_esIdRutaLocal(rk)) return null;
+  var lr=local&&local[rk]?local[rk]:{};
+  out[rk]=Object.assign({},lr,{clientes:{}});
+  return out[rk];
+}
+
+function _buscarClienteRutaPendiente(out,identificador,pedidoId){
+  var hallado=null;
+  Object.keys(out||{}).some(function(rk){
+    var clientes=(out[rk]&&out[rk].clientes)||{};
+    return Object.keys(clientes).some(function(ck){
+      var c=clientes[ck]||{};
+      var mismoId=identificador!==undefined&&identificador!==null&&(
+        String(ck)===String(identificador)||String(c._rcId||"")===String(identificador)
+      );
+      var mismoPedido=pedidoId&&String(c.pedidoId||"")===String(pedidoId);
+      if(mismoId||mismoPedido){ hallado={rk:rk,ck:ck,cli:c}; return true; }
+      return false;
     });
   });
-  if(recuperadas){
-    try{ showNotif("🔄 Recuperando "+recuperadas+" entrega"+(recuperadas!==1?"s":"")+" que había"+(recuperadas===1?"":"n")+" quedado solo en Reparto","warn"); }catch(e){}
-  }
-  return recuperadas;
+  return hallado;
 }
+
+function _aplicarPatchClientePendiente(cli,data){
+  var c=Object.assign({},cli||{},data||{});
+  if(data&&data.firmadoEn!==undefined) c.tieneFirma=!!data.firmadoEn;
+  else if(data&&data.firma!==undefined) c.tieneFirma=!!data.firma;
+  if(data&&Array.isArray(data.comprobantes)) c.nComprobantes=data.comprobantes.length;
+  return c;
+}
+
+// Cuando hay internet, Supabase gana. Sobre esa respuesta se aplican SOLAMENTE
+// las operaciones de rutas que siguen en la cola de este dispositivo. Una deuda,
+// un movimiento de stock o cualquier otro pendiente ya no puede pisar una ruta
+// completa con la fotografía vieja guardada en localStorage.
+function _aplicarPendientesRutas(base,local){
+  var out=_clonarRutasServidor(base||{});
+  (_offlineQueue||[]).forEach(function(op){
+    if(!op) return;
+    var metodo=String(op.method||"").toUpperCase();
+    var p=_fbPathParse(op.path||"");
+    var esPathRuta=p[0]==="empresas"&&p[2]==="rutas";
+
+    if(esPathRuta&&(metodo==="PATCH"||metodo==="DELETE"||metodo==="POST")){
+      var rk=p[3]||"";
+
+      if(metodo==="POST"&&p.length===3){
+        var rutaKey=String(op.id||("local_"+Date.now()));
+        if(!out[rutaKey]) out[rutaKey]=Object.assign({},op.data||{},{clientes:{}});
+        return;
+      }
+
+      if(metodo==="DELETE"&&p.length===4){
+        delete out[rk];
+        return;
+      }
+
+      var ruta=_rutaPendienteAsegurar(out,rk,local);
+      if(!ruta) return;
+      if(!ruta.clientes) ruta.clientes={};
+
+      if(metodo==="PATCH"&&p.length===4){
+        var clientesRuta=ruta.clientes;
+        Object.assign(ruta,op.data||{});
+        ruta.clientes=clientesRuta;
+        return;
+      }
+
+      if(metodo==="POST"&&p[4]==="clientes"){
+        var dAlta=op.data||{};
+        var existente=null;
+        if(dAlta.pedidoId){
+          Object.keys(ruta.clientes).some(function(k){
+            if(String((ruta.clientes[k]||{}).pedidoId||"")===String(dAlta.pedidoId)){ existente=k; return true; }
+            return false;
+          });
+        }
+        if(!existente){
+          var altaKey=String(op.id||("local_"+Date.now()));
+          ruta.clientes[altaKey]=Object.assign({_rcId:altaKey},dAlta);
+        }
+        return;
+      }
+
+      var ck=p[5]||"";
+      if(metodo==="DELETE"&&p[4]==="clientes"){
+        delete ruta.clientes[ck];
+        return;
+      }
+      if(metodo==="PATCH"&&p[4]==="clientes"){
+        var actual=ruta.clientes[ck];
+        if(!actual&&_esIdRutaLocal(ck)&&local&&local[rk]&&local[rk].clientes){
+          actual=local[rk].clientes[ck];
+        }
+        // Un cliente UUID que ya no existe en Supabase no se revive desde cache.
+        if(actual) ruta.clientes[ck]=_aplicarPatchClientePendiente(actual,op.data||{});
+      }
+      return;
+    }
+
+    if(metodo==="ROUTE_MOVE"){
+      var md=op.data||{}, dst=md.dst, src=md.src, srcCli=md.srcCli;
+      var pedidoId=(md.cli&&(md.cli.pedidoId||md.cli.pedido_id))||md.pedidoId||null;
+      var destino=_rutaPendienteAsegurar(out,dst,local);
+      if(!destino) return;
+      if(!destino.clientes) destino.clientes={};
+      var hallado=_buscarClienteRutaPendiente(out,srcCli,pedidoId);
+      if(hallado&&hallado.rk===dst) return; // el servidor ya aplicó el movimiento
+      var cliMover=hallado?hallado.cli:(md.cli||null);
+      if(!cliMover) return;
+      if(hallado&&out[hallado.rk]&&out[hallado.rk].clientes) delete out[hallado.rk].clientes[hallado.ck];
+      else if(src&&out[src]&&out[src].clientes) delete out[src].clientes[srcCli];
+      var moveKey=hallado?hallado.ck:String(srcCli||("local_"+op.id));
+      destino.clientes[moveKey]=Object.assign({},cliMover);
+      return;
+    }
+
+    if(metodo==="RC_COMP_ADD"||metodo==="RC_COMP_DEL"){
+      var dc=op.data||{}, h=_buscarClienteRutaPendiente(out,dc.cliId,null);
+      if(!h) return;
+      var cliComp=Object.assign({},h.cli);
+      var desdeLocal=local&&local[h.rk]&&local[h.rk].clientes&&local[h.rk].clientes[h.ck];
+      var comps=Array.isArray(cliComp.comprobantes)?cliComp.comprobantes.slice():
+        (desdeLocal&&Array.isArray(desdeLocal.comprobantes)?desdeLocal.comprobantes.slice():[]);
+      if(metodo==="RC_COMP_ADD"&&dc.comp&&!comps.some(function(x){return x&&String(x.id)===String(dc.comp.id);})) comps.push(dc.comp);
+      if(metodo==="RC_COMP_DEL") comps=comps.filter(function(x){return x&&String(x.id)!==String(dc.tid);});
+      cliComp.comprobantes=comps;
+      cliComp.nComprobantes=comps.length;
+      out[h.rk].clientes[h.ck]=cliComp;
+    }
+  });
+  return out;
+}
+
+// Compatibilidad con llamadas antiguas. Una fotografía local, por sí sola, ya
+// no genera escrituras: toda recuperación válida debe existir como PATCH en la
+// cola y es aplicada arriba campo por campo.
+function _recuperarEntregasLocales(){ return 0; }
 
 /* ─ Persistencia de queue ─ */
 function _loadQueue(){
@@ -27242,6 +27393,7 @@ async function _syncQueue(){
   if(synced>0){
     _guardarRutasOffline();
     showNotif("☁️ "+synced+" operación"+(synced>1?"es":"")+" sincronizada"+(synced>1?"s":"")+" con éxito","ok");
+    setTimeout(function(){ _refrescarRutasEntreDispositivos(true); },250);
   }
   if(_offlineQueue.length&&navigator.onLine){
     var primero=_offlineQueue[0]||{};
@@ -27361,6 +27513,48 @@ function actualizarEstadoConexion(){
   }
 }
 window.addEventListener("online",  actualizarEstadoConexion);
+
+// Sincronización de lectura entre equipos. No escribe nada: vuelve a consultar
+// Supabase al recuperar foco, al reconectar y periódicamente mientras Hoja de
+// Ruta o Reparto están visibles. La cola puntual se superpone después.
+function _refrescarRutasEntreDispositivos(forzar){
+  if(!navigator.onLine||!_sbEmpId) return Promise.resolve(false);
+  var tab=window._tabActual||"";
+  if(tab!=="hoja"&&tab!=="mapa-entregas") return Promise.resolve(false);
+  // No interrumpir a alguien que está escribiendo un cobro, editando un pedido
+  // o trabajando dentro de un modal. El próximo foco/intervalo vuelve a probar.
+  var modalAbierto=document.querySelector(".modal-bg.open");
+  var secActiva=document.getElementById(tab), foco=document.activeElement;
+  var escribiendo=!!(secActiva&&foco&&secActiva.contains(foco)&&/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName||""));
+  if(modalAbierto||escribiendo) return Promise.resolve(false);
+  if(!forzar&&Date.now()-(_rutasUltimaCarga||0)<12000) return Promise.resolve(false);
+  if(tab==="hoja"){
+    return cargarRutasFirebase({preservarVista:true,silencioso:true}).then(function(){return true;});
+  }
+  return _cargarRutasServidorSeguras().then(function(all){
+    rutasData=_filtrarRutasParaUsuario(all);
+    _guardarRutasOffline();
+    poblarSelectorMapaRutas();
+    _meAplicarDatosRutasActualizados();
+    return true;
+  }).catch(function(err){
+    console.warn("[Reparto] No se pudo actualizar entre dispositivos:",err&&err.message);
+    return false;
+  });
+}
+
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible") setTimeout(function(){_refrescarRutasEntreDispositivos(false);},180);
+});
+window.addEventListener("focus",function(){
+  setTimeout(function(){_refrescarRutasEntreDispositivos(false);},180);
+});
+if(!window._rutasSyncInterval){
+  window._rutasSyncInterval=setInterval(function(){
+    if(document.visibilityState==="visible") _refrescarRutasEntreDispositivos(false);
+  },60000);
+}
+
 // Al volver la conexión: además de mandar la cola, refrescar los datos en pantalla
 // (por si estuvimos trabajando con cache viejo). Con un pequeño delay para dar tiempo a la red.
 window.addEventListener("online", function(){
@@ -27372,6 +27566,7 @@ window.addEventListener("online", function(){
         _sbGetUsuarios().then(function(u){ if(u){ _clientesDB=Object.assign(_clientesDB||{},u); if(typeof renderClientes==="function" && document.getElementById("clientes")) renderClientes(); } }).catch(function(){});
       }
       if(typeof cargarCatalogo==="function") cargarCatalogo();
+      _refrescarRutasEntreDispositivos(true);
     }catch(e){ console.warn("[Reconexión] refresh:", e); }
   }, 3000);
 });
@@ -27390,7 +27585,7 @@ var _meParadaElegidaKey = null; // permite atender cualquier cliente, sin orden 
 
 function iniciarMapaEntregas() {
   cargarGeocodeCache();
-  if(!Object.keys(rutasData||{}).length){
+  if(!navigator.onLine&&!Object.keys(rutasData||{}).length){
     var local=_cargarRutasOffline();
     if(local) rutasData=_fusionarRutasOffline(rutasData||{},local);
   }
@@ -27407,12 +27602,29 @@ function iniciarMapaEntregas() {
       function(){}, {timeout:8000, enableHighAccuracy:false}
     );
   }
-  if (!Object.keys(rutasData).length) {
-    document.getElementById("mapa-paradas").innerHTML =
-      '<div class="geocoding-progress">☁️ Cargando hojas de ruta...</div>';
+  if (navigator.onLine || !Object.keys(rutasData).length) {
+    if(!Object.keys(rutasData).length){
+      document.getElementById("mapa-paradas").innerHTML =
+        '<div class="geocoding-progress">☁️ Cargando hojas de ruta...</div>';
+    }
     // Cargar rutas desde Supabase primero, Firebase como fallback
     (async function(){
       try {
+        // Mismo cargador canónico que Hoja de Ruta: evita que Reparto conserve
+        // otra versión cuando ya había datos en memoria o una cola pendiente.
+        if(_sbEmpId&&navigator.onLine){
+          var canonicas=await _cargarRutasServidorSeguras();
+          rutasData=_filtrarRutasParaUsuario(canonicas);
+          _guardarRutasOffline();
+          poblarSelectorMapaRutas();
+          _meAplicarDatosRutasActualizados();
+          if(!Object.keys(rutasData).length){
+            document.getElementById("mapa-paradas").innerHTML='<div class="me-empty">No hay hojas de ruta disponibles.</div>';
+          }else if(!document.getElementById("mapa-paradas").textContent.trim()||/Cargando hojas/.test(document.getElementById("mapa-paradas").textContent)){
+            document.getElementById("mapa-paradas").innerHTML='<div class="me-empty">📍 Elegí una hoja de ruta y presioná <b>Optimizar ruta</b></div>';
+          }
+          return;
+        }
         if(_sbEmpId){
           var rutaRows = await sbGet("rutas","select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=60");
           if(rutaRows && rutaRows.length){
@@ -27658,6 +27870,8 @@ function meDetectarGPS() {
 
 function poblarSelectorMapaRutas() {
   var sel = document.getElementById("mapa-ruta-sel");
+  if(!sel) return;
+  var seleccionActual=_rutaMapaKey||sel.value||rutaAbierta||"";
   var keys = Object.keys(rutasData).sort(function(a,b){
     return (rutasData[b].fecha||"").localeCompare(rutasData[a].fecha||"");
   });
@@ -27668,8 +27882,12 @@ function poblarSelectorMapaRutas() {
       var nombre = r.nombre || _fechaSegura(r.fecha).toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
       return '<option value="'+k+'">'+nombre+' ('+cant+' clientes)</option>';
     }).join("");
-  // Auto-select rutaAbierta
-  if(rutaAbierta && rutasData[rutaAbierta]) sel.value = rutaAbierta;
+  // Conservar la ruta que el repartidor ya estaba atendiendo durante un
+  // refresco entre dispositivos. Solo usar rutaAbierta como alternativa.
+  if(seleccionActual&&rutasData[seleccionActual]){
+    sel.value=seleccionActual;
+    _rutaMapaKey=seleccionActual;
+  }
 }
 
 function seleccionarRutaMapa() {
@@ -28327,6 +28545,36 @@ function _meRefrescarSiVisible(){
       renderParadas(_mapaParadas);
     }
   }catch(e){}
+}
+
+// Reenlaza las tarjetas abiertas de Reparto con los objetos recién leídos de
+// Supabase. Mantiene el orden elegido, quita paradas borradas y agrega al final
+// las que otro dispositivo haya incorporado a la misma ruta.
+function _meAplicarDatosRutasActualizados(){
+  try{
+    if(!_rutaMapaKey||!rutasData[_rutaMapaKey]||!Array.isArray(_mapaParadas)||!_mapaParadas.length) return;
+    var clientes=(rutasData[_rutaMapaKey]&&rutasData[_rutaMapaKey].clientes)||{};
+    var usados={}, nuevas=[];
+    _mapaParadas.forEach(function(p){
+      if(!p||!clientes[p.cliKey]) return;
+      p.cli=clientes[p.cliKey];
+      usados[p.cliKey]=true;
+      nuevas.push(p);
+    });
+    Object.keys(clientes).forEach(function(ck){
+      if(usados[ck]) return;
+      var cli=clientes[ck], info=(typeof _hrCliInfo==="function")?_hrCliInfo(cli):{dir:"",tel:""};
+      var db=(typeof _clientesDB!=="undefined"&&_clientesDB&&cli.id)?_clientesDB[cli.id]:null;
+      var lat=db&&db.lat?parseFloat(db.lat):null, lng=db&&db.lng?parseFloat(db.lng):null;
+      nuevas.push({cliKey:ck,cli:cli,dir:info.dir||"",tel:info.tel||"",lat:lat,lng:lng,hasCoords:!!(lat&&lng)});
+    });
+    _mapaParadas=nuevas;
+    renderParadas(_mapaParadas);
+    if(_mapaLeaflet){
+      var ini=_mePosicion||{lat:-42.7682,lng:-65.0351};
+      initMapa(ini.lat,ini.lng,_mapaParadas);
+    }
+  }catch(e){ console.warn("[Reparto] No se pudo refrescar la ruta visible:",e&&e.message); }
 }
 
 function _meAbrirRutaCompleta(){
