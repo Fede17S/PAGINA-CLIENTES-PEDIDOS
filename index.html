@@ -254,6 +254,73 @@ body {
   padding:11px 12px !important;
   align-items:flex-start;
 }
+.sys-alert-minimize {
+  flex:0 0 auto;
+  width:24px;
+  height:24px;
+  padding:0;
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  color:var(--pill-fg);
+  display:grid;
+  place-items:center;
+  font-family:inherit;
+  font-size:16px;
+  font-weight:800;
+  line-height:1;
+  cursor:pointer;
+  opacity:.88;
+  transition:background .16s ease, opacity .16s ease, transform .16s ease;
+}
+.sys-alert-minimize:hover,
+.sys-alert-minimize:focus-visible { background:rgba(255,255,255,.18); opacity:1; outline:none; }
+.sys-alert-minimize:active { transform:scale(.92); }
+.sys-alert-pill.is-minimized {
+  width:46px !important;
+  min-width:46px;
+  max-width:46px;
+  height:46px;
+  min-height:46px;
+  padding:0 !important;
+  border-radius:50%;
+  justify-content:center !important;
+  gap:0 !important;
+  overflow:visible;
+  box-shadow:0 7px 20px rgba(2,8,23,.28), 0 0 0 2px color-mix(in srgb, var(--pill-accent) 28%, transparent);
+}
+.sys-alert-pill.is-minimized::before { display:none; }
+.sys-alert-pill.is-minimized .sys-alert-content,
+.sys-alert-pill.is-minimized .sys-alert-chevron,
+.sys-alert-pill.is-minimized .sys-alert-minimize,
+.sys-alert-pill.is-minimized #offline-syncing { display:none !important; }
+.sys-alert-pill.is-minimized .sys-alert-icon {
+  width:28px;
+  height:28px;
+  font-size:18px;
+}
+.sys-alert-pill.is-minimized .sys-alert-badge {
+  position:absolute;
+  top:-5px;
+  right:-5px;
+  min-width:20px;
+  height:20px;
+  padding:0 5px !important;
+  border:2px solid var(--pill-bg);
+  background:var(--pill-accent) !important;
+  color:var(--pill-bg) !important;
+  font-size:0 !important;
+  line-height:16px;
+  text-align:center;
+  box-sizing:border-box;
+}
+.sys-alert-pill.is-minimized .sys-alert-badge::after {
+  content:attr(data-count);
+  color:var(--pill-bg);
+  font-size:10px;
+  font-weight:900;
+  line-height:16px;
+}
 .sys-alert-icon { flex:0 0 auto; width:22px; height:22px; display:grid; place-items:center; font-size:14px; }
 .sys-alert-content { flex:1; min-width:0; }
 .sys-alert-preview {
@@ -3993,7 +4060,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.24-reprogramacion-stock1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.24-devoluciones-stock1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4161,7 +4228,7 @@ a:focus-visible, button:focus-visible {
     </div>
   </div>
 </div>
-<div id="offline-banner" class="sys-alert-pill sys-alert-warning" role="button" tabindex="0" aria-expanded="false" onclick="_sysAlertToggle(this,event)" onkeydown="_sysAlertKey(event,this)" title="Tocá para ampliar el estado de sincronización" style="display:none">
+<div id="offline-banner" class="sys-alert-pill sys-alert-warning sys-alert-can-minimize" role="button" tabindex="0" aria-expanded="false" onclick="_sysAlertToggle(this,event)" onkeydown="_sysAlertKey(event,this)" title="Tocá para ampliar el estado de sincronización" style="display:none">
   <span class="sys-alert-icon" id="offline-icon">📵</span>
   <div class="sys-alert-content">
     <span id="offline-text" class="sys-alert-preview">Sin conexión — modo offline activo</span>
@@ -4170,6 +4237,7 @@ a:focus-visible, button:focus-visible {
   </div>
   <span id="offline-pending-badge" class="sys-alert-badge" style="display:none"></span>
   <span id="offline-syncing" style="display:none;font-size:11px;opacity:.8;font-weight:500">↻</span>
+  <button type="button" class="sys-alert-minimize" aria-label="Minimizar aviso" title="Dejar como globito" onclick="_sysAlertMinimize(this.closest('.sys-alert-pill'),event)">−</button>
   <span class="sys-alert-chevron">⌄</span>
 </div>
 
@@ -4226,13 +4294,47 @@ function _sysAlertMount(){
   ["sub-vence-banner","offline-banner","pendientes-banner"].forEach(function(id){
     var el=document.getElementById(id);
     if(el && el.parentNode!==dock) dock.appendChild(el);
+    if(el && el.classList.contains("sys-alert-can-minimize")){
+      var minimizado=false;
+      try{ minimizado=localStorage.getItem(_sysAlertMinKey(el))==="1"; }catch(e){}
+      _sysAlertSetMinimized(el,minimizado,false);
+    }
   });
   var oldChip=document.getElementById("pendientes-chip");
   if(oldChip) oldChip.style.display="none";
 }
+function _sysAlertMinKey(el){
+  return "distribix:aviso-minimizado:"+((el&&el.id)||"general");
+}
+function _sysAlertSetMinimized(el,minimizado,guardar){
+  if(!el) return;
+  if(!el.dataset.normalTitle) el.dataset.normalTitle=el.getAttribute("title")||"Tocá para ver el aviso";
+  el.classList.toggle("is-minimized",!!minimizado);
+  el.classList.remove("expanded");
+  el.setAttribute("aria-expanded","false");
+  el.setAttribute("aria-label",minimizado
+    ? "Aviso minimizado. Tocá para volver a verlo completo"
+    : "Aviso del sistema. Tocá para ampliar");
+  el.setAttribute("title",minimizado
+    ? "Tocá para volver a mostrar el aviso"
+    : el.dataset.normalTitle);
+  var boton=el.querySelector(".sys-alert-minimize");
+  if(boton) boton.setAttribute("aria-pressed",minimizado?"true":"false");
+  if(guardar!==false){
+    try{ localStorage.setItem(_sysAlertMinKey(el),minimizado?"1":"0"); }catch(e){}
+  }
+}
+function _sysAlertMinimize(el,ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  _sysAlertSetMinimized(el,true,true);
+}
 function _sysAlertToggle(el,ev){
   if(!el) return;
   if(ev && ev.target && ev.target.closest && ev.target.closest("button")) return;
+  if(el.classList.contains("is-minimized")){
+    _sysAlertSetMinimized(el,false,true);
+    return;
+  }
   var abrir=!el.classList.contains("expanded");
   document.querySelectorAll("#system-alert-dock .sys-alert-pill.expanded").forEach(function(x){
     if(x!==el){ x.classList.remove("expanded"); x.setAttribute("aria-expanded","false"); }
@@ -19481,6 +19583,7 @@ function _ncLog(d, accion, extra){
 function _devDescuentoCli(c){
   // Suma de notas de crédito que descuentan del importe. SOLO las APLICADAS restan.
   // (rotura NO descuenta; devolución y faltante sí, si están aplicadas)
+  if(c&&c.rechazoConfirmado===true) return 0;
   return ((c.devoluciones||[]).reduce(function(sd,d){
     if(_devEstado(d)!=='aplicada') return sd;
     var desc = (d.descuenta!==undefined) ? d.descuenta : (d.motivo==="devolucion"||d.motivo==="faltante");
@@ -20852,8 +20955,8 @@ function _hrBadges(rk, ck, cli, n, st){
   }
   var ds=cli.devoluciones||[];
   if(ds.length){
-    var pend=ds.filter(function(d){return _devEstado(d)==='notificada';}).length;
-    var apl =ds.filter(function(d){return _devEstado(d)==='aplicada';}).length;
+    var pend=ds.filter(function(d){return _devEstadoEnPedido(cli,d)==='notificada';}).length;
+    var apl =ds.filter(function(d){return _devEstadoEnPedido(cli,d)==='aplicada';}).length;
     var col = pend>0 ? 'background:#fef3c7;color:#b45309' : 'background:#dcfce7;color:#166534';
     b+=' <span class="rc-item-dsc-badge" style="'+col+';cursor:pointer" onclick="event.stopPropagation();_devAdminVer(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">↩️ '+(pend>0?(pend+" a revisar"):apl)+'</span>';
   }
@@ -23485,7 +23588,7 @@ function _ncBackupAviso(){
     var r=rutasData[rk], cls=(r&&r.clientes)||{};
     Object.keys(cls).forEach(function(ck){
       var c=cls[ck];
-      var n=(c.devoluciones||[]).filter(function(d){return _devEstado(d)==='notificada';}).length;
+      var n=(c.devoluciones||[]).filter(function(d){return _devEstadoEnPedido(c,d)==='notificada';}).length;
       if(n>0) pend.push({nom:c.nom||ck, n:n, rk:rk, ck:ck});
     });
   });
@@ -27070,6 +27173,23 @@ function _aplicarPendientesRutas(base,local){
     var p=_fbPathParse(op.path||"");
     var esPathRuta=p[0]==="empresas"&&p[2]==="rutas";
 
+    // Las devoluciones se sincronizan como operaciones por NOTA (no como una
+    // fotografía completa del array). Mientras esperan conexión se superponen
+    // sobre la lectura del servidor para que un refresco no las haga reaparecer.
+    if(metodo==="DEV_NOTE"){
+      var nd=op.data||{};
+      var hn=_buscarClienteRutaPendiente(out,nd.cliId||nd.ck,nd.pedidoId||null);
+      if(!hn&&nd.rutaId&&out[nd.rutaId]&&out[nd.rutaId].clientes&&out[nd.rutaId].clientes[nd.cliId]){
+        hn={rk:nd.rutaId,ck:nd.cliId,cli:out[nd.rutaId].clientes[nd.cliId]};
+      }
+      if(hn&&typeof _devAplicarOperacionLista==="function"){
+        var cn=Object.assign({},hn.cli);
+        cn.devoluciones=_devAplicarOperacionLista(cn.devoluciones||[],nd);
+        out[hn.rk].clientes[hn.ck]=cn;
+      }
+      return;
+    }
+
     if(esPathRuta&&(metodo==="PATCH"||metodo==="DELETE"||metodo==="POST")){
       var rk=p[3]||"";
 
@@ -27401,6 +27521,19 @@ async function _moverRutaClienteServidor(md,op){
 }
 
 async function _replayOfflineOp(op){
+  // Versiones anteriores podían dejar un DELETE apuntando a un id temporal
+  // (local_… / op_…). Ese valor nunca puede existir en una PK uuid de Supabase:
+  // reintentarlo eternamente daba HTTP 400 y frenaba TODA la cola posterior.
+  if(op&&op.method==="DELETE"){
+    var pd=_fbPathParse(op.path||"");
+    var rutaLocal=pd[0]==="empresas"&&pd[2]==="rutas"&&pd.length===4&&_esIdRutaLocal(pd[3]);
+    var clienteLocal=pd[0]==="empresas"&&pd[2]==="rutas"&&pd[4]==="clientes"&&_esIdRutaLocal(pd[5]);
+    if(rutaLocal||clienteLocal){
+      console.warn("[Offline] Se descartó un borrado temporal obsoleto:",op.path);
+      return {omitido:true,motivo:"id_temporal_invalido"};
+    }
+  }
+  if(op.method==="DEV_NOTE") return _devReplayNota(op.data||{});
   if(op.method==="RPC") return sbFetch("POST",op.path,op.data);
   if(op.method==="SB_POST") return sbPost(op.path,op.data);
   if(op.method==="SB_PATCH") return sbPatch(op.path,op.data.match,op.data.body);
@@ -27520,6 +27653,7 @@ function _updateBanner(){
     if(badge){
       badge.style.display=pendientes>0?"inline-block":"none";
       badge.textContent=pendientes+" pendiente"+(pendientes>1?"s":"");
+      badge.dataset.count=pendientes>99?"99+":String(pendientes);
     }
   } else {
     banner.style.display = "flex";
@@ -27529,6 +27663,7 @@ function _updateBanner(){
     if(badge){
       badge.style.display = n > 0 ? "inline-block" : "none";
       badge.textContent   = n+" pendiente"+(n>1?"s":"");
+      badge.dataset.count = n>99?"99+":String(n);
     }
     if(txt) txt.textContent = "Sin conexión — modo offline activo";
     if(detail) detail.textContent = n>0
@@ -36654,7 +36789,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v22';
+  var CACHE_NAME = 'distribix-v23';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
@@ -38131,10 +38266,28 @@ async function _confirmarRechazo(rutaId, cliKey, opts){
     showNotif("El stock volvió, pero no se pudo mover el pedido a Rechazados: "+(e.message||""),"err");
     return false;
   }
+  // El rechazo completo ya resolvió el stock de TODO el pedido. Las notas de
+  // devolución que todavía estaban "notificadas" no pueden quedar pendientes,
+  // porque otro dispositivo podría aplicarlas después y sumar el mismo producto
+  // por segunda vez. Las cerramos dentro de la misma escritura de la parada.
+  var notasCerradas=false;
+  (cli.devoluciones||[]).forEach(function(d){
+    if(!d) return;
+    if(_devEstado(d)!=="rechazada" || d.stkDev){
+      d.estado="rechazada";
+      d.actualizadoEn=ahora;
+      d.stkDev=false;
+      d.stockAbsorbidoPorRechazo=true;
+      if(typeof _ncLog==="function") _ncLog(d,"rechazada","Pedido rechazado completo: el stock ya quedó resuelto con el pedido.");
+      notasCerradas=true;
+    }
+  });
   cli.rechazoConfirmado=true; cli.rechazoConfirmadoEn=ahora;
   try{
+    var rechazoBody={rechazoConfirmado:true,rechazoConfirmadoEn:ahora,pedidoId:cli.pedidoId};
+    if(notasCerradas) rechazoBody.devoluciones=cli.devoluciones;
     await fbPatchQ("empresas/"+empresaKey+"/rutas/"+rutaId+"/clientes/"+cliKey,
-      {rechazoConfirmado:true, rechazoConfirmadoEn:ahora, pedidoId:cli.pedidoId}, "Rechazo confirmado: "+(cli.nom||""));
+      rechazoBody, "Rechazo confirmado: "+(cli.nom||""));
   }catch(e){
     cli.rechazoConfirmado=false; cli.rechazoConfirmadoEn=null;
     showNotif("El stock volvió, pero no se pudo guardar la confirmación. Revisá la conexión.","err");
@@ -38295,21 +38448,120 @@ function _meNavSelectorHTML(){
 <script>
 /* ===== Devoluciones / roturas ===== */
 var _devTarget=null; // { cli, readonly, persist }
+var _devBusy={};
 function _devEsc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
 function _devMotivoLabel(m){ return {devolucion:"↩️ Devolución",rotura:"💥 Rotura",faltante:"❓ Faltante"}[m]||m; }
 function _devItemNom(it){ return it.n||it.nombre||it.nom||it.name||""; }
 function _devItemCant(it){ return it.c||it.cant||it.cantidad||it.qty||0; }
 
+function _devClone(v){
+  try{return JSON.parse(JSON.stringify(v));}catch(e){return v;}
+}
+function _devClaveNota(d){
+  if(d&&d.id) return "id:"+String(d.id);
+  d=d||{};
+  return "legacy:"+[d.ts||"",d.codigo||"",d.producto||"",d.cantidad||1,d.motivo||""].join("|");
+}
+function _devEventoMs(d){
+  d=d||{};
+  var mayor=Date.parse(d.actualizadoEn||d.updatedAt||d.ts||"")||0;
+  (d.historial||[]).forEach(function(h){ mayor=Math.max(mayor,Date.parse((h&&h.ts)||"")||0); });
+  return mayor;
+}
+function _devFusionarHistorial(a,b){
+  var vistos={}, out=[];
+  (a||[]).concat(b||[]).forEach(function(h){
+    if(!h) return;
+    var k=[h.accion||"",h.ts||"",h.por||"",h.nota||""].join("|");
+    if(vistos[k]) return;
+    vistos[k]=true; out.push(_devClone(h));
+  });
+  out.sort(function(x,y){return (Date.parse(x.ts||"")||0)-(Date.parse(y.ts||"")||0);});
+  return out;
+}
+function _devFusionarNota(remota,local){
+  if(!remota) return _devClone(local);
+  if(!local) return _devClone(remota);
+  var localGana=_devEventoMs(local)>=_devEventoMs(remota);
+  var ganadora=localGana?local:remota, anterior=localGana?remota:local;
+  var out=Object.assign({},_devClone(anterior),_devClone(ganadora));
+  out.historial=_devFusionarHistorial(remota.historial,local.historial);
+  var ultimo=out.historial.length?out.historial[out.historial.length-1]:null;
+  if(ultimo&&/^(notificada|aplicada|rechazada)$/.test(String(ultimo.accion||""))) out.estado=ultimo.accion;
+  return out;
+}
+function _devAplicarOperacionLista(lista,datos){
+  var arr=Array.isArray(lista)?lista.map(_devClone):[];
+  datos=datos||{};
+  var clave=String(datos.noteKey||_devClaveNota(datos.note));
+  var ix=arr.findIndex(function(x){return _devClaveNota(x)===clave;});
+  if(datos.action==="remove"){
+    if(ix>=0) arr.splice(ix,1);
+    return arr;
+  }
+  if(!datos.note) return arr;
+  if(ix>=0) arr[ix]=_devFusionarNota(arr[ix],datos.note);
+  else arr.push(_devClone(datos.note));
+  return arr;
+}
+function _devEstadoEnPedido(cli,d){
+  // El rechazo completo ya resolvió todo el stock; ninguna nota suelta puede
+  // volver a quedar pendiente ni modificar ese inventario por segunda vez.
+  if(cli&&cli.rechazoConfirmado===true) return "rechazada";
+  return _devEstado(d);
+}
+function _devBusyKey(target,d){ return String((target&&target.ck)||"")+"|"+_devClaveNota(d); }
+
+// Sincronización por nota: lee el JSON vigente, modifica únicamente la nota
+// elegida y vuelve a guardar. Así dos dispositivos no pisan el array completo.
+async function _devReplayNota(datos){
+  datos=datos||{};
+  if(!_sbEmpId||!datos.cliId) throw new Error("Falta identificar la parada para sincronizar la devolución");
+  var match="id=eq."+encodeURIComponent(String(datos.cliId))+"&empresa_id=eq."+_sbEmpId;
+  var rows=await _sbGetRaw("ruta_clientes","select=id,devoluciones,rechazado,rechazo_confirmado,motivo_rechazo&"+match+"&limit=1");
+  if(!rows||!rows[0]) throw new Error("Supabase no encontró la parada de la devolución");
+  var fila=rows[0], op=Object.assign({},datos), nota=op.note?_devClone(op.note):null;
+  if(fila.rechazo_confirmado===true && op.action!=="remove" && nota){
+    var cierreTs=new Date().toISOString();
+    nota.estado="rechazada";
+    nota.actualizadoEn=cierreTs;
+    nota.stkDev=false;
+    nota.stockAbsorbidoPorRechazo=true;
+    nota.historial=Array.isArray(nota.historial)?nota.historial:[];
+    if(!nota.historial.some(function(h){return h&&h.accion==="rechazada"&&h.nota==="Pedido completo rechazado";})){
+      nota.historial.push({accion:"rechazada",por:"sistema",rol:"sistema",ts:cierreTs,nota:"Pedido completo rechazado"});
+    }
+    op.note=nota;
+  }
+  var nuevas=_devAplicarOperacionLista(fila.devoluciones||[],op);
+  var guardadas=await sbPatch("ruta_clientes",match,{devoluciones:nuevas});
+  if(!guardadas||!guardadas[0]) throw new Error("Supabase no confirmó la devolución");
+  return guardadas[0];
+}
+
 function _devAbrir(i){
   var p=_mapaParadas[i]; if(!p) return;
   if(!p.cli.devoluciones) p.cli.devoluciones=[];
-  _devTarget={ cli:p.cli, readonly:false, persist:function(){ _devPersistir(_rutaMapaKey, p.cliKey, p.cli); if(typeof renderParadas==="function") renderParadas(_mapaParadas); } };
+  _devTarget={ rk:_rutaMapaKey,ck:p.cliKey,cli:p.cli, readonly:false,
+    persist:function(action,note,noteKey){
+      return _devPersistir(_rutaMapaKey,p.cliKey,p.cli,{action:action,note:note,noteKey:noteKey}).then(function(){
+        if(typeof renderParadas==="function") renderParadas(_mapaParadas);
+      });
+    }
+  };
   _devMostrar(p.cli.nom||"");
 }
 function _devAdminVer(rk,ck){
   var cli=(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck])||null; if(!cli) return;
   if(!cli.devoluciones) cli.devoluciones=[];
-  _devTarget={ cli:cli, readonly:true, persist:function(){ _devPersistir(rk, ck, cli); if(typeof renderRutas==="function") renderRutas(); if(typeof _ncDashRender==="function") _ncDashRender(); } };
+  _devTarget={ rk:rk,ck:ck,cli:cli, readonly:true,
+    persist:function(action,note,noteKey){
+      return _devPersistir(rk,ck,cli,{action:action,note:note,noteKey:noteKey}).then(function(){
+        if(typeof renderRutas==="function") renderRutas();
+        if(typeof _ncDashRender==="function") _ncDashRender();
+      });
+    }
+  };
   _devMostrar((cli.nom||"")+" · notas de crédito");
 }
 function _devHojaAbrir(rk,ck,e){
@@ -38317,13 +38569,16 @@ function _devHojaAbrir(rk,ck,e){
   var cli=(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck])||null; if(!cli) return;
   if(!cli.devoluciones) cli.devoluciones=[];
   _devTarget={
+    rk:rk,
+    ck:ck,
     cli:cli,
     readonly:false,
     forceApply:true,
-    persist:function(){
-      _devPersistir(rk,ck,cli);
-      if(typeof renderRutas==="function") renderRutas();
-      if(typeof _ncDashRender==="function") _ncDashRender();
+    persist:function(action,note,noteKey){
+      return _devPersistir(rk,ck,cli,{action:action,note:note,noteKey:noteKey}).then(function(){
+        if(typeof renderRutas==="function") renderRutas();
+        if(typeof _ncDashRender==="function") _ncDashRender();
+      });
     }
   };
   _devMostrar((cli.nom||"")+" · rechazar productos");
@@ -38331,7 +38586,7 @@ function _devHojaAbrir(rk,ck,e){
 function _devMostrar(sub){
   var m=document.getElementById("dev-modal"); if(!m||!_devTarget) return;
   var subEl=document.getElementById("dev-cli"); if(subEl) subEl.textContent=sub;
-  var form=document.getElementById("dev-form"); if(form) form.style.display=_devTarget.readonly?"none":"block";
+  var form=document.getElementById("dev-form"); if(form) form.style.display=(_devTarget.readonly||_devTarget.cli.rechazoConfirmado===true)?"none":"block";
   // Desplegable con los productos EXACTOS de este pedido
   var sel=document.getElementById("dev-prod");
   if(sel){
@@ -38365,7 +38620,8 @@ function _devRenderList(){
   var arr=_devTarget.cli.devoluciones||[]; var ro=_devTarget.readonly;
   if(!arr.length){ el.innerHTML='<div class="dev-empty">Sin notas de crédito ni devoluciones.</div>'; return; }
   el.innerHTML=arr.map(function(d,idx){
-    var est=_devEstado(d);
+    var est=_devEstadoEnPedido(_devTarget.cli,d);
+    var busy=!!_devBusy[_devBusyKey(_devTarget,d)];
     var fecha=d.ts?new Date(d.ts).toLocaleDateString("es-AR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
     var col = est==='aplicada'?'#16a34a':(est==='rechazada'?'#dc2626':'#d97706');
     var montoTxt = (d.monto>0)?(' · <b>-$'+fM(d.monto)+'</b>'):'';
@@ -38377,12 +38633,14 @@ function _devRenderList(){
     }).join("");
     // Acciones según rol y estado
     var acc='';
-    if(est==='notificada' && _ncPuedeAplicar()) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px" onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
-    if(est==='notificada' && _ncPuedeRechazar()) acc+='<button class="dev-del" style="background:#dc2626;color:#fff;width:auto;padding:0 8px" onclick="_ncRechazar('+idx+')">✕ Rechazar</button>';
-    if(est==='rechazada' && _ncPuedeAplicar()) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px" onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
-    var puedeBorrar = (!ro) || _ncTieneRol('admin');
+    var dis=busy?' disabled':'';
+    if(est==='notificada' && _ncPuedeAplicar()) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px"'+dis+' onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
+    if(est==='notificada' && _ncPuedeRechazar()) acc+='<button class="dev-del" style="background:#dc2626;color:#fff;width:auto;padding:0 8px"'+dis+' onclick="_ncRechazar('+idx+')">✕ Rechazar</button>';
+    if(est==='rechazada' && _ncPuedeAplicar() && _devTarget.cli.rechazoConfirmado!==true) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px"'+dis+' onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
+    var puedeBorrar = !ro && _devTarget.cli.rechazoConfirmado!==true;
     return '<div class="dev-item" style="flex-wrap:wrap"><div style="flex:1;min-width:150px"><b>'+_devEsc(d.producto)+'</b> ×'+(d.cantidad||1)+montoTxt+
       '<div class="dev-item-sub">'+_devMotivoLabel(d.motivo)+' · <span style="color:'+col+';font-weight:700">'+_devEstadoLabel(est)+'</span>'+(d.nota?' · '+_devEsc(d.nota):'')+(fecha?' · '+fecha:'')+'</div>'+
+      (_devTarget.cli.rechazoConfirmado===true?'<div style="font-size:10px;color:#166534;margin-top:3px">✓ Pedido completo rechazado: stock ya resuelto.</div>':'')+
       (hist?'<div style="margin-top:3px">'+hist+'</div>':'')+
       '</div>'+
       '<div style="display:flex;gap:5px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end">'+acc+
@@ -38395,55 +38653,108 @@ function _devRenderList(){
 // que descuentan plata (devolución y faltante) devuelven mercadería: la rotura
 // no vuelve al stock porque el producto se perdió.
 // El flag d.stkDev evita devolver dos veces la misma nota.
-function _ncRefNC(d){ return "nc-"+String(d.ts||"").replace(/[^0-9]/g,"")+"-"+String(d.codigo||"x"); }
-async function _ncStockDevolver(d){
-  if(!d || d.stkDev) return;
-  if(!d.codigo) return;                 // producto escrito a mano: no hay código
-  if(!(d.motivo==="devolucion"||d.motivo==="faltante")) return;
-  try{
-    var r = await _stkDevolverAuto(_ncRefNC(d)+"-"+Date.now(), [{id:d.codigo, c:+(d.cantidad||1)}], "Nota de crédito — vuelve al stock");
-    if(r !== null){
-      d.stkDev = true;
-      try{ if(_devTarget) _devTarget.persist(); }catch(e){}
-      if(typeof showNotif==="function") showNotif("📦 "+(d.cantidad||1)+" u. volvieron al stock","ok");
-    }
-  }catch(e){ console.warn("[Stock] NC devolver:", e.message); }
+function _ncRefNC(d){
+  var base=(d&&d.id)?String(d.id):String((d&&d.ts)||"").replace(/[^0-9]/g,"")+"-"+String((d&&d.codigo)||"x");
+  return "nc-"+base.replace(/[^a-z0-9_-]/gi,"_");
 }
-// Deshacer la devolución (se borró o se rechazó una NC que ya había devuelto)
-async function _ncStockRevertir(d){
-  if(!d || !d.stkDev || !d.codigo) return;
-  try{
-    await _stkSalidaDirecta(_ncRefNC(d)+"-undo-"+Date.now(), [{id:d.codigo, c:+(d.cantidad||1)}]);
-    d.stkDev = false;
-    try{ if(_devTarget) _devTarget.persist(); }catch(e){}
-  }catch(e){ console.warn("[Stock] NC revertir:", e.message); }
+function _ncCantidadAccion(d,accion){
+  return Math.max(1,(d&&d.historial||[]).filter(function(h){return h&&h.accion===accion;}).length);
+}
+async function _ncStockDevolver(d,target){
+  if(!d || d.stkDev) return {sinCambio:true};
+  if(!d.codigo) return {omitido:true,sinCodigo:true}; // escrito a mano: no hay código
+  if(!(d.motivo==="devolucion"||d.motivo==="faltante")) return {omitido:true,motivo:d.motivo};
+  if(target&&target.cli&&target.cli.rechazoConfirmado===true) throw new Error("El pedido completo ya fue rechazado y su stock ya quedó resuelto");
+  var ref=_ncRefNC(d)+"-aplicar-"+_ncCantidadAccion(d,"aplicada");
+  var r=await _stkDevolverAuto(ref,[{id:d.codigo,c:+(d.cantidad||1)}],"Nota de crédito — vuelve al stock");
+  if(r&&r.omitido){ d.stkDev=false; d.stkOmitido=true; return r; }
+  if(r===null) return {omitido:true,sinMovimiento:true};
+  d.stkDev=true;
+  d.stkOmitido=false;
+  d.stkDevRef=ref;
+  if(typeof showNotif==="function") showNotif("📦 "+(d.cantidad||1)+" u. volvieron al stock","ok");
+  return r;
+}
+// Deshacer la devolución (se borró o se rechazó una NC que ya había devuelto).
+// La referencia usa el número de transición: un reintento repite la MISMA op,
+// pero rechazar y volver a aplicar más adelante genera una operación nueva.
+async function _ncStockRevertir(d,target,accion){
+  if(!d || !d.stkDev || !d.codigo) return {sinCambio:true};
+  if(d.stockAbsorbidoPorRechazo || (target&&target.cli&&target.cli.rechazoConfirmado===true)){
+    d.stkDev=false;
+    d.stockAbsorbidoPorRechazo=true;
+    return {sinCambio:true,pedidoRechazado:true};
+  }
+  accion=accion||"rechazada";
+  var ref=_ncRefNC(d)+"-revertir-"+accion+"-"+_ncCantidadAccion(d,accion);
+  var r=await _stkSalidaDirecta(ref,[{id:d.codigo,c:+(d.cantidad||1)}],"Nota de crédito rechazada — revierte devolución");
+  if(r&&r.omitido) throw new Error("No se revirtió el stock porque el control de stock está desactivado");
+  if(r===null) throw new Error("Supabase no confirmó la reversión del stock");
+  d.stkDev=false;
+  d.stkRevertRef=ref;
+  return r;
 }
 // Aplicar una nota de crédito (vendedor o admin)
-function _ncAplicar(idx){
-  if(!_devTarget) return;
-  var d=(_devTarget.cli.devoluciones||[])[idx]; if(!d) return;
+async function _ncAplicar(idx){
+  var target=_devTarget; if(!target) return;
+  var d=(target.cli.devoluciones||[])[idx]; if(!d) return;
   if(!_ncPuedeAplicar()){ if(typeof showNotif==="function") showNotif("No tenés permiso para aplicar","err"); return; }
-  d.estado='aplicada';
-  _ncLog(d,'aplicada');
-  _devTarget.persist(); _devRenderList();
-  // La mercadería vuelve al inventario
-  try{ _ncStockDevolver(d).then(function(){ _devRenderList(); }); }catch(e){}
-  if(typeof showNotif==="function") showNotif("🟢 Nota de crédito aplicada","ok");
+  if(target.cli.rechazoConfirmado===true){
+    if(typeof showNotif==="function") showNotif("El pedido completo ya fue rechazado: esta nota no puede volver a tocar el stock","warn");
+    return;
+  }
+  var busyKey=_devBusyKey(target,d); if(_devBusy[busyKey]) return;
+  _devBusy[busyKey]=true;
+  var anterior=_devClone(d), clave=_devClaveNota(d);
+  d.estado="aplicada";
+  d.actualizadoEn=new Date().toISOString();
+  d.stockAbsorbidoPorRechazo=false;
+  _ncLog(d,"aplicada");
+  _devRenderList();
+  try{
+    await _ncStockDevolver(d,target);
+    await target.persist("upsert",d,clave);
+    if(typeof showNotif==="function") showNotif(navigator.onLine?"🟢 Nota aplicada y guardada":"📱 Nota aplicada — se enviará al reconectar","ok");
+  }catch(e){
+    target.cli.devoluciones[idx]=anterior;
+    console.warn("[NC] aplicar:",e&&e.message);
+    if(typeof showNotif==="function") showNotif("No se aplicó la nota: "+((e&&e.message)||"error de guardado"),"err");
+  }finally{
+    delete _devBusy[busyKey];
+    _devRenderList();
+  }
 }
 // Rechazar una nota de crédito (solo admin)
-function _ncRechazar(idx){
-  if(!_devTarget) return;
-  var d=(_devTarget.cli.devoluciones||[])[idx]; if(!d) return;
+async function _ncRechazar(idx){
+  var target=_devTarget; if(!target) return;
+  var d=(target.cli.devoluciones||[])[idx]; if(!d) return;
   if(!_ncPuedeRechazar()){ if(typeof showNotif==="function") showNotif("Solo el admin puede rechazar","err"); return; }
-  _confirmar({icono:"🔴",titulo:"Rechazar nota de crédito",mensaje:"Queda registrada pero NO descuenta del importe. ¿Rechazar?",ok:"Rechazar",peligro:true}).then(function(ok){
-    if(!ok) return;
-    d.estado='rechazada';
-    _ncLog(d,'rechazada');
-    // Si esta nota ya había devuelto mercadería, la volvemos a sacar
-    try{ _ncStockRevertir(d); }catch(e){}
-    _devTarget.persist(); _devRenderList();
-    if(typeof showNotif==="function") showNotif("🔴 Nota de crédito rechazada","ok");
-  });
+  var ok=await _confirmar({icono:"🔴",titulo:"Rechazar nota de crédito",mensaje:"Queda registrada pero NO descuenta del importe. ¿Rechazar?",ok:"Rechazar",peligro:true});
+  if(!ok) return;
+  var busyKey=_devBusyKey(target,d); if(_devBusy[busyKey]) return;
+  _devBusy[busyKey]=true;
+  var anterior=_devClone(d), clave=_devClaveNota(d);
+  d.estado="rechazada";
+  d.actualizadoEn=new Date().toISOString();
+  _ncLog(d,"rechazada");
+  _devRenderList();
+  try{
+    if(target.cli.rechazoConfirmado===true){
+      d.stkDev=false;
+      d.stockAbsorbidoPorRechazo=true;
+    }else{
+      await _ncStockRevertir(d,target,"rechazada");
+    }
+    await target.persist("upsert",d,clave);
+    if(typeof showNotif==="function") showNotif(navigator.onLine?"🔴 Nota rechazada y guardada":"📱 Rechazo guardado — se enviará al reconectar","ok");
+  }catch(e){
+    target.cli.devoluciones[idx]=anterior;
+    console.warn("[NC] rechazar:",e&&e.message);
+    if(typeof showNotif==="function") showNotif("No se rechazó la nota: "+((e&&e.message)||"error de guardado"),"err");
+  }finally{
+    delete _devBusy[busyKey];
+    _devRenderList();
+  }
 }
 // Resumen de notas de crédito en el inicio (solo admin): pendientes, aplicadas ($) y rechazadas
 function _ncDashRender(){
@@ -38456,7 +38767,7 @@ function _ncDashRender(){
     Object.keys(cls).forEach(function(ck){
       var c=cls[ck];
       (c.devoluciones||[]).forEach(function(d){
-        var est=_devEstado(d);
+        var est=_devEstadoEnPedido(c,d);
         if(est==='notificada') pend.push({nom:c.nom||ck, d:d, rk:rk, ck:ck});
         else if(est==='aplicada') aplicadasTot += (d.monto||0);
         else if(est==='rechazada') rechTot++;
@@ -38481,8 +38792,13 @@ function _ncDashRender(){
   }
   cont.innerHTML=html;
 }
-function _devAgregar(){
-  if(!_devTarget||_devTarget.readonly) return;
+async function _devAgregar(){
+  var target=_devTarget;
+  if(!target||target.readonly) return;
+  if(target.cli.rechazoConfirmado===true){
+    if(typeof showNotif==="function") showNotif("El pedido completo ya fue rechazado; no se pueden agregar devoluciones sueltas","warn");
+    return;
+  }
   var sel=document.getElementById("dev-prod");
   var prod=sel?sel.value:"";
   if(prod==="__otro__"){ prod=(document.getElementById("dev-prod-otro").value||"").trim(); }
@@ -38490,10 +38806,10 @@ function _devAgregar(){
   var cant=parseInt(document.getElementById("dev-cant").value,10)||1;
   var motivo=document.getElementById("dev-motivo").value||"devolucion";
   var nota=(document.getElementById("dev-nota").value||"").trim();
-  if(!_devTarget.cli.devoluciones) _devTarget.cli.devoluciones=[];
+  if(!target.cli.devoluciones) target.cli.devoluciones=[];
   // Buscar el precio unitario del producto en los items de ESTE pedido
   var _pu=0, _cod="", _maxPedido=0;
-  var _items=(_devTarget.cli.items||[]);
+  var _items=(target.cli.items||[]);
   for(var _z=0;_z<_items.length;_z++){
     if(_devItemNom(_items[_z])===prod){
       _pu=_items[_z].p||0;
@@ -38502,7 +38818,7 @@ function _devAgregar(){
     }
   }
   if(_maxPedido>0){
-    var _yaDevuelto=(_devTarget.cli.devoluciones||[]).reduce(function(s,d){
+    var _yaDevuelto=(target.cli.devoluciones||[]).reduce(function(s,d){
       if(!d||_devEstado(d)==="rechazada") return s;
       var mismo=_cod ? String(d.codigo||"")===String(_cod) : d.producto===prod;
       return s+(mismo?+(d.cantidad||1):0);
@@ -38517,34 +38833,74 @@ function _devAgregar(){
   var _descuenta=(motivo==="devolucion"||motivo==="faltante");
   var _monto=_descuenta ? Math.round(_pu*cant*100)/100 : 0;
   // Estado inicial: el repartidor NOTIFICA (queda pendiente); vendedor/admin la crean ya APLICADA.
-  var _estIni = (_devTarget.forceApply || _ncPuedeAplicar()) ? 'aplicada' : 'notificada';
-  var _d = {producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,codigo:_cod,ts:new Date().toISOString(), estado:_estIni, historial:[]};
+  var _estIni = (target.forceApply || _ncPuedeAplicar()) ? 'aplicada' : 'notificada';
+  var _ahora=new Date().toISOString();
+  var _d = {id:"nc_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,codigo:_cod,ts:_ahora,actualizadoEn:_ahora,estado:_estIni,historial:[]};
   _ncLog(_d,'notificada');
   if(_estIni==='aplicada') _ncLog(_d,'aplicada');
-  _devTarget.cli.devoluciones.push(_d);
-  _devTarget.persist();
-  // Si nace ya aplicada (la carga el vendedor o el admin), la mercadería vuelve ahora
-  if(_estIni==='aplicada'){ try{ _ncStockDevolver(_d).then(function(){ _devRenderList(); }); }catch(e){} }
+  target.cli.devoluciones.push(_d);
+  var _busyKey=_devBusyKey(target,_d);
+  _devBusy[_busyKey]=true;
+  _devRenderList();
+  try{
+    // Si nace aplicada, primero se confirma el movimiento idempotente de stock;
+    // después se encola su estado para Supabase, conservando ese orden offline.
+    if(_estIni==='aplicada') await _ncStockDevolver(_d,target);
+    await target.persist("upsert",_d,_devClaveNota(_d));
+  }catch(e){
+    var _ixNueva=target.cli.devoluciones.indexOf(_d);
+    if(_ixNueva>=0) target.cli.devoluciones.splice(_ixNueva,1);
+    console.warn("[NC] agregar:",e&&e.message);
+    if(typeof showNotif==="function") showNotif("No se registró la devolución: "+((e&&e.message)||"error de guardado"),"err");
+    delete _devBusy[_busyKey];
+    _devRenderList();
+    return;
+  }
+  delete _devBusy[_busyKey];
   if(_estIni==='aplicada' && !_cod && (motivo==="devolucion"||motivo==="faltante")){
     if(typeof showNotif==="function") setTimeout(function(){ showNotif("⚠️ Producto escrito a mano: ajustá el stock a mano desde Stock","warn"); }, 900);
   }
   if(sel) sel.value=""; var otro=document.getElementById("dev-prod-otro"); if(otro){ otro.value=""; otro.style.display="none"; }
   document.getElementById("dev-cant").value="1"; document.getElementById("dev-nota").value="";
   _devRenderList();
-  if(typeof showNotif==="function") showNotif("↩️ Registrado","ok");
+  if(typeof showNotif==="function") showNotif(navigator.onLine?"↩️ Registrado y guardado":"📱 Registrado — se enviará al reconectar","ok");
 }
-function _devQuitar(idx){
-  if(!_devTarget||_devTarget.readonly) return;
-  var _dq=(_devTarget.cli.devoluciones||[])[idx];
-  // Si esta nota ya había devuelto mercadería al stock, la sacamos de nuevo
-  if(_dq && _dq.stkDev){ try{ _ncStockRevertir(Object.assign({},_dq)); }catch(e){} }
-  _devTarget.cli.devoluciones.splice(idx,1);
-  _devTarget.persist();
-  _devRenderList();
+async function _devQuitar(idx){
+  var target=_devTarget;
+  if(!target||target.readonly||target.cli.rechazoConfirmado===true) return;
+  var _dq=(target.cli.devoluciones||[])[idx]; if(!_dq) return;
+  var clave=_devClaveNota(_dq), busyKey=_devBusyKey(target,_dq);
+  if(_devBusy[busyKey]) return;
+  _devBusy[busyKey]=true;
+  try{
+    // Si la nota ya había devuelto mercadería, primero se compensa el stock.
+    if(_dq.stkDev){
+      _ncLog(_dq,"eliminada");
+      await _ncStockRevertir(_dq,target,"eliminada");
+    }
+    target.cli.devoluciones.splice(idx,1);
+    await target.persist("remove",null,clave);
+    if(typeof showNotif==="function") showNotif(navigator.onLine?"Nota eliminada y guardada":"Nota eliminada — se enviará al reconectar","ok");
+  }catch(e){
+    console.warn("[NC] quitar:",e&&e.message);
+    if(typeof showNotif==="function") showNotif("No se pudo quitar la nota: "+((e&&e.message)||"error de guardado"),"err");
+  }finally{
+    delete _devBusy[busyKey];
+    _devRenderList();
+  }
 }
-function _devPersistir(rk,ck,cli){
+function _devPersistir(rk,ck,cli,meta){
   if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]) rutasData[rk].clientes[ck].devoluciones=cli.devoluciones;
-  fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,{devoluciones:cli.devoluciones},"Devoluciones: "+(cli.nom||ck));
+  _guardarRutasOffline();
+  meta=meta||{};
+  var path="empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck;
+  var datos={rutaId:rk,cliId:ck,pedidoId:cli.pedidoId||null,action:meta.action||"upsert",noteKey:meta.noteKey||(meta.note?_devClaveNota(meta.note):""),note:meta.note?_devClone(meta.note):null,nom:cli.nom||ck};
+  return _enqueue("DEV_NOTE",path,datos,"Devoluciones: "+(cli.nom||ck)).then(function(id){
+    // La operación permanece en la cola hasta que Supabase confirma. Esa misma
+    // cola protege la pantalla contra refrescos con una respuesta anterior.
+    if(navigator.onLine) setTimeout(function(){ if(!_isSyncing) _syncQueue(); },0);
+    return id;
+  });
 }
 
 </script>
@@ -39657,7 +40013,7 @@ function _sysPresenciaInit(){ _sysRegistrarLogin(); _sysIniciarHeartbeat(); }
         Object.keys(ruta.clientes).forEach(function(ck){
           var c = ruta.clientes[ck]; if(!c) return;
           (c.devoluciones||[]).forEach(function(d){
-            var est = (typeof _devEstado === "function") ? _devEstado(d) : (d && d.estado);
+            var est = (typeof _devEstadoEnPedido === "function") ? _devEstadoEnPedido(c,d) : ((typeof _devEstado === "function") ? _devEstado(d) : (d && d.estado));
             if(est === "notificada") out.devols.push({ rk:rk, ck:ck, nom:c.nom||"Cliente", d:d });
           });
           if(c.rechazado && c.rechazoConfirmado !== true){
