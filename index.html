@@ -4060,7 +4060,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.24-devoluciones-stock1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.27-pedidos-proveedor1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -10251,12 +10251,16 @@ async function _sbInsertBackup(data){
 
   if(!Array.isArray(data.historial) || !data.historial.length){
     var unidadesHist=itemsLimpios.reduce(function(s,it){return s+(+it.c||0);},0);
-    data.historial=[_bkHistEvento("creado","Pedido creado",[
+    var _histCreado=_bkHistEvento("creado","Pedido creado",[
       "Cliente: "+(data.clienteNom||"Mostrador"),
       "Vendedor: "+(data.usuarioNom||data.usuario||"Sin vendedor"),
       itemsLimpios.length+" productos · "+unidadesHist+" unidades",
       "Total: $"+fM(data.total||0)
-    ])];
+    ]);
+    // `tipo` es el origen inmutable (pedido o remito directo). Guardarlo también
+    // en el historial evita confundirlos si una versión vieja modifica `tipo`.
+    _histCreado.origen_tipo=String(data.tipo||"pedido").toLowerCase();
+    data.historial=[_histCreado];
   }
 
   var body = {
@@ -25597,7 +25601,10 @@ async function confirmarBackupComoRemito(bkParam){
   // Ahora la asignación es MANUAL: con el botón "Asignar a Ruta" de cada pedido o el
   // selector general de Backup de Pedidos ("🔀 Reasignar a Ruta").
 
-  // 3) Marcar el backup como convertido — NO crear un nuevo registro
+  // 3) Marcar el pedido como aprobado — NO crear un nuevo registro.
+  // `tipo` conserva el origen "pedido"; el comprobante emitido vive en
+  // `tipo_comprobante`. Cambiarlo a "remito" hacía desaparecer la compra de
+  // Pedidos al Proveedor al momento de aprobarla.
   var sbId = bk._sbId || bk._fbKey || bk.id;
   var _tipoHistAprob=bk.aprobado===false?"reaprobado":"aprobado";
   var _histAprobTmp={historial:Array.isArray(bk.historial)?bk.historial.slice():[]};
@@ -25608,7 +25615,6 @@ async function confirmarBackupComoRemito(bkParam){
   ));
   if(sbId && _sbEmpId){
     await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {
-      tipo:            "remito",
       tipo_comprobante: bk.tipoComprobante || "remito",
       items:           itemsAprobados,
       descuentos:      _dscCanon,
@@ -25626,7 +25632,6 @@ async function confirmarBackupComoRemito(bkParam){
   var arr2 = getBackups();
   var idx2 = arr2.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId; });
   if(idx2>=0){
-    arr2[idx2].tipo="remito";
     arr2[idx2].items=itemsAprobados;
     arr2[idx2].descuentos=_dscCanon;
     arr2[idx2].total=_totalBase;
@@ -25636,7 +25641,6 @@ async function confirmarBackupComoRemito(bkParam){
     arr2[idx2].historial=_histAprob;
     saveBackups(arr2);
   }
-  bk.tipo="remito";
   bk.items=itemsAprobados;
   bk.descuentos=_dscCanon;
   bk.total=_totalBase;
@@ -26012,6 +26016,34 @@ function reenviarPedido(bk){
 var pedidosAcumData = {};
 var diaAbierto = null;
 var _paModo = "dia";
+
+// `tipo` identifica el formulario de origen, no el estado del comprobante.
+// Algunas versiones anteriores cambiaban pedido -> remito al aprobarlo. Para
+// recuperar esos registros sin mezclar remitos directos, usamos el historial:
+// un evento aprobado/reaprobado indica que el registro nació como pedido.
+function _paEsPedidoProveedor(item){
+  if(!item) return false;
+  var tipo=String(item.tipo||"pedido").toLowerCase();
+  if(tipo==="pedido") return true;
+  if(tipo!=="remito") return false;
+
+  var hist=Array.isArray(item.historial)?item.historial:[];
+  var origen="";
+  for(var i=0;i<hist.length;i++){
+    var h=hist[i]||{};
+    if(String(h.tipo||"").toLowerCase()==="creado"){
+      origen=String(h.origen_tipo||h.origenTipo||"").toLowerCase();
+      if(origen) break;
+    }
+  }
+  if(origen) return origen==="pedido";
+
+  // Compatibilidad con pedidos aprobados antes de guardar origen_tipo.
+  return hist.some(function(h){
+    var evento=String((h&&h.tipo)||"").toLowerCase();
+    return evento==="aprobado" || evento==="reaprobado";
+  });
+}
 
 // Cambiar entre vista por día y consolidada
 var _paPeriodo = "todo";
@@ -26404,7 +26436,7 @@ function cargarPedidosAcum(){
       pedidosAcumData = {};
       (backups||[]).forEach(function(item){
         if(!item) return;
-        if(item.tipo && item.tipo!=="pedido") return; // skip remitos
+        if(!_paEsPedidoProveedor(item)) return; // excluir sólo remitos directos
         var _f = item.fecha || new Date().toISOString();
         // Si viene solo como fecha (YYYY-MM-DD), agregar mediodía para evitar
         // que la zona horaria (UTC-3) corra el día al parsear.
@@ -26442,7 +26474,7 @@ function _cargarPedidosAcumFirebase(){
       if(data){
         Object.entries(data).forEach(function(e){
           var fbKey=e[0], item=e[1];
-          if(item.tipo && item.tipo!=="pedido") return;
+          if(!_paEsPedidoProveedor(item)) return;
           var _f2 = item.fecha || new Date().toISOString();
           if(typeof _f2 === "string" && _f2.length===10) _f2 = _f2 + "T12:00:00";
           var fecha=new Date(_f2);
