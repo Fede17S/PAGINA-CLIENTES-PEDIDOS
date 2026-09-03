@@ -3861,7 +3861,7 @@ a:focus-visible, button:focus-visible {
   var sp=document.getElementById('cd-splash'); if(!sp) return;
   try{ if(sessionStorage.getItem('cd_splash_v2')){ if(sp.parentNode) sp.parentNode.removeChild(sp); return; } sessionStorage.setItem('cd_splash_v2','1'); }catch(e){}
   try{ var nm=localStorage.getItem('cd_splash_name'); var b=sp.querySelector('.cds-brand'); if(b) b.textContent = nm ? (' — '+nm) : ''; }catch(e){}
-  var CD_VER='v1.5'; window.APP_VERSION=CD_VER;
+  var CD_VER='v1.6'; window.APP_VERSION=CD_VER;
   var vEl=sp.querySelector('.cds-ver'); if(vEl) vEl.textContent='Versión '+CD_VER;
   var LOOP=2500, BLACK=1100;
   setTimeout(function(){ sp.classList.add('cds-end'); }, LOOP);
@@ -4060,7 +4060,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.08.27-pedidos-proveedor1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.03-hoja-mes1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -6060,7 +6060,7 @@ _sysAlertMount();
       <button onclick="_cliToggleAccMenu(event)" class="cli-acc-btn">⚙️ Acciones ▾</button>
       <div class="cli-acc-menu" id="cli-acc-menu" role="menu">
         <button onclick="abrirPanelZonas();_cliCloseAccMenu()">🗺️ Gestionar zonas</button>
-        <button onclick="abrirResumenDeudores();_cliCloseAccMenu()">💰 Ver deudores</button>
+        <button onclick="abrirResumenDeudores();_cliCloseAccMenu()">💰 Cuentas corrientes</button>
         <button onclick="exportarClientesXLSX();_cliCloseAccMenu()">📊 Exportar a Excel</button>
         <button onclick="abrirAsignarVendedores();_cliCloseAccMenu()">👥 Asignar vendedor</button>
       </div>
@@ -6190,58 +6190,74 @@ _sysAlertMount();
 </div>
 
 <!-- MODAL CUENTA CORRIENTE -->
+<style>
+.cc2-shell{width:min(820px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}.cc2-scroll{overflow:auto;padding:16px;background:var(--s1)}
+.cc2-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.cc2-kpi{padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--s2)}
+.cc2-kpi small{display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.45px}.cc2-kpi b{display:block;font-size:18px;margin-top:4px;font-variant-numeric:tabular-nums}
+.cc2-actions{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0}.cc2-btn{border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;padding:9px 12px;font:700 12px inherit;cursor:pointer}.cc2-btn.primary{background:#0a7048;color:#fff;border-color:#0a7048}.cc2-btn.blue{background:#21409a;color:#fff;border-color:#21409a}
+.cc2-form{display:none;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--s2);margin-bottom:12px}.cc2-form.open{display:block}.cc2-fields{display:grid;grid-template-columns:1.1fr .9fr 1.5fr auto;gap:8px}.cc2-fields input,.cc2-fields select,.cc2-search{min-width:0;border:1px solid var(--border);border-radius:8px;background:var(--s1);color:var(--text);padding:9px 10px;font:12.5px inherit}
+.cc2-tabs{display:flex;gap:5px;border-bottom:1px solid var(--border);margin-top:5px}.cc2-tab{border:0;background:transparent;color:var(--muted);font:700 12px inherit;padding:10px 12px;cursor:pointer}.cc2-tab.active{color:#21409a;border-bottom:2px solid #21409a}.cc2-row{display:flex;gap:10px;align-items:center;padding:11px 3px;border-bottom:1px solid var(--border2)}.cc2-row-main{flex:1;min-width:0}.cc2-row-main b,.cc2-row-main span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc2-row-main span{font-size:11px;color:var(--muted);margin-top:3px}.cc2-amount{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}.cc2-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:800}.cc2-pill.red{background:#fee2e2;color:#b91c1c}.cc2-pill.green{background:#dcfce7;color:#15803d}.cc2-pill.gold{background:#fef3c7;color:#92400e}.cc2-empty{text-align:center;padding:28px;color:var(--muted);font-size:12px}.cc2-dashboard{width:min(940px,97vw);max-height:92vh;display:flex;flex-direction:column}.cc2-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;padding:14px}.cc2-list{overflow:auto;padding:0 14px 14px}.cc2-customer{display:grid;grid-template-columns:minmax(160px,1fr) repeat(3,120px) 28px;gap:12px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--s2);margin-top:8px;cursor:pointer}.cc2-customer:hover{border-color:#21409a}
+@media(max-width:700px){.cc2-grid,.cc2-summary{grid-template-columns:1fr 1fr}.cc2-fields{grid-template-columns:1fr 1fr}.cc2-fields input:nth-child(3){grid-column:1/-1}.cc2-customer{grid-template-columns:1fr auto}.cc2-hide-mobile{display:none}.cc2-shell{width:100vw;max-height:95vh}.cc2-scroll{padding:12px}}
+</style>
 <div class="modal-bg" id="modal-cc" onclick="if(event.target===this)cerrarModal('modal-cc')">
-  <div class="modal-box" style="max-width:480px;max-height:86vh;display:flex;flex-direction:column">
+  <div class="modal-box cc2-shell">
     <div class="modal-head">
       <div>
         <div class="modal-ttl" id="cc-titulo">💰 Cuenta corriente</div>
-        <div id="cc-cliente-nom" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
+        <div id="cc-cliente-nom" style="font-size:11.5px;color:var(--muted);margin-top:2px">Estado detallado del cliente</div>
       </div>
       <button class="modal-cls" onclick="cerrarModal('modal-cc')">✕</button>
     </div>
-
-    <div style="flex:1;overflow-y:auto;min-height:0">
-      <!-- Saldo destacado -->
-      <div id="cc-saldo-box" style="padding:16px 18px;border-bottom:1px solid var(--border);background:var(--s3)">
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Saldo actual</div>
-        <div id="cc-saldo-val" style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px">$0,00</div>
-        <div id="cc-saldo-hint" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
+    <div class="cc2-scroll">
+      <div id="cc2-loading" class="cc2-empty">Cargando cuenta…</div>
+      <div id="cc2-content" style="display:none">
+        <div class="cc2-grid">
+          <div class="cc2-kpi"><small>Saldo actual</small><b id="cc-saldo-val">$0,00</b><span id="cc-saldo-hint" style="font-size:10.5px;color:var(--muted)"></span></div>
+          <div class="cc2-kpi"><small>Entregado pendiente</small><b id="cc2-entregado">$0,00</b><span style="font-size:10.5px;color:var(--muted)">Mercadería recibida</span></div>
+          <div class="cc2-kpi"><small>Por entregar</small><b id="cc2-calle">$0,00</b><span style="font-size:10.5px;color:var(--muted)">Todavía no es deuda</span></div>
+          <div class="cc2-kpi"><small>Cobrado</small><b id="cc2-cobrado">$0,00</b><span style="font-size:10.5px;color:var(--muted)">Sobre entregas</span></div>
+        </div>
+        <div class="cc2-actions">
+          <button class="cc2-btn primary" onclick="_cc2AbrirFormulario('pago')">＋ Registrar pago</button>
+          <button class="cc2-btn" id="cc2-btn-ajuste" onclick="_cc2AbrirFormulario('ajuste')">⚖️ Ajuste</button>
+          <button class="cc2-btn blue" onclick="_cc2WhatsApp()">💬 WhatsApp</button>
+          <button class="cc2-btn" onclick="_cc2PDF()">📄 Estado de cuenta</button>
+        </div>
+        <div class="cc2-form" id="cc2-form-pago">
+          <div style="font-weight:800;font-size:13px;margin-bottom:8px">Registrar pago</div>
+          <div class="cc2-fields"><input id="cc-pago-monto" inputmode="decimal" placeholder="Monto"><select id="cc-pago-forma"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="mixto">Mixto</option><option value="otro">Otro</option></select><input id="cc-pago-nota" placeholder="Nota o comprobante (opcional)"><button class="cc2-btn primary" id="cc2-guardar-pago" onclick="_ccRegistrarPagoManual()">Guardar</button></div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:7px">Se aplica primero a las entregas impagas más antiguas. El sobrante queda a favor.</div>
+        </div>
+        <div class="cc2-form" id="cc2-form-ajuste">
+          <div style="font-weight:800;font-size:13px;margin-bottom:8px">Ajuste administrativo</div>
+          <div class="cc2-fields"><input id="cc2-ajuste-monto" inputmode="decimal" placeholder="Monto"><select id="cc2-ajuste-tipo"><option value="ajuste_debito">Sumar deuda</option><option value="ajuste_credito">Saldo a favor</option></select><input id="cc2-ajuste-nota" placeholder="Motivo obligatorio"><button class="cc2-btn" id="cc2-guardar-ajuste" onclick="_cc2GuardarAjuste()">Guardar</button></div>
+        </div>
+        <div class="cc2-tabs"><button class="cc2-tab active" data-cc2tab="pendientes" onclick="_cc2Tab('pendientes')">Pendientes</button><button class="cc2-tab" data-cc2tab="movimientos" onclick="_cc2Tab('movimientos')">Movimientos</button><button class="cc2-tab" data-cc2tab="todos" onclick="_cc2Tab('todos')">Todos los remitos</button></div>
+        <div id="cc-mov-body"></div>
       </div>
-
-      <!-- Registrar pago rápido -->
-      <div id="cc-pago-box" style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s2)">
-        <input type="text" id="cc-pago-monto" inputmode="decimal" placeholder="Monto a registrar" style="flex:1;min-width:120px;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
-        <select id="cc-pago-forma" style="font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--s2)">
-          <option value="efectivo">💵 Efectivo</option>
-          <option value="transferencia">🏦 Transfer.</option>
-          <option value="otro">Otro</option>
-        </select>
-        <button onclick="_ccRegistrarPagoManual()" style="background:#0a7048;color:#fff;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+ Pago</button>
-      </div>
-
-      <div id="cc-mov-body" style="padding:0;background:var(--s2)"></div>
     </div>
   </div>
 </div>
 
 <!-- MODAL RESUMEN DE DEUDORES -->
 <div class="modal-bg" id="modal-deudores" onclick="if(event.target===this)cerrarModal('modal-deudores')">
-  <div class="modal-box" style="max-width:500px;max-height:88vh;display:flex;flex-direction:column">
+  <div class="modal-box cc2-dashboard">
     <div class="modal-head">
       <div>
-        <div class="modal-ttl">💰 Resumen de deudores</div>
+        <div class="modal-ttl">💰 Cuentas corrientes</div>
         <div id="deudores-sub" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
       </div>
       <button class="modal-cls" onclick="cerrarModal('modal-deudores')">✕</button>
     </div>
 
-    <!-- Total general -->
-    <div style="padding:16px 18px;border-bottom:1px solid var(--border);background:var(--s3)">
-      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Total a cobrar</div>
-      <div id="deudores-total" style="font-size:28px;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;margin-top:2px">$0,00</div>
+    <div class="cc2-summary">
+      <div class="cc2-kpi"><small>Total a cobrar</small><b id="deudores-total">$0,00</b></div>
+      <div class="cc2-kpi"><small>Vencido +7 días</small><b id="cc2-dash-vencido">$0,00</b></div>
+      <div class="cc2-kpi"><small>Por entregar</small><b id="cc2-dash-calle">$0,00</b></div>
+      <div class="cc2-kpi"><small>Saldos a favor</small><b id="cc2-dash-favor">$0,00</b></div>
     </div>
-
-    <div id="deudores-body" style="flex:1;overflow-y:auto;min-height:0;background:var(--s2)"></div>
+    <div style="padding:0 14px 7px;display:flex;gap:8px;flex-wrap:wrap"><input class="cc2-search" id="cc2-dash-search" placeholder="Buscar cliente…" oninput="_cc2RenderDashboard()" style="flex:1"><select class="cc2-search" id="cc2-dash-filter" onchange="_cc2RenderDashboard()"><option value="debe">Con deuda</option><option value="todos">Todos</option><option value="vencido">Vencidos</option><option value="favor">Saldo a favor</option></select><button class="cc2-btn" onclick="abrirResumenDeudores(true)">↻ Actualizar</button></div>
+    <div id="deudores-body" class="cc2-list"></div>
   </div>
 </div>
 
@@ -13894,7 +13910,7 @@ async function abrirResumenCliente(nom){
   // 4) Deuda (consulta a Supabase)
   var deuda = null;
   try {
-    var cc = await _sbGetCC(nom);
+    var cc = await _cc2DatosClientePorNombre(nom);
     if(cc && typeof cc.saldo === "number") deuda = cc.saldo;
   } catch(e){ deuda = null; }
 
@@ -19137,6 +19153,155 @@ function _recordarDeudaWhatsApp(cliNom, saldo){
   window.open(url, "_blank");
 }
 
+// ══════════════ CUENTAS CORRIENTES V2 ══════════════
+// Fuente contable: entregas reales + cobros de la parada + libro v2 inmutable.
+// El libro anterior queda preservado, pero no interviene en estos saldos.
+var _cc2CuentaCache=null, _cc2Dashboard=[], _cc2TabActual="pendientes";
+
+function _cc2Id(){
+  try{ if(crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  return "cc_"+Date.now()+"_"+Math.random().toString(36).slice(2,11);
+}
+function _cc2Num(v){ v=Number(v||0); return isFinite(v)?Math.round(v*100)/100:0; }
+function _cc2Pagado(rc){
+  return _cc2Num(rc.efectivo)+_cc2Num(rc.transferencia)+(Array.isArray(rc.pagos_adicionales)?rc.pagos_adicionales:[]).reduce(function(s,p){return s+_cc2Num(p&&p.monto);},0);
+}
+function _cc2ResolverCliente(ref,nom){
+  var encontrados=Object.entries(_clientesDB||{}).filter(function(e){
+    var u=e[1]||{}; return String(e[0])===String(ref)||String(u._sbId||"")===String(ref)||String(u.id||"")===String(ref)||((u.name||"").toLowerCase()===(nom||ref||"").toLowerCase());
+  });
+  if(encontrados.length!==1) return encontrados[0]||null;
+  return encontrados[0];
+}
+async function _cc2DatosClientePorNombre(nom){
+  try{
+    var rows=await sbFetch("POST","/rest/v1/rpc/cc_resumen_v2",{p_empresa_id:_sbEmpId});
+    var r=(rows||[]).find(function(x){return (x.cliente_nom||"").toLowerCase()===(nom||"").toLowerCase();});
+    return r?{saldo:_cc2Num(r.saldo)}:null;
+  }catch(e){ return null; }
+}
+async function _cc2CargarCuenta(ref,nom){
+  var par=_cc2ResolverCliente(ref,nom);
+  if(!par) throw new Error("No se pudo identificar al cliente");
+  var pk=par[0],u=par[1],sbid=u._sbId||pk,uid=u.id||u.uid||"";
+  if(!/^[0-9a-f-]{36}$/i.test(String(sbid))) throw new Error("El cliente no tiene un identificador válido en Supabase");
+  var cols="id,ruta_id,pedido_id,cliente_id,nom,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha,remito_num,tipo_comprobante,rechazado";
+  var rutas=await sbGet("ruta_clientes","select="+cols+"&empresa_id=eq."+_sbEmpId+"&cliente_id=eq."+encodeURIComponent(uid)+"&order=fecha.desc");
+  if(!rutas||!rutas.length){
+    var mismoNombre=Object.values(_clientesDB||{}).filter(function(x){return (x.name||"").trim().toLowerCase()===(u.name||nom||"").trim().toLowerCase();});
+    if(mismoNombre.length===1) rutas=await sbGet("ruta_clientes","select="+cols+"&empresa_id=eq."+_sbEmpId+"&nom=eq."+encodeURIComponent(u.name||nom||"")+"&order=fecha.desc");
+  }
+  rutas=(rutas||[]).filter(function(r){return r.rechazado!==true;});
+  var rutaIds=[]; rutas.forEach(function(r){if(r.ruta_id&&rutaIds.indexOf(r.ruta_id)<0)rutaIds.push(r.ruta_id);});
+  var rutasMeta=[];
+  if(rutaIds.length) rutasMeta=await sbGet("rutas","select=id,hr_num,nombre,fecha&empresa_id=eq."+_sbEmpId+"&id=in.("+rutaIds.join(",")+")");
+  var meta={};(rutasMeta||[]).forEach(function(r){meta[r.id]=r;});
+  var ops=await sbGet("cc_operaciones_v2","select=id,op_id,tipo,monto,aplicado,forma,nota,usuario_uid,fecha,anulado_en,anulado_por,original_id&empresa_id=eq."+_sbEmpId+"&cliente_id=eq."+sbid+"&order=fecha.desc");
+  var docs=rutas.map(function(r){
+    var imp=_cc2Num(r.importe),pag=_cc2Pagado(r),pend=Math.max(0,_cc2Num(imp-pag)),rm=meta[r.ruta_id]||{};
+    return {id:r.id,pedidoId:r.pedido_id,importe:imp,pagado:pag,pendiente:pend,entregado:r.entregado===true,fecha:r.entregado_en||r.fecha||rm.fecha,remito:r.remito_num||"",hr:rm.hr_num||rm.nombre||"",tipo:r.tipo_comprobante||"remito"};
+  });
+  var entregado=docs.filter(function(d){return d.entregado;});
+  var facturado=entregado.reduce(function(s,d){return s+d.importe;},0),cobrado=entregado.reduce(function(s,d){return s+Math.min(d.importe,d.pagado);},0);
+  var deuda=entregado.reduce(function(s,d){return s+d.pendiente;},0),calle=docs.filter(function(d){return !d.entregado;}).reduce(function(s,d){return s+d.pendiente;},0);
+  var extra=(ops||[]).filter(function(o){return !o.anulado_en;}).reduce(function(s,o){
+    if(o.tipo==="pago")return s-(_cc2Num(o.monto)-_cc2Num(o.aplicado));
+    if(o.tipo==="ajuste_debito")return s+_cc2Num(o.monto);
+    if(o.tipo==="ajuste_credito")return s-_cc2Num(o.monto);
+    return s;
+  },0);
+  return {ref:pk,clienteId:sbid,uid:uid,nom:u.name||nom||uid,tel:u.tel||u.telefono||"",docs:docs,ops:ops||[],facturado:_cc2Num(facturado),cobrado:_cc2Num(cobrado),entregado:_cc2Num(deuda),calle:_cc2Num(calle),extra:_cc2Num(extra),saldo:_cc2Num(deuda+extra)};
+}
+async function abrirCuentaCorriente(ref,nom){
+  _cc2TabActual="pendientes"; abrirModal("modal-cc");
+  var load=document.getElementById("cc2-loading"),cont=document.getElementById("cc2-content");
+  if(load){load.style.display="block";load.textContent="Cargando cuenta…";} if(cont)cont.style.display="none";
+  try{ _cc2CuentaCache=await _cc2CargarCuenta(ref,nom); _cc2PintarCuenta(); }
+  catch(e){ if(load)load.innerHTML='<span style="color:var(--red)">No se pudo cargar: '+escHtml(e.message||"error")+'</span>'; }
+}
+function _cc2PintarCuenta(){
+  var c=_cc2CuentaCache;if(!c)return;
+  var load=document.getElementById("cc2-loading"),cont=document.getElementById("cc2-content");if(load)load.style.display="none";if(cont)cont.style.display="block";
+  document.getElementById("cc-titulo").textContent="💰 "+c.nom;
+  document.getElementById("cc-cliente-nom").textContent="Cuenta corriente · "+(c.uid||"cliente");
+  var saldo=document.getElementById("cc-saldo-val"),hint=document.getElementById("cc-saldo-hint");
+  saldo.textContent=(c.saldo<0?"-$":"$")+fM(Math.abs(c.saldo));saldo.style.color=c.saldo>0.01?"var(--red)":c.saldo<-.01?"#0a7048":"var(--text)";
+  hint.textContent=c.saldo>0.01?"El cliente debe":c.saldo<-.01?"A favor del cliente":"Cuenta al día";
+  document.getElementById("cc2-entregado").textContent="$"+fM(c.entregado);document.getElementById("cc2-calle").textContent="$"+fM(c.calle);document.getElementById("cc2-cobrado").textContent="$"+fM(c.cobrado);
+  var ajuste=document.getElementById("cc2-btn-ajuste");if(ajuste)ajuste.style.display=(_tengoRol("admin")||_tengoRol("co-admin"))?"":"none";
+  document.querySelectorAll("[data-cc2tab]").forEach(function(b){b.classList.toggle("active",b.dataset.cc2tab===_cc2TabActual);});
+  _cc2RenderCuentaBody();
+}
+function _cc2Fecha(v){try{return new Date(v).toLocaleDateString("es-AR",{day:"2-digit",month:"short",year:"numeric"});}catch(e){return "—";}}
+function _cc2RenderCuentaBody(){
+  var c=_cc2CuentaCache,body=document.getElementById("cc-mov-body");if(!c||!body)return;var html="";
+  if(_cc2TabActual==="movimientos"){
+    if(!c.ops.length) html='<div class="cc2-empty">Todavía no hay pagos ni ajustes registrados desde Cuenta corriente.</div>';
+    c.ops.forEach(function(o){
+      var pago=o.tipo==="pago",cred=o.tipo==="ajuste_credito",anul=o.tipo==="anulacion",anulado=!!o.anulado_en;
+      var signo=(pago||cred)?"−":"+",color=(pago||cred)?"#0a7048":"var(--red)";if(anul){signo="↩";color="var(--muted)";}
+      var lbl=pago?"Pago · "+(o.forma||"otro"):cred?"Ajuste a favor":o.tipo==="ajuste_debito"?"Ajuste de deuda":"Anulación";
+      html+='<div class="cc2-row" style="opacity:'+(anulado?.55:1)+'"><div class="cc2-row-main"><b>'+escHtml(lbl)+(anulado?' · ANULADO':'')+'</b><span>'+_cc2Fecha(o.fecha)+(o.nota?' · '+escHtml(o.nota):'')+(o.usuario_uid?' · '+escHtml(o.usuario_uid):'')+'</span></div><div class="cc2-amount" style="color:'+color+'">'+signo+' $'+fM(o.monto)+'</div>'+((!anul&&!anulado&&(_tengoRol("admin")||_tengoRol("co-admin")))?'<button class="cc2-btn" onclick="_cc2Anular(&quot;'+o.id+'&quot;)" title="Anular">↩</button>':'')+'</div>';
+    });
+  }else{
+    var docs=c.docs.filter(function(d){return _cc2TabActual==="todos"||(d.entregado&&d.pendiente>.01);});
+    if(!docs.length) html='<div class="cc2-empty">'+(_cc2TabActual==="todos"?'No hay remitos vinculados.':'No hay entregas pendientes de cobro.')+'</div>';
+    docs.forEach(function(d){var est=!d.entregado?'<span class="cc2-pill gold">Por entregar</span>':d.pendiente>.01?'<span class="cc2-pill red">Debe $'+fM(d.pendiente)+'</span>':'<span class="cc2-pill green">Cobrado</span>';
+      html+='<div class="cc2-row"><div class="cc2-row-main"><b>'+escHtml((d.remito?"Remito "+d.remito:d.hr||"Entrega"))+'</b><span>'+_cc2Fecha(d.fecha)+' · Total $'+fM(d.importe)+' · Cobrado $'+fM(d.pagado)+'</span></div><div>'+est+'</div></div>';});
+  } body.innerHTML=html;
+}
+function _cc2Tab(t){_cc2TabActual=t;_cc2PintarCuenta();}
+function _cc2AbrirFormulario(tipo){
+  ["pago","ajuste"].forEach(function(t){var el=document.getElementById("cc2-form-"+t);if(el)el.classList.toggle("open",t===tipo&&!el.classList.contains("open"));});
+}
+async function _ccRegistrarPagoManual(){
+  var c=_cc2CuentaCache,inp=document.getElementById("cc-pago-monto"),m=_parseImporte(inp?inp.value:"");if(!c)return;if(!(m>0)){showNotif("Ingresá un monto válido","err");return;}
+  var forma=document.getElementById("cc-pago-forma").value,nota=(document.getElementById("cc-pago-nota").value||"").trim(),op="ccpay_"+_cc2Id();
+  var payload={p_op_id:op,p_empresa_id:_sbEmpId,p_cliente_id:c.clienteId,p_monto:m,p_forma:forma,p_nota:nota,p_fecha:new Date().toISOString()},btn=document.getElementById("cc2-guardar-pago");
+  if(btn){btn.disabled=true;btn.textContent="Guardando…";}
+  try{
+    if(!navigator.onLine){await _enqueue("RPC","/rest/v1/rpc/cc_registrar_pago_v2",payload,"Pago CC: "+c.nom);showNotif("Pago pendiente de sincronizar","ok");}
+    else{var r=await sbFetch("POST","/rest/v1/rpc/cc_registrar_pago_v2",payload);showNotif(_cc2Num(r&&r.a_favor)>0?"Pago guardado · $"+fM(r.a_favor)+" a favor":"Pago aplicado correctamente","ok");}
+    inp.value="";document.getElementById("cc-pago-nota").value="";document.getElementById("cc2-form-pago").classList.remove("open");
+    if(navigator.onLine){_cc2CuentaCache=await _cc2CargarCuenta(c.ref,c.nom);_cc2PintarCuenta();}
+  }catch(e){showNotif("No se pudo registrar: "+(e.message||"error"),"err");}
+  finally{if(btn){btn.disabled=false;btn.textContent="Guardar";}}
+}
+async function _cc2GuardarAjuste(){
+  var c=_cc2CuentaCache,m=_parseImporte(document.getElementById("cc2-ajuste-monto").value),tipo=document.getElementById("cc2-ajuste-tipo").value,nota=(document.getElementById("cc2-ajuste-nota").value||"").trim();
+  if(!c||!(m>0)||!nota){showNotif("Ingresá monto y motivo","err");return;}var btn=document.getElementById("cc2-guardar-ajuste");btn.disabled=true;
+  try{await sbFetch("POST","/rest/v1/rpc/cc_registrar_ajuste_v2",{p_op_id:"ccadj_"+_cc2Id(),p_empresa_id:_sbEmpId,p_cliente_id:c.clienteId,p_tipo:tipo,p_monto:m,p_nota:nota,p_fecha:new Date().toISOString()});document.getElementById("cc2-form-ajuste").classList.remove("open");_cc2CuentaCache=await _cc2CargarCuenta(c.ref,c.nom);_cc2PintarCuenta();showNotif("Ajuste registrado","ok");}
+  catch(e){showNotif("No se pudo ajustar: "+(e.message||"error"),"err");}finally{btn.disabled=false;}
+}
+async function _cc2Anular(id){
+  var motivo=prompt("Motivo de la anulación (obligatorio):","");if(!motivo||!motivo.trim())return;
+  if(!(await _confirmar({icono:"↩️",titulo:"Anular movimiento",mensaje:"El movimiento original seguirá visible y se revertirá su efecto. ¿Continuar?",ok:"Anular",peligro:true,persistente:true})))return;
+  try{await sbFetch("POST","/rest/v1/rpc/cc_anular_operacion_v2",{p_empresa_id:_sbEmpId,p_operacion_id:id,p_op_id:"ccrev_"+_cc2Id(),p_motivo:motivo.trim()});_cc2CuentaCache=await _cc2CargarCuenta(_cc2CuentaCache.ref,_cc2CuentaCache.nom);_cc2PintarCuenta();showNotif("Movimiento anulado y revertido","ok");}catch(e){showNotif("No se pudo anular: "+(e.message||"error"),"err");}
+}
+async function abrirResumenDeudores(forzar){
+  abrirModal("modal-deudores");var body=document.getElementById("deudores-body");if(body)body.innerHTML='<div class="cc2-empty">Cargando cuentas…</div>';
+  try{var rows=await sbFetch("POST","/rest/v1/rpc/cc_resumen_v2",{p_empresa_id:_sbEmpId});_cc2Dashboard=(rows||[]).map(function(r){Object.keys(r).forEach(function(k){if(["facturado","cobrado","entregado_pendiente","por_entregar","ajustes_y_creditos","saldo","documentos_pendientes","dias_antiguedad"].indexOf(k)>=0)r[k]=_cc2Num(r[k]);});return r;});_cc2RenderDashboard();}
+  catch(e){if(body)body.innerHTML='<div class="cc2-empty" style="color:var(--red)">No se pudieron cargar las cuentas: '+escHtml(e.message||"error")+'</div>';}
+}
+function _cc2RenderDashboard(){
+  var rows=_cc2Dashboard||[],q=((document.getElementById("cc2-dash-search")||{}).value||"").toLowerCase(),f=((document.getElementById("cc2-dash-filter")||{}).value||"debe");
+  var total=rows.reduce(function(s,r){return s+Math.max(0,r.saldo);},0),venc=rows.reduce(function(s,r){return s+(r.dias_antiguedad>=7?Math.max(0,r.saldo):0);},0),calle=rows.reduce(function(s,r){return s+r.por_entregar;},0),favor=rows.reduce(function(s,r){return s+Math.max(0,-r.saldo);},0);
+  document.getElementById("deudores-total").textContent="$"+fM(total);document.getElementById("cc2-dash-vencido").textContent="$"+fM(venc);document.getElementById("cc2-dash-calle").textContent="$"+fM(calle);document.getElementById("cc2-dash-favor").textContent="$"+fM(favor);
+  var list=rows.filter(function(r){if(q&&(r.cliente_nom||"").toLowerCase().indexOf(q)<0)return false;if(f==="debe")return r.saldo>.01;if(f==="vencido")return r.saldo>.01&&r.dias_antiguedad>=7;if(f==="favor")return r.saldo<-.01;return true;}).sort(function(a,b){return b.saldo-a.saldo;});
+  var body=document.getElementById("deudores-body");if(!list.length){body.innerHTML='<div class="cc2-empty">No hay cuentas para este filtro.</div>';return;}
+  body.innerHTML=list.map(function(r){var st=r.saldo>.01?'<span class="cc2-pill red">Debe</span>':r.saldo<-.01?'<span class="cc2-pill green">A favor</span>':'<span class="cc2-pill green">Al día</span>';return '<div class="cc2-customer" onclick="cerrarModal(&quot;modal-deudores&quot;);abrirCuentaCorriente(&quot;'+r.cliente_id+'&quot;,&quot;'+escHtml(r.cliente_nom).replace(/"/g,'&quot;')+'&quot;)"><div class="cc2-row-main"><b>'+escHtml(r.cliente_nom)+'</b><span>'+st+' · '+r.documentos_pendientes+' pendiente'+(r.documentos_pendientes!==1?'s':'')+(r.dias_antiguedad?' · hace '+r.dias_antiguedad+'d':'')+'</span></div><div class="cc2-hide-mobile"><span style="font-size:10px;color:var(--muted)">ENTREGADO</span><b>$'+fM(r.facturado)+'</b></div><div class="cc2-hide-mobile"><span style="font-size:10px;color:var(--muted)">POR ENTREGAR</span><b>$'+fM(r.por_entregar)+'</b></div><div class="cc2-amount" style="color:'+(r.saldo>.01?'var(--red)':r.saldo<-.01?'#0a7048':'var(--text)')+'">'+(r.saldo<0?'− ':'')+'$'+fM(Math.abs(r.saldo))+'</div><b>›</b></div>';}).join("");
+  var sub=document.getElementById("deudores-sub");if(sub)sub.textContent=list.length+" cuenta"+(list.length!==1?"s":"")+" mostrada"+(list.length!==1?"s":"");
+}
+async function _cc2WhatsApp(){
+  var c=_cc2CuentaCache;if(!c||!c.tel){showNotif("El cliente no tiene teléfono cargado","err");return;}var pendientes=c.docs.filter(function(d){return d.entregado&&d.pendiente>.01;});
+  var detalle=pendientes.slice(0,8).map(function(d){return "• "+(d.remito?"Remito "+d.remito:d.hr||"Entrega")+": $"+fM(d.pendiente);}).join("\n");
+  var msg="Hola "+c.nom+" 👋\n\nTe compartimos tu estado de cuenta:\nSaldo actual: *"+(c.saldo<0?"a favor $":"$")+fM(Math.abs(c.saldo))+"*"+(detalle?"\n\nPendientes:\n"+detalle:"")+"\n\nCualquier consulta, quedamos a disposición.";
+  if(!(await _confirmar({icono:"💬",titulo:"Enviar estado por WhatsApp",mensaje:msg,ok:"Abrir WhatsApp",cancelar:"Cancelar",persistente:true})))return;var num=String(c.tel).replace(/\D/g,"");if(num.slice(0,2)!=="54")num="54"+num.replace(/^0/,"");window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank");
+}
+function _cc2PDF(){
+  var c=_cc2CuentaCache;if(!c)return;try{var jsPDF=window.jspdf&&window.jspdf.jsPDF;if(!jsPDF)throw new Error("PDF no disponible");var d=new jsPDF();d.setFontSize(17);d.text("Estado de cuenta",14,18);d.setFontSize(11);d.text(c.nom,14,27);d.text("Emitido: "+new Date().toLocaleString("es-AR"),14,34);d.setFontSize(14);d.text("Saldo: $"+fM(c.saldo),14,46);var y=58;d.setFontSize(10);c.docs.filter(function(x){return x.entregado;}).slice(0,28).forEach(function(x){d.text(_cc2Fecha(x.fecha)+"  "+(x.remito?"Remito "+x.remito:x.hr||"Entrega")+"  Total $"+fM(x.importe)+"  Pendiente $"+fM(x.pendiente),14,y);y+=7;});d.save("estado-cuenta-"+c.nom.replace(/[^a-z0-9]+/gi,"-").toLowerCase()+".pdf");}catch(e){showNotif(e.message||"No se pudo generar el PDF","err");}
+}
+
 function descontarStock(items, motivo){
   if(!_ctrlStockOn() || !items||!items.length||!empresaKey)return;
   var patch={}, changed=false, bloqueados=[];
@@ -20518,7 +20683,7 @@ async function _toggleFinalizarRuta(rk, finalizar){
 
     // Al FINALIZAR: registrar en cuenta corriente la deuda de cada cliente con saldo pendiente.
     // Solo una vez por ruta (marca _ccRegistrada para no duplicar si se reabre y finaliza otra vez).
-    if(finalizar && !rutasData[rk]._ccRegistrada){
+    if(false && finalizar && !rutasData[rk]._ccRegistrada){
       var clientes = Object.values(rutasData[rk].clientes||{});
       var registrados = 0;
       for(var i=0;i<clientes.length;i++){
@@ -22141,11 +22306,9 @@ function _parseImporte(val){
 // Online: llama a la RPC cc_registrar_pago. Offline: encola la MISMA operación con su
 // op_id estable, así al sincronizar se aplica exactamente una vez aunque se reintente.
 function _registrarPagoCC(payload){
-  if(!navigator.onLine){
-    return _enqueue("RPC","/rest/v1/rpc/cc_registrar_pago",payload,"Pago CC: "+(payload.p_cliente_nom||""));
-  }
-  return sbFetch("POST","/rest/v1/rpc/cc_registrar_pago",payload)
-    .catch(function(){ return _enqueue("RPC","/rest/v1/rpc/cc_registrar_pago",payload,"Pago CC: "+(payload.p_cliente_nom||"")); });
+  // El cobro ya queda reflejado en la parada. El libro anterior se conserva
+  // únicamente como historial porque restaba pagos antes de crear la deuda.
+  return Promise.resolve({motor:"cuentas_corrientes_v2",registrado_en_ruta:true});
 }
 
 function guardarPago(rk,ck){
@@ -27569,7 +27732,7 @@ async function _replayOfflineOp(op){
   if(op.method==="RPC") return sbFetch("POST",op.path,op.data);
   if(op.method==="SB_POST") return sbPost(op.path,op.data);
   if(op.method==="SB_PATCH") return sbPatch(op.path,op.data.match,op.data.body);
-  if(op.method==="CC_DEUDA") return _ccRegistrarDeudaRuta(op.data.cliNom,op.data.monto,op.data.refRuta);
+  if(op.method==="CC_DEUDA") return {omitido:true,motivo:"motor_cc_anterior_desactivado"};
   if(op.method==="POST") return fbPush(op.path,op.data);
   if(op.method==="PATCH") return fbPatch(op.path,op.data);
   if(op.method==="DELETE") return fbDel(op.path);
@@ -29203,7 +29366,7 @@ function _renderClientesList(){
       '<button class="cli-del" onclick="_eliminarCliente(&quot;'+pk+'&quot;)" title="Eliminar">🗑</button>';
     var ccBtn = (rol==="cliente")
       ? '<button class="cli-act" onclick="abrirResumenCliente(&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Resumen rápido">📊</button>'+
-        '<button class="cli-act" onclick="abrirCuentaCorriente(&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Cuenta corriente">💰</button>'
+        '<button class="cli-act" onclick="abrirCuentaCorriente(&quot;'+escHtml(pk).replace(/"/g,'&quot;')+'&quot;,&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Cuenta corriente">💰</button>'
       : '';
     return '<div class="cli-card" style="border-left:4px solid '+col+'">'+
       '<div class="cli-avatar" style="background:'+col+';color:#fff;overflow:hidden">'+(u.foto?'<img src="'+_attr(u.foto)+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block">':ini)+'</div>'+
@@ -35297,19 +35460,29 @@ async function guardarEdicionVendedor(){
 function _poblarFiltrosMesRuta(){
   var sel = document.getElementById("ruta-fil-mes");
   if(!sel) return;
+  // El refresco periódico vuelve a armar las opciones con datos frescos. Guardar
+  // primero la elección actual evita que ese refresco mande al usuario otra vez
+  // al mes corriente mientras está consultando o editando un período anterior.
+  // null implícito (primera carga) y "" explícito (Todos los meses) son estados
+  // distintos, por eso usamos una marca en el propio selector.
+  var yaInicializado = sel._mesRutaInicializado === true;
+  var mesElegido = yaInicializado ? sel.value : null;
   var rutas = Object.values(rutasData||{});
   var meses = new Set();
   rutas.forEach(function(r){ var d=new Date(r.fecha||Date.now()); meses.add(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); });
   var now = new Date();
   var curKey = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
   meses.add(curKey);
+  if(mesElegido) meses.add(mesElegido); // conservarlo incluso durante una carga parcial
   var sorted = Array.from(meses).sort(function(a,b){ return b.localeCompare(a); });
   sel.innerHTML = '<option value="">Todos los meses</option>' +
     sorted.map(function(m){
       var parts=m.split("-");
       var label=MESES[parseInt(parts[1])-1]+" "+parts[0];
-      return '<option value="'+m+'"'+(m===curKey?" selected":"")+'>'+label+'</option>';
+      return '<option value="'+m+'">'+label+'</option>';
     }).join('');
+  sel.value = yaInicializado ? mesElegido : curKey;
+  sel._mesRutaInicializado = true;
 }
 
 function _ventaFechaClave(fecha){
