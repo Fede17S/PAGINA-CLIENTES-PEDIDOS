@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-window.ARMADOR_OPERATIVO_VERSION="2.0.0";
+window.ARMADOR_OPERATIVO_VERSION="2.1.0";
 
 var _armLegacyRenderLista=window._armRenderLista;
 var _armLegacyInicioRender=window._armInicioRender;
@@ -22,6 +22,8 @@ var _armSustIndex=null;
 var _armSustElegido=null;
 var _armScanStream=null;
 var _armScanTimer=null;
+var _armScanLatch="";
+var _armScanClearFrames=0;
 
 function aEsc(v){
   if(typeof window.escHtml==="function") return window.escHtml(String(v==null?"":v));
@@ -370,27 +372,50 @@ window._armCerrar=async function(){
 window._armEditarPedido=async function(){var bk=aPedido();if(!bk)return;await window._armCerrar();if(typeof window.abrirEditarBackup==="function")window.abrirEditarBackup(bk,true);};
 
 function aScanTarget(it,i){var rest=Math.max(0,aCant(it)-aFaltaCant(i)-aSubCant(i)),ub=typeof window._itBulto==="function"?aNum(window._itBulto({n:aNombre(it),c:aCant(it),_esCaja:it._esCaja,_ub:it._ub})):0;return Math.max(1,Math.ceil(rest/(ub||1)));}
-window._armProcesarCodigo=function(raw){
-  var code=String(raw||"").trim().toUpperCase(),bk=aPedido();if(!code||!bk)return false;
-  var candidatos=[];(bk.items||[]).forEach(function(it,i){var p=aProd(it)||{},vals=[p.codigoBarras,p.codigo_barras,p.codigo,aId(it)].filter(Boolean).map(function(x){return String(x).trim().toUpperCase();});if(vals.indexOf(code)>=0)candidatos.push({it:it,i:i});});
+function aBarcodeNorm(raw,format){return typeof window._barcodeNormalizar==="function"?window._barcodeNormalizar(raw,format):String(raw||"").trim().toUpperCase().replace(/\s+/g,"");}
+function aBarcodeKeys(raw,format){
+  if(typeof window._barcodeClaves==="function")return window._barcodeClaves(raw,format);
+  var code=aBarcodeNorm(raw,format),out=code?[code]:[];if(/^\d{12}$/.test(code))out.push("0"+code);if(/^0\d{12}$/.test(code))out.push(code.slice(1));return out;
+}
+window._armProcesarCodigo=function(raw,opts){
+  opts=opts||{};var code=aBarcodeNorm(raw,opts.formato),keys=aBarcodeKeys(raw,opts.formato),bk=aPedido();if(!code||!bk)return false;
+  var candidatos=[];(bk.items||[]).forEach(function(it,i){
+    var p=aProd(it)||{},bar=p.codigoBarras||p.codigo_barras||it.codigoBarras||it.codigo_barras||"";
+    var match=aBarcodeKeys(bar).some(function(k){return keys.indexOf(k)>=0;});
+    if(!match&&opts.permitirSku!==false){var sku=[p.codigo,aId(it)].filter(Boolean).map(function(x){return String(x).trim().toUpperCase();});match=sku.indexOf(String(raw||"").trim().toUpperCase())>=0;}
+    if(match)candidatos.push({it:it,i:i});
+  });
   if(!candidatos.length){if(window.showNotif)window.showNotif("Código "+code+" no pertenece a este pedido","warn");return false;}
   var x=candidatos.find(function(z){return aNum(_armEscaneados[z.i])<aScanTarget(z.it,z.i);})||candidatos[0],target=aScanTarget(x.it,x.i);
   _armEscaneados[x.i]=Math.min(target,aNum(_armEscaneados[x.i])+1);if(_armEscaneados[x.i]>=target)window._armCheck[x.i]=true;
-  if(navigator.vibrate)navigator.vibrate(60);var inp=document.getElementById("armv2-scan-code");if(inp)inp.value="";document.getElementById("armv2-scan-status").textContent="✅ "+aNombre(x.it)+" · "+_armEscaneados[x.i]+"/"+target;
+  if(navigator.vibrate)navigator.vibrate(60);var inp=document.getElementById("armv2-scan-code");if(inp)inp.value="";var status=document.getElementById("armv2-scan-status");if(status)status.textContent="✅ "+aNombre(x.it)+" · "+_armEscaneados[x.i]+"/"+target+(opts.desdeCamara?" · retiralo antes de escanear otra unidad":"");
   window._armGuardarBorrador();window._armActualizarFila(x.i);window._armActualizarProgreso();return true;
 };
-window._armScanManual=function(){window._armProcesarCodigo((document.getElementById("armv2-scan-code")||{}).value);};
+window._armScanManual=function(){window._armProcesarCodigo((document.getElementById("armv2-scan-code")||{}).value,{permitirSku:true});};
 async function aScanLoop(detector,video){
-  if(!_armScanStream)return;try{var codes=await detector.detect(video);if(codes&&codes[0]&&codes[0].rawValue)window._armProcesarCodigo(codes[0].rawValue);}catch(e){}
-  if(_armScanStream)_armScanTimer=setTimeout(function(){aScanLoop(detector,video);},300);
+  if(!_armScanStream)return;
+  try{
+    var codes=await detector.detect(video),hit=codes&&codes[0];
+    if(hit&&hit.rawValue){
+      _armScanClearFrames=0;var key=aBarcodeNorm(hit.rawValue,hit.format);
+      if(key&&key!==_armScanLatch){_armScanLatch=key;window._armProcesarCodigo(hit.rawValue,{formato:hit.format,permitirSku:false,desdeCamara:true});}
+    }else if(++_armScanClearFrames>=2){_armScanLatch="";_armScanClearFrames=0;}
+  }catch(e){}
+  if(_armScanStream)_armScanTimer=setTimeout(function(){aScanLoop(detector,video);},260);
+}
+async function aCrearDetector(){
+  var wanted=["ean_13","ean_8","upc_a","upc_e","code_128","code_39","codabar","itf","data_matrix","qr_code"],supported=[];
+  if(typeof window.BarcodeDetector.getSupportedFormats==="function")try{supported=await window.BarcodeDetector.getSupportedFormats();}catch(e){}
+  var formats=supported.length?wanted.filter(function(f){return supported.indexOf(f)>=0;}):wanted;
+  try{return formats.length?new window.BarcodeDetector({formats:formats}):new window.BarcodeDetector();}catch(e){return new window.BarcodeDetector();}
 }
 window._armScanAbrir=async function(){
   if(!aPedido())return;document.getElementById("armv2-scan-modal").classList.add("on");var inp=document.getElementById("armv2-scan-code");inp.value="";inp.focus();var st=document.getElementById("armv2-scan-status");st.textContent="Podés escribir el código o usar la cámara.";
   if(!(window.BarcodeDetector&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){st.textContent="La cámara automática no está disponible acá. Usá el lector Bluetooth o escribí el código.";return;}
-  try{_armScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});var v=document.getElementById("armv2-scan-video");v.srcObject=_armScanStream;await v.play();v.style.display="block";var d=new window.BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]});aScanLoop(d,v);}catch(e){st.textContent="No se pudo abrir la cámara. Revisá el permiso o ingresá el código manualmente.";}
+  try{_armScanLatch="";_armScanClearFrames=0;_armScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});var v=document.getElementById("armv2-scan-video");v.srcObject=_armScanStream;await v.play();v.style.display="block";var guide=document.getElementById("armv2-scan-guide");if(guide)guide.style.display="block";var d=await aCrearDetector();st.textContent="Alineá el código. Para repetir el mismo producto, retiralo del cuadro y volvé a mostrarlo.";aScanLoop(d,v);}catch(e){st.textContent="No se pudo abrir la cámara. Revisá el permiso o ingresá el código manualmente.";}
 };
 window._armScanCerrar=function(){
-  var m=document.getElementById("armv2-scan-modal");if(m)m.classList.remove("on");if(_armScanTimer){clearTimeout(_armScanTimer);_armScanTimer=null;}if(_armScanStream){_armScanStream.getTracks().forEach(function(t){t.stop();});_armScanStream=null;}var v=document.getElementById("armv2-scan-video");if(v){v.srcObject=null;v.style.display="none";}
+  var m=document.getElementById("armv2-scan-modal");if(m)m.classList.remove("on");if(_armScanTimer){clearTimeout(_armScanTimer);_armScanTimer=null;}if(_armScanStream){_armScanStream.getTracks().forEach(function(t){t.stop();});_armScanStream=null;}_armScanLatch="";_armScanClearFrames=0;var guide=document.getElementById("armv2-scan-guide");if(guide)guide.style.display="none";var v=document.getElementById("armv2-scan-video");if(v){v.srcObject=null;v.style.display="none";}
 };
 
 window._armConsolidado=function(){
@@ -446,7 +471,7 @@ function aInject(){
 .armv2-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:100020;align-items:center;justify-content:center;padding:14px}.armv2-overlay.on{display:flex}.armv2-card{width:min(430px,100%);max-height:90vh;overflow:auto;background:var(--s1,#fff);color:var(--text,#111);border:1px solid var(--border,#ddd);border-radius:16px;padding:17px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.armv2-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}.armv2-head b{font-size:17px}.armv2-head small{display:block;color:var(--muted);margin-top:3px}.armv2-x{border:0;background:var(--s3);border-radius:8px;width:34px;height:34px;cursor:pointer;color:var(--text)}.armv2-actions{display:flex;gap:8px;margin-top:13px}.armv2-actions button{flex:1;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--text);font-weight:750;cursor:pointer}.armv2-actions .primary{background:#24459d;color:white;border-color:#24459d}.armv2-stepper{display:grid;grid-template-columns:48px 1fr 48px;gap:7px}.armv2-stepper button,.armv2-stepper input{height:48px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--text);font-size:20px;text-align:center}.armv2-stepper button{font-weight:900;cursor:pointer}\
 .armv2-review-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.armv2-review-kpis div{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:9px;text-align:center}.armv2-review-kpis b{display:block;font-size:18px}.armv2-review-kpis span{font-size:9.5px;color:var(--muted)}.armv2-review-sec{display:flex;flex-direction:column;gap:4px;margin-top:12px;padding:10px;background:var(--s2);border-radius:10px}.armv2-review-sec span{font-size:12px}.armv2-total{display:flex;justify-content:space-between;align-items:center;margin-top:13px;padding:12px;border-top:1px solid var(--border)}.armv2-total b{font-size:20px}.armv2-warning{font-size:11px;color:#a16207;background:rgba(245,158,11,.1);padding:8px;border-radius:8px}\
 .armv2-search{width:100%;box-sizing:border-box;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--text);font:inherit}.armv2-results{display:flex;flex-direction:column;gap:6px;margin-top:9px;max-height:38vh;overflow:auto}.armv2-results>button{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--s2);color:var(--text);cursor:pointer}.armv2-results span{display:flex;flex-direction:column}.armv2-results small{color:var(--muted);margin-top:2px}.armv2-picked{margin-top:10px;padding:10px;border:1px solid rgba(147,51,234,.35);background:rgba(147,51,234,.07);border-radius:10px}.armv2-picked input{width:100%;box-sizing:border-box;margin-top:7px;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--s1);color:var(--text)}\
-#armv2-scan-video{display:none;width:100%;max-height:250px;object-fit:cover;border-radius:10px;background:#000;margin-bottom:8px}.armv2-scan-row{display:flex;gap:7px}.armv2-scan-row input{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:9px;background:var(--s2);color:var(--text)}.armv2-scan-row button{padding:0 14px;border:0;border-radius:9px;background:#24459d;color:#fff;font-weight:750}.armv2-scan-status{font-size:12px;color:var(--muted);padding:8px 1px}\
+.armv2-scan-video-wrap{position:relative}#armv2-scan-video{display:none;width:100%;max-height:250px;object-fit:cover;border-radius:10px;background:#000;margin-bottom:8px}.armv2-scan-guide{pointer-events:none;position:absolute;display:none;left:10%;right:10%;top:50%;height:54px;transform:translateY(-50%);border:2px solid rgba(255,255,255,.92);border-radius:8px;box-shadow:0 0 0 999px rgba(0,0,0,.18)}.armv2-scan-row{display:flex;gap:7px}.armv2-scan-row input{flex:1;min-width:0;padding:11px;border:1px solid var(--border);border-radius:9px;background:var(--s2);color:var(--text)}.armv2-scan-row button{padding:0 14px;border:0;border-radius:9px;background:#24459d;color:#fff;font-weight:750}.armv2-scan-status{font-size:12px;color:var(--muted);padding:8px 1px;line-height:1.4}\
 .armv2-cons-actions{display:flex;gap:6px;position:sticky;top:0;z-index:2;background:var(--bg);padding:4px 0 9px}.armv2-cons-actions button{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text);font-weight:700}.armv2-cons-actions .primary{margin-left:auto;background:#24459d;color:#fff}.armv2-cons-actions button:disabled{opacity:.45}.armv2-alloc{display:block;width:100%;font-size:10px;color:var(--muted)}.armv2-badge-lock{background:rgba(220,38,38,.1);color:#b91c1c}.arm-ped-btn:disabled{opacity:.55;cursor:not-allowed}\
 #armv2-metricas{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0 14px}#armv2-metricas div{background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:8px;text-align:center}#armv2-metricas b{display:block;font-size:15px}#armv2-metricas span{display:block;font-size:8.5px;text-transform:uppercase;color:var(--muted);margin-top:2px}.armv2-empty{text-align:center;padding:14px;color:var(--muted)}\
 @media(max-width:560px){#armv2-metricas{grid-template-columns:repeat(3,1fr)}.arm-item{gap:7px;padding:10px}.armv2-sust-btn,.arm-falta-btn{width:34px}.armv2-review-kpis{grid-template-columns:1fr 1fr 1fr}}';document.head.appendChild(st);
@@ -458,7 +483,7 @@ function aInject(){
 <div id="armv2-falta-modal" class="armv2-overlay"><div class="armv2-card"><div class="armv2-head"><div><b>⚠️ Faltante parcial</b><small id="armv2-falta-title"></small></div><button class="armv2-x" onclick="_armFaltaCerrar()">×</button></div><div id="armv2-falta-max" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div><div class="armv2-stepper"><button onclick="_armFaltaPaso(-1)">−</button><input id="armv2-falta-cant" type="number" min="0" step="1" inputmode="decimal"><button onclick="_armFaltaPaso(1)">+</button></div><button onclick="_armFaltaTodo()" style="width:100%;margin-top:7px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:var(--text)">Falta todo el renglón</button><div class="armv2-actions"><button onclick="_armFaltaCerrar()">Cancelar</button><button class="primary" onclick="_armFaltaAplicar()">Aplicar faltante</button></div></div></div>\
 <div id="armv2-sust-modal" class="armv2-overlay"><div class="armv2-card"><div class="armv2-head"><div><b>↔ Sustituir producto</b><small id="armv2-sust-original"></small></div><button class="armv2-x" onclick="_armSustCerrar()">×</button></div><input id="armv2-sust-buscar" class="armv2-search" placeholder="Buscar reemplazo por nombre o código…" oninput="_armSustBuscar(this.value)"><div id="armv2-sust-resultados" class="armv2-results"></div><div id="armv2-sust-elegido" class="armv2-picked" style="display:none"><b id="armv2-sust-elegido-n"></b><input id="armv2-sust-q" type="number" min="0" step="1" inputmode="decimal" placeholder="Cantidad a sustituir"><div class="armv2-actions"><button onclick="_armSustCerrar()">Cancelar</button><button class="primary" onclick="_armSustAplicar()">Usar reemplazo</button></div></div></div></div>\
 <div id="armv2-review-modal" class="armv2-overlay"><div class="armv2-card"><div class="armv2-head"><div><b>🔎 Revisión final</b><small>Confirmá antes de mandar el pedido a reparto</small></div><button class="armv2-x" onclick="_armReviewCerrar()">×</button></div><div id="armv2-review-body"></div><div class="armv2-actions"><button onclick="_armReviewCerrar()">Volver a revisar</button><button class="primary" onclick="_armConfirmarFinal()">Confirmar armado</button></div></div></div>\
-<div id="armv2-scan-modal" class="armv2-overlay"><div class="armv2-card"><div class="armv2-head"><div><b>📷 Escanear productos</b><small>Un escaneo suma una unidad o un bulto</small></div><button class="armv2-x" onclick="_armScanCerrar()">×</button></div><video id="armv2-scan-video" playsinline muted></video><div class="armv2-scan-row"><input id="armv2-scan-code" inputmode="numeric" placeholder="Código de barras o SKU" onkeydown="if(event.key===\'Enter\')_armScanManual()"><button onclick="_armScanManual()">Agregar</button></div><div id="armv2-scan-status" class="armv2-scan-status"></div></div></div>';
+<div id="armv2-scan-modal" class="armv2-overlay"><div class="armv2-card"><div class="armv2-head"><div><b>📷 Escanear productos</b><small>Un escaneo suma una unidad o un bulto</small></div><button class="armv2-x" onclick="_armScanCerrar()">×</button></div><div class="armv2-scan-video-wrap"><video id="armv2-scan-video" playsinline muted></video><div id="armv2-scan-guide" class="armv2-scan-guide"></div></div><div class="armv2-scan-row"><input id="armv2-scan-code" inputmode="text" placeholder="Código de barras o SKU" onkeydown="if(event.key===\'Enter\')_armScanManual()"><button onclick="_armScanManual()">Agregar</button></div><div id="armv2-scan-status" class="armv2-scan-status"></div></div></div>';
   while(wrap.firstChild)document.body.appendChild(wrap.firstChild);
   try{var saved=JSON.parse(localStorage.getItem(aConsKey())||"{}");window._armConsCheck=Object.assign(window._armConsCheck||{},aJsonObject(saved));}catch(e){}
 }

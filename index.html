@@ -4060,7 +4060,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.11-armador-operativo2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.12-codigos-barras1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -6284,6 +6284,7 @@ _sysAlertMount();
           <button onclick="abrirGestorListas();_closeProdMenu()">⚙️ Listas de precios</button>
           <button onclick="abrirGestorCategorias();_closeProdMenu()">🏷️ Categorías</button>
           <button onclick="_cmpAbrir();_closeProdMenu()">🔄 Comparar lista de proveedor</button>
+          <button onclick="_prodBarcodeAbrirCargaRapida();_closeProdMenu()">📷 Cargar códigos por escáner</button>
           <button onclick="abrirProdIO('importar');_closeProdMenu()">📥 Importar catálogo</button>
           <button onclick="abrirProdIO('exportar');_closeProdMenu()">📤 Exportar catálogo</button>
           <button onclick="_migrarFotosStorage();_closeProdMenu()">📤 Migrar fotos</button>
@@ -6748,7 +6749,11 @@ _sysAlertMount();
       </div>
       <div class="mprod-field full">
         <label>Código de barras <span style="font-weight:400;color:var(--muted);font-size:11px">(EAN / UPC para escanear durante el armado)</span></label>
-        <input type="text" id="mprod-codigo-barras" placeholder="ej: 7791234567890" inputmode="numeric" autocomplete="off">
+        <div class="barcode-field-row">
+          <input type="text" id="mprod-codigo-barras" placeholder="ej: 7791234567890" inputmode="numeric" autocomplete="off" oninput="_prodBarcodeValidarCampo()">
+          <button type="button" onclick="_prodBarcodeEscanearCampo()">📷 Escanear</button>
+        </div>
+        <div id="mprod-codigo-barras-estado" class="barcode-field-status"></div>
       </div>
       <div class="mprod-field">
         <label>Pasillo / zona <span style="font-weight:400;color:var(--muted);font-size:11px">(opcional)</span></label>
@@ -9737,7 +9742,7 @@ async function _sbGetProductos(force){
   if(!rows) rows = await sbGet("productos",SEL_NEW+_colas);
   if(!rows) rows = await sbGet("productos",SEL_OLD+_colas);
   if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,temporada:p.temporada||"",codigoBarras:p.codigo_barras||"",ubicacionPasillo:p.ubicacion_pasillo||"",ubicacionEstante:p.ubicacion_estante||"",ubicacionOrden:(p.ubicacion_orden==null?null:+p.ubicacion_orden),precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,tramos:(Array.isArray(p.tramos)?p.tramos:null),ofertaNombre:p.oferta_nombre||"",ofertaDesde:p.oferta_desde||null,ofertaDias:(Array.isArray(p.oferta_dias)?p.oferta_dias:null),ofertaHoraDesde:p.oferta_hora_desde||"",ofertaHoraHasta:p.oferta_hora_hasta||"",ofertaListas:(Array.isArray(p.oferta_listas)?p.oferta_listas:null),ofertaTope:p.oferta_tope||0,ofertaUsadas:p.oferta_usadas||0,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",vendePor:p.vende_por||"unidad",pesoDisplay:p.peso_display||"kg",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[],creadoEn:p.creado_en||null};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
-async function _sbInsertProducto(p){ var _body={empresa_id:_sbEmpId,codigo:p.codigo||"",codigo_barras:p.codigoBarras||null,ubicacion_pasillo:p.ubicacionPasillo||null,ubicacion_estante:p.ubicacionEstante||null,ubicacion_orden:(p.ubicacionOrden==null?null:p.ubicacionOrden),nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,temporada:p.temporada||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,precio_caja:p.precioCaja||null,unidad_bulto:p.unidadBulto||"bulto",vende_por:p.vendePor||"unidad",peso_display:p.pesoDisplay||"kg",min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null};
+async function _sbInsertProducto(p){ var _barcode=(typeof _barcodeNormalizar==="function"?_barcodeNormalizar(p.codigoBarras||""):String(p.codigoBarras||"").trim());var _body={empresa_id:_sbEmpId,codigo:p.codigo||"",codigo_barras:_barcode||null,ubicacion_pasillo:p.ubicacionPasillo||null,ubicacion_estante:p.ubicacionEstante||null,ubicacion_orden:(p.ubicacionOrden==null?null:p.ubicacionOrden),nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,temporada:p.temporada||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,precio_caja:p.precioCaja||null,unidad_bulto:p.unidadBulto||"bulto",vende_por:p.vendePor||"unidad",peso_display:p.pesoDisplay||"kg",min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null};
   // El importador usa un UUID estable derivado de empresa+código. Si dos
   // importaciones intentan crear el mismo producto a la vez, chocan por ID
   // y se actualiza el registro existente en lugar de crear un duplicado.
@@ -9761,7 +9766,7 @@ async function _sbInsertProducto(p){ var _body={empresa_id:_sbEmpId,codigo:p.cod
     }
   }
   _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
-async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.detalles!==undefined)b.detalles=p.detalles;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.codigoBarras!==undefined)b.codigo_barras=p.codigoBarras||null;if(p.ubicacionPasillo!==undefined)b.ubicacion_pasillo=p.ubicacionPasillo||null;if(p.ubicacionEstante!==undefined)b.ubicacion_estante=p.ubicacionEstante||null;if(p.ubicacionOrden!==undefined)b.ubicacion_orden=(p.ubicacionOrden==null?null:p.ubicacionOrden);if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.temporada!==undefined)b.temporada=p.temporada||null;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.tramos!==undefined)b.tramos=p.tramos;if(p.ofertaNombre!==undefined)b.oferta_nombre=p.ofertaNombre;if(p.ofertaDesde!==undefined)b.oferta_desde=p.ofertaDesde;if(p.ofertaDias!==undefined)b.oferta_dias=p.ofertaDias;if(p.ofertaHoraDesde!==undefined)b.oferta_hora_desde=p.ofertaHoraDesde;if(p.ofertaHoraHasta!==undefined)b.oferta_hora_hasta=p.ofertaHoraHasta;if(p.ofertaListas!==undefined)b.oferta_listas=p.ofertaListas;if(p.ofertaTope!==undefined)b.oferta_tope=p.ofertaTope;if(p.ofertaUsadas!==undefined)b.oferta_usadas=p.ofertaUsadas;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.vendePor!==undefined)b.vende_por=p.vendePor;if(p.pesoDisplay!==undefined)b.peso_display=p.pesoDisplay;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; })
+async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.detalles!==undefined)b.detalles=p.detalles;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.codigoBarras!==undefined){var _barcode=(typeof _barcodeNormalizar==="function"?_barcodeNormalizar(p.codigoBarras||""):String(p.codigoBarras||"").trim());b.codigo_barras=_barcode||null;}if(p.ubicacionPasillo!==undefined)b.ubicacion_pasillo=p.ubicacionPasillo||null;if(p.ubicacionEstante!==undefined)b.ubicacion_estante=p.ubicacionEstante||null;if(p.ubicacionOrden!==undefined)b.ubicacion_orden=(p.ubicacionOrden==null?null:p.ubicacionOrden);if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.temporada!==undefined)b.temporada=p.temporada||null;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.tramos!==undefined)b.tramos=p.tramos;if(p.ofertaNombre!==undefined)b.oferta_nombre=p.ofertaNombre;if(p.ofertaDesde!==undefined)b.oferta_desde=p.ofertaDesde;if(p.ofertaDias!==undefined)b.oferta_dias=p.ofertaDias;if(p.ofertaHoraDesde!==undefined)b.oferta_hora_desde=p.ofertaHoraDesde;if(p.ofertaHoraHasta!==undefined)b.oferta_hora_hasta=p.ofertaHoraHasta;if(p.ofertaListas!==undefined)b.oferta_listas=p.ofertaListas;if(p.ofertaTope!==undefined)b.oferta_tope=p.ofertaTope;if(p.ofertaUsadas!==undefined)b.oferta_usadas=p.ofertaUsadas;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.vendePor!==undefined)b.vende_por=p.vendePor;if(p.pesoDisplay!==undefined)b.peso_display=p.pesoDisplay;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; })
     .catch(function(e){
       var msg=(e&&e.message)||"";
       if(/column|does not exist|PGRST204|schema cache/i.test(msg)){
@@ -32590,6 +32595,7 @@ function abrirModalProducto(key) {
   document.getElementById("mprod-codigo").value = p.codigo || "";
   document.getElementById("mprod-nombre").value = p.nombre || "";
   var _cb=document.getElementById("mprod-codigo-barras"); if(_cb) _cb.value=p.codigoBarras||p.codigo_barras||"";
+  setTimeout(function(){if(typeof _prodBarcodeValidarCampo==="function")_prodBarcodeValidarCampo();},0);
   var _up=document.getElementById("mprod-ubicacion-pasillo"); if(_up) _up.value=p.ubicacionPasillo||p.ubicacion_pasillo||"";
   var _ue=document.getElementById("mprod-ubicacion-estante"); if(_ue) _ue.value=p.ubicacionEstante||p.ubicacion_estante||"";
   var _uo=document.getElementById("mprod-ubicacion-orden"); if(_uo) _uo.value=(p.ubicacionOrden!=null?p.ubicacionOrden:(p.ubicacion_orden!=null?p.ubicacion_orden:""));
@@ -33525,7 +33531,8 @@ function guardarProducto() {
   var nombre = (document.getElementById("mprod-nombre").value || "").trim();
   if (!nombre) { showNotif("El nombre del producto es obligatorio","err"); document.getElementById("mprod-nombre").focus(); return; }
   var codigo    = (document.getElementById("mprod-codigo").value||"").trim().toUpperCase();
-  var codigoBarras = (document.getElementById("mprod-codigo-barras")||{value:""}).value.trim();
+  var codigoBarrasRaw = (document.getElementById("mprod-codigo-barras")||{value:""}).value;
+  var codigoBarras = typeof _barcodeNormalizar==="function" ? _barcodeNormalizar(codigoBarrasRaw) : String(codigoBarrasRaw||"").trim();
   var ubicacionPasillo = (document.getElementById("mprod-ubicacion-pasillo")||{value:""}).value.trim();
   var ubicacionEstante = (document.getElementById("mprod-ubicacion-estante")||{value:""}).value.trim();
   var _ubicacionOrdenRaw = (document.getElementById("mprod-ubicacion-orden")||{value:""}).value;
@@ -33610,6 +33617,17 @@ var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}
       if(_err){ _err.textContent="⚠️ "+_msg; _err.style.display=""; }
       return;
     }
+  }
+  if(codigoBarras && typeof _prodBarcodeValidarValor==="function"){
+    var _barcodeCheck=_prodBarcodeValidarValor(codigoBarras,key);
+    if(!_barcodeCheck.ok){
+      if(typeof showNotif==="function")showNotif(_barcodeCheck.message,"err");
+      var _barcodeInput=document.getElementById("mprod-codigo-barras");
+      if(_barcodeInput){_barcodeInput.focus();if(_barcodeInput.select)_barcodeInput.select();}
+      if(typeof _prodBarcodeValidarCampo==="function")_prodBarcodeValidarCampo();
+      return;
+    }
+    codigoBarras=_barcodeCheck.code;
   }
   var btn = document.querySelector(".mprod-save");
   if(btn){ btn.disabled=true; btn.textContent="Guardando…"; }
@@ -33722,6 +33740,12 @@ function _prodIoNormHeader(v){
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
 }
 function _prodIoNormCode(v){ return String(v==null?"":v).trim().replace(/\s+/g," ").toUpperCase(); }
+function _prodIoNormBarcode(v){
+  if(typeof _barcodeNormalizar==="function")return _barcodeNormalizar(v);
+  var s=String(v==null?"":v).trim().toUpperCase().replace(/\s+/g,"");
+  if(/^[0-9-]+$/.test(s)){s=s.replace(/[^0-9]/g,"");if(s.length===12)s="0"+s;}
+  return s;
+}
 function _prodIoNormText(v){
   return String(v==null?"":v).trim().replace(/\s+/g," ").toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
@@ -33912,7 +33936,7 @@ function _analizarProdIO(){
   Object.entries(_prodData||{}).forEach(function(e){
     var p=e[1];if(!p)return;var id=p.id||e[0];byId[id]=p;
     _prodIoAgregarMapa(byCode,_prodIoNormCode(p.codigo),{id:id,p:p});
-    _prodIoAgregarMapa(byBarcode,_prodIoNormCode(p.codigoBarras||p.codigo_barras),{id:id,p:p});
+    _prodIoAgregarMapa(byBarcode,_prodIoNormBarcode(p.codigoBarras||p.codigo_barras),{id:id,p:p});
     _prodIoAgregarMapa(byName,_prodIoNormText(p.nombre),{id:id,p:p});
     if(p.familia)knownFamilies[_prodIoNormText(p.familia)]=p.familia;
   });
@@ -33920,7 +33944,7 @@ function _analizarProdIO(){
   var fileCodes={},fileBarcodes={},fileIds={},fileNames={};
   _prodIoRawRows.forEach(function(raw){
     _prodIoAgregarMapa(fileCodes,_prodIoNormCode(raw.codigo),raw._row);
-    _prodIoAgregarMapa(fileBarcodes,_prodIoNormCode(raw.codigoBarras),raw._row);
+    _prodIoAgregarMapa(fileBarcodes,_prodIoNormBarcode(raw.codigoBarras),raw._row);
     _prodIoAgregarMapa(fileIds,String(raw.productId||"").trim().toLowerCase(),raw._row);
     _prodIoAgregarMapa(fileNames,_prodIoNormText(raw.nombre),raw._row);
   });
@@ -33928,7 +33952,7 @@ function _analizarProdIO(){
     var row={_row:raw._row,errors:[],warnings:[],changed:[],patch:{},raw:raw};
     row.productId=String(raw.productId||"").trim().toLowerCase();
     row.codigo=_prodIoNormCode(raw.codigo);
-    row.codigoBarras=_prodIoNormCode(raw.codigoBarras);
+    row.codigoBarras=_prodIoNormBarcode(raw.codigoBarras);
     row.nombre=String(raw.nombre||"").trim().replace(/\s+/g," ");
     row.categoria=String(raw.categoria||"").trim().replace(/\s+/g," ");
     row.familia=String(raw.familia||"").trim().replace(/\s+/g," ");
@@ -34118,7 +34142,7 @@ async function _obtenerFilasExportacion(){
   return (res[0]||[]).map(function(p){
     var foto=String(p.foto||"");if(foto.startsWith("data:"))foto="";if(foto.length>32767)foto=foto.slice(0,32767);
     return {
-      productId:p.id||"",codigo:String(p.codigo||"").trim(),codigoBarras:String(p.codigo_barras||"").trim(),nombre:p.nombre||"",
+      productId:p.id||"",codigo:String(p.codigo||"").trim(),codigoBarras:_prodIoNormBarcode(p.codigo_barras||""),nombre:p.nombre||"",
       categoria:String(p.categoria||"Sin categoría").replace(/^"+|"+$/g,"").trim(),
       familia:p.familia||"",ubicacionPasillo:p.ubicacion_pasillo||"",ubicacionEstante:p.ubicacion_estante||"",ubicacionOrden:(p.ubicacion_orden==null?"":p.ubicacion_orden),precioBase:+p.precio_base||0,precioVenta:_prodIoPrecioVentaDe(p),unidadBulto:p.unidad_bulto||"bulto",
       stock:stockMap[_prodIoNormCode(p.codigo)]||0,foto:foto
@@ -34143,7 +34167,7 @@ function _prodIoArmarWorkbook(data){
       if(ws[a])ws[a].s={font:{bold:true,color:{rgb:"FFFFFF"}},fill:{fgColor:{rgb:"173A70"}},alignment:{horizontal:"center"}};
     }
     for(var rr=1;rr<=range.e.r;rr++){
-      ["F","G","I"].forEach(function(col){var cell=ws[col+(rr+1)];if(cell)cell.z="#,##0.00";});
+      ["J","K","M"].forEach(function(col){var cell=ws[col+(rr+1)];if(cell)cell.z="#,##0.00";});
     }
   }
   XLSX.utils.book_append_sheet(wb,ws,"Productos");
@@ -34153,11 +34177,12 @@ function _prodIoArmarWorkbook(data){
     ["2. ID PRODUCTO identifica exactamente un producto existente. No lo copies entre productos."],
     ["3. Para productos nuevos, dejá ID PRODUCTO vacío y completá un CODIGO único."],
     ["4. Una FAMILIA vacía nunca elimina la familia actual."],
-    ["5. PRECIO BASE vacío conserva el costo actual; si cambia, recalcula las listas según sus porcentajes."],
-    ["6. PRECIO DE VENTA corresponde a la lista Clientes. Vacío conserva el actual; si está escrito, ese valor tiene prioridad sobre el cálculo desde PRECIO BASE."],
-    ["7. Para un producto nuevo, PRECIO BASE es obligatorio. PRECIO DE VENTA puede quedar vacío para calcularse automáticamente."],
-    ["8. STOCK vacío conserva el actual; el número 0 establece stock en cero."],
-    ["9. Las promociones y configuraciones no incluidas en esta planilla se conservan."]
+    ["5. CODIGO DE BARRAS vacío conserva el actual. Debe ser único por empresa; UPC-A se normaliza a su EAN-13 equivalente."],
+    ["6. PRECIO BASE vacío conserva el costo actual; si cambia, recalcula las listas según sus porcentajes."],
+    ["7. PRECIO DE VENTA corresponde a la lista Clientes. Vacío conserva el actual; si está escrito, ese valor tiene prioridad sobre el cálculo desde PRECIO BASE."],
+    ["8. Para un producto nuevo, PRECIO BASE es obligatorio. PRECIO DE VENTA puede quedar vacío para calcularse automáticamente."],
+    ["9. STOCK vacío conserva el actual; el número 0 establece stock en cero."],
+    ["10. Las promociones y configuraciones no incluidas en esta planilla se conservan."]
   ];
   var wi=XLSX.utils.aoa_to_sheet(info);wi["!cols"]=[{wch:105}];XLSX.utils.book_append_sheet(wb,wi,"LEEME");
   return wb;
@@ -41974,6 +41999,7 @@ async function _rvtGuardarVisita(){
   if(btn){ btn.disabled = false; btn.textContent = "Guardar visita"; }
 }
 </script>
-<script src="armador-operativo-v2.js?v=20260911-1"></script>
+<script src="barcode-productos-v1.js?v=20260912-1"></script>
+<script src="armador-operativo-v2.js?v=20260912-2"></script>
 </body>
 </html>
