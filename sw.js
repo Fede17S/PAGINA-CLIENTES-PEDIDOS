@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.59 — códigos de barras y escáner protegido
-const CACHE_NAME = 'distribix-v1.59';
-const CACHE_STATIC = 'distribix-static-v1.59';
+// DISTRIBIX Service Worker v1.60 — códigos de barras con respaldo ZXing local
+const CACHE_NAME = 'distribix-v1.60';
+const CACHE_STATIC = 'distribix-static-v1.60';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -12,6 +12,7 @@ const PANEL_CANDIDATES = [
 ];
 
 const APP_SHELL = PANEL_CANDIDATES.concat([
+  './zxing-browser-0.2.1.min.js',
   './barcode-productos-v1.js',
   './armador-operativo-v2.js',
   './manifest.json',

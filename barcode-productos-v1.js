@@ -10,9 +10,12 @@ var _bp={
   stream:null,
   timer:null,
   detector:null,
+  zxingControls:null,
+  zxingReader:null,
   cameraBusy:false,
   saving:false,
   lastSeen:"",
+  lastHitAt:0,
   clearFrames:0,
   undo:null
 };
@@ -140,9 +143,12 @@ function bRenderQuick(){
 
 function bStopCamera(){
   if(_bp.timer){clearTimeout(_bp.timer);_bp.timer=null;}
+  if(_bp.zxingControls&&typeof _bp.zxingControls.stop==="function")try{_bp.zxingControls.stop();}catch(e){}
+  _bp.zxingControls=null;_bp.zxingReader=null;
   if(_bp.stream){_bp.stream.getTracks().forEach(function(t){t.stop();});_bp.stream=null;}
-  _bp.detector=null;_bp.cameraBusy=false;_bp.lastSeen="";_bp.clearFrames=0;
+  _bp.detector=null;_bp.cameraBusy=false;_bp.lastSeen="";_bp.lastHitAt=0;_bp.clearFrames=0;
   var video=document.getElementById("bp-video");if(video){video.srcObject=null;video.style.display="none";}
+  var guide=document.getElementById("bp-guide");if(guide)guide.style.display="none";
   var btn=document.getElementById("bp-camera");if(btn){btn.disabled=false;btn.textContent="📷 Activar cámara";}
 }
 
@@ -186,7 +192,7 @@ async function bLoop(){
     var video=document.getElementById("bp-video"),codes=video?await _bp.detector.detect(video):[];
     var hit=codes&&codes[0];
     if(hit&&hit.rawValue){
-      _bp.clearFrames=0;
+      _bp.clearFrames=0;_bp.lastHitAt=Date.now();
       var key=bNorm(hit.rawValue,hit.format);
       if(key&&key!==_bp.lastSeen){
         _bp.lastSeen=key;
@@ -207,6 +213,13 @@ async function bDetector(){
   var formats=supported.length?wanted.filter(function(f){return supported.indexOf(f)>=0;}):wanted;
   try{return formats.length?new window.BarcodeDetector({formats:formats}):new window.BarcodeDetector();}
   catch(e){return new window.BarcodeDetector();}
+}
+
+function bZxingFormat(result){
+  try{
+    var value=result.getBarcodeFormat(),name=window.ZXingBrowser.BarcodeFormat[value];
+    return String(name||"").toLowerCase();
+  }catch(e){return "";}
 }
 
 function bInject(){
@@ -277,14 +290,29 @@ window._prodBarcodeSiguiente=function(){var n=bNextMissing(_bp.selectedId)||bNex
 window._prodBarcodeUsarManual=function(){var el=document.getElementById("bp-code");return bProcess(el&&el.value,"");};
 
 window._prodBarcodeCamara=async function(){
-  bInject();if(_bp.stream){bStopCamera();return;}
-  if(!(window.BarcodeDetector&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){bSetStatus("La cámara automática no está disponible en este equipo. Usá un lector Bluetooth/USB o escribí el código.","warn");return;}
+  bInject();if(_bp.stream||_bp.zxingControls||_bp.cameraBusy){bStopCamera();return;}
+  var nativeOk=!!(window.BarcodeDetector&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+  var zxingOk=!!(window.ZXingBrowser&&window.ZXingBrowser.BrowserMultiFormatReader);
+  if(!nativeOk&&!zxingOk){bSetStatus("La cámara automática no está disponible en este equipo. Usá un lector Bluetooth/USB o escribí el código.","warn");return;}
   var btn=document.getElementById("bp-camera");if(btn){btn.disabled=true;btn.textContent="Abriendo cámara…";}
+  _bp.cameraBusy=true;
   try{
-    _bp.detector=await bDetector();
-    _bp.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
-    var video=document.getElementById("bp-video");video.srcObject=_bp.stream;await video.play();video.style.display="block";var guide=document.getElementById("bp-guide");if(guide)guide.style.display="block";
-    if(btn){btn.disabled=false;btn.textContent="Detener cámara";}bSetStatus("Alineá el código dentro del recuadro y mantené el teléfono quieto.","info");bLoop();
+    var video=document.getElementById("bp-video"),guide=document.getElementById("bp-guide");video.style.display="block";if(guide)guide.style.display="block";
+    if(nativeOk){
+      _bp.detector=await bDetector();
+      _bp.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
+      video.srcObject=_bp.stream;await video.play();_bp.cameraBusy=false;
+      if(btn){btn.disabled=false;btn.textContent="Detener cámara";}bSetStatus("Alineá el código dentro del recuadro y mantené el teléfono quieto.","info");bLoop();
+    }else{
+      _bp.zxingReader=new window.ZXingBrowser.BrowserMultiFormatReader(undefined,{delayBetweenScanAttempts:260,delayBetweenScanSuccess:900});
+      _bp.zxingControls=await _bp.zxingReader.decodeFromConstraints({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false},video,function(result){
+        if(result){
+          var raw=result.getText(),format=bZxingFormat(result),key=bNorm(raw,format);_bp.lastHitAt=Date.now();_bp.clearFrames=0;
+          if(key&&key!==_bp.lastSeen){_bp.lastSeen=key;Promise.resolve(bProcess(raw,format));}
+        }else if(_bp.lastSeen&&Date.now()-_bp.lastHitAt>800){_bp.lastSeen="";}
+      });
+      _bp.cameraBusy=false;if(btn){btn.disabled=false;btn.textContent="Detener cámara";}bSetStatus("Lector compatible activado. Alineá el código dentro del recuadro.","info");
+    }
   }catch(e){bStopCamera();bSetStatus("No se pudo abrir la cámara. Revisá el permiso o usá el ingreso manual.","err");}
 };
 

@@ -24,6 +24,9 @@ var _armScanStream=null;
 var _armScanTimer=null;
 var _armScanLatch="";
 var _armScanClearFrames=0;
+var _armZxingControls=null;
+var _armZxingReader=null;
+var _armScanLastHitAt=0;
 
 function aEsc(v){
   if(typeof window.escHtml==="function") return window.escHtml(String(v==null?"":v));
@@ -409,13 +412,31 @@ async function aCrearDetector(){
   var formats=supported.length?wanted.filter(function(f){return supported.indexOf(f)>=0;}):wanted;
   try{return formats.length?new window.BarcodeDetector({formats:formats}):new window.BarcodeDetector();}catch(e){return new window.BarcodeDetector();}
 }
+function aZxingFormat(result){
+  try{
+    var value=result.getBarcodeFormat(),name=window.ZXingBrowser.BarcodeFormat[value];
+    return String(name||"").toLowerCase();
+  }catch(e){return "";}
+}
 window._armScanAbrir=async function(){
   if(!aPedido())return;document.getElementById("armv2-scan-modal").classList.add("on");var inp=document.getElementById("armv2-scan-code");inp.value="";inp.focus();var st=document.getElementById("armv2-scan-status");st.textContent="Podés escribir el código o usar la cámara.";
-  if(!(window.BarcodeDetector&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){st.textContent="La cámara automática no está disponible acá. Usá el lector Bluetooth o escribí el código.";return;}
-  try{_armScanLatch="";_armScanClearFrames=0;_armScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});var v=document.getElementById("armv2-scan-video");v.srcObject=_armScanStream;await v.play();v.style.display="block";var guide=document.getElementById("armv2-scan-guide");if(guide)guide.style.display="block";var d=await aCrearDetector();st.textContent="Alineá el código. Para repetir el mismo producto, retiralo del cuadro y volvé a mostrarlo.";aScanLoop(d,v);}catch(e){st.textContent="No se pudo abrir la cámara. Revisá el permiso o ingresá el código manualmente.";}
+  var nativeOk=!!(window.BarcodeDetector&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia),zxingOk=!!(window.ZXingBrowser&&window.ZXingBrowser.BrowserMultiFormatReader);
+  if(!nativeOk&&!zxingOk){st.textContent="La cámara automática no está disponible acá. Usá el lector Bluetooth o escribí el código.";return;}
+  try{
+    _armScanLatch="";_armScanClearFrames=0;_armScanLastHitAt=0;var v=document.getElementById("armv2-scan-video"),guide=document.getElementById("armv2-scan-guide");v.style.display="block";if(guide)guide.style.display="block";st.textContent="Alineá el código. Para repetir el mismo producto, retiralo del cuadro y volvé a mostrarlo.";
+    if(nativeOk){
+      _armScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});v.srcObject=_armScanStream;await v.play();var d=await aCrearDetector();aScanLoop(d,v);
+    }else{
+      _armZxingReader=new window.ZXingBrowser.BrowserMultiFormatReader(undefined,{delayBetweenScanAttempts:260,delayBetweenScanSuccess:900});
+      _armZxingControls=await _armZxingReader.decodeFromConstraints({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false},v,function(result){
+        if(result){var raw=result.getText(),format=aZxingFormat(result),key=aBarcodeNorm(raw,format);_armScanLastHitAt=Date.now();_armScanClearFrames=0;if(key&&key!==_armScanLatch){_armScanLatch=key;window._armProcesarCodigo(raw,{formato:format,permitirSku:false,desdeCamara:true});}}
+        else if(_armScanLatch&&Date.now()-_armScanLastHitAt>800){_armScanLatch="";}
+      });
+    }
+  }catch(e){window._armScanCerrar();document.getElementById("armv2-scan-modal").classList.add("on");st.textContent="No se pudo abrir la cámara. Revisá el permiso o ingresá el código manualmente.";}
 };
 window._armScanCerrar=function(){
-  var m=document.getElementById("armv2-scan-modal");if(m)m.classList.remove("on");if(_armScanTimer){clearTimeout(_armScanTimer);_armScanTimer=null;}if(_armScanStream){_armScanStream.getTracks().forEach(function(t){t.stop();});_armScanStream=null;}_armScanLatch="";_armScanClearFrames=0;var guide=document.getElementById("armv2-scan-guide");if(guide)guide.style.display="none";var v=document.getElementById("armv2-scan-video");if(v){v.srcObject=null;v.style.display="none";}
+  var m=document.getElementById("armv2-scan-modal");if(m)m.classList.remove("on");if(_armScanTimer){clearTimeout(_armScanTimer);_armScanTimer=null;}if(_armZxingControls&&typeof _armZxingControls.stop==="function")try{_armZxingControls.stop();}catch(e){}_armZxingControls=null;_armZxingReader=null;if(_armScanStream){_armScanStream.getTracks().forEach(function(t){t.stop();});_armScanStream=null;}_armScanLatch="";_armScanClearFrames=0;_armScanLastHitAt=0;var guide=document.getElementById("armv2-scan-guide");if(guide)guide.style.display="none";var v=document.getElementById("armv2-scan-video");if(v){v.srcObject=null;v.style.display="none";}
 };
 
 window._armConsolidado=function(){
