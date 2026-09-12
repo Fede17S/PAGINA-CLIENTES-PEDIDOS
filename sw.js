@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.61 — depósito seguro sin alterar cantidades
-const CACHE_NAME = 'distribix-v1.61';
-const CACHE_STATIC = 'distribix-static-v1.61';
+// DISTRIBIX Service Worker v1.62 — mapa de depósito aislado del motor de stock
+const CACHE_NAME = 'distribix-v1.62';
+const CACHE_STATIC = 'distribix-static-v1.62';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -16,6 +16,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './barcode-productos-v1.js',
   './armador-operativo-v2.js',
   './deposito-stock-v1.js',
+  './deposito-mapa-v1.js',
   './manifest.json',
   './distribix-logo-completo.png',
   './favicon-distribix.ico',
