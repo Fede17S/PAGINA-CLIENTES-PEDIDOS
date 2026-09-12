@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.55 — conserva el período elegido en Hoja de Ruta
-const CACHE_NAME = 'distribix-v1.55';
-const CACHE_STATIC = 'distribix-static-v1.55';
+// DISTRIBIX Service Worker v1.58 — armador operativo con progreso persistente
+const CACHE_NAME = 'distribix-v1.58';
+const CACHE_STATIC = 'distribix-static-v1.58';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -12,6 +12,7 @@ const PANEL_CANDIDATES = [
 ];
 
 const APP_SHELL = PANEL_CANDIDATES.concat([
+  './armador-operativo-v2.js',
   './manifest.json',
   './distribix-logo-completo.png',
   './favicon-distribix.ico',
