@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-window.DEPOSITO_MAPA_VERSION="1.0.0";
+window.DEPOSITO_MAPA_VERSION="1.1.0";
 
 var TIPOS={
   estanteria:{nombre:"Estantería",icono:"▤",color:"#2563eb",almacena:true},
@@ -11,6 +11,7 @@ var TIPOS={
   recepcion:{nombre:"Recepción",icono:"📥",color:"#059669",almacena:false},
   preparacion:{nombre:"Preparación",icono:"📦",color:"#4f46e5",almacena:false},
   devoluciones:{nombre:"Devoluciones",icono:"↩️",color:"#dc2626",almacena:false},
+  cuarentena:{nombre:"Cuarentena",icono:"🛑",color:"#ea580c",almacena:false},
   pasillo:{nombre:"Pasillo",icono:"↕",color:"#64748b",almacena:false},
   libre:{nombre:"Área libre",icono:"□",color:"#94a3b8",almacena:false}
 };
@@ -136,6 +137,51 @@ function mCerrar(id){if(typeof window.cerrarModal==="function")window.cerrarModa
 function mFecha(v){if(!v)return "Todavía no guardado";try{return new Intl.DateTimeFormat("es-AR",{dateStyle:"short",timeStyle:"short"}).format(new Date(v));}catch(e){return String(v);}}
 function mSetSucio(valor){M.sucio=valor!==false;var b=document.getElementById("dep-map-save");if(b)b.disabled=!M.sucio||M.cargando;}
 
+function mQrPayload(elemento){
+  if(!elemento||!elemento.id||!window._sbEmpId)return "";
+  return "DISTRIBIX:DEP:"+String(window._sbEmpId)+":"+String(elemento.id);
+}
+function mParseQr(valor){
+  var s=String(valor||"").trim(),m=s.match(/^DISTRIBIX:DEP:([0-9a-f-]{36}):(.+)$/i);
+  if(!m)return null;
+  if(window._sbEmpId&&String(m[1]).toLowerCase()!==String(window._sbEmpId).toLowerCase())return null;
+  return {empresaId:m[1],elementoId:m[2],raw:s};
+}
+function mRutaElementos(mapa){
+  mapa=mNormalizarMapa(mapa||M.mapa||mMapaVacio());
+  var pendientes=mapa.elementos.filter(function(e){return mTipo(e.tipo).almacena;}).slice(),ruta=[];
+  var actual={x:0,y:mapa.alto};
+  while(pendientes.length){
+    pendientes.sort(function(a,b){
+      function dist(e){return Math.abs(actual.x-(e.x+e.w/2))+Math.abs(actual.y-(e.y+e.h/2));}
+      return dist(a)-dist(b)||a.y-b.y||a.x-b.x||String(a.nombre).localeCompare(String(b.nombre),"es");
+    });
+    var elegido=pendientes.shift();ruta.push(elegido);actual={x:elegido.x+elegido.w/2,y:elegido.y+elegido.h/2};
+  }
+  return ruta;
+}
+function mOrdenUbicacion(pasillo,estante){
+  var key=mLocKey(pasillo,estante);if(!key)return 999999;
+  var ruta=mRutaElementos(M.mapa),i=ruta.findIndex(function(e){return mLocKey(e.pasillo,e.estante)===key;});
+  return i<0?999999:i;
+}
+function mBuscarQr(valor){
+  var q=mParseQr(valor);if(!q)return null;
+  return (M.mapa&&M.mapa.elementos||[]).find(function(e){return String(e.id)===String(q.elementoId);})||null;
+}
+function mImprimirQr(id){
+  var el=(M.mapa&&M.mapa.elementos||[]).find(function(e){return String(e.id)===String(id);});
+  if(!el){mNotif("No encontré esa ubicación.","err");return;}
+  if(typeof window.qrcode!=="function"){mNotif("El generador QR todavía no está disponible.","err");return;}
+  var payload=mQrPayload(el),qr=window.qrcode(0,"M");qr.addData(payload);qr.make();
+  var loc=(el.pasillo?"Pasillo "+el.pasillo:"")+(el.pasillo&&el.estante?" · ":"")+(el.estante?"Estante "+el.estante:"");
+  var w=window.open("","_blank","width=520,height=700");
+  if(!w){mNotif("Permití ventanas emergentes para imprimir la etiqueta.","err");return;}
+  w.document.open();
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Etiqueta '+mEsc(el.nombre)+'</title><style>body{font-family:Arial,sans-serif;margin:0;display:grid;place-items:center;min-height:100vh}.label{width:86mm;min-height:62mm;border:2px solid #111;border-radius:4mm;padding:6mm;box-sizing:border-box;text-align:center}.label h1{font-size:22px;margin:0 0 3mm}.label p{font-size:14px;margin:0 0 4mm}.label svg{width:38mm;height:38mm}.label small{display:block;margin-top:2mm;font-size:9px;color:#555}@media print{body{min-height:auto}.label{break-inside:avoid}}</style></head><body><div class="label"><h1>'+mEsc(el.nombre)+'</h1><p>'+mEsc(loc||mTipo(el.tipo).nombre)+'</p>'+qr.createSvgTag(5,0)+'<small>DISTRIBIX · Escaneá para ir a esta ubicación durante el armado</small></div><script>setTimeout(function(){window.print()},250)<\/script></body></html>');
+  w.document.close();
+}
+
 function mRenderDetalle(){
   var box=document.getElementById("dep-map-detail");if(!box)return;
   var el=(M.mapa&&M.mapa.elementos||[]).find(function(e){return e.id===M.detalleId;});
@@ -143,10 +189,11 @@ function mRenderDetalle(){
   var filas=mProductosElemento(el,mFilas()).sort(function(a,b){var ao=a.orden==null?999999:+a.orden,bo=b.orden==null?999999:+b.orden;return ao-bo||String(a.nombre).localeCompare(String(b.nombre),"es");});
   var unidades=filas.reduce(function(n,f){return n+Math.max(0,f.cantidad);},0);
   box.style.display="block";
-  box.innerHTML='<header><div><b>'+mEsc(mTipo(el.tipo).icono+" "+el.nombre)+'</b><span>'+(el.pasillo||el.estante?mEsc((el.pasillo?"Pasillo "+el.pasillo:"")+(el.pasillo&&el.estante?" · ":"")+(el.estante?"Estante "+el.estante:"")):mEsc(mTipo(el.tipo).nombre))+'</span></div><button type="button" id="dep-map-detail-close">✕</button></header>'+
+  box.innerHTML='<header><div><b>'+mEsc(mTipo(el.tipo).icono+" "+el.nombre)+'</b><span>'+(el.pasillo||el.estante?mEsc((el.pasillo?"Pasillo "+el.pasillo:"")+(el.pasillo&&el.estante?" · ":"")+(el.estante?"Estante "+el.estante:"")):mEsc(mTipo(el.tipo).nombre))+'</span></div>'+(mTipo(el.tipo).almacena?'<button type="button" class="dep-map-qr" id="dep-map-detail-qr">🏷️ QR</button>':'')+'<button type="button" id="dep-map-detail-close">✕</button></header>'+
     '<div class="dep-map-detail-summary"><b>'+filas.length+' productos</b><span>'+unidades+' unidades positivas</span></div>'+
     (filas.length?'<div class="dep-map-detail-list">'+filas.slice(0,100).map(function(f){return '<div><span><b>'+mEsc(f.nombre)+'</b><small>'+mEsc(f.codigo)+'</small></span><strong class="'+mEstadoFila(f)+'">'+f.cantidad+'</strong></div>';}).join("")+'</div>':'<div class="dep-map-detail-empty">Esta área todavía no tiene productos vinculados.</div>');
   document.getElementById("dep-map-detail-close").onclick=function(){M.detalleId=null;mRenderDetalle();};
+  var qrBtn=document.getElementById("dep-map-detail-qr");if(qrBtn)qrBtn.onclick=function(){mImprimirQr(el.id);};
 }
 
 function mRender(){
@@ -289,6 +336,7 @@ function mInject(){
 #dep-mape-modal .dep-map-form,#dep-mapc-modal .dep-map-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}#dep-mape-modal label,#dep-mapc-modal label{display:block;font-size:10px;font-weight:800;color:var(--muted);margin-bottom:4px}#dep-mape-modal input,#dep-mape-modal select,#dep-mapc-modal input{width:100%;box-sizing:border-box}#dep-mape-modal .full,#dep-mapc-modal .full{grid-column:1/-1}#dep-mape-location{display:grid;grid-template-columns:1fr 1fr;gap:10px;grid-column:1/-1;padding:10px;border:1px solid var(--border);border-radius:9px}.dep-map-safe-note{grid-column:1/-1;padding:9px 10px;border:1px solid #86efac;background:#ecfdf5;color:#166534;border-radius:9px;font-size:10.5px;line-height:1.4}
 @media(max-width:650px){.dep-map-toolbar{align-items:flex-start;flex-wrap:wrap}.dep-map-toolbar>div{width:100%}.dep-map-toolbar button{flex:1}.dep-map-actions button{flex:1 1 42%}.dep-map-actions .spacer{display:none}#dep-mape-modal .dep-map-form{grid-template-columns:1fr 1fr}.dep-map-item{padding:5px}.dep-map-item b{font-size:10px}}
 `;document.head.appendChild(style);
+  var qrStyle=document.createElement("style");qrStyle.textContent="#dep-map-detail>header{gap:6px}.dep-map-qr{border:1px solid var(--border)!important;background:var(--s1)!important;border-radius:7px!important;padding:6px 8px!important;font:800 9.5px inherit!important;color:var(--accent)!important}";document.head.appendChild(qrStyle);
   var modos=document.createElement("div");modos.id="dep-modos";modos.innerHTML='<button type="button" class="on" data-dep-modo="listado">📋 Listado</button><button type="button" data-dep-modo="mapa">🗺️ Mapa del depósito</button>';dep.insertBefore(modos,kpis);
   var pane=document.createElement("div");pane.id="dep-map-pane";pane.innerHTML='<div class="dep-map-toolbar"><div><b id="dep-map-title">Depósito principal</b><span id="dep-map-meta">Todavía no guardado</span></div><button type="button" id="dep-map-refresh">↻ Actualizar</button><button type="button" class="primary" id="dep-map-edit">✏️ Editar mapa</button></div><div id="dep-map-actions"><button type="button" id="dep-map-add">＋ Área</button><button type="button" id="dep-map-auto">✨ Completar ubicaciones</button><button type="button" id="dep-map-config">⚙️ Configurar</button><span class="spacer"></span><button type="button" class="danger" id="dep-map-cancel">Cancelar</button><button type="button" class="primary" id="dep-map-save" disabled>💾 Guardar mapa</button></div><div id="dep-map-status"></div><div class="dep-map-scroll"><div class="dep-map-canvas" id="dep-map-canvas"></div></div><div id="dep-map-detail"></div>';dep.appendChild(pane);
   modos.querySelectorAll("[data-dep-modo]").forEach(function(b){b.onclick=function(){mSetModo(this.getAttribute("data-dep-modo"));};});document.getElementById("dep-map-refresh").onclick=function(){mCargar(true);};document.getElementById("dep-map-edit").onclick=mEditar;document.getElementById("dep-map-add").onclick=function(){mAbrirElemento(null);};document.getElementById("dep-map-auto").onclick=mCompletarUbicaciones;document.getElementById("dep-map-config").onclick=mAbrirConfig;document.getElementById("dep-map-cancel").onclick=mCancelarEdicion;document.getElementById("dep-map-save").onclick=mGuardar;
@@ -302,7 +350,8 @@ window._depMapaEditar=mEditar;
 window._depMapaAbrirElemento=mAbrirElemento;
 window._depMapaGuardar=mGuardar;
 window._depMapaRefrescar=function(){return mCargar(true);};
-window.__depositoMapaTest={normalizarMapa:mNormalizarMapa,claveUbicacion:mLocKey,productosElemento:mProductosElemento,ubicacionesFaltantes:mUbicacionesFaltantes,solapa:mSolapa,agregarFaltantes:mAgregarFaltantes,tipos:TIPOS};
+window.DepositoMapa={cargar:mCargar,obtener:function(){return M.mapa?mCopia(M.mapa):null;},ruta:mRutaElementos,ordenUbicacion:mOrdenUbicacion,qrPayload:mQrPayload,parseQr:mParseQr,buscarQr:mBuscarQr,imprimirQr:mImprimirQr};
+window.__depositoMapaTest={normalizarMapa:mNormalizarMapa,claveUbicacion:mLocKey,productosElemento:mProductosElemento,ubicacionesFaltantes:mUbicacionesFaltantes,solapa:mSolapa,agregarFaltantes:mAgregarFaltantes,tipos:TIPOS,ruta:mRutaElementos,qrPayload:mQrPayload,parseQr:mParseQr};
 
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mInject);else mInject();
 })();

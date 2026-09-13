@@ -4060,7 +4060,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.12-deposito2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.13-deposito3</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -9554,17 +9554,17 @@ function _stkEsCambioManualGrande(anterior,nuevo){
   return d>=50 || (d>=20 && ((+anterior||0)<=0 || d>=Math.max(20,Math.abs(+anterior||0)*0.5)));
 }
 async function _stkConfirmarCambioManual(codigo,anterior,nuevo){
-  if(!_stkEsCambioManualGrande(anterior,nuevo)) return true;
   var delta=(+nuevo||0)-(+anterior||0);
   var prod=(dbStock||[]).find(function(p){return String(p.id)===String(codigo);});
   var nom=prod?(prod.n||prod.nombre||codigo):codigo;
   return await _confirmar({
-    icono:"⚠️",
-    titulo:"Revisar ajuste grande",
+    icono:"📦",
+    titulo:"Confirmar modificación manual",
     mensaje:nom+"\n\nStock actual: "+anterior+" u.\nNuevo stock: "+nuevo+" u.\nCambio: "+(delta>0?"+":"")+delta+" u.\n\nConfirmá solamente si contaste físicamente esa cantidad.",
     ok:"Sí, guardar "+nuevo+" u.",
     cancelar:"Volver a revisar",
-    peligro:true
+    peligro:delta<0,
+    persistente:true
   });
 }
 
@@ -42001,8 +42001,9 @@ async function _rvtGuardarVisita(){
 </script>
 <script src="zxing-browser-0.2.1.min.js?v=0.2.1"></script>
 <script src="barcode-productos-v1.js?v=20260912-2"></script>
-<script src="armador-operativo-v2.js?v=20260912-2"></script>
+<script src="armador-operativo-v2.js?v=20260913-1"></script>
 <script src="deposito-stock-v1.js?v=20260912-1"></script>
-<script src="deposito-mapa-v1.js?v=20260912-1"></script>
+<script src="deposito-mapa-v1.js?v=20260913-1"></script>
+<script src="stock-operaciones-v2.js?v=20260913-1"></script>
 </body>
 </html>

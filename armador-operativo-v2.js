@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-window.ARMADOR_OPERATIVO_VERSION="2.1.0";
+window.ARMADOR_OPERATIVO_VERSION="2.2.0";
 
 var _armLegacyRenderLista=window._armRenderLista;
 var _armLegacyInicioRender=window._armInicioRender;
@@ -27,6 +27,8 @@ var _armScanClearFrames=0;
 var _armZxingControls=null;
 var _armZxingReader=null;
 var _armScanLastHitAt=0;
+var _armRutaOrden={};
+var _armRutaNombre={};
 
 function aEsc(v){
   if(typeof window.escHtml==="function") return window.escHtml(String(v==null?"":v));
@@ -50,9 +52,20 @@ function aProd(it){
   var vals=Object.values(window._prodData||{});
   return vals.find(function(x){return String(x.id||"")===id || String(x.codigo||"").toUpperCase()===id.toUpperCase();})||null;
 }
+function aLocKey(pasillo,estante){return String(pasillo||"").trim().toLocaleLowerCase("es")+"\u0001"+String(estante||"").trim().toLocaleLowerCase("es");}
+async function aCargarRutaDeposito(){
+  _armRutaOrden={};_armRutaNombre={};
+  if(!window.DepositoMapa||typeof window.DepositoMapa.cargar!=="function")return;
+  try{
+    await window.DepositoMapa.cargar(false);
+    var mapa=window.DepositoMapa.obtener&&window.DepositoMapa.obtener(),ruta=window.DepositoMapa.ruta&&window.DepositoMapa.ruta(mapa);
+    (ruta||[]).forEach(function(e,i){var k=aLocKey(e.pasillo,e.estante);if(k!=="\u0001"){_armRutaOrden[k]=i;_armRutaNombre[k]=e.nombre||([e.pasillo,e.estante].filter(Boolean).join(" · "));}});
+  }catch(e){console.warn("[Armador] mapa no disponible:",e&&e.message);}
+}
 function aUbicacion(it){
   var p=aProd(it)||{}, pa=p.ubicacionPasillo||p.ubicacion_pasillo||"", es=p.ubicacionEstante||p.ubicacion_estante||"";
-  return {texto:[pa,es].filter(Boolean).join(" · "),orden:p.ubicacionOrden==null?(p.ubicacion_orden==null?999999:aNum(p.ubicacion_orden)):aNum(p.ubicacionOrden)};
+  var key=aLocKey(pa,es);
+  return {texto:[pa,es].filter(Boolean).join(" · "),nombre:_armRutaNombre[key]||[pa,es].filter(Boolean).join(" · "),ruta:_armRutaOrden[key]==null?999999:_armRutaOrden[key],clave:key,orden:p.ubicacionOrden==null?(p.ubicacion_orden==null?999999:aNum(p.ubicacion_orden)):aNum(p.ubicacionOrden)};
 }
 function aLineSub(i){ return _armSustituciones.filter(function(s){return +s.original_index===+i;}); }
 function aSubCant(i){ return aLineSub(i).reduce(function(t,s){return t+aNum(s.cantidad);},0); }
@@ -193,6 +206,7 @@ window._armAbrir=async function(id){
     var server=aJsonObject(r.progreso),lp=local&&aJsonObject(local.progreso);
     aApplyProgress(aHasProgress(server)?server:(lp||server));
     aRenderHeader(bk); window._armRenderItems(); aSetStatus("🔒 Pedido reservado para vos · nadie más puede armarlo","ok"); aStartHeartbeat(); aPersistLocal();
+    aCargarRutaDeposito().then(function(){if(String(window._armOpenId)===String(id))window._armRenderItems();});
     if(!aHasProgress(server)&&aHasProgress(lp))aScheduleSave();
   }catch(e){
     console.error("[Armador] reclamar",e); if(window.showNotif)window.showNotif("No se pudo reservar el pedido: "+(e.message||"error"),"err");
@@ -217,8 +231,17 @@ function aItemHtml(it,i){
 window._armRenderItems=function(){
   var bk=aPedido(),cont=document.getElementById("arm-items"); if(!bk||!cont)return;
   var filas=(bk.items||[]).map(function(it,i){var u=aUbicacion(it);return{it:it,i:i,u:u};});
-  filas.sort(function(a,b){return a.u.orden-b.u.orden||a.u.texto.localeCompare(b.u.texto)||aNombre(a.it).localeCompare(aNombre(b.it));});
-  cont.innerHTML=filas.map(function(x){return aItemHtml(x.it,x.i);}).join("");
+  filas.sort(function(a,b){return a.u.ruta-b.u.ruta||a.u.orden-b.u.orden||a.u.texto.localeCompare(b.u.texto)||aNombre(a.it).localeCompare(aNombre(b.it));});
+  var ultimo=null,html="";
+  filas.forEach(function(x){
+    var grupo=x.u.clave==="\u0001"?"__sin_ubicacion__":x.u.clave;
+    if(grupo!==ultimo){
+      ultimo=grupo;
+      html+='<div class="armv2-stop" data-arm-stop="'+encodeURIComponent(grupo)+'"><span>'+(x.u.ruta<999999?("Parada "+(x.u.ruta+1)):"Sin ruta")+'</span><b>📍 '+aEsc(x.u.nombre||"Productos sin ubicación")+'</b></div>';
+    }
+    html+=aItemHtml(x.it,x.i);
+  });
+  cont.innerHTML=html;
   window._armActualizarProgreso(bk.items||[]);
 };
 window._armActualizarFila=function(i){
@@ -382,6 +405,16 @@ function aBarcodeKeys(raw,format){
 }
 window._armProcesarCodigo=function(raw,opts){
   opts=opts||{};var code=aBarcodeNorm(raw,opts.formato),keys=aBarcodeKeys(raw,opts.formato),bk=aPedido();if(!code||!bk)return false;
+  if(/^DISTRIBIX:DEP:/i.test(String(raw||""))&&window.DepositoMapa){
+    var area=window.DepositoMapa.buscarQr&&window.DepositoMapa.buscarQr(raw);
+    if(!area){if(window.showNotif)window.showNotif("La etiqueta no pertenece a esta empresa o ya no existe","warn");return false;}
+    var key=aLocKey(area.pasillo,area.estante),objetivo=(bk.items||[]).map(function(it,i){return{it:it,i:i,u:aUbicacion(it)};}).find(function(x){return x.u.clave===key;});
+    if(!objetivo){if(window.showNotif)window.showNotif("Este pedido no tiene productos en "+area.nombre,"warn");return false;}
+    var row=document.querySelector('#arm-items [data-arm-index="'+objetivo.i+'"]');
+    if(row){row.scrollIntoView({behavior:"smooth",block:"center"});row.classList.add("armv2-located");setTimeout(function(){row.classList.remove("armv2-located");},1600);}
+    var statusArea=document.getElementById("armv2-scan-status");if(statusArea)statusArea.textContent="📍 "+area.nombre+" · seguí armando desde esta estantería";
+    if(navigator.vibrate)navigator.vibrate([50,40,50]);return true;
+  }
   var candidatos=[];(bk.items||[]).forEach(function(it,i){
     var p=aProd(it)||{},bar=p.codigoBarras||p.codigo_barras||it.codigoBarras||it.codigo_barras||"";
     var match=aBarcodeKeys(bar).some(function(k){return keys.indexOf(k)>=0;});
@@ -489,6 +522,7 @@ function aInject(){
   var st=document.createElement("style");st.id="armador-operativo-v2-style";st.textContent='\
 .armv2-lock{font-size:11.5px;font-weight:700;padding:7px 10px;border-radius:9px;margin-bottom:9px;background:rgba(16,185,129,.1);color:#047857;border:1px solid rgba(16,185,129,.3)}.armv2-lock.warn{background:rgba(245,158,11,.1);color:#a16207;border-color:rgba(245,158,11,.35)}.armv2-lock.err{background:rgba(220,38,38,.1);color:#b91c1c;border-color:rgba(220,38,38,.35)}\
 .armv2-info-grid{display:grid;grid-template-columns:1fr auto;gap:4px 12px}.armv2-info-grid span{color:var(--muted)}.armv2-main{flex:1;min-width:0}.armv2-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.armv2-tag{display:inline-flex;align-items:center;gap:3px;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:750;line-height:1.25}.armv2-tag.loc{background:rgba(59,130,246,.1);color:#2563eb}.armv2-tag.falta{background:rgba(220,38,38,.1);color:#dc2626}.armv2-tag.scan{background:rgba(16,185,129,.1);color:#059669}.armv2-tag.sust{background:rgba(147,51,234,.1);color:#7e22ce}.armv2-tag button{border:0;background:none;color:inherit;padding:0 0 0 2px;font-weight:900;cursor:pointer}.armv2-sust-btn{width:36px;height:38px;border:1px solid var(--border);border-radius:8px;background:var(--s2);color:#7e22ce;font-size:17px;cursor:pointer}.armv2-sust-row{border-color:rgba(147,51,234,.35)}\
+.armv2-stop{position:sticky;top:-1px;z-index:3;display:flex;align-items:center;gap:8px;padding:7px 9px;margin-top:7px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e3a8a}.armv2-stop span{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.armv2-stop b{font-size:10.5px}.arm-item.armv2-located{outline:3px solid #22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.16);transition:.2s}\
 .armv2-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:100020;align-items:center;justify-content:center;padding:14px}.armv2-overlay.on{display:flex}.armv2-card{width:min(430px,100%);max-height:90vh;overflow:auto;background:var(--s1,#fff);color:var(--text,#111);border:1px solid var(--border,#ddd);border-radius:16px;padding:17px;box-shadow:0 20px 60px rgba(0,0,0,.35)}.armv2-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}.armv2-head b{font-size:17px}.armv2-head small{display:block;color:var(--muted);margin-top:3px}.armv2-x{border:0;background:var(--s3);border-radius:8px;width:34px;height:34px;cursor:pointer;color:var(--text)}.armv2-actions{display:flex;gap:8px;margin-top:13px}.armv2-actions button{flex:1;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--text);font-weight:750;cursor:pointer}.armv2-actions .primary{background:#24459d;color:white;border-color:#24459d}.armv2-stepper{display:grid;grid-template-columns:48px 1fr 48px;gap:7px}.armv2-stepper button,.armv2-stepper input{height:48px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--text);font-size:20px;text-align:center}.armv2-stepper button{font-weight:900;cursor:pointer}\
 .armv2-review-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.armv2-review-kpis div{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:9px;text-align:center}.armv2-review-kpis b{display:block;font-size:18px}.armv2-review-kpis span{font-size:9.5px;color:var(--muted)}.armv2-review-sec{display:flex;flex-direction:column;gap:4px;margin-top:12px;padding:10px;background:var(--s2);border-radius:10px}.armv2-review-sec span{font-size:12px}.armv2-total{display:flex;justify-content:space-between;align-items:center;margin-top:13px;padding:12px;border-top:1px solid var(--border)}.armv2-total b{font-size:20px}.armv2-warning{font-size:11px;color:#a16207;background:rgba(245,158,11,.1);padding:8px;border-radius:8px}\
 .armv2-search{width:100%;box-sizing:border-box;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--s2);color:var(--text);font:inherit}.armv2-results{display:flex;flex-direction:column;gap:6px;margin-top:9px;max-height:38vh;overflow:auto}.armv2-results>button{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:9px;border:1px solid var(--border);border-radius:9px;background:var(--s2);color:var(--text);cursor:pointer}.armv2-results span{display:flex;flex-direction:column}.armv2-results small{color:var(--muted);margin-top:2px}.armv2-picked{margin-top:10px;padding:10px;border:1px solid rgba(147,51,234,.35);background:rgba(147,51,234,.07);border-radius:10px}.armv2-picked input{width:100%;box-sizing:border-box;margin-top:7px;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--s1);color:var(--text)}\
@@ -513,7 +547,8 @@ window.__armadorV2Test={
   applyProgress:aApplyProgress,
   snapshot:aSnapshot,
   resolved:aResolved,
-  consolidated:window._armConsolidado
+  consolidated:window._armConsolidado,
+  locKey:aLocKey
 };
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",aInject);else aInject();
 

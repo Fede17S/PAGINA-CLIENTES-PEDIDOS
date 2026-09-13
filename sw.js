@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.62 — mapa de depósito aislado del motor de stock
-const CACHE_NAME = 'distribix-v1.62';
-const CACHE_STATIC = 'distribix-static-v1.62';
+// DISTRIBIX Service Worker v1.63 — depósito operativo, lotes y carga atómica
+const CACHE_NAME = 'distribix-v1.63';
+const CACHE_STATIC = 'distribix-static-v1.63';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -17,6 +17,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './armador-operativo-v2.js',
   './deposito-stock-v1.js',
   './deposito-mapa-v1.js',
+  './stock-operaciones-v2.js',
   './manifest.json',
   './distribix-logo-completo.png',
   './favicon-distribix.ico',
@@ -36,7 +37,8 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'
 ]);
 
 // Dominios de datos: nunca se cachean en el Service Worker. Reparto y Hoja de
