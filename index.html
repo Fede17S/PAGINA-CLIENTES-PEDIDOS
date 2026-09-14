@@ -4060,7 +4060,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.13-deposito3</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.14-altas1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -6180,7 +6180,7 @@ _sysAlertMount();
     </div><!-- cli-edit-body -->
     <div class="cli-edit-foot">
       <button class="btn btn-ghost" onclick="cerrarModal('modal-edit-cli')">Cancelar</button>
-      <button class="btn btn-primary" style="flex:1" onclick="guardarEditCliente()">💾 Guardar</button>
+      <button id="ec-save-btn" class="btn btn-primary" style="flex:1" onclick="guardarEditCliente()">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -7581,6 +7581,28 @@ try {
 } catch(e){ _empToken = null; }
 var _sbEmpId = null;
 
+// La sesión visual dura hasta que el usuario sale, pero el token de empresa
+// vence. Si se deja vencer, las lecturas públicas/cacheadas siguen funcionando
+// y las escrituras parecen fallar "a veces". Centralizamos acá la vigencia para
+// pedir un nuevo ingreso en vez de dejar una sesión engañosamente activa.
+function _empTokenPayloadLeer(token){
+  try{
+    var parte=String(token||"").split(".")[1]||"";
+    parte=parte.replace(/-/g,"+").replace(/_/g,"/");
+    while(parte.length%4) parte+="=";
+    return JSON.parse(atob(parte));
+  }catch(e){ return null; }
+}
+function _empTokenVigente(margenMs){
+  var p=_empTokenPayloadLeer(_empToken);
+  return !!(p && p.exp && (Number(p.exp)*1000) > (Date.now()+(margenMs||0)));
+}
+function _guardarEmpToken(token){
+  if(!token || !_empTokenPayloadLeer(token)) return false;
+  _empToken=token;
+  try{ localStorage.setItem("dm_emp_token",token); }catch(e){}
+  return true;
+}
 // Helper central de headers para Supabase. Incluye el token de empresa (RLS)
 // si existe. Todos los fetch directos deberían usar esto para que el RLS
 // funcione de forma consistente.
@@ -7592,6 +7614,10 @@ function _sbHeaders(extra){
 }
 
 function sbFetch(method, path, body){
+  var _esLoginRpc=/\/rpc\/(verificar_login|verificar_login_rl)$/.test(String(path||""));
+  if(method!=="GET" && currentUser && _sbEmpId && !_empTokenVigente(0) && !_esLoginRpc){
+    return Promise.reject(new Error("Tu sesión venció. Volvé a ingresar para guardar cambios."));
+  }
   // Timeout: 8s para GET (así cae rápido al cache si la señal está mala), 15s para escrituras
   var _to = (method==="GET") ? 8000 : 15000;
   var controller = typeof AbortController!=="undefined" ? new AbortController() : null;
@@ -9742,30 +9768,73 @@ async function _sbGetProductos(force){
   if(!rows) rows = await sbGet("productos",SEL_NEW+_colas);
   if(!rows) rows = await sbGet("productos",SEL_OLD+_colas);
   if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,temporada:p.temporada||"",codigoBarras:p.codigo_barras||"",ubicacionPasillo:p.ubicacion_pasillo||"",ubicacionEstante:p.ubicacion_estante||"",ubicacionOrden:(p.ubicacion_orden==null?null:+p.ubicacion_orden),precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,tramos:(Array.isArray(p.tramos)?p.tramos:null),ofertaNombre:p.oferta_nombre||"",ofertaDesde:p.oferta_desde||null,ofertaDias:(Array.isArray(p.oferta_dias)?p.oferta_dias:null),ofertaHoraDesde:p.oferta_hora_desde||"",ofertaHoraHasta:p.oferta_hora_hasta||"",ofertaListas:(Array.isArray(p.oferta_listas)?p.oferta_listas:null),ofertaTope:p.oferta_tope||0,ofertaUsadas:p.oferta_usadas||0,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",vendePor:p.vende_por||"unidad",pesoDisplay:p.peso_display||"kg",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[],creadoEn:p.creado_en||null};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
-async function _sbInsertProducto(p){ var _barcode=(typeof _barcodeNormalizar==="function"?_barcodeNormalizar(p.codigoBarras||""):String(p.codigoBarras||"").trim());var _body={empresa_id:_sbEmpId,codigo:p.codigo||"",codigo_barras:_barcode||null,ubicacion_pasillo:p.ubicacionPasillo||null,ubicacion_estante:p.ubicacionEstante||null,ubicacion_orden:(p.ubicacionOrden==null?null:p.ubicacionOrden),nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,temporada:p.temporada||null,precio_base:p.precioBase||0,precio_clientes:p.precioClientes||0,precio_patagonia:p.precioPatagonia||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],unidad_venta:p.unidadVenta||"unidad",unidades_bulto:p.unidadesBulto||1,precio_caja:p.precioCaja||null,unidad_bulto:p.unidadBulto||"bulto",vende_por:p.vendePor||"unidad",peso_display:p.pesoDisplay||"kg",min_compra:p.minCompra||1,cant_default:p.cantDefault||1,oferta_precio:p.ofertaPrecio||null,oferta_activa:p.ofertaActiva||false,oferta_hasta:p.ofertaHasta||null,es_portada:p.esPortada||false,oferta_tipo:p.ofertaTipo||"fijo",oferta_pct:p.ofertaPct||null,oferta_precios:p.ofertaPrecios||null};
-  // El importador usa un UUID estable derivado de empresa+código. Si dos
-  // importaciones intentan crear el mismo producto a la vez, chocan por ID
-  // y se actualiza el registro existente en lugar de crear un duplicado.
+function _productoUuidNuevo(){
+  try{ if(crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
+  if(typeof _prodIoStableUuid==="function") return _prodIoStableUuid((_sbEmpId||"")+"|manual|"+Date.now()+"|"+Math.random());
+  throw new Error("Este dispositivo no pudo generar el identificador del producto");
+}
+async function _productoConfirmarInsert(id){
+  if(!id || !_sbEmpId) return null;
+  var rows=await _sbGetRaw("productos","select=id,empresa_id,codigo,nombre&id=eq."+encodeURIComponent(id)+"&empresa_id=eq."+encodeURIComponent(_sbEmpId)+"&limit=1");
+  return Array.isArray(rows)&&rows.length?rows[0]:null;
+}
+async function _sbInsertProducto(p){
+  if(!_sbEmpId) throw new Error("La empresa no está cargada. Volvé a ingresar.");
+  var _barcode=(typeof _barcodeNormalizar==="function"?_barcodeNormalizar(p.codigoBarras||""):String(p.codigoBarras||"").trim());
+  var _body={
+    id:_productoUuidNuevo(),empresa_id:_sbEmpId,codigo:p.codigo||"",codigo_barras:_barcode||null,
+    ubicacion_pasillo:p.ubicacionPasillo||null,ubicacion_estante:p.ubicacionEstante||null,
+    ubicacion_orden:(p.ubicacionOrden==null?null:p.ubicacionOrden),nombre:p.nombre,detalles:p.detalles||"",
+    categoria:p.categoria||"Sin categoría",familia:p.familia||null,proveedor_id:p.proveedorId||null,
+    temporada:p.temporada||null,precio_base:Number(p.precioBase)||0,precio_clientes:Number(p.precioClientes)||0,
+    precio_patagonia:Number(p.precioPatagonia)||0,precios:p.precios||{},foto:p.foto||"",fotos:p.fotos||[],
+    unidad_venta:p.unidadVenta||"unidad",unidades_bulto:Number(p.unidadesBulto)||1,
+    precio_caja:(p.precioCaja==null?null:Number(p.precioCaja)||0),unidad_bulto:p.unidadBulto||"bulto",
+    vende_por:p.vendePor||"unidad",peso_display:p.pesoDisplay||"kg",min_compra:Number(p.minCompra)||1,
+    cant_default:Number(p.cantDefault)||1,precio_promo:(p.precioPromo==null?null:Number(p.precioPromo)),
+    cant_promo:(p.cantPromo==null?null:Number(p.cantPromo)),tramos:(p.tramos===undefined?null:p.tramos),
+    oferta_precio:(p.ofertaPrecio==null?null:Number(p.ofertaPrecio)),oferta_activa:!!p.ofertaActiva,
+    oferta_hasta:p.ofertaHasta||null,es_portada:!!p.esPortada,oferta_tipo:p.ofertaTipo||"fijo",
+    oferta_pct:(p.ofertaPct==null?null:Number(p.ofertaPct)),oferta_precios:p.ofertaPrecios||null,
+    oferta_nombre:p.ofertaNombre||"",oferta_desde:p.ofertaDesde||null,oferta_dias:p.ofertaDias||null,
+    oferta_hora_desde:p.ofertaHoraDesde||"",oferta_hora_hasta:p.ofertaHoraHasta||"",
+    oferta_listas:p.ofertaListas||null,oferta_tope:Number(p.ofertaTope)||0,
+    activo:p.activo!==false
+  };
   if(p.id) _body.id=p.id;
-  if(p.tramos!==undefined) _body.tramos=p.tramos;
-  var rows;
-  try{ rows=await sbPost("productos",_body); }
-  catch(e){
-    var msg=(e&&e.message)||"";
-    if(!/column|does not exist|PGRST204|schema cache/i.test(msg)) throw e;
-    // Compatibilidad con bases antiguas: primero sacar tramos y, si todavía
-    // falta una columna, sacar solamente los metadatos nuevos de presentación.
-    delete _body.tramos;
-    try{ rows=await sbPost("productos",_body); }
-    catch(e2){
-      var msg2=(e2&&e2.message)||"";
-      if(!/column|does not exist|PGRST204|schema cache/i.test(msg2)) throw e2;
-      ["precio_caja","unidad_bulto","vende_por","peso_display"].forEach(function(k){delete _body[k];});
-      console.warn("[productos] Faltan columnas de presentación por bulto en Supabase.");
-      rows=await sbPost("productos",_body);
+  if(p._manualAlta && _body.codigo){
+    var iguales=await _sbGetRaw("productos","select=id,codigo,nombre&empresa_id=eq."+encodeURIComponent(_sbEmpId)+"&codigo=ilike."+encodeURIComponent(_body.codigo)+"&limit=2");
+    var existente=(iguales||[]).find(function(x){ return String(x.codigo||"").trim().toUpperCase()===String(_body.codigo||"").trim().toUpperCase(); });
+    if(existente){
+      throw new Error('Ya existe el producto "'+(existente.nombre||_body.codigo)+'" con ese código');
     }
   }
-  _bumpCatVer(); return rows&&rows[0]?rows[0].id:null; }
+  var rows=null;
+  try{
+    rows=await sbPost("productos",_body);
+  }catch(e){
+    // Si la respuesta se perdió después del COMMIT, verificar el UUID exacto
+    // vuelve el reintento idempotente y evita crear dos productos.
+    try{
+      var yaGuardado=await _productoConfirmarInsert(_body.id);
+      if(yaGuardado && String(yaGuardado.codigo||"").trim().toUpperCase()===String(_body.codigo||"").trim().toUpperCase()){
+        _bumpCatVer(); return yaGuardado.id;
+      }
+    }catch(_verErr){}
+    var msg=String((e&&e.message)||"");
+    if(/productos_empresa_codigo_uq|duplicate key.*codigo/i.test(msg)){
+      throw new Error('Ya existe un producto con el código "'+(_body.codigo||"")+'"');
+    }
+    throw e;
+  }
+  var confirmado=(Array.isArray(rows)&&rows.length)?rows[0]:null;
+  if(!confirmado) confirmado=await _productoConfirmarInsert(_body.id);
+  if(!confirmado || String(confirmado.id)!==String(_body.id)){
+    throw new Error("Supabase recibió el alta pero no pudo confirmarla. Reintentá sin cerrar esta ventana.");
+  }
+  _bumpCatVer();
+  return confirmado.id;
+}
 async function _sbPatchProducto(id,p){ var b={};if(p.nombre!==undefined)b.nombre=p.nombre;if(p.detalles!==undefined)b.detalles=p.detalles;if(p.codigo!==undefined)b.codigo=p.codigo;if(p.codigoBarras!==undefined){var _barcode=(typeof _barcodeNormalizar==="function"?_barcodeNormalizar(p.codigoBarras||""):String(p.codigoBarras||"").trim());b.codigo_barras=_barcode||null;}if(p.ubicacionPasillo!==undefined)b.ubicacion_pasillo=p.ubicacionPasillo||null;if(p.ubicacionEstante!==undefined)b.ubicacion_estante=p.ubicacionEstante||null;if(p.ubicacionOrden!==undefined)b.ubicacion_orden=(p.ubicacionOrden==null?null:p.ubicacionOrden);if(p.categoria!==undefined)b.categoria=p.categoria;if(p.familia!==undefined)b.familia=p.familia;if(p.proveedorId!==undefined)b.proveedor_id=p.proveedorId;if(p.temporada!==undefined)b.temporada=p.temporada||null;if(p.precioBase!==undefined)b.precio_base=p.precioBase;if(p.precioClientes!==undefined)b.precio_clientes=p.precioClientes;if(p.precioPatagonia!==undefined)b.precio_patagonia=p.precioPatagonia;if(p.precios!==undefined)b.precios=p.precios;if(p.foto!==undefined)b.foto=p.foto;if(p.precioPromo!==undefined)b.precio_promo=p.precioPromo;if(p.cantPromo!==undefined)b.cant_promo=p.cantPromo;if(p.tramos!==undefined)b.tramos=p.tramos;if(p.ofertaNombre!==undefined)b.oferta_nombre=p.ofertaNombre;if(p.ofertaDesde!==undefined)b.oferta_desde=p.ofertaDesde;if(p.ofertaDias!==undefined)b.oferta_dias=p.ofertaDias;if(p.ofertaHoraDesde!==undefined)b.oferta_hora_desde=p.ofertaHoraDesde;if(p.ofertaHoraHasta!==undefined)b.oferta_hora_hasta=p.ofertaHoraHasta;if(p.ofertaListas!==undefined)b.oferta_listas=p.ofertaListas;if(p.ofertaTope!==undefined)b.oferta_tope=p.ofertaTope;if(p.ofertaUsadas!==undefined)b.oferta_usadas=p.ofertaUsadas;if(p.unidadVenta!==undefined)b.unidad_venta=p.unidadVenta;if(p.unidadesBulto!==undefined)b.unidades_bulto=p.unidadesBulto;if(p.unidadBulto!==undefined)b.unidad_bulto=p.unidadBulto;if(p.vendePor!==undefined)b.vende_por=p.vendePor;if(p.pesoDisplay!==undefined)b.peso_display=p.pesoDisplay;if(p.minCompra!==undefined)b.min_compra=p.minCompra;if(p.cantDefault!==undefined)b.cant_default=p.cantDefault;if(p.ofertaPrecio!==undefined)b.oferta_precio=p.ofertaPrecio;if(p.ofertaActiva!==undefined)b.oferta_activa=p.ofertaActiva;if(p.ofertaHasta!==undefined)b.oferta_hasta=p.ofertaHasta;if(p.esPortada!==undefined)b.es_portada=p.esPortada;if(p.ofertaTipo!==undefined)b.oferta_tipo=p.ofertaTipo;if(p.ofertaPct!==undefined)b.oferta_pct=p.ofertaPct;if(p.ofertaPrecios!==undefined)b.oferta_precios=p.ofertaPrecios;if(p.activo!==undefined)b.activo=p.activo;if(p.fotos!==undefined)b.fotos=p.fotos;return sbPatch("productos","id=eq."+id+"&empresa_id=eq."+_sbEmpId,b).then(function(_r){ _bumpCatVer(); return _r; })
     .catch(function(e){
       var msg=(e&&e.message)||"";
@@ -10636,6 +10705,16 @@ function _cargarClientesDesdeCache(cached){
 }
 
   var saved = localStorage.getItem("dm_session");
+  var _sesionVencioAlAbrir=false;
+  // No mantener una interfaz aparentemente conectada si el permiso de
+  // escritura ya venció. Sin conexión se conserva el modo offline; con red se
+  // pide el ingreso una sola vez y la nueva sesión vuelve a quedar autorizada.
+  if(saved && navigator.onLine && !_empTokenVigente(0)){
+    _sesionVencioAlAbrir=true;
+    try{ localStorage.removeItem("dm_session"); localStorage.removeItem("dm_emp_token"); }catch(e){}
+    document.documentElement.classList.remove("has-session");
+    saved=null;
+  }
   if(saved){ try{
     var s=JSON.parse(saved);
     empresaKey=s.empresaKey;
@@ -10716,9 +10795,13 @@ function _cargarClientesDesdeCache(cached){
       if(remEl)  remEl.checked = true;  // el CSS :checked actualiza el toggle solo
       // Mostrar mensaje sutil
       var errEl = document.getElementById("l-err");
-      if(errEl){ errEl.style.color="#e8b563"; errEl.textContent="Credenciales guardadas — tocá INGRESAR para continuar"; }
+      if(errEl){ errEl.style.color="#e8b563"; errEl.textContent=_sesionVencioAlAbrir?"Tu sesión venció — ingresá la contraseña para seguir guardando":"Credenciales guardadas — tocá INGRESAR para continuar"; }
     }
   } catch(e){}
+  if(_sesionVencioAlAbrir){
+    var _errSesion=document.getElementById("l-err");
+    if(_errSesion && !_errSesion.textContent){ _errSesion.style.color="#e8b563"; _errSesion.textContent="Tu sesión venció — ingresá nuevamente para continuar"; }
+  }
   document.getElementById("l-empresa").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
   document.getElementById("l-user").addEventListener("keydown",function(e){ if(e.key==="Enter")doLogin(); });
 
@@ -11359,8 +11442,7 @@ function doLogin(){
         // RLS y solo devuelve filas si el token viaja en el request. Si el login falló,
         // no leemos usuarios (devolvería vacío y daría un mensaje engañoso).
         if(_val.rpcOk && _val.rpcUser && _val.rpcUser.token){
-          _empToken = _val.rpcUser.token;
-          try { localStorage.setItem("dm_emp_token", _val.rpcUser.token); } catch(e){}
+          _guardarEmpToken(_val.rpcUser.token);
         }
         if(!_val.rpcOk || !_val.rpcUser){
           return {val:_val, usuarios:[]};
@@ -11395,8 +11477,7 @@ function doLogin(){
 
       // Token ya seteado arriba (antes de leer usuarios). Re-asegurar por las dudas.
       if(found.token){
-        _empToken = found.token;
-        try { localStorage.setItem("dm_emp_token", found.token); } catch(e){}
+        _guardarEmpToken(found.token);
       }
 
       // === 2FA: si el usuario tiene doble factor habilitado, pedir el código ahora ===
@@ -29845,22 +29926,46 @@ function abrirEditCliente(pushKey) {
   document.getElementById("modal-edit-cli").classList.add("open");
 }
 
+function _usuarioPayloadCoincide(fila,payload){
+  if(!fila) return false;
+  var claves=["uid","name","lista","role","catalogo","direccion","telefono","cuit","zona","zona_id","recepciona","nota","foto","lat","lng"];
+  for(var i=0;i<claves.length;i++){
+    var k=claves[i];
+    if(!Object.prototype.hasOwnProperty.call(payload,k)) continue;
+    if(k==="lat" || k==="lng"){
+      if(!isFinite(Number(fila[k])) || Math.abs(Number(fila[k])-Number(payload[k]))>0.000001) return false;
+    }else if(String(fila[k]==null?"":fila[k])!==String(payload[k]==null?"":payload[k])) return false;
+  }
+  if(Object.prototype.hasOwnProperty.call(payload,"roles")){
+    var esperados=_normalizarRoles(payload.roles).slice().sort();
+    var reales=_normalizarRoles(fila.roles).slice().sort();
+    if(esperados.join("|")!==reales.join("|")) return false;
+  }
+  return true;
+}
 async function _guardarUsuarioVerificado(sbId, payload){
-  var rows=await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,payload);
+  var rows;
+  try{
+    rows=await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,payload);
+  }catch(e){
+    // Una conexión móvil puede cortar después de que Supabase ya confirmó el
+    // cambio. Leer la fila exacta evita decir "falló" cuando sí se guardó.
+    try{
+      var comprobacion=await _sbGetRaw("usuarios","select=id,uid,name,lista,role,roles,catalogo,direccion,telefono,cuit,zona,zona_id,recepciona,nota,foto,lat,lng&id=eq."+encodeURIComponent(sbId)+"&empresa_id=eq."+encodeURIComponent(_sbEmpId)+"&limit=1");
+      if(Array.isArray(comprobacion)&&comprobacion.length&&_usuarioPayloadCoincide(comprobacion[0],payload)) rows=comprobacion;
+      else throw e;
+    }catch(_verError){ throw e; }
+  }
   // Con RLS, un PATCH puede responder 200 pero devolver [] si no encontro o no
   // autorizo ninguna fila. Eso antes se mostraba falsamente como "actualizado".
   if(!Array.isArray(rows) || !rows.length){
     throw new Error("Supabase no actualizó el usuario. Revisá los permisos del perfil administrador.");
   }
   var guardado=rows[0]||{};
-  if(String(guardado.role||"")!==String(payload.role||"")){
+  if(Object.prototype.hasOwnProperty.call(payload,"role") && String(guardado.role||"")!==String(payload.role||"")){
     throw new Error("Supabase no conservó el rol seleccionado");
   }
-  var esperados=_normalizarRoles(payload.roles).slice().sort();
-  var reales=_normalizarRoles(guardado.roles).slice().sort();
-  if(esperados.join("|")!==reales.join("|")){
-    throw new Error("Supabase no conservó las funciones adicionales");
-  }
+  if(!_usuarioPayloadCoincide(guardado,payload)) throw new Error("Supabase no confirmó todos los cambios del usuario");
   // Mantener también el cache offline alineado con la fila confirmada.
   try{
     var cacheUsuarios=_sbCacheLoad("usuarios","select=*&empresa_id=eq."+_sbEmpId);
@@ -29877,6 +29982,7 @@ async function _guardarUsuarioVerificado(sbId, payload){
 async function guardarEditCliente() {
   var pushKey = document.getElementById("ec-key").value;
   if (!pushKey) return;
+  var _origEd = _clientesDB[pushKey]||{};
   var id   = document.getElementById("ec-id").value.trim();
   var pass = document.getElementById("ec-pass").value.trim();
   var name = document.getElementById("ec-name").value.trim();
@@ -29892,10 +29998,9 @@ async function guardarEditCliente() {
   var rec  = document.getElementById("ec-rec").value.trim();
   var rolEl2 = document.getElementById("ec-rol");
   var _puedeElegirRol2 = currentUser && (currentUser.role === "admin" || _tengoRol("admin") || (typeof _esCoAdmin==="function" && _esCoAdmin()));
-  var rol = (_puedeElegirRol2 && rolEl2) ? rolEl2.value : ((_clientesDB[pushKey]&&_clientesDB[pushKey].role)||"cliente");
+  var rol = (_puedeElegirRol2 && rolEl2) ? rolEl2.value : (_origEd.role||"cliente");
   // Candados del co-admin: no puede tocar a un admin ni convertir a nadie en admin.
   if(!_tengoRol("admin")){
-    var _origEd = _clientesDB[pushKey]||{};
     if(_origEd.role==="admin" || _normalizarRoles(_origEd.roles).indexOf("admin")!==-1){ showNotif("Solo un admin puede editar a otro admin","err"); return; }
     if(rol === "admin"){ showNotif("Solo un admin puede dar el rol admin","err"); return; }
   }
@@ -29912,20 +30017,31 @@ async function guardarEditCliente() {
   if (!name) { showNotif("El nombre es obligatorio","err"); return; }
   var dup = Object.entries(_clientesDB).find(function(e){ return e[0]!==pushKey && e[1].id===id; });
   if (dup) { showNotif("Ese ID ya lo usa otro usuario","err"); return; }
-  var updated = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true, role:rol };
-  if(_rolesMarcados.length > 1){ updated.roles = _rolesMarcados; }
-  else { updated.roles = null; } // un solo rol: usar el campo role clásico
-  if (dir)    updated.direccion = dir;
-  if (tel)    updated.tel = tel;
-  if (cuit)   updated.cuit = cuit;
-  if (nota)   updated.nota = nota;
+  var updated = { id:id, name:name, lista:lista, catalogo:true, role:rol, direccion:dir, tel:tel, cuit:cuit, nota:nota, rec:rec };
+  if(_puedeElegirRol2){
+    if(_rolesMarcados.length > 1) updated.roles=_rolesMarcados;
+    else updated.roles=null; // un solo rol: usar el campo role clásico
+  }else if(Object.prototype.hasOwnProperty.call(_origEd,"roles")){
+    // Editar un domicilio nunca debe borrar funciones asignadas por un admin.
+    updated.roles=_origEd.roles;
+  }
   if (zonaId2){ updated.zona_id=zonaId2; updated.zona=zona2; }
   else { updated.zona_id=null; updated.zona=""; }
-  if (rec)  updated.rec  = rec;
   // Leer lat/lng si existen (campo oculto ec-lat/ec-lng)
-  var latEc = parseFloat((document.getElementById("ec-lat")||{value:""}).value)||null;
-  var lngEc = parseFloat((document.getElementById("ec-lng")||{value:""}).value)||null;
-  if(latEc && lngEc){ updated.lat=latEc; updated.lng=lngEc; }
+  var _latRaw=String((document.getElementById("ec-lat")||{value:""}).value||"").trim();
+  var _lngRaw=String((document.getElementById("ec-lng")||{value:""}).value||"").trim();
+  if((_latRaw&&!_lngRaw)||(!_latRaw&&_lngRaw)){ showNotif("La ubicación quedó incompleta. Volvé a fijar el punto en el mapa.","err"); return; }
+  if(_latRaw&&_lngRaw){
+    var latEc=Number(_latRaw),lngEc=Number(_lngRaw);
+    if(!Number.isFinite(latEc)||!Number.isFinite(lngEc)||latEc < -90||latEc > 90||lngEc < -180||lngEc > 180){
+      showNotif("Las coordenadas de la ubicación no son válidas","err"); return;
+    }
+    updated.lat=latEc; updated.lng=lngEc;
+  }
+
+  var _ecSaveBtn=document.getElementById("ec-save-btn");
+  if(_ecSaveBtn&&_ecSaveBtn.disabled) return;
+  if(_ecSaveBtn){ _ecSaveBtn.disabled=true; _ecSaveBtn.textContent="Guardando…"; }
 
   try {
     if(_ecFotoNueva !== null){
@@ -29933,30 +30049,31 @@ async function guardarEditCliente() {
     }
     var sbPayload = {
       uid:updated.id, name:updated.name,
-      lista:updated.lista, role:updated.role, catalogo:true,
-      roles: (_rolesMarcados && _rolesMarcados.length > 1) ? _rolesMarcados : null,
+      lista:updated.lista, catalogo:true,
       direccion:updated.direccion||"", telefono:updated.tel||"",
       cuit:updated.cuit||"", zona:updated.zona||"",
       zona_id:updated.zona_id||null, recepciona:updated.rec||"",
       nota:updated.nota||""
     };
+    // Sólo admin/co-admin puede reenviar permisos. Para el resto, ni siquiera
+    // incluimos esas columnas en el PATCH: así un cambio de pin no las altera.
+    if(_puedeElegirRol2){
+      sbPayload.role=updated.role;
+      sbPayload.roles=(_rolesMarcados&&_rolesMarcados.length>1)?_rolesMarcados:null;
+    }
     if(_ecFotoNueva !== null) sbPayload.foto = updated.foto||null;
     // Contraseña: NO se manda en el PATCH normal (ya no se guarda en texto plano).
     // Si escribiste una nueva, se hashea aparte vía RPC cambiar_pass_seguro (más abajo).
     var _esExistente = !!(_clientesDB[pushKey] && _clientesDB[pushKey]._sbId);
     var _passNueva = pass || (!_esExistente ? id : "");  // usuario nuevo sin pass: usa el id
-    if(updated.lat) sbPayload.lat = updated.lat;
-    if(updated.lng) sbPayload.lng = updated.lng;
+    if(Object.prototype.hasOwnProperty.call(updated,"lat")) sbPayload.lat=updated.lat;
+    if(Object.prototype.hasOwnProperty.call(updated,"lng")) sbPayload.lng=updated.lng;
 
     var savedOk = false;
 
     // pushKey es el UUID de Supabase cuando los clientes se cargaron desde SB
     var sbId = (_clientesDB[pushKey] && _clientesDB[pushKey]._sbId) || pushKey;
     var isUUID = sbId && sbId.includes("-") && sbId.length > 30;
-
-    // Limpiar campos que pueden causar error en Supabase
-    if(sbPayload.zona_id === "" || sbPayload.zona_id === null) delete sbPayload.zona_id;
-    if(sbPayload.zona === "") delete sbPayload.zona;
 
     if(_sbEmpId && isUUID){
       try {
@@ -30003,8 +30120,7 @@ async function guardarEditCliente() {
     });
     if(currentUser && String(currentUser._sbId||"")===String(_clientesDB[pushKey]._sbId||"")){
       currentUser.name=updated.name;
-      currentUser.role=updated.role;
-      currentUser.roles=updated.roles;
+      if(_puedeElegirRol2){ currentUser.role=updated.role; currentUser.roles=updated.roles; }
       if(_ecFotoNueva!==null) currentUser.foto=updated.foto||"";
       try{
         var _sesFoto=JSON.parse(localStorage.getItem("dm_session")||"{}");
@@ -30021,8 +30137,9 @@ async function guardarEditCliente() {
       dbCli[dci].direccion = dir;
       dbCli[dci].lista     = lista;
       dbCli[dci].telefono  = tel;
+      if(Object.prototype.hasOwnProperty.call(updated,"lat")){ dbCli[dci].lat=updated.lat; dbCli[dci].lng=updated.lng; }
     } else {
-      dbCli.push({ id:id, nombre:name, lista:lista, direccion:dir, telefono:tel });
+      dbCli.push({ id:id, nombre:name, lista:lista, direccion:dir, telefono:tel, lat:updated.lat, lng:updated.lng });
     }
     // Re-init pickers para que el buscador de clientes refleje cambios
     _pickersInitialized = false;
@@ -30035,6 +30152,8 @@ async function guardarEditCliente() {
   } catch(e) {
     console.error("Error guardarEditCliente:", e);
     showNotif("Error al guardar: "+(e.message||e),"err");
+  } finally {
+    if(_ecSaveBtn){ _ecSaveBtn.disabled=false; _ecSaveBtn.textContent="💾 Guardar"; }
   }
 }
 
@@ -31162,6 +31281,9 @@ var _prodCatFiltro = "";
 function _setProdCatFiltro(v){ _prodCatFiltro = v || ""; _prodPage = 0; renderProductos(); }
 var _prodModo = "listas";
 var _prodFotoB64 = "";
+// Se conserva mientras el modal de un alta permanece abierto. Si la red corta
+// la respuesta, el reintento usa el mismo UUID y no duplica el producto.
+var _mprodNuevoId = "";
 var _prodPage = 0;
 var _PROD_PER_PAGE = 15;
 var _prodCatsSig = null;
@@ -32091,6 +32213,7 @@ function cerrarModalProducto() {
   ov.classList.remove("open");
   ov.style.visibility="";
   _prodFotoB64 = "";
+  _mprodNuevoId = "";
 }
 
 
@@ -32590,6 +32713,7 @@ function _leerPreciosModal(){
 function abrirModalProducto(key) {
   var overlay = document.getElementById("mprod-overlay");
   var p = key ? (_prodData[key] || {}) : {};
+  _mprodNuevoId = "";
   document.getElementById("mprod-title").textContent = key ? "Editar producto" : "Nuevo producto";
   document.getElementById("mprod-key").value = key || "";
   document.getElementById("mprod-codigo").value = p.codigo || "";
@@ -33598,6 +33722,25 @@ var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}
   var cantDefault   = parseInt((document.getElementById("mprod-cant-default")||{value:"1"}).value)||1;
 
   var key = document.getElementById("mprod-key").value;
+  // Si no escribieron SKU, crear uno corto pero único dentro de esta empresa.
+  // Antes se tomaban siempre las primeras cuatro letras y dos productos con un
+  // nombre parecido podían terminar compartiendo código.
+  if(!codigo){
+    var _baseCodigo=(nombre.normalize?nombre.normalize("NFD"):nombre).replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]/g,"").toUpperCase().slice(0,6)||"PROD";
+    codigo=_baseCodigo;
+    var _sufCodigo=2;
+    var _codigosUsados={};
+    Object.keys(_prodData||{}).forEach(function(_k){
+      if(String(_k)!==String(key)) _codigosUsados[String((_prodData[_k]||{}).codigo||"").trim().toUpperCase()]=true;
+    });
+    while(_codigosUsados[codigo]){ codigo=(_baseCodigo.slice(0,Math.max(1,6-String(_sufCodigo).length))+_sufCodigo); _sufCodigo++; }
+    var _codInp=document.getElementById("mprod-codigo"); if(_codInp) _codInp.value=codigo;
+  }
+  if(!key && !_mprodNuevoId){
+    // Mismo código + misma empresa => mismo UUID aun desde dos dispositivos.
+    // La PK de productos convierte una carrera o reintento en una sola alta.
+    _mprodNuevoId=(typeof _prodIoStableUuid==="function")?_prodIoStableUuid((_sbEmpId||"")+"|"+codigo):_productoUuidNuevo();
+  }
   // Validar SKU/código único (no permitir repetir uno que ya existe en otro producto)
   var _ci=document.getElementById("mprod-codigo");
   var _err=document.getElementById("mprod-codigo-err");
@@ -33634,8 +33777,10 @@ var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}
 
   // Si la foto es nueva (base64), subirla a Storage y guardar la URL (menos egress)
   var _fotoRaw = _prodFotoB64 || "";
+  var _fotoNoSubida=false;
   var _fotoProm = (_fotoRaw.indexOf("data:")===0)
     ? (function(){ if(btn) btn.textContent="Subiendo foto…"; return _subirFotoStorage(_fotoRaw, codigo||nombre); })()
+        .catch(function(e){ _fotoNoSubida=true; console.warn("[productos] La foto no se pudo subir:",e); return ""; })
     : Promise.resolve(_fotoRaw);
 
   _fotoProm.then(async function(fotoFinal){
@@ -33683,6 +33828,7 @@ var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}
     minCompra:     minCompra,
     cantDefault:   cantDefault
   };
+  if(!key){ prodObj.id=_mprodNuevoId||_productoUuidNuevo(); prodObj._manualAlta=true; }
 
   var promise;
   if(btn){ btn.textContent="Guardando…"; }
@@ -33701,12 +33847,17 @@ var precioCaja    = parseFloat((document.getElementById("mprod-precio-caja")||{}
     _sincronizarDbStock();
     renderProductos();
     cerrarModalProducto();
-    showSaved(key?"Producto actualizado":"Producto agregado");
+    if(_fotoNoSubida) showNotif((key?"Producto actualizado":"Producto agregado")+" — la foto quedó pendiente","warn");
+    else showSaved(key?"Producto actualizado":"Producto agregado");
   }).catch(function(e){
     showNotif("Error al guardar: "+(e.message||"Error desconocido"),"err");
   }).finally(function(){
     if(btn){ btn.disabled=false; btn.textContent="💾 Guardar producto"; }
   });
+  }).catch(function(e){
+    console.error("Error preparando producto:",e);
+    showNotif("Error al preparar el producto: "+(e.message||"Error desconocido"),"err");
+    if(btn){ btn.disabled=false; btn.textContent="💾 Guardar producto"; }
   });
 }
 
@@ -37355,7 +37506,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v24';
+  var CACHE_NAME = 'distribix-v25';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
