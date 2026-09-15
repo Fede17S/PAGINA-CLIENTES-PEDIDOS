@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.64 — altas y ubicación de clientes confiables
-const CACHE_NAME = 'distribix-v1.64';
-const CACHE_STATIC = 'distribix-static-v1.64';
+// DISTRIBIX Service Worker v1.65 — novedades de productos sincronizadas
+const CACHE_NAME = 'distribix-v1.65';
+const CACHE_STATIC = 'distribix-static-v1.65';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
