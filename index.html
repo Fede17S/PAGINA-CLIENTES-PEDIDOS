@@ -2909,6 +2909,8 @@ html[data-theme="dark"] .prod-toolbar {
   font-family:inherit; font-size:12.5px; line-height:1; font-weight:700;
   cursor:pointer; white-space:nowrap;
 }
+.prod-scroll-actions button:disabled { opacity:.62; cursor:wait; }
+.rfa.spinning [data-prod-refresh-icon] { animation:spinner-spin .7s linear infinite; }
 .prod-scroll-actions .prod-scroll-new {
   background:var(--accent,#c9933a); border-color:var(--accent,#c9933a); color:#fff;
 }
@@ -6296,7 +6298,7 @@ _sysAlertMount();
           <button onclick="abrirProdIO('importar');_closeProdMenu()">📥 Importar catálogo</button>
           <button onclick="abrirProdIO('exportar');_closeProdMenu()">📤 Exportar catálogo</button>
           <button onclick="_migrarFotosStorage();_closeProdMenu()">📤 Migrar fotos</button>
-          <button onclick="cargarProductos();_closeProdMenu()" class="rfa"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg> Refrescar catálogo</button>
+          <button type="button" data-prod-refresh onclick="cargarProductos(true);_closeProdMenu()" class="rfa"><svg data-prod-refresh-icon xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg> <span data-prod-refresh-label>Refrescar catálogo</span></button>
           <div class="ptb-menu-sep"></div>
           <button id="btn-borrar-catalogo" class="danger" onclick="confirmarBorrarCatalogo()">🗑️ Borrar catálogo</button>
         </div>
@@ -6305,8 +6307,8 @@ _sysAlertMount();
     </div>
   </div>
   <div class="prod-scroll-actions" aria-label="Acciones de productos">
-    <button class="rfa" onclick="cargarProductos()" title="Refrescar catálogo">
-      <span aria-hidden="true" style="font-size:17px;line-height:1">↻</span> Refrescar
+    <button type="button" data-prod-refresh class="rfa" onclick="cargarProductos(true)" title="Refrescar catálogo">
+      <span data-prod-refresh-icon aria-hidden="true" style="font-size:17px;line-height:1">↻</span> <span data-prod-refresh-label>Refrescar</span>
     </button>
     <button class="prod-scroll-new" onclick="abrirModalProducto(null)" title="Crear un producto">
       <span aria-hidden="true" style="font-size:17px;line-height:1">＋</span> Nuevo producto
@@ -9750,12 +9752,32 @@ async function _migrarFotosStorage(){
   }
 }
 
-async function _sbGetProductos(force){
+async function _sbGetProductos(force, opciones){
+  opciones=opciones||{};
+  // La recarga manual debe consultar Supabase de verdad. sbGet() puede devolver
+  // la copia offline cuando falla la red; eso sirve para navegar, pero hacía que
+  // Refrescar pareciera funcionar aunque siguiera mostrando datos anteriores.
+  var _soloRed=opciones.soloRed===true;
+  var _ultimoErrorProductos=null;
+  var _falloConexionProductos=false;
+  async function _leerProductos(params){
+    if(!_soloRed) return sbGet("productos",params);
+    if(_falloConexionProductos) return null;
+    try{
+      return await _sbGetRaw("productos",params);
+    }catch(e){
+      _ultimoErrorProductos=e;
+      var msg=String((e&&e.message)||"").toLowerCase();
+      var esCambioEsquema=msg.indexOf("column")!==-1 || msg.indexOf("schema cache")!==-1 || msg.indexOf("pgrst204")!==-1;
+      if(!esCambioEsquema) _falloConexionProductos=true;
+      return null;
+    }
+  }
   // v4 fuerza una recarga única: suma la marca manual de producto nuevo.
   var _ckey = "productos_v4_"+_sbEmpId;
   // Versión actual del catálogo (consulta minúscula, ~bytes)
   var _ver = null;
-  try { var _vr = await sbGet("empresas","select=cat_ver&id=eq."+_sbEmpId); if(_vr && _vr[0]) _ver = _vr[0].cat_ver; } catch(e){}
+  try { var _vr = _soloRed ? await _sbGetRaw("empresas","select=cat_ver&id=eq."+_sbEmpId) : await sbGet("empresas","select=cat_ver&id=eq."+_sbEmpId); if(_vr && _vr[0]) _ver = _vr[0].cat_ver; } catch(e){}
   // Si la versión no cambió, usar la copia local (NO baja fotos => ahorra egress)
   if(!force && _ver){
     try { var _cc = await _idbGet(_ckey); if(_cc && _cc.ver === _ver && _cc.data) return _cc.data; } catch(e){}
@@ -9770,24 +9792,39 @@ async function _sbGetProductos(force){
   var _colas="&empresa_id=eq."+_sbEmpId+"&order=nombre.asc";
   // Se prueba de la más completa a la más vieja. sbGet devuelve null si la
   // consulta falla (ej: falta una columna), así que encadenamos con null-check.
-  var rows = await sbGet("productos",SEL_NUEVO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_NUEVO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_NUEVO+",tramos"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_NUEVO+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_ARM+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_ARM+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_ARM+",tramos"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_ARM+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_BULTO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_BULTO+",tramos"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_BULTO+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_TEMP+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_TEMP+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_NOV+",tramos"+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_NOV+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_NEW+_colas);
-  if(!rows) rows = await sbGet("productos",SEL_OLD+_colas);
-  if(!rows){ try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){} return null; } var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,temporada:p.temporada||"",esNovedad:p.es_novedad===true,codigoBarras:p.codigo_barras||"",ubicacionPasillo:p.ubicacion_pasillo||"",ubicacionEstante:p.ubicacion_estante||"",ubicacionOrden:(p.ubicacion_orden==null?null:+p.ubicacion_orden),precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,tramos:(Array.isArray(p.tramos)?p.tramos:null),ofertaNombre:p.oferta_nombre||"",ofertaDesde:p.oferta_desde||null,ofertaDias:(Array.isArray(p.oferta_dias)?p.oferta_dias:null),ofertaHoraDesde:p.oferta_hora_desde||"",ofertaHoraHasta:p.oferta_hora_hasta||"",ofertaListas:(Array.isArray(p.oferta_listas)?p.oferta_listas:null),ofertaTope:p.oferta_tope||0,ofertaUsadas:p.oferta_usadas||0,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",vendePor:p.vende_por||"unidad",pesoDisplay:p.peso_display||"kg",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[],creadoEn:p.creado_en||null};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
+  var rows = await _leerProductos(SEL_NUEVO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_NUEVO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_NUEVO+",tramos"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_NUEVO+_colas);
+  if(!rows) rows = await _leerProductos(SEL_ARM+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_ARM+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_ARM+",tramos"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_ARM+_colas);
+  if(!rows) rows = await _leerProductos(SEL_BULTO+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_BULTO+",tramos"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_BULTO+_colas);
+  if(!rows) rows = await _leerProductos(SEL_TEMP+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas,oferta_tope,oferta_usadas"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_TEMP+",tramos,oferta_nombre,oferta_desde,oferta_dias,oferta_hora_desde,oferta_hora_hasta,oferta_listas"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_NOV+",tramos"+_colas);
+  if(!rows) rows = await _leerProductos(SEL_NOV+_colas);
+  if(!rows) rows = await _leerProductos(SEL_NEW+_colas);
+  if(!rows) rows = await _leerProductos(SEL_OLD+_colas);
+  if(!rows){
+    if(_soloRed) throw (_ultimoErrorProductos||new Error("No se pudo consultar el catálogo en este momento."));
+    try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){}
+    return null;
+  }
+  // Renovar también la copia offline para que el siguiente arranque no vuelva
+  // a mostrar productos eliminados ni precios anteriores.
+  if(_soloRed && typeof _sbCacheSave==="function"){
+    try{
+      var _cacheProductosKey=_sbCacheKey("productos");
+      delete _sbOfflineCache[_cacheProductosKey];
+      localStorage.removeItem(_cacheProductosKey);
+      _sbCacheSave("productos",SEL_NUEVO+_colas,rows);
+    }catch(e){}
+  }
+  var r={};rows.forEach(function(p){r[p.id]={id:p.id,codigo:p.codigo,nombre:p.nombre,detalles:p.detalles||"",categoria:p.categoria,familia:p.familia||null,proveedorId:p.proveedor_id||null,temporada:p.temporada||"",esNovedad:p.es_novedad===true,codigoBarras:p.codigo_barras||"",ubicacionPasillo:p.ubicacion_pasillo||"",ubicacionEstante:p.ubicacion_estante||"",ubicacionOrden:(p.ubicacion_orden==null?null:+p.ubicacion_orden),precioBase:p.precio_base,precioClientes:p.precio_clientes,precioPatagonia:p.precio_patagonia,precios:p.precios||{},foto:p.foto,precioPromo:p.precio_promo||null,cantPromo:p.cant_promo||null,tramos:(Array.isArray(p.tramos)?p.tramos:null),ofertaNombre:p.oferta_nombre||"",ofertaDesde:p.oferta_desde||null,ofertaDias:(Array.isArray(p.oferta_dias)?p.oferta_dias:null),ofertaHoraDesde:p.oferta_hora_desde||"",ofertaHoraHasta:p.oferta_hora_hasta||"",ofertaListas:(Array.isArray(p.oferta_listas)?p.oferta_listas:null),ofertaTope:p.oferta_tope||0,ofertaUsadas:p.oferta_usadas||0,unidadVenta:p.unidad_venta||"ambos",precioCaja:p.precio_caja||null,unidadesBulto:p.unidades_bulto||1,unidadBulto:p.unidad_bulto||"bulto",vendePor:p.vende_por||"unidad",pesoDisplay:p.peso_display||"kg",minCompra:p.min_compra||1,cantDefault:p.cant_default||1,ofertaPrecio:p.oferta_precio||null,ofertaActiva:p.oferta_activa||false,ofertaHasta:p.oferta_hasta||null,esPortada:p.es_portada||false,ofertaTipo:p.oferta_tipo||"fijo",ofertaPct:p.oferta_pct||null,ofertaPrecios:p.oferta_precios||null,activo:p.activo!==false,fotos:p.fotos||[],creadoEn:p.creado_en||null};});try{ await _idbSet(_ckey,{ver:_ver,ts:Date.now(),data:r}); }catch(e){} return r; }
 function _productoUuidNuevo(){
   try{ if(crypto&&crypto.randomUUID) return crypto.randomUUID(); }catch(e){}
   if(typeof _prodIoStableUuid==="function") return _prodIoStableUuid((_sbEmpId||"")+"|manual|"+Date.now()+"|"+Math.random());
@@ -31456,26 +31493,72 @@ async function confirmarBorrarCatalogo(){
   }
 }
 
-function cargarProductos() {
-  var grid = document.getElementById("prod-grid");
-  if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">⏳</div><div class="prod-empty-msg">Cargando…</div></div>';
-  if (!_sbEmpId) return;
-  // Precargar proveedores en memoria (para el selector del editor de productos)
-  if(typeof _sbGetProveedores==="function" && (!_provData || !_provData.length)){
-    _sbGetProveedores().then(function(rows){ if(rows && rows.length) _provData = rows; }).catch(function(){});
+var _cargaProductosActiva=null;
+function cargarProductos(opciones) {
+  var manual=opciones===true || !!(opciones&&opciones.manual);
+  var grid=document.getElementById("prod-grid");
+  if(_cargaProductosActiva){
+    if(manual) showNotif("El catálogo ya se está actualizando…","ok");
+    return _cargaProductosActiva;
   }
-  // Precargar portadas de familia
-  if(typeof _cargarFamPortadas==="function"){
-    _cargarFamPortadas().catch(function(){});
+  if(!_sbEmpId){
+    if(manual) showNotif("No hay una empresa activa. Volvé a ingresar.","err");
+    return Promise.resolve(false);
   }
-  _sbGetProductos(true).then(function(sbData){
-    _prodData = sbData || {};
-    _sincronizarDbStock();
-    renderProductos();
-  }).catch(function(e){
-    console.error("Error cargando productos:", e);
-    if (grid) grid.innerHTML = '<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">Error al cargar productos</div></div>';
+  if(manual && typeof navigator!=="undefined" && navigator.onLine===false){
+    showNotif("Sin conexión: no se puede buscar una versión nueva del catálogo.","err");
+    return Promise.resolve(false);
+  }
+
+  var botones=Array.prototype.slice.call(document.querySelectorAll("[data-prod-refresh]"));
+  botones.forEach(function(btn){
+    btn.disabled=true;
+    btn.classList.add("spinning");
+    btn.setAttribute("aria-busy","true");
+    var label=btn.querySelector("[data-prod-refresh-label]");
+    if(label){ label.dataset.textoOriginal=label.textContent; label.textContent="Actualizando…"; }
   });
+  if(grid) grid.innerHTML='<div class="prod-empty"><div class="spinner-ring" style="margin:0 auto 10px"></div><div class="prod-empty-msg">Actualizando catálogo…</div></div>';
+
+  var datosAnteriores=_prodData;
+  // Estas precargas son auxiliares y no bloquean la actualización principal.
+  if(typeof _sbGetProveedores==="function" && (!_provData || !_provData.length)){
+    _sbGetProveedores().then(function(rows){ if(rows && rows.length) _provData=rows; }).catch(function(){});
+  }
+  if(typeof _cargarFamPortadas==="function") _cargarFamPortadas().catch(function(){});
+
+  _cargaProductosActiva=(async function(){
+    try{
+      var sbData=await _sbGetProductos(true,{soloRed:manual});
+      if(sbData==null) throw new Error("La base no devolvió el catálogo.");
+      _prodData=sbData;
+      _prodPage=0;
+      _sincronizarDbStock();
+      renderProductos();
+      if(manual){
+        var cantidad=Object.keys(_prodData||{}).length;
+        showNotif("✓ Catálogo actualizado: "+cantidad+" producto"+(cantidad===1?"":"s"),"ok");
+      }
+      return true;
+    }catch(e){
+      console.error("Error cargando productos:",e);
+      _prodData=datosAnteriores||{};
+      if(Object.keys(_prodData).length) renderProductos();
+      else if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">No se pudo actualizar el catálogo</div></div>';
+      if(manual) showNotif("No se pudo refrescar: "+((e&&e.message)||"error de conexión"),"err");
+      return false;
+    }finally{
+      botones.forEach(function(btn){
+        btn.disabled=false;
+        btn.classList.remove("spinning");
+        btn.removeAttribute("aria-busy");
+        var label=btn.querySelector("[data-prod-refresh-label]");
+        if(label){ label.textContent=label.dataset.textoOriginal||"Refrescar"; delete label.dataset.textoOriginal; }
+      });
+      _cargaProductosActiva=null;
+    }
+  })();
+  return _cargaProductosActiva;
 }
 
 // Asegura que dbStock tenga los datos de oferta (carga productos completos si falta)
