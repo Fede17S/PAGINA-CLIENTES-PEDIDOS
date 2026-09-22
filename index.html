@@ -6005,7 +6005,7 @@ _sysAlertMount();
           <input type="text" id="nc-nota" autocomplete="off"
             style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;box-sizing:border-box"></div>
       </div>
-      <button onclick="guardarNuevoCliente()"
+      <button type="button" id="nc-guardar-btn" onclick="guardarNuevoCliente()"
         style="margin-top:12px;width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
         + Guardar cliente
       </button>
@@ -9398,9 +9398,11 @@ async function _stkDevolverAuto(ref, items, motivo){
   if(!_ctrlStockOn()) return {omitido:true,controlStock:false};
   var arr=_stkItems(items); if(!arr.length) return null;
   if(!navigator.onLine){
-    _stkAplicarSoloLocal(items,1);
-    await _enqueue("STOCK_RETURN","stock/"+String(ref),{ref:String(ref),items:items,motivo:motivo||"Devolución al stock"},motivo||"Devolución al stock");
-    return {queued:true};
+    // No diferir inventario: una operación que reaparece minutos después parece
+    // un movimiento "solo" y puede quedar fuera de contexto. Se confirma online.
+    var errOfflineRet=new Error("Necesitás conexión para devolver mercadería al stock");
+    errOfflineRet.code="STOCK_REQUIERE_CONEXION";
+    throw errOfflineRet;
   }
   var r = await _stkDevolver(ref, items, motivo);
   return r;
@@ -9413,9 +9415,11 @@ async function _stkSalidaDirecta(ref, items, motivo){
   if(!_sbEmpId || !ref) return null;
   var arr=_stkItems(items); if(!arr.length) return null;
   if(!navigator.onLine){
-    _stkAplicarSoloLocal(items,-1);
-    await _enqueue("STOCK_OUT","stock/"+String(ref),{ref:String(ref),items:items,motivo:motivo||"Salida de stock"},motivo||"Salida de stock");
-    return {queued:true};
+    // El stock nunca se agenda para más tarde: debe cambiar en el mismo momento
+    // visible en que el usuario confirma la venta/edición.
+    var errOfflineOut=new Error("Necesitás conexión para descontar mercadería del stock");
+    errOfflineOut.code="STOCK_REQUIERE_CONEXION";
+    throw errOfflineOut;
   }
   var usr = (currentUser?(currentUser.name||currentUser.id):"sistema");
   var r;
@@ -9982,38 +9986,97 @@ async function _sbGetUsuarios(){
   });
   return r;
 }
+var _usuariosCreando = Object.create(null);
+function _usuarioUidNormalizado(uid){
+  return String(uid||"").trim().toLocaleLowerCase("es");
+}
+function _usuarioRpcId(res){
+  if(Array.isArray(res)) res=res[0];
+  if(res && typeof res==="object") return res.id||res.usuario_id||res.crear_usuario_seguro||null;
+  return (typeof res==="string"&&res)?res:null;
+}
+async function _sbBuscarUsuarioUid(uid){
+  uid=String(uid||"").trim();
+  if(!_sbEmpId||!uid) return null;
+  // `ilike` replica la comparación normalizada del RPC. Los IDs generados por
+  // el panel son alfanuméricos; el filtro exacto evita bajar toda la empresa.
+  var rows=await sbGet("usuarios","select=id,uid,name,role,telefono,created_at&empresa_id=eq."+_sbEmpId+
+    "&uid=ilike."+encodeURIComponent(uid)+"&order=created_at.asc&limit=1");
+  return rows&&rows[0]?rows[0]:null;
+}
+function _usuarioRemotoCoincide(u, remoto){
+  if(!u||!remoto) return false;
+  var nom=function(v){return String(v||"").trim().toLocaleLowerCase("es");};
+  return _usuarioUidNormalizado(u.id)===_usuarioUidNormalizado(remoto.uid) &&
+    nom(u.name||u.id)===nom(remoto.name||remoto.uid) &&
+    nom(u.role||"cliente")===nom(remoto.role||"cliente");
+}
 async function _sbInsertUsuario(u){
-  // SEGURIDAD: la contraseña se hashea del lado del servidor (RPC crear_usuario_seguro).
-  // El navegador nunca escribe pass en texto plano.
-  var rpcBody = {
-    p_empresa_id: _sbEmpId,
-    p_uid:        u.id,
-    p_pass:       u.pass||u.id,
-    p_name:       u.name||u.id,
-    p_role:       u.role||"vendedor",
-    p_lista:      u.lista||"Clientes",
-    p_direccion:  u.direccion||"",
-    p_telefono:   u.tel||"",
-    p_zona:       u.zona||"",
-    p_zona_id:    u.zona_id||null,
-    p_recepciona: u.rec||"",
-    p_nota:       u.nota||"",
-    p_catalogo:   u.catalogo!==false,
-    p_lat:        u.lat||null,
-    p_lng:        u.lng||null
-  };
-  try {
-    var newId = await sbFetch("POST","/rest/v1/rpc/crear_usuario_seguro",rpcBody);
+  // Una doble pulsación, un reintento de red o el antiguo fallback no deben
+  // ejecutar dos altas simultáneas para el mismo ID.
+  var uid=String((u&&u.id)||"").trim();
+  if(!_sbEmpId) throw new Error("No hay una empresa conectada");
+  if(!uid) throw new Error("El ID del usuario es obligatorio");
+  var clave=String(_sbEmpId)+"|"+_usuarioUidNormalizado(uid);
+  if(_usuariosCreando[clave]) return _usuariosCreando[clave];
+
+  var tarea=(async function(){
+    // SEGURIDAD: la contraseña se hashea del lado del servidor (RPC crear_usuario_seguro).
+    // El navegador nunca escribe pass en texto plano.
+    var rpcBody = {
+      p_empresa_id: _sbEmpId,
+      p_uid:        uid,
+      p_pass:       u.pass||uid,
+      p_name:       u.name||uid,
+      p_role:       u.role||"vendedor",
+      p_lista:      u.lista||"Clientes",
+      p_direccion:  u.direccion||"",
+      p_telefono:   u.tel||"",
+      p_zona:       u.zona||"",
+      p_zona_id:    u.zona_id||null,
+      p_recepciona: u.rec||"",
+      p_nota:       u.nota||"",
+      p_catalogo:   u.catalogo!==false,
+      p_lat:        u.lat||null,
+      p_lng:        u.lng||null
+    };
+    var newId=null;
+    try {
+      newId=_usuarioRpcId(await sbFetch("POST","/rest/v1/rpc/crear_usuario_seguro",rpcBody));
+      // Una respuesta vacía no autoriza repetir el POST: primero comprobamos si
+      // el COMMIT sí ocurrió. Es el caso clásico de una respuesta de red perdida.
+      if(!newId){
+        var confirmado=await _sbBuscarUsuarioUid(uid);
+        if(confirmado&&_usuarioRemotoCoincide(u,confirmado)) newId=confirmado.id;
+      }
+      if(!newId) throw new Error("Supabase no confirmó el alta del usuario");
+    } catch(e){
+      // Si el servidor alcanzó a guardar antes de cortarse la respuesta, tomar
+      // esa misma fila como éxito. Si el ID pertenece a otra persona, abortar.
+      var existente=null;
+      try{ existente=await _sbBuscarUsuarioUid(uid); }catch(_buscarErr){}
+      if(existente&&_usuarioRemotoCoincide(u,existente)){
+        newId=existente.id;
+      }else if(existente){
+        var dupErr=new Error("Ya existe un usuario con el ID "+uid);
+        dupErr.code="USUARIO_DUPLICADO";
+        throw dupErr;
+      }else{
+        console.warn("crear_usuario_seguro falló:", e && e.message);
+        var seguroErr=new Error("No se pudo crear el usuario de forma segura: "+((e&&e.message)||"error de conexión"));
+        seguroErr.code=(e&&e.code)||"USUARIO_NO_GUARDADO";
+        throw seguroErr;
+      }
+    }
     if(newId && (u.role||"cliente")==="cliente" && typeof currentUser!=="undefined" && currentUser && currentUser.role!=="admin" && currentUser.id){
       try { await sbPatch("usuarios","id=eq."+newId+"&empresa_id=eq."+_sbEmpId,{vendedor_asignado:currentUser.id}); u.vendedor_asignado=currentUser.id; }
       catch(pe){ console.warn("autoasignar vendedor:", pe); }
     }
-    return newId || null;
-  } catch(e){
-    // Si el RPC no existiera, avisar claramente (sin caer a texto plano).
-    console.warn("crear_usuario_seguro falló:", e && e.message);
-    throw new Error("No se pudo crear el usuario de forma segura. Verificá que el RPC crear_usuario_seguro esté creado en Supabase.");
-  }
+    return newId;
+  })();
+  _usuariosCreando[clave]=tarea;
+  try{ return await tarea; }
+  finally{ delete _usuariosCreando[clave]; }
 }
 async function _sbPatchUsuario(id,u){
   // Datos no sensibles: update normal.
@@ -14973,15 +15036,24 @@ function _crDetectarUbicacion(){
 }
 
 async function _guardarClienteRapido(){
+  var btn = document.getElementById("cr-guardar-btn");
+  if(btn&&btn.disabled) return;
   var nombre = (document.getElementById("cr-nombre").value||"").trim();
   if(!nombre){ showNotif("Poné el nombre del cliente","warn"); document.getElementById("cr-nombre").focus(); return; }
   var tel   = (document.getElementById("cr-tel").value||"").trim();
   var dir   = (document.getElementById("cr-dir").value||"").trim();
   var lista = (document.getElementById("cr-lista").value||"Clientes");
-  var id    = _genClienteId();
-
-  var btn = document.getElementById("cr-guardar-btn");
   if(btn){ btn.disabled=true; btn.textContent="Creando…"; }
+
+  var id="";
+  // Refrescar usuarios antes de elegir el siguiente CLxxx: dos dispositivos
+  // pueden tener cachés distintos. El candado SQL resuelve además la carrera
+  // excepcional en la que ambos intentan reservar el mismo número a la vez.
+  try{
+    var remotos=await _sbGetUsuarios();
+    if(remotos) _clientesDB=Object.assign(_clientesDB||{},remotos);
+    id=_genClienteId();
+  }catch(_cliRefreshErr){ id=_genClienteId(); }
 
   var nuevo = { id:id, pass:id, name:nombre, lista:lista, catalogo:true, role:"cliente" };
   if(tel) nuevo.tel = tel;
@@ -14992,16 +15064,11 @@ async function _guardarClienteRapido(){
   if(!isNaN(_crLat) && !isNaN(_crLng)){ nuevo.lat=_crLat; nuevo.lng=_crLng; }
 
   try {
-    var pushKey = null;
-    if(_sbEmpId){
-      try { var sbId = await _sbInsertUsuario(nuevo); if(sbId){ pushKey=sbId; nuevo._sbId=sbId; _auditar("crear","cliente",id,"Creó el cliente: "+nombre); } }
-      catch(se){ console.warn("Cliente rápido Supabase:", se); }
-    }
-    if(!pushKey){
-      try { var fbKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo); if(fbKey){ pushKey=fbKey; nuevo._fbKey=fbKey; } }
-      catch(fe){ console.warn("Cliente rápido fallback:", fe); }
-    }
+    if(!_sbEmpId) throw new Error("No hay una empresa conectada");
+    var pushKey = await _sbInsertUsuario(nuevo);
     if(!pushKey) throw new Error("No se pudo guardar");
+    nuevo._sbId=pushKey;
+    _auditar("crear","cliente",id,"Creó el cliente: "+nombre);
 
     // agregar a las estructuras en memoria
     _clientesDB[pushKey] = nuevo;
@@ -15013,11 +15080,11 @@ async function _guardarClienteRapido(){
     cerrarModal("modal-cliente-rapido");
     showSaved("Cliente creado");
     // seleccionarlo de una en el pedido
-    if(btn){ btn.disabled=false; btn.textContent="Crear y usar"; }
     _elegirCliente("ped", { id:id, nombre:nombre, lista:lista });
   } catch(e){
-    if(btn){ btn.disabled=false; btn.textContent="Crear y usar"; }
     showNotif("Error al crear cliente: "+(e.message||""),"err");
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent="Crear y usar"; }
   }
 }
 
@@ -17103,7 +17170,7 @@ function _cartQuitarDsc(){
 var _cartDscOpen = -1;
 // Aplica/saca la promo por cantidad a un item del pedido según su cantidad actual.
 // Respeta la oferta (si está aplicada, no toca nada). Devuelve true si RECIÉN se activó.
-function _recalcPromoVigente(it){
+function _recalcPromoVigente(it, listaActiva){
   if(!it || it.ofAplicada) return false;           // la oferta tiene prioridad
   var p=(dbStock||[]).find(function(x){return x.id===it.id;});
   if(!p) return false;
@@ -17115,7 +17182,9 @@ function _recalcPromoVigente(it){
   var _cant=(it.c||0), _tApl=null;
   for(var _i=0;_i<_tr.length;_i++){ if(_cant>=_tr[_i].desde) _tApl=_tr[_i]; }
   var _cp = _tr[0].desde;
-  var lista=tipoLista['ped']||"Clientes";
+  // En Nuevo pedido usa la lista elegida allí; el editor de Backup pasa la
+  // lista del remito para no calcular una promo Patagonia con precio Clientes.
+  var lista=listaActiva||tipoLista['ped']||"Clientes";
   var preNormal=_precioDe(p,lista);
   // Algunas fichas antiguas guardaron el TOTAL del pack en el tramo. Si, por
   // ejemplo, 5 velas cuestan $26.200, el precio unitario correcto es $5.240;
@@ -22264,6 +22333,11 @@ function guardarItemsEditados(rk, ck, items, wrap){
   // diferencia más abajo. Se copia porque abajo se pisa rutasData con lo nuevo.
   var itemsAntes = oldItems.map(function(it){ return {id:_rutaCodItem(it), n:it.n, c:it.c}; });
   var itemsDespues = (items||[]).map(function(it){ return {id:_rutaCodItem(it), n:it.n, c:it.c}; });
+  var _diffStockRuta=_rutaDiffStock(itemsAntes,itemsDespues);
+  if(_ctrlStockOn()&&(_diffStockRuta.salen.length||_diffStockRuta.vuelven.length)&&!navigator.onLine){
+    showNotif("Necesitás conexión para editar cantidades: el stock debe confirmarse en el mismo momento.","err");
+    return;
+  }
   var oldMap = {}; oldItems.forEach(function(it){ oldMap[it.n]=(oldMap[it.n]||0)+it.c; });
   var newMap = {}; items.forEach(function(it){ newMap[it.n]=(newMap[it.n]||0)+it.c; });
   var changes = [];
@@ -25516,7 +25590,7 @@ function editBkCant(idx, val){
   }
   it.c = v;
   // Si cambia la cantidad, activar/quitar el tramo promocional que corresponda.
-  if(typeof _recalcPromoVigente==="function") _recalcPromoVigente(it);
+  if(typeof _recalcPromoVigente==="function") _recalcPromoVigente(it,_editBkItem.lista||"Clientes");
   // Recalcular subtotal respetando el descuento por ítem si lo tiene
   var base = v * (it.p||0);
   it.sub = (it.dsc && it.dsc.valor>0)
@@ -25657,13 +25731,30 @@ function filtrarEditBk(){
   res.classList.add("open");
   hits.forEach(function(p){
     var lista = _editBkItem ? (_editBkItem.lista||"Clientes") : "Clientes";
-    var precio = lista.toLowerCase().indexOf("patagonia")!==-1 ? p.pPat : p.pCli;
+    var precio = +(typeof _precioDe==="function"?_precioDe(p,lista):0)||0;
+    if(!(precio>0)) precio=+(lista.toLowerCase().indexOf("patagonia")!==-1?p.pPat:p.pCli)||0;
+    var oferta=+(typeof _ofPrecioLista==="function"?_ofPrecioLista(p,lista):0)||0;
+    var tieneOferta=oferta>0&&oferta<precio-0.005;
+    var tramos=(typeof _tramosDe==="function"?_tramosDe(p):[])||[];
+    var primerTramo=tramos.length?tramos[0]:null;
+    var promoUnit=primerTramo
+      ? _promoPrecioUnitarioSeguro(p,+primerTramo.precio,precio,{id:p.id,n:p.n,c:+primerTramo.desde||1})
+      : 0;
+    var tienePromo=!!primerTramo&&promoUnit>0&&promoUnit<precio-0.005;
+    var badges=(tieneOferta
+      ? '<span style="font-size:9.5px;background:#fee2e2;color:#b91c1c;padding:2px 6px;border-radius:8px;font-weight:800;margin-left:5px">🔥 OFERTA $'+fM(oferta)+'</span>'
+      : '')+(tienePromo
+      ? '<span style="font-size:9.5px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-weight:800;margin-left:5px">🏷️ PROMO x'+(+primerTramo.desde||1)+' · $'+fM(promoUnit)+' c/u</span>'
+      : '');
+    var precioHtml=tieneOferta
+      ? '<span class="dd-price"><span style="text-decoration:line-through;color:var(--muted);font-size:10px">$'+fM(precio)+'</span> <b style="color:#dc2626">$'+fM(oferta)+'</b></span>'
+      : '<span class="dd-price">$'+fM(precio)+'</span>';
     var div = document.createElement("div");
     div.className = "dd-item";
-    div.innerHTML = '<span class="dd-code">'+p.id+'</span><span class="dd-name">'+p.n+'</span><span class="dd-price">$'+fM(precio)+'</span>';
+    div.innerHTML = '<span class="dd-code">'+escHtml(String(p.id||""))+'</span><span class="dd-name">'+escHtml(String(p.n||""))+badges+'</span>'+precioHtml;
     div.addEventListener("mousedown", function(e){
       e.preventDefault();
-      _editBkSelProd = {id:p.id,n:p.n,p:precio};
+      _editBkSelProd = {id:p.id,n:p.n,p:precio,prod:p,lista:lista};
       bus.value = p.n;
       res.classList.remove("open");
       var cantEl = document.getElementById("edit-bk-cant");
@@ -25679,8 +25770,24 @@ function agregarItemEditBk(){
   var exist = _editBkItem.items.find(function(i){ return i.id===_editBkSelProd.id; });
   var cantNueva = _stkCantEnItems(_editBkItem.items,_editBkSelProd.id)+cant;
   if(!_stkPuedeCantidad(_editBkSelProd.id,cantNueva,_editBkSelProd.n,_editBkOriginalItems,true)) return;
-  if(exist){ exist.c += cant; exist.sub = exist.c * exist.p; }
-  else { _editBkItem.items.push({id:_editBkSelProd.id,n:_editBkSelProd.n,c:cant,p:_editBkSelProd.p,sub:cant*_editBkSelProd.p}); }
+  var prod=_editBkSelProd.prod||null;
+  var lista=_editBkItem.lista||_editBkSelProd.lista||"Clientes";
+  var base=exist
+    ? Object.assign({},exist,{c:+(exist.c||0)+cant})
+    : {id:_editBkSelProd.id,n:_editBkSelProd.n,c:cant,p:_editBkSelProd.p,sub:cant*_editBkSelProd.p};
+  // Al agregar desde el catálogo del editor se toma la condición comercial
+  // vigente: oferta primero y, si no hay oferta, el tramo promo alcanzado.
+  var actualizado=(prod&&typeof _bkRefacturarItemPrecio==="function")
+    ? _bkRefacturarItemPrecio(base,prod,lista)
+    : base;
+  if(exist){
+    Object.keys(exist).forEach(function(k){delete exist[k];});
+    Object.assign(exist,actualizado);
+  }else{
+    _editBkItem.items.push(actualizado);
+  }
+  if(actualizado.ofAplicada) showNotif("🔥 Oferta aplicada a "+actualizado.n,"ok");
+  else if(actualizado.promoAplicada) showNotif("🏷️ Promoción aplicada a "+actualizado.n,"ok");
   _editBkSelProd = null;
   var busEl = document.getElementById("edit-bk-bus"); if(busEl) busEl.value="";
   var cantEl = document.getElementById("edit-bk-cant"); if(cantEl) cantEl.value="1";
@@ -29806,7 +29913,9 @@ function _generarSiguienteId(){
   return prefijo + String(n).padStart(3,"0");
 }
 
+var _nuevoClienteGuardando=false;
 async function guardarNuevoCliente() {
+  if(_nuevoClienteGuardando) return;
   var id   = document.getElementById("nc-id").value.trim();
   var pass = document.getElementById("nc-pass").value.trim();
   var name = document.getElementById("nc-name").value.trim();
@@ -29830,7 +29939,8 @@ async function guardarNuevoCliente() {
   var lng  = parseFloat((document.getElementById("nc-lng")||{value:""}).value)||null;
   if (!id)   { showNotif("El ID es obligatorio","err"); return; }
   if (!name) { showNotif("El nombre es obligatorio","err"); return; }
-  var dup = Object.values(_clientesDB).find(function(u){ return u.id===id; });
+  var idNorm=_usuarioUidNormalizado(id);
+  var dup = Object.values(_clientesDB).find(function(u){ return _usuarioUidNormalizado(u.id)===idNorm; });
   if (dup)   { showNotif("Ya existe un cliente con ese ID","err"); return; }
   var nuevo = { id:id, pass:pass||id, name:name, lista:lista, catalogo:true, role:rol };
   if (dir)    nuevo.direccion = dir;
@@ -29841,23 +29951,22 @@ async function guardarNuevoCliente() {
   if (rec)    nuevo.rec  = rec;
   if (nota)   nuevo.nota = nota;
   if (lat && lng) { nuevo.lat = lat; nuevo.lng = lng; }
+  var btn=document.getElementById("nc-guardar-btn");
+  _nuevoClienteGuardando=true;
+  if(btn){ btn.disabled=true; btn.textContent="Guardando…"; btn.style.opacity=".68"; }
   try {
-    var pushKey = null;
-    // Guardar en Supabase primero
-    if(_sbEmpId){
-      try {
-        var sbId = await _sbInsertUsuario(nuevo);
-        if(sbId){ pushKey = sbId; nuevo._sbId = sbId; }
-      } catch(se){ console.warn("Supabase insert:", se); }
+    if(!_sbEmpId) throw new Error("No hay una empresa conectada");
+    // La memoria puede estar vieja si otro teléfono creó el cliente. Consultar
+    // la fuente de verdad antes del alta evita incluso duplicados entre equipos.
+    var remoto=await _sbBuscarUsuarioUid(id);
+    if(remoto){
+      var dupRemoto=new Error("Ya existe un cliente con el ID "+id);
+      dupRemoto.code="USUARIO_DUPLICADO";
+      throw dupRemoto;
     }
-    // Fallback SOLO si Supabase no guardó (fbPush también escribe en Supabase: si corre siempre, duplica el cliente)
-    if(!pushKey){
-      try {
-        var fbKey = await fbPush("empresas/"+empresaKey+"/usuarios", nuevo);
-        if(fbKey){ pushKey = fbKey; nuevo._fbKey = fbKey; }
-      } catch(fe){ console.warn("Insert fallback:", fe); }
-    }
+    var pushKey = await _sbInsertUsuario(nuevo);
     if(!pushKey) throw new Error("No se pudo guardar el cliente");
+    nuevo._sbId=pushKey;
     _clientesDB[pushKey] = nuevo;
     ["nc-pass","nc-name","nc-dir","nc-tel","nc-cuit","nc-zona","nc-rec","nc-nota","nc-lat","nc-lng"].forEach(function(fid){
       var el=document.getElementById(fid); if(el)el.value="";
@@ -29872,7 +29981,12 @@ async function guardarNuevoCliente() {
     if(empresaData){ var usuarios=empresaData.usuarios||{}; usuarios[pushKey]=nuevo; empresaData.usuarios=usuarios; }
     _agregarCliAlDatalist(nuevo);
     showSaved('Cliente guardado');
-  } catch(e) { showNotif("Error al guardar: "+e.message,"err"); }
+  } catch(e) {
+    showNotif("Error al guardar: "+e.message,"err");
+  } finally {
+    _nuevoClienteGuardando=false;
+    if(btn){ btn.disabled=false; btn.textContent="+ Guardar cliente"; btn.style.opacity="1"; }
+  }
 }
 
 function _agregarCliAlDatalist(u) {
@@ -37682,7 +37796,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v26';
+  var CACHE_NAME = 'distribix-v27';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
