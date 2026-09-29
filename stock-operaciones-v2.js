@@ -220,17 +220,11 @@ window._importarStockXLSX=async function(ev){
   ev.target.value="";
 };
 window._somAplicar=async function(){
-  if(!S.filas.length||S.errores.length)return;
+  if(!S.filas.length||S.errores.length||S.aplicando)return;
   var motivo=soNorm((document.getElementById("som-motivo")||{}).value);
   if(motivo.length<3){soNotif("Escribí por qué se hace esta carga","err");return;}
-  var entrada=S.filas.reduce(function(n,x){return n+Math.max(0,x.nuevo==null?x.cantidad:x.nuevo-x.esperado);},0);
-  var salida=S.filas.reduce(function(n,x){return n+Math.max(0,x.nuevo==null?0:x.esperado-x.nuevo);},0);
-  var ok=typeof window._confirmar==="function"?await window._confirmar({
-    icono:S.modo==="ajuste"?"📦":"🧪",titulo:S.modo==="ajuste"?"Confirmar carga masiva":"Confirmar ingreso por lotes",
-    mensaje:S.filas.length+" filas validadas.\nEntran: "+entrada+" unidades"+(S.modo==="ajuste"?"\nSalen: "+salida+" unidades":"")+"\n\nMotivo: "+motivo+"\n\nSe aplicará todo junto. Si una fila falla, no se cambia ninguna.",
-    ok:"Sí, aplicar todo",cancelar:"Volver a revisar",peligro:S.modo==="ajuste"&&salida>0,persistente:true
-  }):confirm("¿Aplicar la carga completa?");
-  if(!ok)return;
+  // La confirmación central congela estas filas y muestra antes/después.
+  S.aplicando=true;
   var btn=document.getElementById("som-apply");if(btn){btn.disabled=true;btn.textContent="Validando y guardando…";}
   if(!S.operacion)S.operacion=soUuid();
   try{
@@ -243,7 +237,7 @@ window._somAplicar=async function(){
     soClose("modal-carga-stock");soNotif("✅ Operación completa: "+res.cambiados+" fila"+(res.cambiados!==1?"s":"")+" aplicada"+(res.cambiados!==1?"s":""),"ok");
     if(document.getElementById("dep-lotes-pane")&&document.getElementById("dep-lotes-pane").style.display!=="none")soRenderLotes(true);
   }catch(e){soNotif(soError(e),"err");soLoadPanel(true).catch(function(){});}
-  finally{if(btn){btn.disabled=false;btn.textContent="✓ Aplicar operación completa";}}
+  finally{S.aplicando=false;if(btn){btn.disabled=false;btn.textContent="✓ Aplicar operación completa";}}
 };
 
 function soFechaEstado(l,p){
@@ -301,8 +295,7 @@ window._somGuardarLote=async function(){
   if(!cod||!lote||cant==null||cant<=0){soNotif("Completá producto, cantidad y lote","err");return;}
   if(vence===null){soNotif("La fecha de vencimiento no es válida","err");return;}
   if(mot.length<3)mot="Ingreso de mercadería por lote";
-  var p=soProducto(cod),ok=await window._confirmar({icono:"🧪",titulo:"Confirmar ingreso de lote",mensaje:(p?p.nombre:cod)+"\nLote: "+lote+"\nVencimiento: "+(vence||"sin fecha")+"\nCantidad: +"+cant+" u.\n\nEl stock pasará de "+(+p.stock||0)+" a "+((+p.stock||0)+cant)+".",ok:"Ingresar "+cant+" u.",cancelar:"Revisar",persistente:true});
-  if(!ok)return;var btn=document.getElementById("som-lote-save");if(btn){btn.disabled=true;btn.textContent="Guardando…";}
+  var btn=document.getElementById("som-lote-save");if(btn&&btn.disabled)return;if(btn){btn.disabled=true;btn.textContent="Guardando…";}
   var firma=JSON.stringify([cod,lote,vence||null,cant,mot]);if(S.loteFirma!==firma){S.loteFirma=firma;S.loteOperacion=soUuid();}
   try{await soRpc("stock_lote_registrar_ingreso",{p_empresa:window._sbEmpId,p_operacion:S.loteOperacion,p_codigo:cod,p_lote:lote,p_vencimiento:vence||null,p_cantidad:cant,p_usuario:soUsuario(),p_motivo:mot});S.panel=null;S.loteOperacion=null;S.loteFirma="";soClose("som-lote-modal");try{await window._stkRefrescar();}catch(_e){}await soRenderLotes(true);soNotif("Lote ingresado y stock actualizado","ok");}
   catch(e){soNotif(soError(e),"err");}finally{if(btn){btn.disabled=false;btn.textContent="Confirmar ingreso";}}
@@ -320,8 +313,7 @@ window._somGuardarConfig=async function(){
 window._somCambiarEstado=async function(id,dest){
   var l=(S.panel.lotes||[]).find(function(x){return String(x.id)===String(id);});if(!l)return;
   var p=soProducto(l.codigo),aislar=dest==="cuarentena",mot=aislar?"Lote aislado por rotura, devolución o revisión":"Lote liberado de cuarentena";
-  var ok=await window._confirmar({icono:aislar?"🛑":"✅",titulo:aislar?"Enviar lote a cuarentena":"Liberar lote al stock",mensaje:(p?p.nombre:l.codigo)+"\nLote: "+l.lote+"\nCantidad: "+l.cantidad+" u.\n\n"+(aislar?"Estas unidades dejarán de estar disponibles para vender.":"Estas unidades volverán al stock disponible."),ok:aislar?"Aislar lote completo":"Liberar lote completo",cancelar:"Cancelar",peligro:aislar,persistente:true});
-  if(!ok)return;
+  // El motor confirma el lote y su saldo vigente antes de enviarlo.
   try{await soRpc("stock_lote_cambiar_estado",{p_empresa:window._sbEmpId,p_operacion:soUuid(),p_lote_id:l.id,p_destino:dest,p_cantidad:l.cantidad,p_esperado:l.cantidad,p_usuario:soUsuario(),p_motivo:mot});S.panel=null;try{await window._stkRefrescar();}catch(_e){}await soRenderLotes(true);soNotif(aislar?"Lote aislado y descontado del disponible":"Lote liberado al stock","ok");}catch(e){soNotif(soError(e),"err");await soRenderLotes(true);}
 };
 
@@ -378,11 +370,12 @@ window._invRender=function(){
   host.innerHTML=arr.slice(0,300).map(function(p){var v=C.valores[p.codigo],has=v!==undefined,d=has?v-p.actual:0,token=encodeURIComponent(p.codigo);return'<div class="som-count-row"><div><b>'+soEsc(p.nombre)+'</b><span>'+soEsc(p.codigo)+(p.pasillo||p.estante?" · 📍 "+soEsc([p.pasillo,p.estante].filter(Boolean).join(" / ")):"")+' · sistema <strong>'+p.actual+'</strong></span></div>'+(has?'<em class="'+(d===0?"ok":d>0?"up":"down")+'">'+(d===0?"✓":(d>0?"+":"")+d)+'</em>':"")+'<input type="number" min="0" step="1" value="'+(has?v:"")+'" placeholder="—" onchange="_invSet(decodeURIComponent(\''+token+'\'),this.value)"></div>';}).join("");
 };
 window._invAplicar=async function(){
+  var btn=document.getElementById("inv-btn");if(btn&&btn.disabled)return;
   var rows=soFilasConteo().filter(function(p){return C.valores[p.codigo]!==undefined&&+C.valores[p.codigo]!==p.actual;}).map(function(p){return{codigo:p.codigo,nombre:p.nombre,esperado:p.actual,nuevo:+C.valores[p.codigo]};});
   if(!rows.length){soNotif("No hay diferencias para ajustar","err");return;}
   var ent=rows.reduce(function(n,x){return n+Math.max(0,x.nuevo-x.esperado);},0),sal=rows.reduce(function(n,x){return n+Math.max(0,x.esperado-x.nuevo);},0),sector=soSectorNombre();
-  var ok=await window._confirmar({icono:"🔢",titulo:"Confirmar conteo de "+sector,mensaje:rows.length+" productos con diferencia.\nEntran: "+ent+" u.\nSalen: "+sal+" u.\n\nSe guardará todo junto como conteo cíclico. Si otro dispositivo cambió una cantidad, no se aplicará ninguna.",ok:"Aplicar conteo completo",cancelar:"Volver a revisar",peligro:sal>0,persistente:true});if(!ok)return;
-  var btn=document.getElementById("inv-btn");if(btn){btn.disabled=true;btn.textContent="Aplicando todo o nada…";}
+  // StockSeguro confirma las cantidades congeladas antes de enviarlas.
+  if(btn){btn.disabled=true;btn.textContent="Aplicando todo o nada…";}
   try{var res=await soRpc("stock_carga_masiva_atomica",{p_empresa:window._sbEmpId,p_operacion:soUuid(),p_modo:"conteo",p_items:rows.map(function(x){return{codigo:x.codigo,esperado:x.esperado,nuevo:x.nuevo};}),p_usuario:soUsuario(),p_motivo:"Conteo cíclico · "+sector});if(!res||res.ok===false)throw new Error("No se pudo aplicar el conteo");try{localStorage.removeItem(soDraftKey());}catch(e){}C.valores={};window._invContado={};soClose("inv-modal");if(typeof window._stkRefrescar==="function")await window._stkRefrescar();if(typeof window.renderStock==="function")window.renderStock();S.panel=null;soNotif("Conteo aplicado completo: "+res.cambiados+" productos","ok");}
   catch(e){soNotif(soError(e)+" No se perdió tu conteo.","err");try{if(typeof window._stkRefrescar==="function")await window._stkRefrescar();}catch(_e){}}
   finally{if(btn){btn.disabled=false;btn.textContent="✓ Ajustar el stock a lo contado";}}

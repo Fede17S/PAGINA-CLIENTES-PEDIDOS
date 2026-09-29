@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.66 — clientes, stock y promos protegidos
-const CACHE_NAME = 'distribix-v1.66';
-const CACHE_STATIC = 'distribix-static-v1.66';
+// DISTRIBIX Service Worker v1.67 — confirmaciones y stock atómico
+const CACHE_NAME = 'distribix-v1.67';
+const CACHE_STATIC = 'distribix-static-v1.67';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -18,6 +18,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './deposito-stock-v1.js',
   './deposito-mapa-v1.js',
   './stock-operaciones-v2.js',
+  './stock-integridad-v3.js',
   './manifest.json',
   './distribix-logo-completo.png',
   './favicon-distribix.ico',

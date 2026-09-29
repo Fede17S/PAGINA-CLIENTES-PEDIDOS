@@ -1,0 +1,92 @@
+-- Tests transactionnels: todo dato de prueba se revierte, incluso si un assert falla.
+do $test$
+declare
+  emp uuid:=gen_random_uuid(); otro uuid:=gen_random_uuid(); prod uuid:=gen_random_uuid();
+  pedido uuid:=gen_random_uuid(); ruta uuid:=gen_random_uuid(); parada uuid:=gen_random_uuid();
+  token_data text; token text; uid text:='prueba-stock-'||gen_random_uuid();
+  viejos jsonb:='[{"id":"A","c":3,"p":100,"sub":300}]';
+  nuevos jsonb:='[{"id":"A","c":1,"p":100,"sub":100},{"id":"B","c":2,"p":100,"sub":200}]';
+  r jsonb; fallo boolean; n integer;
+begin
+  begin
+    insert into public.empresas(id,codigo,nombre,control_stock) values(emp,emp::text,'Prueba transaccional stock',true);
+    insert into public.usuarios(empresa_id,uid,name,role) values(emp,uid,'Prueba stock','admin');
+    insert into public.productos(id,empresa_id,codigo,nombre) values(prod,emp,'A','Prueba A');
+    insert into public.productos(empresa_id,codigo,nombre) values(emp,'B','Prueba B');
+    insert into public.stock(empresa_id,codigo,cantidad,reservado) values(emp,'A',10,0),(emp,'B',10,0);
+    token_data:=public.app_b64url_encode(convert_to('{"alg":"HS256","typ":"JWT"}','utf8'))||'.'||
+       public.app_b64url_encode(convert_to(jsonb_build_object('empresa_id',emp,'uid',uid,'exp',extract(epoch from now())::bigint+300)::text,'utf8'));
+    token:=token_data||'.'||public.app_b64url_encode(extensions.hmac(token_data,public.app_jwt_secret(),'sha256'));
+    perform set_config('request.headers',jsonb_build_object('x-empresa-token',token)::text,true);
+    assert public.app_empresa_id()=emp,'Token de prueba inválido';
+    perform public.stk_confirmar_salida(emp,'test-salida','[{"codigo":"A","cant":3}]','prueba','Confirmado');
+    perform public.stk_confirmar_salida(emp,'test-salida','[{"codigo":"A","cant":3}]','prueba','Confirmado');
+    assert (select cantidad=7 from public.stock where empresa_id=emp and codigo='A'),'Salida duplicada';
+    assert (select count(*)=1 from public.stock_movimientos where empresa_id=emp::text and ref='test-salida'),'Historial de salida incompleto/duplicado';
+    fallo:=false;
+    begin perform public.stk_devolver(emp,'fantasma','[{"codigo":"NO-EXISTE","cant":2}]','prueba');
+    exception when others then fallo:=true; end;
+    assert fallo,'Se permitió producto inexistente';
+    assert not exists(select 1 from public.stock where empresa_id=emp and codigo='NO-EXISTE'),'Se creó stock fantasma';
+    fallo:=false;
+    begin perform public.stk_confirmar_salida(emp,'decimal','[{"codigo":"A","cant":1.5}]','prueba');
+    exception when others then fallo:=true; end;
+    assert fallo,'Aceptó cantidad fraccionaria';
+    insert into public.backup_pedidos(id,empresa_id,cliente_nom,items,total,total_con_iva) values(pedido,emp,'Cliente prueba',viejos,300,300);
+    insert into public.rutas(id,empresa_id,nombre) values(ruta,emp,'Ruta prueba');
+    insert into public.ruta_clientes(id,empresa_id,ruta_id,pedido_id,nom,items,importe) values(parada,emp,ruta,pedido,'Cliente prueba',viejos,300);
+    r:=public.ruta_editar_items_atomico(emp,ruta,parada,nuevos,viejos,300,300,null,'prueba');
+    assert r->>'ok'='true','No guardó ruta';
+    assert (select cantidad=9 from public.stock where empresa_id=emp and codigo='A'),'No devolvió unidades eliminadas';
+    assert (select cantidad=8 from public.stock where empresa_id=emp and codigo='B'),'No descontó unidades nuevas';
+    assert (select items=nuevos from public.backup_pedidos where id=pedido),'Backup desincronizado';
+    assert (select items=nuevos from public.ruta_clientes where id=parada),'Ruta desincronizada';
+    fallo:=false;
+    begin perform public.ruta_editar_items_atomico(emp,ruta,parada,viejos,viejos,300,300,null,'prueba');
+    exception when others then fallo:=true; end;
+    assert fallo,'Aceptó editor obsoleto';
+    assert (select cantidad=9 from public.stock where empresa_id=emp and codigo='A'),'Editor viejo alteró stock';
+    fallo:=false;
+    begin perform public.pedido_editar_atomico(emp,pedido,jsonb_build_object('items','[{"id":"A","c":2},{"id":"B","c":200}]'::jsonb),nuevos,'prueba');
+    exception when others then fallo:=true; end;
+    assert fallo,'Permitió venta sin stock';
+    assert (select cantidad=9 from public.stock where empresa_id=emp and codigo='A'),'No revirtió movimiento parcial';
+    assert (select items=nuevos from public.backup_pedidos where id=pedido),'Guardó pedido fallido';
+    perform public.pedido_editar_atomico(emp,pedido,jsonb_build_object('items',viejos,'total',300,'total_con_iva',300),nuevos,'prueba');
+    assert (select items=viejos from public.ruta_clientes where id=parada),'Edición de backup no actualizó ruta';
+    assert (select cantidad=7 from public.stock where empresa_id=emp and codigo='A'),'Edición de backup incorrecta';
+    delete from public.ruta_clientes where id=parada;
+    perform public.pedido_borrar_stock_atomico(emp,pedido,viejos,'prueba');
+    perform public.pedido_borrar_stock_atomico(emp,pedido,viejos,'prueba');
+    assert not exists(select 1 from public.backup_pedidos where id=pedido),'Reapareció el pedido';
+    assert (select cantidad=10 from public.stock where empresa_id=emp and codigo='A'),'Devolución por borrado duplicada';
+    perform public.stock_ajustar_manual_atomico(emp,'A',12,10,'prueba','Conteo confirmado','ajuste');
+    fallo:=false;
+    begin perform public.stock_ajustar_manual_atomico(emp,'A',15,10,'prueba','Conteo obsoleto','ajuste');
+    exception when others then fallo:=true; end;
+    assert fallo,'Aceptó conteo obsoleto';
+    assert (select cantidad=12 from public.stock where empresa_id=emp and codigo='A'),'Pisó el conteo nuevo';
+    update public.empresas set control_stock=false where id=emp;
+    perform public.stk_confirmar_salida(emp,'preventa','[{"codigo":"A","cant":2}]','prueba');
+    perform public.stk_devolver(emp,'preventa-ret','[{"codigo":"A","cant":2}]','prueba');
+    assert (select cantidad=12 from public.stock where empresa_id=emp and codigo='A'),'Preventa modificó inventario';
+    fallo:=false;
+    begin insert into public.productos(empresa_id,codigo,nombre) values(emp,' a ','Duplicado');
+    exception when others then fallo:=true; end;
+    assert fallo,'Permitió código duplicado';
+    fallo:=false;
+    begin perform public.stk_devolver(otro,'cruce','[{"codigo":"A","cant":2}]','prueba');
+    exception when others then fallo:=true; end;
+    assert fallo,'Permitió otra empresa';
+    perform set_config('request.headers','{}',true);
+    fallo:=false;
+    begin perform public.stk_devolver(emp,'sin-token','[{"codigo":"A","cant":2}]','prueba');
+    exception when others then fallo:=true; end;
+    assert fallo,'Permitió sin autenticación';
+    raise exception using errcode='Z0001',message='STOCK_TEST_OK_ROLLBACK';
+  exception when sqlstate 'Z0001' then
+    -- Fuerza rollback del bloque de fixtures sin deshacer las definiciones.
+    null;
+  end;
+  assert not exists(select 1 from public.empresas where id=emp),'Quedaron datos de prueba';
+end $test$;

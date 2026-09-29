@@ -4070,7 +4070,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.15-novedades1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.29-stock3</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -7631,6 +7631,13 @@ function _sbHeaders(extra){
 }
 
 function sbFetch(method, path, body){
+  if(window.StockSeguro) return window.StockSeguro.enviar(method,path,body,_sbFetchTransporte);
+  if(method!=="GET" && /\/rpc\/(stk_|stock_|pedido_confirmar_atomico|pedido_editar_atomico|ruta_editar_items_atomico)/.test(path||"")){
+    return Promise.reject(new Error("El control de stock está cargando. Volvé a intentar en unos segundos."));
+  }
+  return _sbFetchTransporte(method,path,body);
+}
+function _sbFetchTransporte(method, path, body){
   var _esLoginRpc=/\/rpc\/(verificar_login|verificar_login_rl)$/.test(String(path||""));
   if(method!=="GET" && currentUser && _sbEmpId && !_empTokenVigente(0) && !_esLoginRpc){
     return Promise.reject(new Error("Tu sesión venció. Volvé a ingresar para guardar cambios."));
@@ -8940,6 +8947,13 @@ function sbPost(table, data)         { return sbFetch("POST",   "/rest/v1/"+tabl
 function sbPatch(table, match, data) { return sbFetch("PATCH",  "/rest/v1/"+table+"?"+match, data); }
 function sbDel(table, match)         { return sbFetch("DELETE", "/rest/v1/"+table+"?"+match, null); }
 function sbUpsert(table, data, onConflict){
+  if(table==="stock" && [].concat(data||[]).some(function(x){return x.cantidad!==undefined;})){
+    var cambio=Object.create(null);[].concat(data).forEach(function(x){
+      if(!x||!x.codigo||String(x.empresa_id)!==String(_sbEmpId)||Object.prototype.hasOwnProperty.call(cambio,x.codigo))throw new Error("Carga de stock inválida o con códigos repetidos");
+      cambio[x.codigo]=x.cantidad;
+    });
+    return _sbPatchStock(cambio);
+  }
   var url = SB_URL+"/rest/v1/"+table;
   if(onConflict) url += "?on_conflict="+encodeURIComponent(onConflict);
   return fetch(url, {
@@ -9236,73 +9250,8 @@ function _autoApagLeer(){
 function _autoApagGuardar(arr){
   try{ localStorage.setItem(_autoApagKey(), JSON.stringify(arr.slice(0,5000))); }catch(e){}
 }
-function _stkAutoApagarSinStock(forzar){
-  try{
-    var controlActivo = (typeof _ctrlStockOn==="function" && _ctrlStockOn());
-    if(!_sbEmpId || _autoApagEnCurso) return;
-    if(!forzar && (Date.now() - _autoApagUlt) < 15000) return;        // como mucho una pasada cada 15 s
-    // Solo el admin escribe
-    var _rs = [];
-    try{ _rs = (typeof _normalizarRoles==="function" && currentUser) ? _normalizarRoles(currentUser.roles) : []; }catch(e){}
-    var _rol = currentUser ? (currentUser.role||"") : "";
-    if(_rol!=="admin" && _rs.indexOf("admin")===-1) return;
-    if(controlActivo && (!stockData || !Object.keys(stockData).length)) return; // con control activo hace falta inventario
-    if(typeof _prodData==="undefined" || !_prodData || !Object.keys(_prodData).length) return;
-
-    var marcados = _autoApagLeer(), marcSet = {};
-    marcados.forEach(function(k){ marcSet[k]=1; });
-    var prender = [];
-
-    Object.keys(_prodData).forEach(function(k){
-      var p = _prodData[k]; if(!p || !p.nombre) return;
-      if(p.activo!==false || !marcSet[k]) return;
-      // Al pasar a preventa se recuperan de inmediato los productos que una
-      // versión anterior había ocultado automáticamente por falta de stock.
-      if(!controlActivo){ prender.push({k:k,p:p}); return; }
-      var cod = _stkCodDe(p, k);
-      // Si el producto NO figura en el inventario, no se toca: puede ser algo
-      // que nunca cargaste en stock y no sería justo apagarlo.
-      if(cod==null || stockData[cod]===undefined) return;
-      var disp = _stkDisponible(cod);
-      if(disp > 0) prender.push({k:k,p:p});                            // volvió la mercadería y lo había apagado yo
-    });
-    if(!prender.length) return;
-
-    _autoApagEnCurso = true;
-    _autoApagUlt = Date.now();
-    var cambios = [];
-    prender.forEach(function(o){ cambios.push({k:o.k,p:o.p,val:true}); marcSet[o.k]=0; });
-    marcados = marcados.filter(function(k){ return marcSet[k]; });
-    _autoApagGuardar(marcados);
-
-    // Se manda de a 5 para no saturar la conexión
-    function _tanda(i){
-      if(i >= cambios.length){
-        _autoApagEnCurso = false;
-        if(typeof dbStock!=="undefined" && dbStock){
-          cambios.forEach(function(c){
-            var cod = _stkCodDe(c.p, c.k);
-            for(var j=0;j<dbStock.length;j++){ if(dbStock[j] && String(dbStock[j].id)===cod){ dbStock[j].activo = c.val; break; } }
-          });
-        }
-        if(typeof renderProductos==="function" && document.getElementById("prod-grid")) renderProductos();
-        if(typeof _pgRender==="function") _pgRender();
-        if(typeof showNotif==="function"){
-          if(prender.length) showNotif(controlActivo
-            ? "🟢 "+prender.length+" producto(s) volvieron a estar disponibles"
-            : "🟢 "+prender.length+" producto(s) habilitados para preventa","ok");
-        }
-        return;
-      }
-      var lote = cambios.slice(i, i+5);
-      Promise.all(lote.map(function(c){
-        c.p.activo = c.val;
-        try{ _auditar("editar","producto",c.k,(c.val?"Habilitó":"Ocultó")+" automáticamente por stock: "+(c.p.nombre||c.k)); }catch(e){}
-        return (typeof _sbPatchProducto==="function") ? _sbPatchProducto(c.k,{activo:c.val}).catch(function(){}) : Promise.resolve();
-      })).then(function(){ _tanda(i+5); }).catch(function(){ _tanda(i+5); });
-    }
-    _tanda(0);
-  }catch(e){ _autoApagEnCurso = false; console.warn("[Stock] auto-apagado:", e.message); }
+function _stkAutoApagarSinStock(){
+  // La disponibilidad se calcula al vender. No activar/desactivar fichas desde caché.
 }
 
 // Convierte los items de un pedido a [{codigo, cant}] en UNIDADES reales
@@ -9324,13 +9273,7 @@ async function _stkRpc(fn, body){
 // el parámetro p_motivo: si la base lo rechaza, se reintenta sin él y el
 // movimiento queda con el texto por defecto. El movimiento nunca se pierde.
 async function _stkRpcMot(fn, body, motivo){
-  if(!motivo) return _stkRpc(fn, body);
-  try{
-    return await _stkRpc(fn, Object.assign({}, body, {p_motivo:String(motivo)}));
-  }catch(e){
-    console.warn("[Stock] el motor de la base todavía no acepta motivo (correr stock_motor.sql):", e&&e.message);
-    return _stkRpc(fn, body);
-  }
+  return _stkRpc(fn, motivo ? Object.assign({},body,{p_motivo:String(motivo)}) : body);
 }
 // Reservar al confirmar un pedido
 async function _stkReservar(ref, items){
@@ -9517,8 +9460,8 @@ function _asegurarStockParaPedido(){
     _sbGetStockFull().then(function(f){
       _pedStockEnCurso = false;
       _pedStockUlt = Date.now();
-      // Nunca pisar con vacío: si vino vacío dejamos lo que había.
-      if(f && Object.keys(f).length){
+      // Una respuesta vacía verificada también es un inventario válido.
+      if(f!==null && f!==undefined){
         stockData = f;
         if(typeof _pgRender==="function" && window._tabActual==="pedido") _pgRender();
       }
@@ -9527,16 +9470,8 @@ function _asegurarStockParaPedido(){
 }
 async function _sbGetStockConfig(){ var rows=await sbGet("stock","select=codigo,umbral&empresa_id=eq."+_sbEmpId); var r={};(rows||[]).forEach(function(s){r[s.codigo]={umbral:s.umbral};});return r; }
 async function _sbPatchStock(data){
-  return Promise.all(Object.entries(data).map(function(e){
-    var cantidad=Number(e[1]);
-    if(!isFinite(cantidad)) throw new Error("Cantidad de stock inválida para "+e[0]);
-    if(cantidad<0){
-      var err=new Error("El stock no puede quedar negativo ("+e[0]+": "+cantidad+")");
-      err.code="STOCK_NEGATIVO_NO_PERMITIDO";
-      throw err;
-    }
-    return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],cantidad:cantidad,updated_at:new Date().toISOString()}, "empresa_id,codigo");
-  }));
+  if(!window.StockSeguro) throw new Error("El control de stock está cargando");
+  return window.StockSeguro.ajustarLote(data);
 }
 async function _sbPatchStockConfig(data){ return Promise.all(Object.entries(data).map(function(e){ return sbUpsert("stock",{empresa_id:_sbEmpId,codigo:e[0],umbral:e[1].umbral}, "empresa_id,codigo"); })); }
 
@@ -9604,7 +9539,7 @@ async function _stkConfirmarCambioManual(codigo,anterior,nuevo){
   var delta=(+nuevo||0)-(+anterior||0);
   var prod=(dbStock||[]).find(function(p){return String(p.id)===String(codigo);});
   var nom=prod?(prod.n||prod.nombre||codigo):codigo;
-  return await _confirmar({
+  var confirmado=await _confirmar({
     icono:"📦",
     titulo:"Confirmar modificación manual",
     mensaje:nom+"\n\nStock actual: "+anterior+" u.\nNuevo stock: "+nuevo+" u.\nCambio: "+(delta>0?"+":"")+delta+" u.\n\nConfirmá solamente si contaste físicamente esa cantidad.",
@@ -9613,6 +9548,8 @@ async function _stkConfirmarCambioManual(codigo,anterior,nuevo){
     peligro:delta<0,
     persistente:true
   });
+  if(confirmado && window.StockSeguro) window.StockSeguro.autorizarManual(codigo,anterior,nuevo);
+  return confirmado;
 }
 
 async function _stkGetMovimientos(codigo){
@@ -9758,10 +9695,12 @@ async function _migrarFotosStorage(){
 
 async function _sbGetProductos(force, opciones){
   opciones=opciones||{};
+  var _empresaLectura=_sbEmpId;
+  var _revisionLectura=window.StockSeguro?window.StockSeguro.revision():0;
   // La recarga manual debe consultar Supabase de verdad. sbGet() puede devolver
   // la copia offline cuando falla la red; eso sirve para navegar, pero hacía que
   // Refrescar pareciera funcionar aunque siguiera mostrando datos anteriores.
-  var _soloRed=opciones.soloRed===true;
+  var _soloRed=opciones.soloRed===true || navigator.onLine;
   var _ultimoErrorProductos=null;
   var _falloConexionProductos=false;
   async function _leerProductos(params){
@@ -9784,7 +9723,7 @@ async function _sbGetProductos(force, opciones){
   try { var _vr = _soloRed ? await _sbGetRaw("empresas","select=cat_ver&id=eq."+_sbEmpId) : await sbGet("empresas","select=cat_ver&id=eq."+_sbEmpId); if(_vr && _vr[0]) _ver = _vr[0].cat_ver; } catch(e){}
   // Si la versión no cambió, usar la copia local (NO baja fotos => ahorra egress)
   if(!force && _ver){
-    try { var _cc = await _idbGet(_ckey); if(_cc && _cc.ver === _ver && _cc.data) return _cc.data; } catch(e){}
+    try { var _cc = await _idbGet(_ckey); if(_cc && _cc.ver === _ver && _cc.data && _empresaLectura===_sbEmpId && (!window.StockSeguro||_revisionLectura===window.StockSeguro.revision())) return _cc.data; } catch(e){}
   }
   var SEL_NOV="select=id,codigo,nombre,detalles,categoria,familia,precio_base,precio_clientes,precio_patagonia,precios,foto,precio_promo,cant_promo,unidad_venta,unidades_bulto,min_compra,cant_default,proveedor_id,oferta_precio,oferta_activa,oferta_hasta,es_portada,oferta_tipo,oferta_pct,oferta_precios,activo,fotos,creado_en";
   var SEL_TEMP=SEL_NOV+",temporada";
@@ -9818,6 +9757,8 @@ async function _sbGetProductos(force, opciones){
     try{ var _c2=await _idbGet(_ckey); if(_c2 && _c2.data) return _c2.data; }catch(e){}
     return null;
   }
+  if(_empresaLectura!==_sbEmpId) throw new Error("La empresa cambió durante la carga del catálogo");
+  if(window.StockSeguro && _revisionLectura!==window.StockSeguro.revision()) return _sbGetProductos(true,opciones);
   // Renovar también la copia offline para que el siguiente arranque no vuelva
   // a mostrar productos eliminados ni precios anteriores.
   if(_soloRed && typeof _sbCacheSave==="function"){
@@ -14624,7 +14565,7 @@ async function cargarCatalogo(){
     // Actualizar selector de vendedores si es admin
     if(currentUser && (currentUser.role==="admin")) _poblarSelectorVendedores();
     var productos=emp.productos||null;
-    if(productos&&Object.keys(productos).length>0){
+    if(productos && typeof productos==="object"){
       dbStock=[];
       var _catIndex = {};
       Object.values(productos).filter(function(p){return p.nombre;}).forEach(function(p){
@@ -18781,11 +18722,8 @@ async function cargarStock(){
     var nuevoStock = _sbEmpId ? await _sbGetStockFull() : null;
     // Solo reemplazar si vino algo. Si falla o viene vacío, NO pisar lo que ya había
     // (así el botón de refrescar nunca deja el stock en cero por un error de red).
-    if(nuevoStock && Object.keys(nuevoStock).length>0){
+    if(nuevoStock){
       stockData = nuevoStock;
-    } else if(nuevoStock && Object.keys(nuevoStock).length===0 && Object.keys(stockData||{}).length>0){
-      // Vino vacío pero ya teníamos datos → mantener los que hay, avisar
-      showNotif("No se pudo actualizar el stock ahora. Se mantienen los datos actuales.","info");
     } else {
       stockData = nuevoStock || stockData || {};
     }
@@ -19004,18 +18942,23 @@ async function cambiarStock(pid, delta){
 }
 
 async function setStock(pid, val){
-  var nuevo=parseInt(val); if(isNaN(nuevo))nuevo=0; nuevo=Math.max(0,nuevo);
+  var nuevo=Number(val);if(String(val).trim()===""||!Number.isSafeInteger(nuevo)||nuevo<0){showNotif("Ingresá una cantidad entera válida","err");renderStock();return;}
   var inp=document.getElementById("stk-qty-"+pid);
   if(inp)inp.value=nuevo;
   await _guardarStockProd(pid, nuevo, "Ajuste directo → "+nuevo+" u.");
 }
 
+var _stockGuardandoManual=new Set();
 async function _guardarStockProd(pid, qty, motivo){
-  qty=Math.max(0,Number(qty)||0);
+  if(_stockGuardandoManual.has(pid))return false;
+  qty=Number(qty);
+  if(!Number.isSafeInteger(qty)||qty<0){showNotif("Cantidad inválida","err");return false;}
+  if(!_sbEmpId||!navigator.onLine){showNotif("Necesitás conexión y una empresa para confirmar stock.","err");renderStock();return false;}
   var anterior = stockData[pid]!==undefined ? stockData[pid] : 0;
   if(qty===anterior){ renderStock(); return true; }
+  _stockGuardandoManual.add(pid);
+  try{
   if(!(await _stkConfirmarCambioManual(pid,anterior,qty))){ renderStock(); return false; }
-  if(!_sbEmpId){ stockData[pid]=qty; renderStock(); return true; }
   try{
     var res=await _stkAjustarManualAtomico(pid,qty,anterior,motivo||"Ajuste manual","ajuste");
     stockData[pid]=(res&&res.nuevo!==undefined)?+res.nuevo:qty;
@@ -19029,6 +18972,7 @@ async function _guardarStockProd(pid, qty, motivo){
     console.error("[Stock] Error al guardar:",e);
     return false;
   }
+  }finally{_stockGuardandoManual.delete(pid);}
 }
 
 function guardarUmbral(pid){
@@ -19624,6 +19568,7 @@ function _cc2PDF(){
 
 function descontarStock(items, motivo){
   if(!_ctrlStockOn() || !items||!items.length||!empresaKey)return;
+  if(!window.StockSeguro)throw new Error("El control de stock está cargando; no se modificó el inventario.");
   var patch={}, changed=false, bloqueados=[];
   var movs = [];
   items.forEach(function(it){
@@ -19738,6 +19683,7 @@ function _filtrarRutasParaUsuario(all){
 }
 
 function _cargarRutasServidorSeguras(){
+  var _revisionRuta=window.StockSeguro?window.StockSeguro.revision():0;
   var local=_cargarRutasOffline();
   if(!navigator.onLine){
     return Promise.resolve(_fusionarRutasOffline(rutasData||{},local||{}));
@@ -19750,6 +19696,7 @@ function _cargarRutasServidorSeguras(){
     return _aplicarPendientesRutas(d,local);
   }).then(function(v){
     _rutasServidorPromise=null;
+    if(window.StockSeguro && _revisionRuta!==window.StockSeguro.revision()) return _cargarRutasServidorSeguras();
     return v;
   },function(err){
     _rutasServidorPromise=null;
@@ -21818,6 +21765,7 @@ function renderEditItems(wrap, rk, ck){
   // producto ya cargado (ex.c+=1) se pisaba también "lo que había antes", así
   // que el historial no registraba el cambio y el stock no veía diferencia.
   var items=(cli.items||[]).map(function(it){ return Object.assign({}, it); });
+  wrap._stockItemsOriginales=JSON.parse(JSON.stringify(cli.items||[]));
   wrap.innerHTML="";
 
   /* Toggle header */
@@ -22002,16 +21950,7 @@ function renderEditItems(wrap, rk, ck){
     if(montoDsc>=sumaBase){showNotif("El descuento no puede superar el total","err");return;}
     var _netoDsc=Math.round((sumaBase-montoDsc)*100)/100;
     var patch={items:itemsBase,importe:_importeRutaConIVA(rk,ck,_netoDsc),dscGeneral:{tipo:t,valor:val}};
-    if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
-      Object.assign(rutasData[rk].clientes[ck],patch);
-    }
-    fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch,"Descuento de pedido")
-      .then(function(){
-        actualizarVentaDeRuta(rk,ck,patch.importe,itemsBase);
-        _propagarEdicionAPedido(rk,ck,itemsBase,_netoDsc,patch.dscGeneral);
-        renderRutas();
-        showNotif("Descuento aplicado — "+fM(montoDsc)+" de descuento","ok");
-      }).catch(function(){showNotif("Error al guardar descuento","err");});
+    guardarItemsEditados(rk,ck,itemsBase,wrap,{dscGeneral:patch.dscGeneral});
   };
 
   /* Quitar descuento general */
@@ -22021,12 +21960,7 @@ function renderEditItems(wrap, rk, ck){
     var itemsOrig=_itemsSinGeneralEmbebido(cli,_calcAntes);
     var totalOrig=_calcularPedidoUnico({items:itemsOrig,tipoComprobante:"remito"}).subtotalItems;
     var patch={items:itemsOrig,importe:_importeRutaConIVA(rk,ck,totalOrig),dscGeneral:null};
-    if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){
-      Object.assign(rutasData[rk].clientes[ck],patch);
-    }
-    fbPatchQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,patch,"Quitar descuento de pedido")
-      .then(function(){actualizarVentaDeRuta(rk,ck,patch.importe,itemsOrig);_propagarEdicionAPedido(rk,ck,itemsOrig,totalOrig,null);renderRutas();showNotif("Descuento removido","ok");})
-      .catch(function(){showNotif("Error al guardar","err");});
+    guardarItemsEditados(rk,ck,itemsOrig,wrap,{dscGeneral:null});
   };
 
   editBody.appendChild(dscWrap);
@@ -22326,6 +22260,7 @@ async function _rutaAplicarStockEdicion(rk, ck, oldItems, newItems){
 }
 
 function guardarItemsEditados(rk, ck, items, wrap){
+  if(!window.StockSeguro){showNotif("El control de stock está cargando. Actualizá el panel antes de editar.","err");return false;}
   // Build audit log entry
   var cliOld = rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   var oldItems = (cliOld&&cliOld.items)||[];
@@ -24508,41 +24443,12 @@ function renderBackup(){
     btnDel.onclick = async function(e){
       e.stopPropagation();
       if(!(await _confirmar({icono:"🗑️",titulo:"Borrar pedido",mensaje:"Se va a borrar este pedido del backup. No se puede deshacer.",ok:"Borrar",peligro:true}))) return;
-      var bkBackup = Object.assign({}, bk);
-      var arr2 = getBackups().filter(function(x){return x.id!==bk.id;});
-      saveBackups(arr2);
-      if(backupAbierto===bk.id) backupAbierto=null;
-      var fbKeyDel = bk._fbKey;
-      var sbIdDel  = bk._sbId;
-      // MOTOR DE STOCK: al borrar el pedido la mercadería vuelve al stock
-      // (salvo que ya hubiera vuelto por un rechazo).
-      if(!bk._stkDevuelto){
-        try{
-          var _itsDel = (bk.items||[]).filter(function(it){ return !it.pendiente; });
-          await _stkDevolverAuto("borrado-"+(sbIdDel||fbKeyDel||bk.id), _itsDel, "Pedido borrado — vuelve al stock");
-          // bkBackup queda sin la marca a propósito: si tocás "Deshacer", el
-          // pedido se vuelve a insertar y la mercadería vuelve a salir sola.
-        }catch(er){ console.warn("[Stock] devolución por borrado:", er.message); }
-      }
-      if(fbKeyDel && empresaKey)
-        fbDel("empresas/"+empresaKey+"/backupPedidos/"+fbKeyDel).catch(function(){});
-      if(sbIdDel && _sbEmpId)
-        sbDel("backup_pedidos","id=eq."+sbIdDel+"&empresa_id=eq."+_sbEmpId).catch(function(){});
-      renderBackup();
-      // Ofrecer deshacer
-      _undoShow("🗑 Pedido de "+(bkBackup.clienteNom||"cliente")+" eliminado", function(){
-        var actual = getBackups();
-        actual.unshift(bkBackup);
-        saveBackups(actual);
-        // Re-subir a la base
-        if(_sbEmpId && typeof _sbInsertBackup==="function"){
-          try { _sbInsertBackup(bkBackup); } catch(er){ console.warn("[Undo backup] Supabase:", er); }
-        } else if(empresaKey){
-          fbPush("empresas/"+empresaKey+"/backupPedidos", bkBackup).catch(function(){});
-        }
-        renderBackup();
-        showNotif("↩ Pedido restaurado","ok");
-      });
+      if(btnDel.disabled)return;btnDel.disabled=true;
+      try{
+        if(!window.StockSeguro)throw new Error("Actualizá el panel para borrar el pedido de forma segura.");
+        await _stockBorrarPedido(bk);
+      }catch(err){showNotif("No se borró el pedido: "+err.message,"err");}
+      finally{btnDel.disabled=false;}
     };
     acts.appendChild(btnShare);
     acts.appendChild(btnDl);
@@ -25971,7 +25877,7 @@ async function guardarEdicionBackup(){
     salen:(rpcEdit&&Array.isArray(rpcEdit.salen))?rpcEdit.salen:[],
     vuelven:(rpcEdit&&Array.isArray(rpcEdit.vuelven))?rpcEdit.vuelven:[]
   };
-  if(_ctrlStockOn()) await _stkRefrescar();
+  if(_ctrlStockOn())try{await _stkRefrescar();}catch(e){showNotif("Pedido guardado. Actualizá la vista de stock.","warn");}
 
   // Recién después de que la base confirmó, actualizar la copia local.
   var arr = getBackups();
@@ -25989,8 +25895,11 @@ async function guardarEdicionBackup(){
   showNotif("✓ Pedido y stock actualizados"+(movPartes.length?" ("+movPartes.join(" / ")+" unidades)":""),
     "ok");
   // Si el pedido está vinculado a una hoja de ruta, propagar los cambios (items + importe).
-  if(_editBkItem && _editBkItem.rutaVinculadaId){
+  if(_editBkItem && _editBkItem.rutaVinculadaId && !(rpcEdit&&rpcEdit.rutaSincronizada)){
     await _propagarEdicionARuta(_editBkItem);
+  }
+  if(rpcEdit&&rpcEdit.rutaSincronizada){
+    try{await cargarRutasFirebase({preservarVista:true,silencioso:true});}catch(e){}
   }
   // Si el pedido ya estaba aprobado, la venta/comision debe quedar con los
   // mismos items y total que Backup y Hoja de Ruta.
@@ -27849,6 +27758,7 @@ function _aplicarPendientesRutas(base,local){
   var out=_clonarRutasServidor(base||{});
   (_offlineQueue||[]).forEach(function(op){
     if(!op) return;
+    if(window.StockSeguro && window.StockSeguro.esDiferida(op)) return;
     var metodo=String(op.method||"").toUpperCase();
     var p=_fbPathParse(op.path||"");
     var esPathRuta=p[0]==="empresas"&&p[2]==="rutas";
@@ -28019,6 +27929,9 @@ function _getCached(path){
 
 /* ─ Encolar operación offline ─ */
 function _enqueue(method, path, data, desc){
+  if(window.StockSeguro && window.StockSeguro.esDiferida({method:method,path:path,data:data})){
+    return Promise.reject(new Error("Este cambio de productos o stock requiere conexión y confirmación. No se aplicó ni se programó para después."));
+  }
   var op = { id:"op_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), method:method, path:path, data:data, ts:new Date().toISOString(), desc:desc||"" };
   _offlineQueue.push(op);
   _saveQueue();
@@ -28201,6 +28114,11 @@ async function _moverRutaClienteServidor(md,op){
 }
 
 async function _replayOfflineOp(op){
+  if(window.StockSeguro && window.StockSeguro.esDiferida(op)){
+    var stockPendiente=new Error("Movimiento antiguo de stock o productos: requiere revisión manual antes de aplicarse.");
+    stockPendiente.code="STOCK_PENDIENTE_REVISION";
+    throw stockPendiente;
+  }
   // Versiones anteriores podían dejar un DELETE apuntando a un id temporal
   // (local_… / op_…). Ese valor nunca puede existir en una PK uuid de Supabase:
   // reintentarlo eternamente daba HTTP 400 y frenaba TODA la cola posterior.
@@ -28275,6 +28193,7 @@ async function _syncQueue(){
       op.ultimoIntento=new Date().toISOString();
       _syncLastError=msg;
       _saveQueue();
+      if(e && e.code==="STOCK_PENDIENTE_REVISION"){ op.requiereRevision=true; _saveQueue(); continue; }
       console.warn("[Offline] Sincronización detenida para conservar el orden:",msg);
       break;
     }
@@ -28287,7 +28206,7 @@ async function _syncQueue(){
     showNotif("☁️ "+synced+" operación"+(synced>1?"es":"")+" sincronizada"+(synced>1?"s":"")+" con éxito","ok");
     setTimeout(function(){ _refrescarRutasEntreDispositivos(true); },250);
   }
-  if(_offlineQueue.length&&navigator.onLine){
+  if(_offlineQueue.some(function(op){return !op.requiereRevision;})&&navigator.onLine){
     var primero=_offlineQueue[0]||{};
     var demora=(primero.intentos||0)>=3?60000:12000;
     _syncRetryTimer=setTimeout(function(){_syncRetryTimer=null;if(!_isSyncing)_syncQueue();},demora);
@@ -28354,6 +28273,7 @@ function _updateBanner(){
 }
 function _verPendientesOffline(){
   if(!_offlineQueue||!_offlineQueue.length) return;
+  if(window.StockSeguro && _offlineQueue.some(window.StockSeguro.esDiferida)) return window.StockSeguro.revisarPendientes();
   var op=_offlineQueue[0]||{};
   var detalle=op.desc||op.method||"Operación pendiente";
   var mensaje=navigator.onLine
@@ -30712,7 +30632,7 @@ function _confirmar(opts){
     }
     function onKey(e){
       if(e.key === "Escape" && !opts.persistente) cerrar(false);
-      else if(e.key === "Enter") cerrar(true);
+      else if(e.key === "Enter" && !e.repeat && (!opts.persistente || e.target===btnOk)) cerrar(true);
     }
     _confirmarResolver = cerrar;
 
@@ -30725,7 +30645,7 @@ function _confirmar(opts){
     ov.style.display = "flex";
     void ov.offsetWidth; // reflow
     ov.classList.add("show");
-    setTimeout(function(){ try{ btnOk.focus(); }catch(e){} }, 60);
+    setTimeout(function(){ try{ (opts.persistente?btnCan:btnOk).focus(); }catch(e){} }, 60);
   });
 }
 
@@ -31635,6 +31555,7 @@ function cargarProductos(opciones) {
   if(grid) grid.innerHTML='<div class="prod-empty"><div class="spinner-ring" style="margin:0 auto 10px"></div><div class="prod-empty-msg">Actualizando catálogo…</div></div>';
 
   var datosAnteriores=_prodData;
+  var revisionCatalogo=window.StockSeguro?window.StockSeguro.revision():0;
   // Estas precargas son auxiliares y no bloquean la actualización principal.
   if(typeof _sbGetProveedores==="function" && (!_provData || !_provData.length)){
     _sbGetProveedores().then(function(rows){ if(rows && rows.length) _provData=rows; }).catch(function(){});
@@ -31656,7 +31577,7 @@ function cargarProductos(opciones) {
       return true;
     }catch(e){
       console.error("Error cargando productos:",e);
-      _prodData=datosAnteriores||{};
+      if(!window.StockSeguro||revisionCatalogo===window.StockSeguro.revision())_prodData=datosAnteriores||{};
       if(Object.keys(_prodData).length) renderProductos();
       else if(grid) grid.innerHTML='<div class="prod-empty"><div class="prod-empty-icon">❌</div><div class="prod-empty-msg">No se pudo actualizar el catálogo</div></div>';
       if(manual) showNotif("No se pudo refrescar: "+((e&&e.message)||"error de conexión"),"err");
@@ -31708,7 +31629,8 @@ function _sincronizarDbStock() {
   var listas = getListasOrdenadas();
   Object.values(_prodData).filter(function(p) { return p && p.nombre; }).forEach(function(p) {
     var cat = (p.categoria || "Sin categoría").replace(/^"+|"+$/g, "").trim() || "Sin categoría";
-    var id = p.codigo ? String(p.codigo) : p.nombre.substring(0, 4);
+    var id = p.codigo ? String(p.codigo) : String(p.id||p._sbId||"");
+    if(!id)return;
     // Backward compat: pCli y pPat siguen existiendo
     var pCli = (p.precios && p.precios.cli!=null) ? p.precios.cli : (p.precioClientes||0);
     var pPat = (p.precios && p.precios.pat!=null) ? p.precios.pat : (p.precioPatagonia||0);
@@ -32598,15 +32520,16 @@ async function eliminarProducto(key) {
     mensaje: "¿Eliminar \"" + (p.nombre || key) + "\"?\nEsta acción no se puede deshacer.",
     ok: "Eliminar", peligro: true
   }))) return;
-  sbDel("productos", "id=eq."+key+"&empresa_id=eq."+_sbEmpId).then(function() {
+  sbDel("productos", "id=eq."+key+"&empresa_id=eq."+_sbEmpId).then(function(rows) {
+    if(!Array.isArray(rows)||!rows.some(function(x){return String(x.id)===String(key);})) throw new Error("El servidor no confirmó la eliminación. Actualizá e intentá de nuevo.");
     _auditar("borrar", "producto", key, "Eliminó el producto: "+(p.nombre||key));
     delete _prodData[key];
     _bumpCatVer();
     _sincronizarDbStock();
     renderProductos();
     showNotif("🗑 Producto eliminado", "ok");
-  }).catch(function() {
-    showNotif("Error al eliminar el producto", "err");
+  }).catch(function(e) {
+    showNotif("Error al eliminar el producto: "+e.message, "err");
   });
 }
 
@@ -33527,7 +33450,7 @@ async function _stkColgAplicar(){
 }
 function _mprodStkDelta(d){
   var qEl=document.getElementById("mprod-stock-qty"); if(!qEl) return;
-  var n=parseInt(String(qEl.value).replace(/[^0-9-]/g,""),10); if(isNaN(n)) n=0;
+  var n=Number(qEl.value);if(!Number.isSafeInteger(n)||n<0){showNotif("Ingresá unidades enteras válidas","err");return;}
   qEl.value = Math.max(0,n + d);
 }
 async function _mprodStkGuardar(){
@@ -33537,15 +33460,18 @@ async function _mprodStkGuardar(){
   var cod = _mprodStkCod || _mprodStkCodDe(pid) || pid;
   var qEl=document.getElementById("mprod-stock-qty"), uEl=document.getElementById("mprod-stock-umbral");
   var btn=document.getElementById("mprod-stock-btn");
-  var n=parseInt(String((qEl||{}).value||"0").replace(/[^0-9-]/g,""),10); if(isNaN(n)) n=0; n=Math.max(0,n); if(qEl) qEl.value=n;
+  if(btn&&btn.disabled)return;
+  var n=Number((qEl||{}).value);
+  if(!qEl||qEl.value.trim()===""||!Number.isSafeInteger(n)||n<0){showNotif("Ingresá unidades enteras válidas","err");return;}
   var u=parseInt(String((uEl||{}).value||"").replace(/[^0-9]/g,""),10); if(isNaN(u)||u<0) u=5;
   var anterior = +(stockData[cod]||0);
+  if(btn){ btn.disabled=true; btn.textContent="Revisando…"; }
+  try{
   if(n!==anterior && !(await _stkConfirmarCambioManual(cod,anterior,n))){
     if(qEl) qEl.value=anterior;
     return;
   }
   if(btn){ btn.disabled=true; btn.textContent="Guardando…"; }
-  try{
     if(n!==anterior){
       var res=await _stkAjustarManualAtomico(cod,n,anterior,"Ajuste desde el producto","ajuste");
       stockData[cod]=(res&&res.nuevo!==undefined)?+res.nuevo:n;
@@ -33565,8 +33491,7 @@ async function _mprodStkGuardar(){
     try{ await _stkRefrescar(); }catch(_refreshErr){}
     _mprodStockRender(pid);
     showNotif("No se pudo guardar el stock: "+((e&&e.message)||"").slice(0,150),"err");
-  }
-  if(btn){ btn.disabled=false; btn.textContent="Guardar stock"; }
+  }finally{if(btn){ btn.disabled=false; btn.textContent="Guardar stock"; }}
 }
 
 function _mprodRenderUsadas(){
@@ -37796,7 +37721,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v27';
+  var CACHE_NAME = 'distribix-v28';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
@@ -42468,6 +42393,7 @@ async function _rvtGuardarVisita(){
 <script src="armador-operativo-v2.js?v=20260913-1"></script>
 <script src="deposito-stock-v1.js?v=20260912-1"></script>
 <script src="deposito-mapa-v1.js?v=20260913-1"></script>
-<script src="stock-operaciones-v2.js?v=20260913-1"></script>
+<script src="stock-integridad-v3.js?v=20260929-1"></script>
+<script src="stock-operaciones-v2.js?v=20260929-1"></script>
 </body>
 </html>
