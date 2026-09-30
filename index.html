@@ -4070,7 +4070,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.30-pedidos1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.30-midia1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -37836,7 +37836,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v30';
+  var CACHE_NAME = 'distribix-v31';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
@@ -41562,6 +41562,9 @@ function _sysPresenciaInit(){ _sysRegistrarLogin(); _sysIniciarHeartbeat(); }
 .md-c-nom{font-size:14px;font-weight:700;color:var(--text);line-height:1.25}
 .md-c-dir{font-size:11.5px;color:var(--muted);margin-top:2px}
 .md-c-r{font-size:12.5px;font-weight:700;white-space:nowrap}
+.md-c-side{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.md-nav-btn{border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent);border-radius:9px;padding:7px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;cursor:pointer;font-family:inherit;touch-action:manipulation}
+.md-nav-btn:active{transform:scale(.97)}
 .md-r-vendio{color:var(--green)}
 .md-r-nocompro{color:var(--amber)}
 .md-r-cerrado,.md-r-noestaba,.md-r-repro{color:var(--muted)}
@@ -42295,6 +42298,7 @@ function _rvtTarjeta(a, n, visita, ult){
   var c   = _rvtCli(a.cliente_id) || {};
   var nom = c.name || a.cliente_nom || "Cliente";
   var dir = c.direccion || "";
+  var tieneUbicacion = _rvtClienteTieneUbicacion(c);
   var k1  = String(c.id||"").trim().toLowerCase();
   var k2  = "n:"+String(nom).trim().toLowerCase();
   var u   = ult[k1] || ult[k2] || null;
@@ -42320,7 +42324,6 @@ function _rvtTarjeta(a, n, visita, ult){
       '<div class="md-acc">'+
         (tel ? '<button onclick="event.stopPropagation();_rvtLlamar(\''+tel+'\')">📞 Llamar</button>' : '')+
         (tel ? '<button onclick="event.stopPropagation();_rvtWpp(\''+tel+'\')">💬 WhatsApp</button>' : '')+
-        ((c.lat&&c.lng) ? '<button onclick="event.stopPropagation();_rvtIr('+c.lat+','+c.lng+')">🗺️ Ir</button>' : '')+
       '</div>'+
       '<div class="md-datos">'+
         '<div class="md-dato"><div class="md-dato-l">Último pedido</div><div class="md-dato-v">'+(u?_rvtM(u.total):"—")+'</div></div>'+
@@ -42343,11 +42346,15 @@ function _rvtTarjeta(a, n, visita, ult){
     '</div>';
   }
 
+  var navegar = tieneUbicacion
+    ? '<button class="md-nav-btn" title="Abrir indicaciones" aria-label="Cómo llegar a '+_rvtEsc(nom)+'" onclick="event.stopPropagation();_rvtNavegarCliente(\''+_rvtEsc(a.cliente_id)+'\')">🧭 Ir</button>'
+    : '';
+
   return '<div class="md-c'+(dormido&&!visita?" dorm":"")+'" id="c'+id+'">'+
     '<div class="md-c-h" onclick="_rvtToggle(\''+id+'\')">'+
       '<div class="md-c-n'+(visita?" gris":"")+'">'+n+'</div>'+
       '<div class="md-c-i"><div class="md-c-nom">'+_rvtEsc(nom)+'</div>'+(sub?('<div class="md-c-dir">'+sub+'</div>'):"")+'</div>'+
-      der+
+      '<div class="md-c-side">'+navegar+der+'</div>'+
     '</div>'+
     '<div class="md-c-b" id="b'+id+'">'+body+'</div>'+
   '</div>';
@@ -42368,9 +42375,33 @@ function _rvtToggle(id){
 }
 
 function _rvtLlamar(tel){ try{ location.href="tel:"+tel; }catch(e){} }
-function _rvtIr(lat,lng){
-  var url="https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng;
+function _rvtClienteTieneUbicacion(c){
+  c=c||{};
+  var lat=Number(c.lat), lng=Number(c.lng);
+  var gps=c.lat!==null&&c.lat!==undefined&&c.lng!==null&&c.lng!==undefined&&
+    isFinite(lat)&&isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180;
+  return gps||!!String(c.direccion||"").trim();
+}
+function _rvtAbrirDestinoMapa(destino){
+  destino=String(destino||"").trim();
+  if(!destino){ showNotif("Este cliente no tiene una dirección cargada","warn"); return false; }
+  var url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(destino);
   try{ window.open(url,"_system"); }catch(e){ try{ window.open(url,"_blank"); }catch(e2){ location.href=url; } }
+  return true;
+}
+function _rvtIr(lat,lng){
+  return _rvtAbrirDestinoMapa(String(lat)+","+String(lng));
+}
+function _rvtNavegarCliente(uuid){
+  var c=_rvtCli(uuid)||{};
+  var lat=Number(c.lat), lng=Number(c.lng), destino="";
+  if(c.lat!==null&&c.lat!==undefined&&c.lng!==null&&c.lng!==undefined&&
+     isFinite(lat)&&isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180){
+    destino=lat+","+lng;
+  }else{
+    destino=String(c.direccion||"").trim();
+  }
+  return _rvtAbrirDestinoMapa(destino);
 }
 function _rvtHacerPedido(uuid){
   var c = _rvtCli(uuid);
