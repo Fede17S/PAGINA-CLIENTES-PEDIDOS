@@ -4070,7 +4070,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.29-stock3</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.29-rutas1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -8259,6 +8259,80 @@ function _sbCacheLoad(table, params){
   return null;
 }
 
+// Nunca entregar el cache completo cuando la llamada original pedía un
+// subconjunto. Un fallback antiguo devolvía toda `ruta_clientes` ante un timeout
+// de una consulta por pedido_id; la rutina que limpiaba duplicados tomó esas
+// filas como coincidencias y eliminó pedidos de otras hojas de ruta.
+function _sbCacheAplicarConsulta(data, params){
+  if(!Array.isArray(data)||!params) return data;
+  var pares;
+  try{ pares=Array.from(new URLSearchParams(params).entries()); }
+  catch(e){ return null; }
+  var salida=data.slice(), orden="", limite=null, offset=0;
+  function escalar(v){
+    if(v===null||v===undefined) return v;
+    var s=String(v);
+    if(s==="null") return null;
+    if(s==="true") return true;
+    if(s==="false") return false;
+    if(/^[-+]?\d+(\.\d+)?$/.test(s)) return Number(s);
+    return s;
+  }
+  function cmp(a,b){
+    a=escalar(a); b=escalar(b);
+    if(a===null||b===null) return a===b?0:(a===null?-1:1);
+    return a<b?-1:(a>b?1:0);
+  }
+  for(var i=0;i<pares.length;i++){
+    var campo=pares[i][0], expresion=pares[i][1]||"";
+    if(campo==="select") continue;
+    if(campo==="order"){ orden=expresion; continue; }
+    if(campo==="limit"){ limite=Math.max(0,parseInt(expresion,10)||0); continue; }
+    if(campo==="offset"){ offset=Math.max(0,parseInt(expresion,10)||0); continue; }
+    // No intentar interpretar expresiones lógicas complejas: es preferible
+    // mostrar error/offline que devolver filas que no pertenecen a la consulta.
+    if(campo==="or"||campo==="and"||campo.indexOf("not.")===0) return null;
+    var punto=expresion.indexOf(".");
+    if(punto<1) return null;
+    var op=expresion.slice(0,punto), valorTxt=expresion.slice(punto+1), valores;
+    if(op==="in"){
+      if(valorTxt[0]!=="("||valorTxt[valorTxt.length-1]!==")") return null;
+      valores=valorTxt.slice(1,-1).split(",").map(escalar);
+    }
+    if(["eq","neq","is","in","gt","gte","lt","lte"].indexOf(op)===-1) return null;
+    var valor=escalar(valorTxt);
+    salida=salida.filter(function(fila){
+      var actual=fila?fila[campo]:undefined, c;
+      if(op==="in") return valores.some(function(v){ return cmp(actual,v)===0; });
+      c=cmp(actual,valor);
+      if(op==="eq"||op==="is") return c===0;
+      if(op==="neq") return c!==0;
+      if(op==="gt") return c>0;
+      if(op==="gte") return c>=0;
+      if(op==="lt") return c<0;
+      return c<=0;
+    });
+  }
+  if(orden){
+    var reglas=orden.split(",").map(function(x){ var p=x.split("."); return {campo:p[0],dir:p[1]==="desc"?-1:1}; });
+    salida.sort(function(a,b){
+      for(var j=0;j<reglas.length;j++){
+        var c=cmp(a&&a[reglas[j].campo],b&&b[reglas[j].campo]);
+        if(c) return c*reglas[j].dir;
+      }
+      return 0;
+    });
+  }
+  if(offset) salida=salida.slice(offset);
+  if(limite!==null) salida=salida.slice(0,limite);
+  return salida;
+}
+
+function _sbCacheParaConsulta(table,params){
+  var cached=_sbCacheLoad(table,params||"");
+  return _sbCacheAplicarConsulta(cached,params||"");
+}
+
 function _limpiarCacheViejo(){
   // Eliminar caches con más de 7 días para liberar espacio
   var limite = Date.now() - 7*24*60*60*1000;
@@ -8272,7 +8346,7 @@ function _limpiarCacheViejo(){
 
 function sbGet(table, params){
   if(!navigator.onLine){
-    var cached = _sbCacheLoad(table, params||"");
+    var cached = _sbCacheParaConsulta(table, params||"");
     if(cached != null) return Promise.resolve(cached);
     console.warn("[Offline] Sin datos para:", table, "— el usuario verá tabla vacía");
     return Promise.resolve(null);
@@ -8281,7 +8355,7 @@ function sbGet(table, params){
     if(data != null) _sbCacheSave(table, params||"", data);
     return data;
   }).catch(function(err){
-    var cached = _sbCacheLoad(table, params||"");
+    var cached = _sbCacheParaConsulta(table, params||"");
     // ¿Es un error REAL de red? (fetch abortado, timeout, sin conexión) o
     // ¿es un error del servidor (404, 403, 500...) que NO tiene que ver con la red?
     var msg = (err && err.message) ? String(err.message) : "";
@@ -9049,7 +9123,7 @@ function fbDel(path){
     // OJO: lo más específico va PRIMERO. Si no, un borrado de comprobante
     // (8 segmentos) caía en el caso de "clientes" y borraba el cliente entero.
     if(p.length>=8 && p[6]==="comprobantes") return _sbDelComprobante(p[3],p[5],p[7]);
-    if(p.length>=6 && p[4]==="clientes") return sbDel("ruta_clientes","id=eq."+p[5]+"&ruta_id=eq."+p[3]);
+    if(p.length>=6 && p[4]==="clientes") return _sbQuitarRutaClientes(p[3],[p[5]],"Quitar pedido de la hoja de ruta");
   }
   return Promise.resolve();
 }
@@ -10246,6 +10320,35 @@ async function _sbPatchRutaCli(rutaId,cliId,data){
   }
 }
 async function _sbDelComprobante(rutaId,cliId,tid){ var rows=await sbGet("ruta_clientes","select=comprobantes&id=eq."+cliId); if(!rows||!rows[0])return; var comps=(rows[0].comprobantes||[]).filter(function(c){return c.id!==tid;}); return sbPatch("ruta_clientes","id=eq."+cliId,{comprobantes:comps}); }
+
+function _rutaConfirmacionServidor(rutaId){
+  var r=(rutasData&&rutasData[rutaId])||{};
+  return String(r.hrNum||r.nombre||rutaId||"").trim();
+}
+function _rutaActorServidor(){
+  return String((currentUser&&(currentUser.id||currentUser.uid||currentUser._sbId||currentUser.name))||"usuario");
+}
+async function _sbQuitarRutaClientes(rutaId,clienteIds,motivo){
+  clienteIds=Array.from(new Set([].concat(clienteIds||[]).filter(Boolean)));
+  if(!rutaId||!clienteIds.length) throw new Error("Faltan pedidos para quitar de la hoja de ruta");
+  return sbFetch("POST","/rest/v1/rpc/ruta_clientes_quitar_seguro",{
+    p_empresa:_sbEmpId,
+    p_ruta:rutaId,
+    p_clientes:clienteIds,
+    p_usuario:_rutaActorServidor(),
+    p_motivo:motivo||"Quitar de hoja de ruta",
+    p_confirmacion:_rutaConfirmacionServidor(rutaId)
+  });
+}
+async function _sbLimpiarDuplicadoRuta(clienteId,canonicaId){
+  if(!clienteId||!canonicaId||clienteId===canonicaId) return null;
+  return sbFetch("POST","/rest/v1/rpc/ruta_cliente_limpiar_duplicado",{
+    p_empresa:_sbEmpId,
+    p_cliente:clienteId,
+    p_canonica:canonicaId,
+    p_usuario:_rutaActorServidor()
+  });
+}
 
 // ══════════════ HELPERS PROVEEDORES (Supabase) ══════════════
 // ══════════════════════════════════════════════════════════════════
@@ -19609,10 +19712,13 @@ function descontarStock(items, motivo){
 // ══ SISTEMA REPARTIDOR ══
 
 function _getRepartidores(){
-  // Obtener todos los usuarios con role=repartidor
+  // Incluir también usuarios multirrol (por ejemplo vendedor + repartidor).
   if(!empresaData || !empresaData.usuarios) return [];
   return Object.entries(empresaData.usuarios)
-    .filter(function(e){ return e[1].role === "repartidor"; })
+    .filter(function(e){
+      var u=e[1]||{}, roles=typeof _normalizarRoles==="function"?_normalizarRoles(u.roles):[].concat(u.roles||[]);
+      return u.role==="repartidor"||roles.indexOf("repartidor")!==-1;
+    })
     .map(function(e){ return { sbId: e[0], uid: e[1].id||e[0], nombre: e[1].name||e[1].id||"Repartidor" }; });
 }
 
@@ -19676,8 +19782,11 @@ function _filtrarRutasParaUsuario(all){
   var miUid=currentUser&&currentUser.id, miSbId=currentUser&&currentUser._sbId;
   var filtradas={};
   Object.entries(all||{}).forEach(function(e){
-    var asignado=e[1]&&e[1].repartidorId;
-    if(asignado&&(asignado===miUid||asignado===miSbId)) filtradas[e[0]]=e[1];
+    var ruta=e[1]||{}, asignado=ruta.repartidorId;
+    if(asignado&&(asignado===miUid||asignado===miSbId)) filtradas[e[0]]=ruta;
+    // Una HR nueva sin repartidor no debe desaparecer del selector. Se muestra
+    // hasta que el admin la asigne; las asignadas a otra persona siguen ocultas.
+    else if(!asignado&&ruta.finalizada!==true) filtradas[e[0]]=ruta;
   });
   return filtradas;
 }
@@ -20389,7 +20498,7 @@ function renderRutas(){
       '<span id="ruta-sel-count-'+rutaKey+'" style="color:#fff;font-weight:700;font-size:13px;flex:1">0 seleccionados</span>'+
       '<button onclick="_rutaSelAll(\''+rutaKey+'\')" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☑ Todos</button>'+
       '<button onclick="_rutaReasignar(\''+rutaKey+'\')" style="background:var(--s2);color:var(--accent);border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar</button>'+
-      '<button onclick="_rutaEliminarSeleccionados(\''+rutaKey+'\')" style="background:#b91c1c;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Eliminar</button>'+
+      '<button onclick="_rutaEliminarSeleccionados(\''+rutaKey+'\')" style="background:#b91c1c;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">↩ Quitar de HR</button>'+
       '<button onclick="_rutaToggleSelect(\''+rutaKey+'\')" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>';
     det.appendChild(selToolbar);
 
@@ -20585,32 +20694,40 @@ async function _rutaEliminarSeleccionados(rk){
   if(!sel || !sel.size){ showNotif("Seleccioná al menos un pedido","err"); return; }
   var ruta = rutasData[rk]; if(!ruta) return;
   var cant = sel.size;
-  if(!(await _confirmar({icono:"🗑️",titulo:"Eliminar pedidos",mensaje:"¿Eliminar "+cant+" pedido"+(cant!==1?"s":"")+" de esta ruta? Esta acción no se puede deshacer.",ok:"Eliminar",peligro:true}))) return;
+  if(!(await _confirmar({icono:"⚠️",titulo:"Quitar pedidos de la HR",mensaje:"Se quitarán "+cant+" pedido"+(cant!==1?"s":"")+" de "+(ruta.hrNum||ruta.nombre||"esta hoja")+". Los pedidos seguirán en Backup Pedidos y la operación quedará auditada.",ok:"Quitar de la HR",peligro:true}))) return;
 
   var ids = Array.from(sel);
-  var errores = 0;
-  showNotif("⏳ Eliminando "+cant+" pedido"+(cant!==1?"s":"")+"…","ok");
+  showNotif("⏳ Quitando "+cant+" pedido"+(cant!==1?"s":"")+" de la ruta…","ok");
 
-  for(var i=0;i<ids.length;i++){
-    var ck = ids[i];
-    try {
-      await fbDelQ("empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck,"Eliminar pedido seleccionado");
-      if(rutasData[rk] && rutasData[rk].clientes) delete rutasData[rk].clientes[ck];
-      if(clienteAbierto[rk]===ck) delete clienteAbierto[rk];
-    } catch(e){ errores++; console.warn("[Ruta] Error eliminando cliente "+ck, e); }
+  try{
+    if(navigator.onLine){
+      // Una sola transacción: o se quitan todos, o no se quita ninguno. Además
+      // el servidor archiva las filas y desvincula sus backups.
+      await _sbQuitarRutaClientes(rk,ids,"Quitar selección de hoja de ruta");
+    }else{
+      for(var i=0;i<ids.length;i++){
+        await _enqueue("DELETE","empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ids[i],null,"Quitar pedido seleccionado");
+      }
+    }
+  }catch(e){
+    console.warn("[Ruta] No se quitó la selección:",e);
+    showNotif("No se quitó ningún pedido: "+((e&&e.message)||"error de servidor"),"err");
+    return;
   }
+
+  ids.forEach(function(ck){
+    if(rutasData[rk]&&rutasData[rk].clientes) delete rutasData[rk].clientes[ck];
+    if(clienteAbierto[rk]===ck) delete clienteAbierto[rk];
+  });
 
   // Salir del modo selección y refrescar
   _rutaSelectMode[rk] = false;
   _rutaSelected[rk]   = new Set();
   renderRutas();
 
-  var ok = cant - errores;
-  showNotif(
-    "🗑 "+ok+" pedido"+(ok!==1?"s":"")+" eliminado"+(ok!==1?"s":"")+
-    (errores>0 ? " · ⚠ "+errores+" con error" : ""),
-    errores>0 ? "warn" : "ok"
-  );
+  showNotif(navigator.onLine
+    ? "✓ "+cant+" pedido"+(cant!==1?"s":"")+" quitado"+(cant!==1?"s":"")+" de la ruta"
+    : "Cambio guardado en el dispositivo; se enviará al recuperar conexión","ok");
 }
 
 async function _rutaReasignar(rkOrigen){
@@ -23702,27 +23819,25 @@ async function _confirmarReasignar(){
 
       // Buscar por pedido_id: es el vínculo exacto y no confunde dos compras del
       // mismo cliente aunque tengan el mismo importe.
-      var existentes=await sbGet("ruta_clientes","select=id,ruta_id&empresa_id=eq."+_sbEmpId+
+      // Esta consulta decide qué fila puede moverse. Debe ser estrictamente de
+      // red: jamás usar el cache completo como fallback de una búsqueda puntual.
+      var existentes=await _sbGetRaw("ruta_clientes","select=id,ruta_id,pedido_id&empresa_id=eq."+_sbEmpId+
         "&pedido_id=eq."+encodeURIComponent(String(pedidoId))+"&order=created_at.desc")||[];
+      existentes=existentes.filter(function(r){ return String(r.pedido_id||"")===String(pedidoId); });
+      if(existentes.length>1) throw new Error("Se detectaron varias paradas para el mismo pedido; no se borró ninguna");
 
       // Compatibilidad con paradas antiguas que todavía no tenían pedido_id.
       if(!existentes.length&&_oldRuta){
         var qOld="select=id,ruta_id&empresa_id=eq."+_sbEmpId+"&ruta_id=eq."+_oldRuta+"&importe=eq."+total;
         if(bk.clienteId) qOld+="&cliente_id=eq."+encodeURIComponent(bk.clienteId);
-        var oldMatches=await sbGet("ruta_clientes",qOld)||[];
+        var oldMatches=await _sbGetRaw("ruta_clientes",qOld)||[];
         if(oldMatches.length===1) existentes=oldMatches;
       }
 
       var enDestino=existentes.filter(function(r){return String(r.ruta_id)===String(rutaDestKey);});
       if(String(_oldRuta||"")===String(rutaDestKey)&&enDestino.length){
-        // Toque accidental sobre la misma ruta: conservar una sola fila y
-        // limpiar cualquier copia histórica que hubiera quedado en otra ruta.
+        // Toque accidental sobre la misma ruta: no modificar ni borrar nada.
         var keepSame=enDestino[0];
-        for(var sd=0;sd<existentes.length;sd++){
-          if(existentes[sd].id!==keepSame.id){
-            await sbDel("ruta_clientes","id=eq."+existentes[sd].id+"&empresa_id=eq."+_sbEmpId);
-          }
-        }
         Object.keys(rutasData||{}).forEach(function(rkSame){
           var clsSame=(rutasData[rkSame]&&rutasData[rkSame].clientes)||{};
           Object.keys(clsSame).forEach(function(cidSame){
@@ -23763,12 +23878,8 @@ async function _confirmarReasignar(){
           ck=movidaCarrera[0].id||carrera[0].id;
         }
       }
-      // Si había copias históricas, borrar todas salvo la fila recién movida.
-      for(var ex=0;ex<existentes.length;ex++){
-        if(existentes[ex].id!==ck){
-          await sbDel("ruta_clientes","id=eq."+existentes[ex].id+"&empresa_id=eq."+_sbEmpId);
-        }
-      }
+      // El índice único por pedido impide copias. No se ejecutan barridos
+      // destructivos del lado cliente, aunque la red o el cache fallen.
       // Comprobar en el servidor que la parada quedo realmente vinculada antes
       // de mostrar la etiqueta HR en Backup Pedidos.
       var confirmada=await _sbGetRaw("ruta_clientes","select=id,ruta_id,pedido_id&empresa_id=eq."+_sbEmpId+
@@ -28074,7 +28185,10 @@ async function _moverRutaClienteServidor(md,op){
       if(!canon[0]) throw err;
       nk=await _moverFilaRutaExistente(canon[0],md,pedidoId,marker,fecha);
       if(fila.id!==canon[0].id){
-        await sbDel("ruta_clientes","id=eq."+fila.id+"&empresa_id=eq."+_sbEmpId);
+        // Solo el servidor puede borrar la fila perdedora y únicamente si
+        // comprueba que ambas representan el mismo pedido.
+        try{ await _sbLimpiarDuplicadoRuta(fila.id,canon[0].id); }
+        catch(limpiaErr){ console.warn("[Mover] Se conservó una fila dudosa en vez de borrarla:",limpiaErr&&limpiaErr.message); }
       }
     }
   }else{
@@ -28689,12 +28803,13 @@ function poblarSelectorMapaRutas() {
   var keys = Object.keys(rutasData).sort(function(a,b){
     return (rutasData[b].fecha||"").localeCompare(rutasData[a].fecha||"");
   });
-  sel.innerHTML = '<option value="">— Elegí una hoja de ruta —</option>' +
+  sel.innerHTML = '<option value="">'+(keys.length?'— Elegí una hoja de ruta —':'— No hay HR asignadas ni disponibles —')+'</option>' +
     keys.map(function(k){
       var r = rutasData[k];
       var cant = Object.keys(r.clientes||{}).length;
       var nombre = r.nombre || _fechaSegura(r.fecha).toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
-      return '<option value="'+k+'">'+nombre+' ('+cant+' clientes)</option>';
+      var asignacion=r.repartidorId?"":" · sin asignar";
+      return '<option value="'+k+'">'+nombre+' ('+cant+' clientes)'+asignacion+'</option>';
     }).join("");
   // Conservar la ruta que el repartidor ya estaba atendiendo durante un
   // refresco entre dispositivos. Solo usar rutaAbierta como alternativa.
@@ -37721,7 +37836,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
 // ── PWA: Service Worker offline (single-file blob approach) ──
 (function(){
-  var CACHE_NAME = 'distribix-v28';
+  var CACHE_NAME = 'distribix-v29';
   var SW_CODE = [
     "const CACHE='"+CACHE_NAME+"';",
     "const STATIC=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',",
