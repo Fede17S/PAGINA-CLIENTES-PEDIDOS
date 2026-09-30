@@ -57,6 +57,9 @@ await test('editar precios no inventa movimientos',async()=>{const f=fixture();a
 await test('editar rechazado no vuelve a devolver stock',async()=>{const f=fixture();f.c.devuelto=true;await f.call('pedido_editar_atomico',{p_pedido_id:'P',p_patch:{items:[]}});assert.equal(f.prompts.length,0);});
 await test('preventa no exige movimiento inexistente',async()=>{const f=fixture();f.c.control=false;await f.call('stk_confirmar_salida',{p_items:[{codigo:'A',cant:50}]});assert.equal(f.prompts.length,0);});
 await test('manual siempre se confirma aun en preventa',async()=>{const f=fixture();f.c.control=false;await f.call('stock_ajustar_manual_atomico',{p_codigo:'A',p_nuevo:12,p_esperado:10});assert.equal(f.prompts.length,1);});
+await test('vendedor termina el pedido sin un segundo modal de stock',async()=>{const f=fixture();f.c.currentUser={role:'vendedor',name:'Vendedora'};
+  await f.call('pedido_confirmar_atomico',{p_local_id:'pedido-local',p_pedido:{},p_items_stock:[{codigo:'A',cant:2}]});
+  assert.equal(f.prompts.length,0);assert.equal(f.writes.length,1);assert.match(f.writes[0].path,/pedido_confirmar_atomico$/);});
 await test('confirmación manual previa se consume una sola vez',async()=>{const f=fixture();f.c.StockSeguro.autorizarManual('A',10,12);
   await f.call('stock_ajustar_manual_atomico',{p_codigo:'A',p_nuevo:12,p_esperado:10});assert.equal(f.prompts.length,0);
   f.data.A=10;await f.call('stock_ajustar_manual_atomico',{p_codigo:'A',p_nuevo:12,p_esperado:10});assert.equal(f.prompts.length,1);});
@@ -74,7 +77,7 @@ await test('editar ruta envía UNA operación conjunta y recién después actual
   const ok=await f.c.guardarItemsEditados('R','C',[{id:'A',c:1,p:100,sub:100}],null);assert.equal(ok,true);assert.equal(f.writes.length,1);assert.match(f.writes[0].path,/ruta_editar_items_atomico$/);assert.equal(f.writes[0].b.p_items_esperados[0].c,3);assert.equal(f.c.rutasData.R.clientes.C.items[0].c,1);});
 await test('refresh stock acepta inventario vacío del servidor',async()=>{const f=fixture();delete f.data.A;delete f.data.B;await f.c._stkRefrescar();assert.equal(Object.keys(f.c.stockData).length,0);});
 await test('no reactiva productos automáticamente',async()=>{const f=fixture();f.c._stkAutoApagarSinStock();assert.equal(f.writes.length,0);});
-assert.match(html,/stock-integridad-v3\.js\?v=20260929-1/);assert.match(fs.readFileSync('sw.js','utf8'),/stock-integridad-v3/);
+assert.match(html,/stock-integridad-v3\.js\?v=20260930-1/);assert.match(fs.readFileSync('sw.js','utf8'),/stock-integridad-v3/);
 console.log(passed+' pruebas de integridad de stock aprobadas');
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});

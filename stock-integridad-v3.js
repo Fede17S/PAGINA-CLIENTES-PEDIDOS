@@ -104,7 +104,13 @@ async function enviar(method,path,body,transporte){
     if(fn==="stock_ajustar_manual_atomico"){
       var fm=firmaManual(b.p_codigo,b.p_esperado,b.p_nuevo);autorizado=(manuales.get(fm)||0)>Date.now();manuales.delete(fm);
     }
-    if((plan.movs.length||plan.reserva)&&!autorizado){
+    // El cierre normal del carrito ya fue confirmado por el vendedor con
+    // "Enviar pedido definitivo". Conservamos el chequeo previo, el bloqueo y
+    // la segunda validación de concurrencia, pero no mostramos un segundo modal
+    // técnico de stock. Los ajustes manuales y las demás operaciones sensibles
+    // continúan requiriendo confirmación explícita.
+    var cierrePedido=fn==="pedido_confirmar_atomico";
+    if((plan.movs.length||plan.reserva)&&!autorizado&&!cierrePedido){
       var lineas=plan.movs.map(function(x){return nombre(x.codigo)+" ["+x.codigo+"]"+(x.lote?" · lote "+x.lote:"")+"\n"+x.antes+" → "+x.despues+" u. ("+(x.delta>0?"+":"")+x.delta+")";});
       var ok=await w._confirmar({icono:"📦",titulo:plan.reserva?"Confirmar reserva":"Confirmar movimiento de stock",mensaje:plan.titulo+"\n\n"+(plan.texto||lineas.join("\n\n"))+"\n\nEl cambio se aplicará al confirmar.",ok:"Confirmar cambio",cancelar:"Cancelar",peligro:plan.movs.some(function(x){return x.delta<0;}),persistente:true});
       if(!ok)throw error("STOCK_CANCELADO","Movimiento cancelado. No se aplicaron cambios.");
