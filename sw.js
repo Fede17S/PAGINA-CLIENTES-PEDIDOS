@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.71 — mejoras de Catálogo en vivo
-const CACHE_NAME = 'distribix-v1.71';
-const CACHE_STATIC = 'distribix-static-v1.71';
+// DISTRIBIX Service Worker v1.72 — modal móvil del Catálogo en vivo
+const CACHE_NAME = 'distribix-v1.72';
+const CACHE_STATIC = 'distribix-static-v1.72';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
