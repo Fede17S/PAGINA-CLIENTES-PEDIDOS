@@ -5550,7 +5550,7 @@ _sysAlertMount();
   <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto" id="vnd-tabs">
     <button class="bk-tab active" id="vnd-tab-vendedores" onclick="setVndTab('vendedores',this)">👤 Vendedores</button>
     <button class="bk-tab" id="vnd-tab-zonas" onclick="setVndTab('zonas',this)">🗺️ Zonas</button>
-    <button class="bk-tab" id="vnd-tab-mapa" onclick="setVndTab('mapa',this)">📍 Ubicación</button>
+    <button class="bk-tab" id="vnd-tab-mapa" onclick="setVndTab('mapa',this)" style="display:none">📍 Ubicación</button>
   </div>
 
   <!-- Panel Vendedores -->
@@ -11187,10 +11187,9 @@ function _enviarUbicacion(){
   navigator.geolocation.getCurrentPosition(
     function(pos){
       _lastLocSent = Date.now();
-      sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId, {
-        last_lat:    pos.coords.latitude,
-        last_lng:    pos.coords.longitude,
-        last_loc_at: new Date().toISOString()
+      sbFetch("POST","/rest/v1/rpc/ubicacion_actualizar_propia", {
+        p_lat: pos.coords.latitude,
+        p_lng: pos.coords.longitude
       }).catch(function(e){ console.warn("ubic:", e.message); });
     },
     function(){ /* sin permiso GPS o sin señal: se ignora en silencio */ },
@@ -11224,7 +11223,7 @@ function _rastreoHabilitado(){
 // que el admin lo termina o se cumplen 2 horas (corte automático de seguridad).
 // Fuera de una sesión NO se gasta batería: el celular solo consulta cada 15 s
 // si alguien pidió rastrearlo (una lectura mínima a la base, sin prender GPS).
-// La señal viaja en la columna usuarios.loc_modo con el formato
+// La señal viaja en el almacén privado de ubicación con el formato
 //   "sesion|<vence en ms>|<modo anterior>"
 // así no hace falta ninguna columna nueva en Supabase. Al terminar (o vencer)
 // se restaura el modo anterior del usuario tal cual estaba.
@@ -11281,8 +11280,8 @@ async function _rvPollChequear(){
   try{
     // Con la app en segundo plano no se consulta (al volver al frente se chequea al toque)
     if(document.visibilityState!=="visible" && !_rvWatchId) return;
-    var rows = await sbGet("usuarios","select=loc_modo,last_loc_at&id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId);
-    var u0 = rows && rows[0];
+    var u0 = await sbFetch("POST","/rest/v1/rpc/ubicacion_mi_estado",{});
+    if(Array.isArray(u0)) u0=u0[0]||null;
     var s = _rvParse(u0 && u0.loc_modo);
     if(s && s.activa && !_rvSoyViewer){
       _rvHasta=s.hasta; _rvPrev=s.prev;
@@ -11303,7 +11302,7 @@ async function _rvPollChequear(){
     } else {
       if(s && !s.activa){
         // La sesión venció y nadie la cerró: este celular restaura el modo anterior
-        try{ await sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId,{loc_modo:s.prev}); }catch(e2){}
+        try{ await sbFetch("POST","/rest/v1/rpc/ubicacion_mi_modo_guardar",{p_modo:s.prev}); }catch(e2){}
       }
       _rvSesionVistaEn = 0;
       _rvTransmitirOff();
@@ -11325,10 +11324,9 @@ function _rvTransmitirOn(forzar){
     if(ahora >= _rvHasta){ _rvTransmitirOff(); return; }   // corte automático (2 h)
     if(ahora - _rvUltimoEnvio < _RV_ENVIO_MS) return;      // como mucho 1 envío cada 3 s
     _rvUltimoEnvio = ahora;
-    sbPatch("usuarios","id=eq."+currentUser._sbId+"&empresa_id=eq."+_sbEmpId,{
-      last_lat:    pos.coords.latitude,
-      last_lng:    pos.coords.longitude,
-      last_loc_at: new Date().toISOString()
+    sbFetch("POST","/rest/v1/rpc/ubicacion_actualizar_propia",{
+      p_lat: pos.coords.latitude,
+      p_lng: pos.coords.longitude
     }).catch(function(){ /* sin red: el próximo punto lo cubre */ });
   }, function(err){ console.warn("[rastreo] GPS:", err && err.message); },
   { enableHighAccuracy:true, maximumAge:0, timeout:15000 });
@@ -36303,7 +36301,36 @@ async function _toggleZonaUsuario(cb, zid){
 }
 
 // ══ TABS VENDEDORES ══
+// La ubicación de vendedores es privada y no se habilita por rol. Aunque otro
+// perfil sea admin, solo este usuario concreto de la empresa 1122 puede verla.
+var _UBICACION_EMPRESA_DUENA = "6eabe598-6bdc-4319-96bd-f5eb6bdc6eab";
+var _UBICACION_USUARIO_DUENO = "a1a7f3f4-7b46-4fe9-984b-e57184b9a1a7";
+function _puedeVerUbicacionVendedores(){
+  return String(_sbEmpId||"") === _UBICACION_EMPRESA_DUENA &&
+         String((currentUser&&currentUser._sbId)||"") === _UBICACION_USUARIO_DUENO &&
+         String((currentUser&&currentUser.id)||"").toLowerCase() === "federico" &&
+         String((empresaData&&empresaData.codigo)||"").toLowerCase() === "1122";
+}
+
+async function _ubicacionVendedoresLeer(){
+  if(!_puedeVerUbicacionVendedores()) throw new Error("La ubicación está disponible únicamente para Federico");
+  var rows=await sbFetch("POST","/rest/v1/rpc/ubicacion_vendedores_leer",{});
+  return Array.isArray(rows)?rows:[];
+}
+
+async function _ubicacionModoGuardar(sbId, modo){
+  if(!_puedeVerUbicacionVendedores()) throw new Error("La ubicación está disponible únicamente para Federico");
+  return sbFetch("POST","/rest/v1/rpc/ubicacion_vendedor_modo_guardar",{
+    p_usuario_id:sbId,
+    p_modo:modo
+  });
+}
+
 function setVndTab(tab, btn){
+  if(tab==="mapa" && !_puedeVerUbicacionVendedores()){
+    showNotif("La ubicación está disponible únicamente para Federico","err");
+    return;
+  }
   document.querySelectorAll("#vnd-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
   document.getElementById("vnd-panel-vendedores").style.display = tab==="vendedores"?"block":"none";
@@ -36325,6 +36352,11 @@ function _haceCuanto(iso){
   var dd = Math.floor(h/24); return "hace "+dd+" día"+(dd>1?"s":"");
 }
 async function renderMapaVendedores(){
+  if(!_puedeVerUbicacionVendedores()){
+    var panel=document.getElementById("vnd-panel-mapa");
+    if(panel) panel.style.display="none";
+    return;
+  }
   var lista = document.getElementById("vnd-mapa-lista");
   // Cargar el horario configurado en los inputs
   try {
@@ -36355,10 +36387,10 @@ async function renderMapaVendedores(){
 
 // Re-lee posiciones y mueve los marcadores sin recrear el mapa (efecto "en vivo")
 async function _vndMapaActualizar(encuadrar){
-  if(!_vndMapa) return;
+  if(!_vndMapa || !_puedeVerUbicacionVendedores()) return;
   var lista = document.getElementById("vnd-mapa-lista");
   try {
-    var rows = await sbGet("usuarios","select=id,uid,name,role,last_lat,last_lng,last_loc_at,loc_modo&empresa_id=eq."+_sbEmpId+"&order=name.asc");
+    var rows = await _ubicacionVendedoresLeer();
     // Se incluye también al admin para poder rastrear su propio celular (testeo)
     var vendedores = (rows||[]).filter(function(u){ var r=(u.role||""); return r==="vendedor" || r==="repartidor" || r==="admin"; });
     // Sesiones de rastreo en vivo: adoptar las activas (por si se arrancaron en
@@ -36371,7 +36403,7 @@ async function _vndMapaActualizar(encuadrar){
         _rvFastOn();
       } else if(!_rvRestaurados[u.id]){
         _rvRestaurados[u.id] = true;
-        sbPatch("usuarios","id=eq."+u.id+"&empresa_id=eq."+_sbEmpId,{loc_modo:s.prev}).catch(function(){});
+        _ubicacionModoGuardar(u.id,s.prev).catch(function(){});
         u.loc_modo = s.prev;
       }
     });
@@ -36447,14 +36479,16 @@ var _rvLive = {}, _rvRestaurados = {}, _rvFastTimer = null, _rvAnims = {}, _rvRa
 
 async function _rvArrancarSesion(sbId){
   try{
-    var rows = await sbGet("usuarios","select=loc_modo,name,uid&id=eq."+sbId+"&empresa_id=eq."+_sbEmpId);
-    if(!rows || !rows[0]){ showNotif("Usuario no encontrado","err"); return; }
-    var actual = rows[0].loc_modo || "momentos";
+    if(!_puedeVerUbicacionVendedores()) throw new Error("La ubicación está disponible únicamente para Federico");
+    var rows = await _ubicacionVendedoresLeer();
+    var elegido=(rows||[]).find(function(u){return String(u.id)===String(sbId);});
+    if(!elegido){ showNotif("Usuario no encontrado","err"); return; }
+    var actual = elegido.loc_modo || "momentos";
     var ya = _rvParse(actual);
     var prev = ya ? ya.prev : actual;   // si ya había una sesión, conservar el modo original
     var hasta = Date.now() + _RV_DURACION_MS;
-    await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,{loc_modo:"sesion|"+hasta+"|"+prev});
-    _rvLive[sbId] = { hasta:hasta, prev:prev, nombre:rows[0].name||rows[0].uid||"" };
+    await _ubicacionModoGuardar(sbId,"sesion|"+hasta+"|"+prev);
+    _rvLive[sbId] = { hasta:hasta, prev:prev, nombre:elegido.name||elegido.uid||"" };
     delete _rvRestaurados[sbId];
     // Si me estoy rastreando a mí mismo, ESTA pestaña es la que mira:
     // no transmite su propia ubicación (transmite el celular, que es el otro aparato)
@@ -36468,13 +36502,15 @@ async function _rvArrancarSesion(sbId){
 async function _rvTerminarSesion(sbId){
   var prev = (_rvLive[sbId] && _rvLive[sbId].prev) || null;
   try{
+    if(!_puedeVerUbicacionVendedores()) throw new Error("La ubicación está disponible únicamente para Federico");
     if(prev==null){
       // Sesión arrancada en otra pestaña: leer el modo anterior del propio flag
-      var rows = await sbGet("usuarios","select=loc_modo&id=eq."+sbId+"&empresa_id=eq."+_sbEmpId);
-      var s = _rvParse(rows && rows[0] && rows[0].loc_modo);
+      var rows = await _ubicacionVendedoresLeer();
+      var elegido=(rows||[]).find(function(u){return String(u.id)===String(sbId);});
+      var s = _rvParse(elegido && elegido.loc_modo);
       prev = (s && s.prev) || "momentos";
     }
-    await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId,{loc_modo:prev});
+    await _ubicacionModoGuardar(sbId,prev);
     delete _rvLive[sbId];
     if(currentUser && currentUser._sbId === sbId) _rvSoyViewer = false;
     _rvMarkerNormal(sbId);
@@ -36497,10 +36533,12 @@ function _rvFastOff(){
 async function _rvFastTick(){
   var ids = Object.keys(_rvLive);
   if(!ids.length){ _rvFastOff(); return; }
+  if(!_puedeVerUbicacionVendedores()){ _rvFastOff(); return; }
   var el = document.getElementById("vnd-mapa-leaflet");
   if(!el || el.offsetParent===null || document.visibilityState!=="visible") return;  // mapa no visible: no gastar
   try{
-    var rows = await sbGet("usuarios","select=id,name,uid,last_lat,last_lng,last_loc_at,loc_modo&id=in.("+ids.join(",")+")&empresa_id=eq."+_sbEmpId);
+    var todos = await _ubicacionVendedoresLeer();
+    var rows=(todos||[]).filter(function(u){return ids.indexOf(String(u.id))!==-1;});
     (rows||[]).forEach(function(u){
       var s = _rvParse(u.loc_modo);
       if(!s || !s.activa){
@@ -36602,7 +36640,8 @@ async function _guardarHorarioUbic(){
   var hi = (document.getElementById("loc-hora-ini")||{}).value || null;
   var hf = (document.getElementById("loc-hora-fin")||{}).value || null;
   try {
-    await sbPatch("empresas","id=eq."+_sbEmpId, {loc_hora_ini:hi, loc_hora_fin:hf});
+    if(!_puedeVerUbicacionVendedores()) throw new Error("La ubicación está disponible únicamente para Federico");
+    await sbFetch("POST","/rest/v1/rpc/ubicacion_horario_guardar",{p_inicio:hi,p_fin:hf});
     if(empresaData){ empresaData.loc_hora_ini=hi; empresaData.loc_hora_fin=hf; }
     showNotif("✅ Horario guardado","ok");
   } catch(e){ showNotif("Error: "+(e.message||e),"err"); }
@@ -36610,7 +36649,8 @@ async function _guardarHorarioUbic(){
 
 async function _setLocModo(sbId, modo){
   try {
-    await sbPatch("usuarios","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {loc_modo:modo});
+    if(!_puedeVerUbicacionVendedores()) throw new Error("La ubicación está disponible únicamente para Federico");
+    await _ubicacionModoGuardar(sbId,modo);
     showNotif("✅ Modo actualizado","ok");
     // Si estoy cambiando MI propio modo en este mismo celular, aplicarlo en vivo:
     // apagar detiene el servicio nativo; en vivo/momentos lo (re)arranca.
@@ -36778,10 +36818,18 @@ function _consolidarVentasConBackups(ventasData, backupRows){
 }
 
 async function cargarVendedores(){
-  // Ocultar el tab de Ubicación si el rastreo no está habilitado para esta empresa
+  // No alcanza con ser admin: la ubicación solo pertenece al perfil Federico
+  // de la empresa 1122. La misma regla también se valida en Supabase.
   try {
     var _tabUbic = document.getElementById("vnd-tab-mapa");
-    if(_tabUbic){ _tabUbic.style.display = (typeof _rastreoHabilitado==="function" && _rastreoHabilitado()) ? "" : "none"; }
+    var _ubicPermitida=(typeof _rastreoHabilitado==="function" && _rastreoHabilitado() && _puedeVerUbicacionVendedores());
+    if(_tabUbic) _tabUbic.style.display = _ubicPermitida ? "" : "none";
+    if(!_ubicPermitida){
+      var _panelUbic=document.getElementById("vnd-panel-mapa");
+      if(_panelUbic) _panelUbic.style.display="none";
+      if(_vndMapaTimer){ clearInterval(_vndMapaTimer); _vndMapaTimer=null; }
+      if(_rvFastTimer){ clearInterval(_rvFastTimer); _rvFastTimer=null; }
+    }
   } catch(e){}
   var body=document.getElementById("vnd-body"); if(!body) return;
   body.innerHTML = _skeletonCards(4, "cliente");
