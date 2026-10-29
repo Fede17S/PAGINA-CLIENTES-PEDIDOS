@@ -7,7 +7,7 @@ create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
 create table if not exists private.usuario_ubicaciones (
-  usuario_id uuid primary key references public.usuarios(id) on delete cascade,
+  usuario_id uuid primary key references public.usuarios(id) on delete cascade deferrable initially deferred,
   empresa_id uuid not null references public.empresas(id) on delete cascade,
   uid text not null,
   last_lat double precision,
@@ -17,6 +17,14 @@ create table if not exists private.usuario_ubicaciones (
   loc_token text not null default encode(extensions.gen_random_bytes(24), 'hex'),
   updated_at timestamptz not null default now()
 );
+
+-- El trigger de compatibilidad es BEFORE INSERT: la fila privada se crea en la
+-- misma transacción unos instantes antes que public.usuarios. Diferir sólo esta
+-- FK permite validar al COMMIT, cuando el usuario padre ya existe, sin relajar
+-- la integridad ni cambiar el resto del flujo.
+alter table private.usuario_ubicaciones
+  alter constraint usuario_ubicaciones_usuario_id_fkey
+  deferrable initially deferred;
 
 revoke all on table private.usuario_ubicaciones from public, anon, authenticated;
 
@@ -514,4 +522,3 @@ grant execute on function public.loc_leer_modo(text, text, text, text) to anon, 
 grant execute on function public.actualizar_ubicacion_nativa(uuid, text, text, double precision, double precision) to anon, authenticated;
 
 commit;
-

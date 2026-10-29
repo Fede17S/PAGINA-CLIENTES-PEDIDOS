@@ -15019,7 +15019,7 @@ var _RADIO_DETECCION = 50; // metros — radio para considerar que estás "en" e
 function _geoWeb(ok, bad){
   if(!navigator.geolocation){ bad({ code:2 }); return; }
   navigator.geolocation.getCurrentPosition(
-    function(pos){ ok({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+    function(pos){ ok({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy:pos.coords.accuracy }); },
     function(err){ bad({ code: err.code }); },
     { enableHighAccuracy:true, timeout:12000, maximumAge:60000 }
   );
@@ -15036,7 +15036,7 @@ function _obtenerUbicacionActual(){
       && window.Capacitor.Plugins.LocTracker.getOnce;
     if(nativo){
       window.Capacitor.Plugins.LocTracker.getOnce()
-        .then(function(r){ ok({ lat: r.lat, lng: r.lng }); })
+        .then(function(r){ ok({ lat: Number(r.lat), lng: Number(r.lng), accuracy:Number(r.accuracy)||null }); })
         .catch(function(e){
           var msg = (e && (e.message || e.code)) || "";
           if(msg==="sin_permiso"){ bad({ code:1 }); return; }
@@ -15180,10 +15180,10 @@ function _genClienteId(){
 // Guarda lat/lng y, si la dirección está vacía, la completa con la calle detectada.
 function _crDetectarUbicacion(){
   var btn=document.getElementById("cr-ubic-btn"), info=document.getElementById("cr-ubic-info");
-  if(!navigator.geolocation){ showNotif("Este dispositivo no tiene GPS disponible","err"); return; }
   if(btn){ btn.disabled=true; btn.textContent="📡 Buscando ubicación…"; }
-  navigator.geolocation.getCurrentPosition(function(pos){
-    var lat=pos.coords.latitude, lng=pos.coords.longitude;
+  _obtenerUbicacionActual().then(function(pos){
+    var lat=pos.lat, lng=pos.lng;
+    if(!Number.isFinite(lat)||!Number.isFinite(lng)) throw {code:2};
     var latEl=document.getElementById("cr-lat"), lngEl=document.getElementById("cr-lng");
     if(latEl) latEl.value=lat; if(lngEl) lngEl.value=lng;
     if(btn){ btn.disabled=false; btn.textContent="📍 Ubicación guardada ✓"; btn.style.background="#dcfce7"; btn.style.borderColor="#16a34a"; btn.style.color="#166534"; }
@@ -15201,12 +15201,13 @@ function _crDetectarUbicacion(){
         if(dirEl && !dirEl.value.trim() && calle) dirEl.value = dirTxt;
       })
       .catch(function(){ if(info) info.textContent="📍 Ubicación guardada — se guarda con el cliente."; });
-  }, function(err){
+  }).catch(function(err){
     if(btn){ btn.disabled=false; btn.textContent="📍 Usar mi ubicación actual"; }
     var msg = err && err.code===1 ? "Permiso de ubicación denegado. Activalo en los ajustes del teléfono."
+            : err && err.code===3 ? "El GPS tardó demasiado. Probá al aire libre y de nuevo."
             : "No se pudo obtener la ubicación. Probá de nuevo con mejor señal.";
     showNotif(msg,"err");
-  }, { enableHighAccuracy:true, timeout:12000, maximumAge:30000 });
+  });
 }
 
 async function _guardarClienteRapido(){
@@ -29021,14 +29022,13 @@ function _capturarGPSParaCliente(prefix){
   var latEl    = document.getElementById(prefix+"-lat");
   var lngEl    = document.getElementById(prefix+"-lng");
   var resultEl = document.getElementById(prefix+"-dir-result");
-  if(!navigator.geolocation){ showNotif("Tu dispositivo no tiene GPS","err"); return; }
   // Find the button and show loading
   var btns = document.querySelectorAll('[onclick*="_capturarGPSParaCliente(\''+prefix+'\'"]');
   var btn = btns[0];
   if(btn){ btn.disabled=true; btn.innerHTML='⏳ Buscando GPS…'; }
-  navigator.geolocation.getCurrentPosition(
-    function(pos){
-      var lat=pos.coords.latitude, lng=pos.coords.longitude;
+  _obtenerUbicacionActual().then(function(pos){
+      var lat=pos.lat, lng=pos.lng;
+      if(!Number.isFinite(lat)||!Number.isFinite(lng)) throw {code:2};
       if(latEl) latEl.value=lat;
       if(lngEl) lngEl.value=lng;
       if(btn){ btn.disabled=false; btn.innerHTML='📍 GPS'; }
@@ -29043,7 +29043,7 @@ function _capturarGPSParaCliente(prefix){
           if(resultEl){
             resultEl.style.display="block";
             resultEl.style.cssText="display:block;background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;border-radius:7px;padding:8px 12px;font-size:12px;margin-top:4px";
-            resultEl.innerHTML="✅ <b>GPS capturado</b><br>"+dirStr+"<br><span style='font-size:10.5px;color:#4caf50'>Precisión: ±"+Math.round(pos.coords.accuracy)+"m</span>";
+            resultEl.innerHTML="✅ <b>GPS capturado</b><br>"+dirStr+(Number.isFinite(pos.accuracy)?"<br><span style='font-size:10.5px;color:#4caf50'>Precisión: ±"+Math.round(pos.accuracy)+"m</span>":"");
           }
           showNotif("📍 Ubicación capturada","ok");
         })
@@ -29056,14 +29056,11 @@ function _capturarGPSParaCliente(prefix){
           }
           showNotif("📍 Coordenadas guardadas","ok");
         });
-    },
-    function(err){
+    }).catch(function(err){
       if(btn){ btn.disabled=false; btn.innerHTML='📍 GPS'; }
       var msgs={1:"Permiso de ubicación denegado. Activalo en la configuración del browser.",2:"GPS no disponible en este momento.",3:"Tiempo de espera agotado. Intentá de nuevo."};
       showNotif(msgs[err.code]||"Error de GPS","err");
-    },
-    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
-  );
+    });
 }
 
 // ══ AUTOCOMPLETE DE DIRECCIÓN (OpenStreetMap Nominatim) ══
@@ -29075,6 +29072,12 @@ function _dirAutoComplete(inputId, suggestId){
   var sugWrap = document.getElementById(suggestId);
   if(!input||!sugWrap) return;
   var q = input.value.trim();
+  // Si se edita una dirección ya elegida, sus coordenadas dejan de ser
+  // confiables hasta seleccionar otra sugerencia, capturar GPS o fijar el pin.
+  var prefix=inputId.replace("-dir","");
+  var latEl=document.getElementById(prefix+"-lat"), lngEl=document.getElementById(prefix+"-lng");
+  if(latEl) latEl.value="";
+  if(lngEl) lngEl.value="";
   if(q.length < 4){ sugWrap.style.display="none"; return; }
   clearTimeout(_acTimer);
   _acTimer = setTimeout(function(){
@@ -31010,6 +31013,10 @@ async function _verificarDir(inputId, resultId) {
   delete _geocodeCache[dir.toLowerCase()];
   var coords = await geocodeAddress(dir);
   if (coords) {
+    var prefix=inputId.replace("-dir","");
+    var latEl=document.getElementById(prefix+"-lat"), lngEl=document.getElementById(prefix+"-lng");
+    if(latEl) latEl.value=coords.lat;
+    if(lngEl) lngEl.value=coords.lng;
     res.style.cssText="display:block;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:7px;padding:7px 10px;color:#065f46";
     res.innerHTML = "✅ Dirección encontrada — " +
       '<a href="https://www.google.com/maps?q='+coords.lat+','+coords.lng+'" target="_blank" style="color:#1e56d0;font-weight:700">Ver en Maps →</a>';
