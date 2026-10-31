@@ -3723,7 +3723,8 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
   background:var(--s1, var(--bg)); color:var(--text);
   border:1px solid var(--border); border-radius:16px;
   box-shadow:var(--shadow-lg);
-  width:100%; max-width:380px; padding:24px 22px 20px;
+  width:100%; max-width:520px; max-height:calc(100dvh - 32px); padding:24px 22px 20px;
+  display:flex; flex-direction:column; overflow:hidden;
   text-align:center;
   transform:translateY(12px) scale(.97); transition:transform .2s cubic-bezier(.2,.9,.3,1.2);
 }
@@ -3750,7 +3751,7 @@ input, select, textarea { font-size: max(16px, 1em) !important; }
 .alerta-go:hover{ filter:brightness(1.08); }
 .confirm-ico{ font-size:38px; line-height:1; margin-bottom:10px }
 .confirm-titulo{ font-size:17px; font-weight:700; margin-bottom:8px; color:var(--text) }
-.confirm-msg{ font-size:14px; line-height:1.5; color:var(--muted); margin-bottom:20px; white-space:pre-line }
+.confirm-msg{ font-size:14px; line-height:1.5; color:var(--muted); margin-bottom:20px; white-space:pre-line; overflow-y:auto; min-height:0; max-height:52dvh; padding:0 3px }
 .confirm-btns{ display:flex; gap:10px }
 .confirm-btns button{
   flex:1; padding:12px 14px; border-radius:10px;
@@ -6305,16 +6306,16 @@ _sysAlertMount();
 
 <!-- MODAL CUENTA CORRIENTE -->
 <style>
-.cc2-shell{width:min(820px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}.cc2-scroll{overflow:auto;padding:16px;background:var(--s1)}
-.cc2-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.cc2-kpi{padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--s2)}
+.cc2-shell{width:min(960px,calc(100vw - 32px));max-width:960px;max-height:calc(100dvh - 32px);display:flex;flex-direction:column;overflow:hidden}.cc2-scroll{overflow-y:auto;overflow-x:hidden;min-height:0;padding:16px;background:var(--s1)}
+.cc2-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px}.cc2-kpi{min-width:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--s2)}
 .cc2-kpi small{display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.45px}.cc2-kpi b{display:block;font-size:18px;margin-top:4px;font-variant-numeric:tabular-nums}
-.cc2-actions{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0}.cc2-btn{border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;padding:9px 12px;font:700 12px inherit;cursor:pointer}.cc2-btn.primary{background:#0a7048;color:#fff;border-color:#0a7048}.cc2-btn.blue{background:#21409a;color:#fff;border-color:#21409a}
+.cc2-actions{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0}.cc2-actions .cc2-btn{flex:1 1 150px}.cc2-btn{border:1px solid var(--border);background:var(--s2);color:var(--text);border-radius:9px;padding:9px 12px;font:700 12px inherit;cursor:pointer}.cc2-btn:disabled{opacity:.5;cursor:not-allowed}.cc2-btn.primary{background:#0a7048;color:#fff;border-color:#0a7048}.cc2-btn.blue{background:#21409a;color:#fff;border-color:#21409a}
 .cc2-form{display:none;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--s2);margin-bottom:12px}.cc2-form.open{display:block}.cc2-fields{display:grid;grid-template-columns:1.1fr .9fr 1.5fr auto;gap:8px}.cc2-fields input,.cc2-fields select,.cc2-search{min-width:0;border:1px solid var(--border);border-radius:8px;background:var(--s1);color:var(--text);padding:9px 10px;font:12.5px inherit}
-.cc2-tabs{display:flex;gap:5px;border-bottom:1px solid var(--border);margin-top:5px}.cc2-tab{border:0;background:transparent;color:var(--muted);font:700 12px inherit;padding:10px 12px;cursor:pointer}.cc2-tab.active{color:#21409a;border-bottom:2px solid #21409a}.cc2-row{display:flex;gap:10px;align-items:center;padding:11px 3px;border-bottom:1px solid var(--border2)}.cc2-row-main{flex:1;min-width:0}.cc2-row-main b,.cc2-row-main span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc2-row-main span{font-size:11px;color:var(--muted);margin-top:3px}.cc2-amount{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}.cc2-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:800}.cc2-pill.red{background:#fee2e2;color:#b91c1c}.cc2-pill.green{background:#dcfce7;color:#15803d}.cc2-pill.gold{background:#fef3c7;color:#92400e}.cc2-empty{text-align:center;padding:28px;color:var(--muted);font-size:12px}.cc2-dashboard{width:min(940px,97vw);max-height:92vh;display:flex;flex-direction:column}.cc2-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;padding:14px}.cc2-list{overflow:auto;padding:0 14px 14px}.cc2-customer{display:grid;grid-template-columns:minmax(160px,1fr) repeat(3,120px) 28px;gap:12px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--s2);margin-top:8px;cursor:pointer}.cc2-customer:hover{border-color:#21409a}
+.cc2-tabs{display:flex;gap:5px;border-bottom:1px solid var(--border);margin-top:5px;overflow-x:auto;overflow-y:hidden}.cc2-tab{border:0;background:transparent;color:var(--muted);font:700 12px inherit;padding:10px 12px;cursor:pointer;white-space:nowrap}.cc2-tab.active{color:#21409a;border-bottom:2px solid #21409a}.cc2-row{display:flex;gap:10px;align-items:center;padding:11px 3px;border-bottom:1px solid var(--border2)}.cc2-row-main{flex:1;min-width:0}.cc2-row-main b,.cc2-row-main span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cc2-row-main span{font-size:11px;color:var(--muted);margin-top:3px}.cc2-amount{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}.cc2-pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:800}.cc2-pill.red{background:#fee2e2;color:#b91c1c}.cc2-pill.green{background:#dcfce7;color:#15803d}.cc2-pill.gold{background:#fef3c7;color:#92400e}.cc2-empty{text-align:center;padding:28px;color:var(--muted);font-size:12px}.cc2-dashboard{width:min(1100px,calc(100vw - 32px));max-width:1100px;max-height:calc(100dvh - 32px);display:flex;flex-direction:column;overflow:hidden}.cc2-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px;padding:14px}.cc2-list{overflow-y:auto;overflow-x:hidden;min-height:0;padding:0 14px 14px}.cc2-customer{display:grid;grid-template-columns:minmax(160px,1fr) repeat(3,120px) 28px;gap:12px;align-items:center;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--s2);margin-top:8px;cursor:pointer}.cc2-customer:hover{border-color:#21409a}
 .cob-toolbar{padding:0 14px 10px;display:flex;gap:8px;flex-wrap:wrap}.cob-toolbar .cc2-btn{display:inline-flex;align-items:center;gap:6px}.cob-badge{min-width:19px;height:19px;padding:0 6px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;background:#dc2626;color:#fff;font-size:10px;font-weight:900}
-.cob-shell{width:min(760px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}.cob-scroll{overflow:auto;padding:14px;background:var(--s1)}.cob-section{border:1px solid var(--border);border-radius:13px;background:var(--s2);padding:14px;margin-bottom:11px}.cob-section-title{font-size:13px;font-weight:900;margin-bottom:3px}.cob-section-sub{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:12px}.cob-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cob-field{min-width:0}.cob-field.full{grid-column:1/-1}.cob-field label{display:block;font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.35px}.cob-field input,.cob-field textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:9px;background:var(--s1);color:var(--text);padding:10px 11px;font:12.5px inherit}.cob-field textarea{resize:vertical;min-height:90px;line-height:1.45}.cob-toggle{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;border:1px solid var(--border);border-radius:11px;background:var(--s1);margin-bottom:12px;cursor:pointer}.cob-toggle input{width:18px;height:18px;accent-color:#21409a;flex:0 0 auto}.cob-toggle b{display:block;font-size:12.5px}.cob-toggle span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.35}.cob-warning{padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a4d0b;border:1px solid #fed7aa;font-size:11px;line-height:1.45}.cob-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;border-top:1px solid var(--border);background:var(--s2)}
+.cob-shell{width:min(840px,calc(100vw - 32px));max-width:840px;max-height:calc(100dvh - 32px);display:flex;flex-direction:column;overflow:hidden}.cob-scroll{overflow-y:auto;overflow-x:hidden;min-height:0;padding:14px;background:var(--s1)}.cob-section{border:1px solid var(--border);border-radius:13px;background:var(--s2);padding:14px;margin-bottom:11px}.cob-section-title{font-size:13px;font-weight:900;margin-bottom:3px}.cob-section-sub{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:12px}.cob-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cob-field{min-width:0}.cob-field.full{grid-column:1/-1}.cob-field label{display:block;font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.35px}.cob-field input,.cob-field textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:9px;background:var(--s1);color:var(--text);padding:10px 11px;font:12.5px inherit}.cob-field textarea{resize:vertical;min-height:90px;line-height:1.45}.cob-toggle{display:flex;align-items:flex-start;gap:10px;padding:10px 11px;border:1px solid var(--border);border-radius:11px;background:var(--s1);margin-bottom:12px;cursor:pointer}.cob-toggle input{width:18px;height:18px;accent-color:#21409a;flex:0 0 auto}.cob-toggle b{display:block;font-size:12.5px}.cob-toggle span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.35}.cob-warning{padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a4d0b;border:1px solid #fed7aa;font-size:11px;line-height:1.45}.cob-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;border-top:1px solid var(--border);background:var(--s2)}
 .cob-list{overflow:auto;padding:0 14px 14px}.cob-group{border:1px solid var(--border);border-radius:13px;background:var(--s2);margin-top:10px;overflow:hidden}.cob-group-head{display:flex;align-items:flex-start;gap:10px;padding:13px}.cob-group-main{flex:1;min-width:0}.cob-group-main b{display:block;font-size:14px}.cob-group-main span{display:block;color:var(--muted);font-size:10.8px;margin-top:3px}.cob-total{font-weight:900;font-size:16px;color:var(--red);white-space:nowrap}.cob-docs{border-top:1px solid var(--border2);padding:7px 13px}.cob-doc{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:11px}.cob-doc span{color:var(--muted)}.cob-group-actions{display:flex;gap:7px;padding:10px 13px;border-top:1px solid var(--border2);background:var(--s1)}.cob-group-actions button{flex:1}.cob-meta-bar{padding:0 14px 9px;font-size:11px;color:var(--muted)}
-@media(max-width:700px){.cc2-grid,.cc2-summary{grid-template-columns:1fr 1fr}.cc2-fields{grid-template-columns:1fr 1fr}.cc2-fields input:nth-child(3){grid-column:1/-1}.cc2-customer{grid-template-columns:1fr auto}.cc2-hide-mobile{display:none}.cc2-shell{width:100vw;max-height:95vh}.cc2-scroll{padding:12px}.cob-shell{width:100vw;max-height:96vh}.cob-grid{grid-template-columns:1fr}.cob-field.full{grid-column:auto}.cob-group-head{flex-wrap:wrap}.cob-total{width:100%}.cob-group-actions{flex-direction:column}}
+@media(max-width:700px){#modal-cc,#modal-deudores,#modal-cob-config,#modal-cob-avisos{padding:6px}.cc2-grid,.cc2-summary{grid-template-columns:1fr 1fr}.cc2-fields{grid-template-columns:1fr}.cc2-fields input:nth-child(3){grid-column:auto}.cc2-customer{grid-template-columns:1fr auto}.cc2-hide-mobile{display:none}.cc2-shell,.cc2-dashboard,.cob-shell{width:100%;max-width:none;max-height:calc(100dvh - 12px)}.cc2-scroll{padding:12px}.cc2-row{align-items:flex-start}.cc2-row-main span{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35}.cob-grid{grid-template-columns:1fr}.cob-field.full{grid-column:auto}.cob-group-head{flex-wrap:wrap}.cob-total{width:100%}.cob-group-actions{flex-direction:column}.confirm-ov{padding:8px}.confirm-card{max-height:calc(100dvh - 16px);padding:20px 16px 16px}.confirm-btns{flex-direction:column-reverse}}
 </style>
 <div class="modal-bg" id="modal-cc" onclick="if(event.target===this)cerrarModal('modal-cc')">
   <div class="modal-box cc2-shell">
@@ -6337,7 +6338,7 @@ _sysAlertMount();
         <div class="cc2-actions">
           <button class="cc2-btn primary" onclick="_cc2AbrirFormulario('pago')">＋ Registrar pago</button>
           <button class="cc2-btn" id="cc2-btn-ajuste" onclick="_cc2AbrirFormulario('ajuste')">⚖️ Ajuste</button>
-          <button class="cc2-btn blue" onclick="_cc2WhatsApp()">💬 WhatsApp</button>
+          <button class="cc2-btn blue" id="cc2-btn-whatsapp" onclick="_cc2WhatsApp()">💬 WhatsApp</button>
           <button class="cc2-btn" onclick="_cc2PDF()">📄 Estado de cuenta</button>
         </div>
         <div class="cc2-form" id="cc2-form-pago">
@@ -19996,8 +19997,15 @@ async function _cc2DatosClientePorNombre(nom){
 async function _cc2CargarCuenta(ref,nom){
   var par=_cc2ResolverCliente(ref,nom);
   if(!par) throw new Error("No se pudo identificar al cliente");
-  var pk=par[0],u=par[1],sbid=u._sbId||pk,uid=u.id||u.uid||"";
+  var pk=par[0],u=par[1],sbid=u._sbId||pk,uid=u.id||u.uid||"",tel=u.tel||u.telefono||"";
   if(!/^[0-9a-f-]{36}$/i.test(String(sbid))) throw new Error("El cliente no tiene un identificador válido en Supabase");
+  if(!tel){
+    try{
+      var telRows=await sbGet("usuarios","select=telefono&id=eq."+encodeURIComponent(sbid)+"&empresa_id=eq."+_sbEmpId+"&limit=1");
+      tel=telRows&&telRows[0]&&telRows[0].telefono||"";
+      if(tel)u.tel=tel;
+    }catch(eTel){}
+  }
   var cols="id,ruta_id,pedido_id,cliente_id,nom,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha,remito_num,tipo_comprobante,rechazado";
   var rutas=await sbGet("ruta_clientes","select="+cols+"&empresa_id=eq."+_sbEmpId+"&cliente_id=eq."+encodeURIComponent(uid)+"&order=fecha.desc");
   if(!rutas||!rutas.length){
@@ -20023,7 +20031,7 @@ async function _cc2CargarCuenta(ref,nom){
     if(o.tipo==="ajuste_credito")return s-_cc2Num(o.monto);
     return s;
   },0);
-  return {ref:pk,clienteId:sbid,uid:uid,nom:u.name||nom||uid,tel:u.tel||u.telefono||"",docs:docs,ops:ops||[],facturado:_cc2Num(facturado),cobrado:_cc2Num(cobrado),entregado:_cc2Num(deuda),calle:_cc2Num(calle),extra:_cc2Num(extra),saldo:_cc2Num(deuda+extra)};
+  return {ref:pk,clienteId:sbid,uid:uid,nom:u.name||nom||uid,tel:tel,docs:docs,ops:ops||[],facturado:_cc2Num(facturado),cobrado:_cc2Num(cobrado),entregado:_cc2Num(deuda),calle:_cc2Num(calle),extra:_cc2Num(extra),saldo:_cc2Num(deuda+extra)};
 }
 async function abrirCuentaCorriente(ref,nom){
   _cc2TabActual="pendientes"; abrirModal("modal-cc");
@@ -20042,6 +20050,7 @@ function _cc2PintarCuenta(){
   hint.textContent=c.saldo>0.01?"El cliente debe":c.saldo<-.01?"A favor del cliente":"Cuenta al día";
   document.getElementById("cc2-entregado").textContent="$"+fM(c.entregado);document.getElementById("cc2-calle").textContent="$"+fM(c.calle);document.getElementById("cc2-cobrado").textContent="$"+fM(c.cobrado);
   var ajuste=document.getElementById("cc2-btn-ajuste");if(ajuste)ajuste.style.display=(_tengoRol("admin")||_tengoRol("co-admin"))?"":"none";
+  var wa=document.getElementById("cc2-btn-whatsapp");if(wa){wa.textContent=c.tel?"💬 WhatsApp":"📵 Falta teléfono";wa.title=c.tel?"Enviar estado de cuenta por WhatsApp":"Cargá el teléfono del cliente en Gestión de clientes";}
   document.querySelectorAll("[data-cc2tab]").forEach(function(b){b.classList.toggle("active",b.dataset.cc2tab===_cc2TabActual);});
   _cc2RenderCuentaBody();
 }
@@ -20107,10 +20116,28 @@ function _cc2RenderDashboard(){
   var sub=document.getElementById("deudores-sub");if(sub)sub.textContent=list.length+" cuenta"+(list.length!==1?"s":"")+" mostrada"+(list.length!==1?"s":"");
 }
 async function _cc2WhatsApp(){
-  var c=_cc2CuentaCache;if(!c||!c.tel){showNotif("El cliente no tiene teléfono cargado","err");return;}var pendientes=c.docs.filter(function(d){return d.entregado&&d.pendiente>.01;});
+  var c=_cc2CuentaCache;if(!c)return;
+  if(!c.tel){await _confirmar({icono:"📵",titulo:"Falta el teléfono",mensaje:"Este cliente no tiene un número cargado. Agregalo desde Gestión de clientes y volvé a abrir su cuenta corriente.",ok:"Entendido",cancelar:"Cerrar",persistente:true});return;}
+  var pendientes=c.docs.filter(function(d){return d.entregado&&d.pendiente>.01;});
   var detalle=pendientes.slice(0,8).map(function(d){return "• "+(d.remito?"Remito "+d.remito:d.hr||"Entrega")+": $"+fM(d.pendiente);}).join("\n");
   var msg="Hola "+c.nom+" 👋\n\nTe compartimos tu estado de cuenta:\nSaldo actual: *"+(c.saldo<0?"a favor $":"$")+fM(Math.abs(c.saldo))+"*"+(detalle?"\n\nPendientes:\n"+detalle:"")+"\n\nCualquier consulta, quedamos a disposición.";
-  if(!(await _confirmar({icono:"💬",titulo:"Enviar estado por WhatsApp",mensaje:msg,ok:"Abrir WhatsApp",cancelar:"Cancelar",persistente:true})))return;var num=String(c.tel).replace(/\D/g,"");if(num.slice(0,2)!=="54")num="54"+num.replace(/^0/,"");window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank");
+  if(!(await _confirmar({icono:"💬",titulo:"Enviar estado por WhatsApp",mensaje:msg,ok:"Abrir WhatsApp",cancelar:"Cancelar",persistente:true})))return;
+  var num=_cc2NumeroWhatsApp(c.tel);if(!num){showNotif("El teléfono cargado no es válido","err");return;}
+  _cc2AbrirWhatsAppSeguro("https://wa.me/"+num+"?text="+encodeURIComponent(msg));
+}
+function _cc2NumeroWhatsApp(tel){
+  var n=String(tel||"").replace(/\D/g,"").replace(/^00/,"").replace(/^0/,"");
+  if(!n)return "";if(n.indexOf("549")===0)return n;if(n.indexOf("54")===0)return "549"+n.slice(2).replace(/^9/,"");if(n.indexOf("9")===0&&n.length===11)return "54"+n;return "549"+n.replace(/^15/,"");
+}
+function _cc2AbrirWhatsAppSeguro(url){
+  showNotif("Abriendo WhatsApp…","ok");
+  try{
+    var esNativa=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform());
+    if(esNativa){window.open(url,"_system");return;}
+    if(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"")){window.location.href=url;return;}
+    var abierta=window.open(url,"_blank","noopener,noreferrer");
+    if(!abierta)window.location.href=url;
+  }catch(e){try{window.location.href=url;}catch(e2){showNotif("No se pudo abrir WhatsApp","err");}}
 }
 function _cc2PDF(){
   var c=_cc2CuentaCache;if(!c)return;try{var jsPDF=window.jspdf&&window.jspdf.jsPDF;if(!jsPDF)throw new Error("PDF no disponible");var d=new jsPDF();d.setFontSize(17);d.text("Estado de cuenta",14,18);d.setFontSize(11);d.text(c.nom,14,27);d.text("Emitido: "+new Date().toLocaleString("es-AR"),14,34);d.setFontSize(14);d.text("Saldo: $"+fM(c.saldo),14,46);var y=58;d.setFontSize(10);c.docs.filter(function(x){return x.entregado;}).slice(0,28).forEach(function(x){d.text(_cc2Fecha(x.fecha)+"  "+(x.remito?"Remito "+x.remito:x.hr||"Entrega")+"  Total $"+fM(x.importe)+"  Pendiente $"+fM(x.pendiente),14,y);y+=7;});d.save("estado-cuenta-"+c.nom.replace(/[^a-z0-9]+/gi,"-").toLowerCase()+".pdf");}catch(e){showNotif(e.message||"No se pudo generar el PDF","err");}
@@ -20218,12 +20245,12 @@ function _cobMensajeGrupo(g){
   if(plantilla.indexOf(detalle)<0)plantilla+="\n\nDetalle:\n"+detalle;if(datos&&plantilla.indexOf(datos)<0)plantilla+="\n\nDatos para el pago:\n"+datos;return plantilla.replace(/\n{3,}/g,"\n\n").trim();
 }
 function _cobTelefonoWhatsApp(tel){
-  var n=String(tel||"").replace(/\D/g,"").replace(/^00/,"");if(n.slice(0,2)==="54")return n;n=n.replace(/^0/,"");return n?"54"+n:"";
+  return _cc2NumeroWhatsApp(tel);
 }
 async function _cobAbrirWhatsApp(idx){
   var g=_cobAvisosGrupos[idx];if(!g)return;var n=_cobTelefonoWhatsApp(g.tel);if(!n){showNotif("El cliente no tiene teléfono cargado","err");return;}var msg=_cobMensajeGrupo(g);
   if(!(await _confirmar({icono:"💬",titulo:"Recordatorio para "+g.nom,mensaje:msg,ok:"Abrir WhatsApp",cancelar:"Cancelar",persistente:true})))return;
-  window.open("https://wa.me/"+n+"?text="+encodeURIComponent(msg),"_blank");
+  _cc2AbrirWhatsAppSeguro("https://wa.me/"+n+"?text="+encodeURIComponent(msg));
   try{await _cobMarcarIds(g.rows.map(function(r){return r.aviso_id;}),"abierto",false);}catch(e){}
 }
 async function _cobMarcarIds(ids,estado,recargar){

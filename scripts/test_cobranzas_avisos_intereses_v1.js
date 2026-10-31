@@ -25,6 +25,14 @@ check(panel.includes('cobranza_avisos_pendientes_v1'), 'La interfaz no consulta 
 check(panel.includes('cobranza_marcar_avisos_v1'), 'La interfaz no registra el estado de los avisos');
 check(panel.includes('Abrir WhatsApp') && panel.includes('Marcar enviado'), 'Abrir y confirmar envío deben ser acciones separadas');
 check(panel.includes('{monto_total}') && panel.includes('{fecha_entrega}') && panel.includes('{datos_pago}'), 'Faltan variables esenciales del mensaje');
+check(panel.includes('id="cc2-btn-whatsapp"'), 'El botón de WhatsApp no tiene un estado controlable');
+check(panel.includes('function _cc2AbrirWhatsAppSeguro(url)'), 'Falta la apertura compatible con navegador y Android');
+check(panel.includes('window.open(url,"_system")'), 'La APK no intenta abrir WhatsApp fuera del WebView');
+check(panel.includes('/Android|iPhone|iPad|iPod/i.test'), 'El navegador móvil no usa navegación directa a WhatsApp');
+check(panel.includes('if(!abierta)window.location.href=url'), 'Falta el respaldo cuando el navegador bloquea la ventana');
+check(panel.includes('select=telefono&id=eq.'), 'Cuenta corriente no recupera el teléfono desde el servidor');
+check(panel.includes('max-width:960px') && panel.includes('max-height:calc(100dvh - 32px)'), 'El modal de cuenta corriente sigue limitado o sin alto adaptable');
+check(panel.includes('repeat(auto-fit,minmax(170px,1fr))'), 'Las tarjetas no se adaptan al ancho disponible');
 
 // Seguridad y aislamiento por empresa.
 check(migration.includes('empresa_id uuid primary key references public.empresas'), 'La configuración no está aislada por distribuidora');
