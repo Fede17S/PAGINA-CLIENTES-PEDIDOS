@@ -2699,6 +2699,50 @@ html[data-theme="dark"] .rc-edit-item { box-shadow:0 2px 10px rgba(0,0,0,.18) }
 .cli-acc-menu.open { display:block; }
 .cli-acc-menu button { display:block; width:100%; text-align:left; border:none; background:none; font-size:13.5px; font-family:inherit; color:var(--text); padding:11px 12px; border-radius:8px; cursor:pointer; }
 .cli-acc-menu button:hover { background:var(--s2); }
+.cli-csv-summary { padding:12px 14px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:12px; touch-action:manipulation; }
+.cli-csv-hint { min-width:0; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right; }
+.cli-search-field { width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:10px; font-size:14px; font-family:inherit; outline:none; background:var(--s2); box-sizing:border-box; margin-bottom:10px; display:block; color:var(--text); }
+.cli-search-field:focus { border-color:var(--accent); background:var(--s1); }
+.cli-role-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+#cli-acciones-bar { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; padding:10px; border:1px solid var(--border); border-radius:12px; background:var(--s2); }
+.cli-filter-selects { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.cli-filter-footer { display:flex; align-items:center; gap:8px; min-width:0; }
+.cli-count-wrap { margin-left:auto; font-size:12px; color:var(--muted); white-space:nowrap; }
+
+/* Gestión de clientes: controles móviles ordenados y menú sin desbordes. */
+@media (max-width:600px){
+  #clientes .cli-csv-summary { padding:12px; }
+  #clientes .cli-csv-hint { max-width:145px; }
+  #clientes .cli-role-tabs { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; margin-inline:-2px; padding:0 2px 4px; }
+  #clientes .cli-role-tabs::-webkit-scrollbar { display:none; }
+  #clientes .cli-role-tabs .bk-tab { flex:0 0 auto; min-height:40px; padding:9px 13px; white-space:nowrap; }
+  #clientes .cli-filter-selects { grid-template-columns:1fr; }
+  #clientes .cli-fil-sel { width:100%; min-width:0; min-height:44px; padding:10px 12px; background:var(--s1); }
+  #clientes .cli-filter-footer { flex-wrap:wrap; }
+  #clientes .cli-acc-wrap { order:0; width:100%; }
+  #clientes .cli-acc-btn { width:100%; min-height:44px; display:flex; align-items:center; justify-content:center; }
+  #clientes .cli-count-wrap { order:1; margin-left:2px; }
+  #clientes .cli-acc-icon { order:2; margin-left:auto; width:44px; height:40px; padding:0; }
+  #clientes .cli-acc-menu { position:static; inset:auto; width:100%; min-width:0; margin-top:7px; padding:6px; box-shadow:none; background:var(--s1); }
+  #clientes .cli-acc-menu.open { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
+  #clientes .cli-acc-menu button { min-height:48px; padding:10px; border:1px solid var(--border2); background:var(--s2); line-height:1.25; }
+}
+
+/* Inicio: saludo y acciones en filas independientes en pantallas angostas. */
+.dash-topbar { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:13px; }
+.dash-greeting { min-width:0; }
+.dash-saludo { font-size:19px; font-weight:800; line-height:1.2; }
+.dash-fecha { margin-top:3px; font-size:12px; color:var(--muted); line-height:1.35; }
+.dash-quick-actions { display:flex; gap:6px; align-items:center; flex-shrink:0; }
+@media (max-width:600px){
+  .dash-topbar { flex-direction:column; align-items:stretch; gap:10px; }
+  .dash-greeting { width:100%; }
+  .dash-saludo { font-size:23px; white-space:normal; }
+  .dash-fecha { font-size:12.5px; }
+  .dash-quick-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; gap:7px; }
+  .dash-quick-actions .dash-hbtn { width:100%; min-width:0; min-height:42px; justify-content:center; padding:8px 5px; }
+  .dash-quick-actions .dash-hbtn .lbl { display:inline; overflow:hidden; text-overflow:ellipsis; }
+}
 /* ═══ Rediseño Configuración ═══ */
 #cfg-tabs .bk-tab { flex-shrink:0; white-space:nowrap; }
 .cfg-card { background:var(--s2); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:15px; }
@@ -4566,12 +4610,12 @@ _sysAlertMount();
 
 <div id="dashboard" class="section">
   <div class="dash-wrap">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:13px">
-      <div style="min-width:0">
-        <div style="font-size:19px;font-weight:800" id="dash-saludo">Hola 👋</div>
-        <div style="font-size:12px;color:var(--muted)" id="dash-fecha"></div>
+    <div class="dash-topbar">
+      <div class="dash-greeting">
+        <div class="dash-saludo" id="dash-saludo">Hola 👋</div>
+        <div class="dash-fecha" id="dash-fecha"></div>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+      <div class="dash-quick-actions">
         <button class="rfa dash-hbtn" onclick="renderDashboard(true)" title="Actualizar"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg><span class="lbl">Actualizar</span></button>
         <button class="dash-hbtn" id="dash-notif-btn" onclick="abrirNotifs()" title="Notificaciones">🔔<span class="lbl">Avisos</span><span id="dash-notif-badge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border-radius:20px;min-width:18px;height:18px;font-size:10px;font-weight:800;line-height:18px;text-align:center;padding:0 4px;box-sizing:border-box">0</span></button>
         <button class="dash-hbtn" onclick="_abrirExportResumen()" title="Compartir resumen">📤<span class="lbl">Compartir</span></button>
@@ -6120,9 +6164,9 @@ _sysAlertMount();
   <!-- CSV -->
   <div id="cli-csv-panel" style="margin-bottom:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
     <div onclick="var b=document.getElementById('cli-csv-body');b.style.display=b.style.display==='none'?'block':'none'"
-      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation">
+      class="cli-csv-summary">
       <span style="font-size:13px;font-weight:600;color:var(--text)">📥 Importar CSV</span>
-      <span style="font-size:11px;color:var(--muted)">ID, NOMBRE, DIR, TEL, CUIT, ZONA, RECEPCIONA ▼</span>
+      <span class="cli-csv-hint">ID, nombre, dirección, teléfono, CUIT, zona y recepción ▼</span>
     </div>
     <div id="cli-csv-body" style="display:none;padding:14px;border-top:1px solid var(--border)">
       <div id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()"
@@ -6152,10 +6196,10 @@ _sysAlertMount();
   <form onsubmit="return false;" autocomplete="off" style="display:contents"><input type="text" id="cli-search-input"
     placeholder="🔍 Buscar nombre, ID, teléfono, CUIT, zona…"
     oninput="_debSearch('cli', _filtrarClientes, this.value)" autocomplete="off"
-    style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;background:var(--s2);box-sizing:border-box;margin-bottom:10px;display:block;color:var(--text)"></form>
+    class="cli-search-field"></form>
 
   <!-- Filtros -->
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+  <div class="cli-role-tabs" aria-label="Filtrar por rol">
     <button class="bk-tab active" onclick="_setRolFilter('',this)">Todos</button>
     <button class="bk-tab" onclick="_setRolFilter('cliente',this)">👤 Clientes</button>
     <button class="bk-tab" onclick="_setRolFilter('vendedor',this)">📝 Vendedores</button>
@@ -6167,20 +6211,24 @@ _sysAlertMount();
   </div>
 
   <!-- Acciones -->
-  <div id="cli-acciones-bar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-    <select id="cli-fil-zona" onchange="_setCliZonaFilter(this.value)" class="cli-fil-sel"><option value="">🗺 Todas las zonas</option></select>
-    <select id="cli-fil-vend" onchange="_setCliVendFilter(this.value)" class="cli-fil-sel"><option value="">👤 Todos los vendedores</option></select>
-    <button onclick="_cliForceReload()" class="cli-acc-icon rfa" title="Recargar"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></button>
-    <div class="cli-acc-wrap">
-      <button onclick="_cliToggleAccMenu(event)" class="cli-acc-btn">⚙️ Acciones ▾</button>
-      <div class="cli-acc-menu" id="cli-acc-menu" role="menu">
-        <button onclick="abrirPanelZonas();_cliCloseAccMenu()">🗺️ Gestionar zonas</button>
-        <button onclick="abrirResumenDeudores();_cliCloseAccMenu()">💰 Cuentas corrientes</button>
-        <button onclick="exportarClientesXLSX();_cliCloseAccMenu()">📊 Exportar a Excel</button>
-        <button onclick="abrirAsignarVendedores();_cliCloseAccMenu()">👥 Asignar vendedor</button>
-      </div>
+  <div id="cli-acciones-bar">
+    <div class="cli-filter-selects">
+      <select id="cli-fil-zona" onchange="_setCliZonaFilter(this.value)" class="cli-fil-sel"><option value="">🗺 Todas las zonas</option></select>
+      <select id="cli-fil-vend" onchange="_setCliVendFilter(this.value)" class="cli-fil-sel"><option value="">👤 Todos los vendedores</option></select>
     </div>
-    <span style="font-size:12px;color:var(--muted);margin-left:auto"><b id="cli-count">0</b> clientes</span>
+    <div class="cli-filter-footer">
+      <div class="cli-acc-wrap">
+        <button onclick="_cliToggleAccMenu(event)" class="cli-acc-btn" aria-haspopup="menu" aria-controls="cli-acc-menu" aria-expanded="false">⚙️ Acciones ▾</button>
+        <div class="cli-acc-menu" id="cli-acc-menu" role="menu">
+          <button onclick="abrirPanelZonas();_cliCloseAccMenu()">🗺️ Gestionar zonas</button>
+          <button onclick="abrirResumenDeudores();_cliCloseAccMenu()">💰 Cuentas corrientes</button>
+          <button onclick="exportarClientesXLSX();_cliCloseAccMenu()">📊 Exportar a Excel</button>
+          <button onclick="abrirAsignarVendedores();_cliCloseAccMenu()">👥 Asignar vendedor</button>
+        </div>
+      </div>
+      <span class="cli-count-wrap"><b id="cli-count">0</b> clientes</span>
+      <button onclick="_cliForceReload()" class="cli-acc-icon rfa" title="Recargar" aria-label="Recargar clientes"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg></button>
+    </div>
   </div>
 
   <!-- Lista -->
@@ -30508,8 +30556,18 @@ function _filtrarClientes(q){
   _renderClientesList();
 }
 
-function _cliToggleAccMenu(e){ if(e){ e.stopPropagation(); } var m=document.getElementById("cli-acc-menu"); if(m) m.classList.toggle("open"); }
-function _cliCloseAccMenu(){ var m=document.getElementById("cli-acc-menu"); if(m) m.classList.remove("open"); }
+function _cliToggleAccMenu(e){
+  if(e)e.stopPropagation();
+  var m=document.getElementById("cli-acc-menu"),btn=e&&e.currentTarget;
+  if(!m)return;
+  var abierto=m.classList.toggle("open");
+  if(btn){btn.setAttribute("aria-expanded",abierto?"true":"false");btn.textContent=abierto?"⚙️ Acciones ▴":"⚙️ Acciones ▾";}
+}
+function _cliCloseAccMenu(){
+  var m=document.getElementById("cli-acc-menu");if(!m)return;
+  m.classList.remove("open");
+  var btn=m.parentNode&&m.parentNode.querySelector(".cli-acc-btn");if(btn){btn.setAttribute("aria-expanded","false");btn.textContent="⚙️ Acciones ▾";}
+}
 document.addEventListener("click", function(e){ var w=e.target && e.target.closest ? e.target.closest(".cli-acc-wrap") : null; if(!w) _cliCloseAccMenu(); });
 function _setRolFilter(rol, btn){
   _cliRolFilter = rol;
