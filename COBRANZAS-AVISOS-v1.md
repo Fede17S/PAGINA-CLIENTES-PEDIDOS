@@ -44,3 +44,12 @@ El proceso usa solamente capital pendiente, aplica el tope configurado y nunca c
 - Tarea diaria programada a las 09:05 de Argentina.
 - Validación con cero avisos e intereses mientras el módulo está desactivado.
 
+## Corrección del detalle — 2 de noviembre de 2026
+
+- La lista y WhatsApp muestran una línea por ID de entrega, aunque haya varias etapas de aviso pendientes.
+- Los días visibles se cuentan desde la fecha real de entrega, por días calendario de Argentina. No se modifica el plazo de pago ni la programación de avisos o intereses.
+- Abrir, enviar u omitir conserva y procesa todos los IDs de aviso agrupados, sin modificar importes ni sumar la deuda varias veces.
+- Dos entregas distintas no se fusionan por coincidir en nombre, fecha, importe o número de remito.
+- Prueba de regresión: `node scripts/test_cobranzas_detalle_unico.js` (agrupación, mensaje, contadores, fechas y estados).
+- Corrección sólo de interfaz; no requiere migración ni cambios en saldos, cobros o stock.
+

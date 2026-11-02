@@ -20250,12 +20250,46 @@ async function _cobConfigGuardar(){
 }
 
 function _cobNum(v){v=Number(v||0);return isFinite(v)?Math.round(v*100)/100:0;}
+function _cobDiaCalendario(v){
+  if(v==null||v==="")return null;
+  var partes,fecha;
+  if(typeof v==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v)){
+    partes=v.split("-").map(Number);fecha=Date.UTC(partes[0],partes[1]-1,partes[2]);
+    var d=new Date(fecha);return d.getUTCFullYear()===partes[0]&&d.getUTCMonth()===partes[1]-1&&d.getUTCDate()===partes[2]?fecha:null;
+  }
+  var instante=new Date(v);if(!isFinite(instante.getTime()))return null;
+  var dia={};new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(instante).forEach(function(p){dia[p.type]=p.value;});
+  return Date.UTC(Number(dia.year),Number(dia.month)-1,Number(dia.day));
+}
+function _cobDiasDesdeEntrega(fecha,ahora){
+  var entrega=_cobDiaCalendario(fecha),hoy=_cobDiaCalendario(ahora==null?new Date():ahora);
+  return entrega==null||hoy==null?null:Math.max(0,Math.round((hoy-entrega)/86400000));
+}
+function _cobDetalleEntrega(r){
+  var dia=_cobDiaCalendario(r.fecha_entrega),dias=_cobDiasDesdeEntrega(r.fecha_entrega);
+  var atraso=dias==null?"Fecha de entrega no disponible":dias===0?"Entregado hoy":dias+" día"+(dias!==1?"s":"")+" de atraso desde la entrega";
+  var fecha=dia==null?"":" · Entregado el "+new Date(dia).toLocaleDateString("es-AR",{timeZone:"UTC",day:"2-digit",month:"short",year:"numeric"});
+  return (r.remito_num?"Remito "+r.remito_num:"Entrega")+fecha+" · "+atraso;
+}
+function _cobEntregasUnicas(rows){
+  // Una entrega puede tener varias etapas de aviso. No son deudas distintas.
+  // Agrupar sólo por el ID real, nunca por nombre, fecha, importe o número de remito.
+  var entregas=new Map();(rows||[]).forEach(function(r,i){
+    var k=r.ruta_cliente_id?"entrega:"+r.ruta_cliente_id:r.aviso_id?"aviso:"+r.aviso_id:"fila:"+i;
+    var anterior=entregas.get(k);if(!anterior||r.etapa_dias>anterior.etapa_dias)entregas.set(k,r);
+  });return Array.from(entregas.values());
+}
+function _cobAvisoIds(g){
+  // Conservar TODAS las etapas al abrir, enviar u omitir para que no reaparezcan.
+  return Array.from(new Set(g.rows.map(function(r){return r.aviso_id;}).filter(Boolean)));
+}
 function _cobAgrupar(rows){
-  var mapa={};(rows||[]).forEach(function(r){
+  var mapa=Object.create(null);(rows||[]).forEach(function(original){
+    var r=Object.assign({},original);
     ["capital","interes","saldo_cliente","dias_atraso","etapa_dias"].forEach(function(k){r[k]=_cobNum(r[k]);});
     var k=String(r.cliente_id);if(!mapa[k])mapa[k]={clienteId:r.cliente_id,uid:r.cliente_uid,nom:r.cliente_nom||r.cliente_uid||"Cliente",tel:r.telefono||"",saldo:Math.max(0,r.saldo_cliente),alias:r.alias_pago||"",cbu:r.cbu_pago||"",banco:r.banco_pago||"",titular:r.titular_pago||"",cuit:r.cuit_pago||"",plantilla:r.mensaje_plantilla||"",rows:[]};mapa[k].rows.push(r);
   });
-  return Object.values(mapa).filter(function(g){return g.saldo>.009;}).sort(function(a,b){return b.saldo-a.saldo;});
+  return Object.values(mapa).filter(function(g){return g.saldo>.009;}).map(function(g){g.entregas=_cobEntregasUnicas(g.rows);return g;}).sort(function(a,b){return b.saldo-a.saldo;});
 }
 async function _cobActualizarBadge(){
   if(!_sbEmpId||!navigator.onLine)return;
@@ -20273,22 +20307,24 @@ async function _cobAvisosCargar(generar){
 }
 function _cobAvisosRender(){
   var body=document.getElementById("cob-avisos-body"),meta=document.getElementById("cob-avisos-meta"),sub=document.getElementById("cob-avisos-sub"),b=document.getElementById("cob-avisos-badge");
-  var docs=_cobAvisosGrupos.reduce(function(s,g){return s+g.rows.length;},0);if(meta)meta.textContent=_cobAvisosGrupos.length+" cliente"+(_cobAvisosGrupos.length!==1?"s":"")+" · "+docs+" entrega"+(docs!==1?"s":"")+" pendiente"+(docs!==1?"s":"");if(sub)sub.textContent="Sólo se muestran saldos actuales mayores a cero";if(b){b.textContent=_cobAvisosGrupos.length;b.style.display=_cobAvisosGrupos.length?"inline-flex":"none";}
+  var docs=_cobAvisosGrupos.reduce(function(s,g){return s+g.entregas.length;},0);if(meta)meta.textContent=_cobAvisosGrupos.length+" cliente"+(_cobAvisosGrupos.length!==1?"s":"")+" · "+docs+" entrega"+(docs!==1?"s":"")+" pendiente"+(docs!==1?"s":"");if(sub)sub.textContent="Una línea por entrega · días desde la entrega real";if(b){b.textContent=_cobAvisosGrupos.length;b.style.display=_cobAvisosGrupos.length?"inline-flex":"none";}
   if(!_cobAvisosGrupos.length){body.innerHTML='<div class="cc2-empty">✅ No hay avisos pendientes para hoy.</div>';return;}
   body.innerHTML=_cobAvisosGrupos.map(function(g,idx){
-    var maxDias=Math.max.apply(null,g.rows.map(function(r){return r.dias_atraso;})),sinTel=!String(g.tel||"").replace(/\D/g,"");
-    var docsHtml=g.rows.map(function(r){var intTxt=r.interes>.009?' · interés $'+fM(r.interes):'';return '<div class="cob-doc"><span>'+(r.remito_num?'Remito '+escHtml(r.remito_num):'Entrega')+' · '+_cc2Fecha(r.fecha_entrega)+' · '+r.dias_atraso+'d de atraso</span><b>$'+fM(r.capital)+intTxt+'</b></div>';}).join("");
-    return '<div class="cob-group"><div class="cob-group-head"><div class="cob-group-main"><b>'+escHtml(g.nom)+'</b><span>'+(g.tel?'📱 '+escHtml(g.tel):'⚠️ Sin teléfono cargado')+' · '+maxDias+' días de atraso</span></div><div class="cob-total">$'+fM(g.saldo)+'</div></div><div class="cob-docs">'+docsHtml+'</div><div class="cob-group-actions"><button class="cc2-btn blue" '+(sinTel?'disabled title="Cargá un teléfono en Gestión de clientes"':'')+' onclick="_cobAbrirWhatsApp('+idx+')">💬 Abrir WhatsApp</button><button class="cc2-btn primary" onclick="_cobMarcarGrupo('+idx+',\'enviado\')">✓ Marcar enviado</button><button class="cc2-btn" onclick="_cobMarcarGrupo('+idx+',\'omitido\')">Omitir</button></div></div>';
+    var sinTel=!String(g.tel||"").replace(/\D/g,"");
+    var docsHtml=g.entregas.map(function(r){var intTxt=r.interes>.009?' · interés $'+fM(r.interes):'';return '<div class="cob-doc"><span>'+escHtml(_cobDetalleEntrega(r))+'</span><b>$'+fM(r.capital)+intTxt+'</b></div>';}).join("");
+    return '<div class="cob-group"><div class="cob-group-head"><div class="cob-group-main"><b>'+escHtml(g.nom)+'</b><span>'+(g.tel?'📱 '+escHtml(g.tel):'⚠️ Sin teléfono cargado')+'</span></div><div class="cob-total">$'+fM(g.saldo)+'</div></div><div class="cob-docs">'+docsHtml+'</div><div class="cob-group-actions"><button class="cc2-btn blue" '+(sinTel?'disabled title="Cargá un teléfono en Gestión de clientes"':'')+' onclick="_cobAbrirWhatsApp('+idx+')">💬 Abrir WhatsApp</button><button class="cc2-btn primary" onclick="_cobMarcarGrupo('+idx+',\'enviado\')">✓ Marcar enviado</button><button class="cc2-btn" onclick="_cobMarcarGrupo('+idx+',\'omitido\')">Omitir</button></div></div>';
   }).join("");
 }
 function _cobDatosPago(g){
   var a=[];if(g.alias)a.push("Alias: "+g.alias);if(g.cbu)a.push("CBU/CVU: "+g.cbu);if(g.banco)a.push("Banco: "+g.banco);if(g.titular)a.push("Titular: "+g.titular);if(g.cuit)a.push("CUIT: "+g.cuit);return a.join("\n");
 }
 function _cobMensajeGrupo(g){
-  var filas=g.rows.slice().sort(function(a,b){return new Date(a.fecha_entrega)-new Date(b.fecha_entrega);});
-  var detalle=filas.map(function(r){return "• "+(r.remito_num?"Remito "+r.remito_num:"Entrega del "+_cc2Fecha(r.fecha_entrega))+": $"+fM(r.capital+r.interes)+" ("+r.dias_atraso+" días)";}).join("\n");
+  var filas=g.entregas.slice().sort(function(a,b){return new Date(a.fecha_entrega)-new Date(b.fecha_entrega);});
+  var detalle=filas.map(function(r){return "• "+_cobDetalleEntrega(r)+" · Pendiente $"+fM(r.capital+r.interes);}).join("\n");
   var primero=filas[0]||{},datos=_cobDatosPago(g),plantilla=g.plantilla||"Hola {cliente}. Te recordamos que se encuentra pendiente el pago de {monto_total}, correspondiente a la entrega del {fecha_entrega}. {detalle} {datos_pago}";
-  var vals={"{cliente}":g.nom,"{monto_total}":"$"+fM(g.saldo),"{fecha_entrega}":_cc2Fecha(primero.fecha_entrega),"{detalle}":detalle,"{dias_atraso}":String(Math.max.apply(null,filas.map(function(r){return r.dias_atraso;}))),"{datos_pago}":datos};
+  var dia=_cobDiaCalendario(primero.fecha_entrega),fecha=dia==null?"fecha no disponible":new Date(dia).toLocaleDateString("es-AR",{timeZone:"UTC",day:"2-digit",month:"short",year:"numeric"});
+  var dias=filas.map(function(r){return _cobDiasDesdeEntrega(r.fecha_entrega);}).filter(function(d){return d!=null;});
+  var vals={"{cliente}":g.nom,"{monto_total}":"$"+fM(g.saldo),"{fecha_entrega}":fecha,"{detalle}":detalle,"{dias_atraso}":dias.length?String(Math.max.apply(null,dias)):"no disponible","{datos_pago}":datos};
   Object.keys(vals).forEach(function(k){plantilla=plantilla.split(k).join(vals[k]);});
   if(plantilla.indexOf(detalle)<0)plantilla+="\n\nDetalle:\n"+detalle;if(datos&&plantilla.indexOf(datos)<0)plantilla+="\n\nDatos para el pago:\n"+datos;return plantilla.replace(/\n{3,}/g,"\n\n").trim();
 }
@@ -20299,7 +20335,7 @@ async function _cobAbrirWhatsApp(idx){
   var g=_cobAvisosGrupos[idx];if(!g)return;var n=_cobTelefonoWhatsApp(g.tel);if(!n){showNotif("El cliente no tiene teléfono cargado","err");return;}var msg=_cobMensajeGrupo(g);
   if(!(await _confirmar({icono:"💬",titulo:"Recordatorio para "+g.nom,mensaje:msg,ok:"Abrir WhatsApp",cancelar:"Cancelar",persistente:true})))return;
   _cc2AbrirWhatsAppSeguro("https://wa.me/"+n+"?text="+encodeURIComponent(msg));
-  try{await _cobMarcarIds(g.rows.map(function(r){return r.aviso_id;}),"abierto",false);}catch(e){}
+  try{await _cobMarcarIds(_cobAvisoIds(g),"abierto",false);}catch(e){}
 }
 async function _cobMarcarIds(ids,estado,recargar){
   await sbFetch("POST","/rest/v1/rpc/cobranza_marcar_avisos_v1",{p_empresa_id:_sbEmpId,p_ids:ids,p_estado:estado});if(recargar!==false)await _cobAvisosCargar(false);
@@ -20307,7 +20343,7 @@ async function _cobMarcarIds(ids,estado,recargar){
 async function _cobMarcarGrupo(idx,estado){
   var g=_cobAvisosGrupos[idx];if(!g)return;var accion=estado==="enviado"?"marcar estos avisos como enviados":"omitir estos avisos";
   if(!(await _confirmar({icono:estado==="enviado"?"✅":"⏭️",titulo:estado==="enviado"?"Confirmar envío":"Omitir recordatorio",mensaje:"Se van a "+accion+" para "+g.nom+".",ok:estado==="enviado"?"Sí, fue enviado":"Omitir",cancelar:"Cancelar",persistente:true})))return;
-  try{await _cobMarcarIds(g.rows.map(function(r){return r.aviso_id;}),estado,true);showNotif(estado==="enviado"?"Aviso registrado como enviado":"Aviso omitido","ok");}catch(e){showNotif("No se pudo actualizar: "+(e.message||"error"),"err");}
+  try{await _cobMarcarIds(_cobAvisoIds(g),estado,true);showNotif(estado==="enviado"?"Aviso registrado como enviado":"Aviso omitido","ok");}catch(e){showNotif("No se pudo actualizar: "+(e.message||"error"),"err");}
 }
 
 function descontarStock(items, motivo){
