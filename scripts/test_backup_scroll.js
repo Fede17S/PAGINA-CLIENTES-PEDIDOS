@@ -15,6 +15,7 @@ const css = Array.from(panel.matchAll(/<style\b[^>]*>[\s\S]*?<\/style>/gi), m =>
 const html = between('<div id="backup" class="section">', '<div id="pedidos-acum"');
 const functions = [
   between('async function cargarBackupFirebase()', '// ══ BACKUP MULTI-SELECT'),
+  between('var _bkSelectMode = false;', 'async function _bkReasignar()'),
   between('function renderBackup()', '// ══ TIPO COMPROBANTE'),
   between('async function _cambiarAprobacion(', 'var META_VENTAS =')
 ].join('\n');
@@ -73,14 +74,29 @@ const functions = [
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const trasCarga = top(38);
         const desplazado = sec.scrollTop > 1000;
-        return { antes, despues, aprobado, filtrado, vecino, enCarga, trasCarga, desplazado, aprobados };
+        const individuales = aprobados.slice();
+        let confirmaciones = 0;
+        window._confirmar = async () => { confirmaciones++; return true; };
+        window._sbGetBackup = async id => ({ [id]: { ...pedidos.find(p => p.id === id) } });
+        _bkToggleSelect();
+        card(40).click(); card(41).click();
+        alinear(40, -8);
+        const textoBoton = document.getElementById('bk-aprobar-seleccionados').textContent;
+        await _bkAprobarSeleccionados();
+        return { antes, despues, aprobado, filtrado, vecino, enCarga, trasCarga, desplazado, individuales,
+          lote: aprobados.slice(2), confirmaciones, textoBoton, vecinoLote: top(42), resultado: document.getElementById('bk-aprobar-resultado').textContent };
       });
-      assert.deepEqual(result.aprobados, ['pedido-30', 'pedido-31']);
+      assert.deepEqual(result.individuales, ['pedido-30', 'pedido-31']);
       assert(result.aprobado && result.filtrado && result.desplazado, `${width}: ${JSON.stringify(result)}`);
       assert(Math.abs(result.antes - result.despues) < 2, `${width}: aprobar en Todos movió la tarjeta`);
       assert(Math.abs(result.vecino) < 2, `${width}: el siguiente pendiente no ocupó el lugar del aprobado`);
       assert(Math.abs(result.enCarga - result.trasCarga) < 2, `${width}: la sincronización movió la posición`);
-      console.log(`Backup: aprobación en Todos y En espera, y actualización sin saltos (${width}px) OK`);
+      assert.deepEqual(result.lote, ['pedido-40', 'pedido-41']);
+      assert.equal(result.confirmaciones, 1);
+      assert.match(result.textoBoton, /Aprobar seleccionados \(2\)/);
+      assert.match(result.resultado, /^2 aprobados/);
+      assert(Math.abs(result.vecinoLote) < 2, `${width}: la aprobación en lote movió la posición`);
+      console.log(`Backup: aprobación individual y en lote, filtros y actualización sin saltos (${width}px) OK`);
       await page.close();
     }
   } finally {

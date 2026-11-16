@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.75 — conserva la posición en Backup de Pedidos
-const CACHE_NAME = 'distribix-v1.75';
-const CACHE_STATIC = 'distribix-static-v1.75';
+// DISTRIBIX Service Worker v1.76 — aprobación de pedidos seleccionados
+const CACHE_NAME = 'distribix-v1.76';
+const CACHE_STATIC = 'distribix-static-v1.76';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea

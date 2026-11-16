@@ -4962,9 +4962,11 @@ _sysAlertMount();
   <div id="bk-select-toolbar" style="display:none;background:var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
     <span id="bk-sel-count" style="color:#fff;font-weight:700;font-size:13px;flex:1">0 seleccionados</span>
     <button onclick="_bkSelAll()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">☑ Todos</button>
+    <button type="button" id="bk-aprobar-seleccionados" onclick="_bkAprobarSeleccionados()" class="bk-act-btn" style="display:none;background:#e8f5ee;color:#0f713f;border-color:#a7f3d0;font-weight:800" disabled>✓ Aprobar seleccionados</button>
     <button onclick="_bkReasignar()" style="background:var(--s2);color:var(--accent);border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔀 Reasignar a Ruta</button>
     <button onclick="_bkToggleSelect()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit">✕</button>
   </div>
+  <div id="bk-aprobar-resultado" role="status" aria-live="polite" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:12px"></div>
 
   <div id="bk-sync-status" style="display:none;font-size:11.5px;margin-bottom:8px;padding:6px 10px;border-radius:7px;font-weight:600"></div>
 
@@ -10721,10 +10723,10 @@ async function _sbDelProvMov(id){
   return sbDel("proveedor_movimientos", "id=eq."+id+"&empresa_id=eq."+_sbEmpId);
 }
 
-async function _sbGetBackup(){
-  // Traer los últimos 500 pedidos, ordenados por fecha desc
-  var rows = await sbGet("backup_pedidos",
-    "select=*&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=500"
+async function _sbGetBackup(soloId){
+  // Para aprobar en lote, verificar el pedido en el servidor, sin caché.
+  var rows = await (soloId?_sbGetRaw:sbGet)("backup_pedidos",
+    "select=*&empresa_id=eq."+_sbEmpId+(soloId?"&id=eq."+encodeURIComponent(soloId)+"&limit=1":"&order=fecha.desc&limit=500")
   );
   if(!rows || !rows.length) return null;
   var r={};
@@ -23991,7 +23993,8 @@ function subirBackupFirebase(item){ /* no-op */ }
 function sincronizarPendientesBackup(){ _syncPendingBackups(); }
 
 async function cargarBackupFirebase(){
-  if(!_sbEmpId && !empresaKey) return;
+  if(_bkLoteAprobacion || (!_sbEmpId && !empresaKey)) return;
+  var revisionLote=_bkRevisionLoteAprobacion;
   var wrap=document.getElementById("backup-list");
 
   // No reemplazar una lista visible por un esqueleto durante la actualización.
@@ -24003,6 +24006,7 @@ async function cargarBackupFirebase(){
 
   try {
     var data = await _sbGetBackup();
+    if(revisionLote!==_bkRevisionLoteAprobacion) return;
     var remoteItems = data ? Object.values(data) : [];
     remoteItems.sort(function(a,b){ return (b.fecha||"").localeCompare(a.fecha||""); });
 
@@ -24032,29 +24036,109 @@ async function cargarBackupFirebase(){
 // ══ BACKUP MULTI-SELECT ══
 var _bkSelectMode = false;
 var _bkSelected   = new Set(); // Set de bk.id seleccionados
+var _bkLoteAprobacion = null, _bkRevisionLoteAprobacion = 0;
+var _bkCambiosAprobacion = new Set();
+
+function _bkPuedeAprobar(){
+  return !!(currentUser && (currentUser.role==="admin" || currentUser.role==="armador" ||
+    _tengoRol("admin") || _tengoRol("armador") || _tengoRol("co-admin")));
+}
+function _bkAprobableEnLote(b){
+  return !!(b && b.aprobado==null && !b.stockDevuelto && !b._stkDevuelto && !b.rutaVinculadaId &&
+    b.estado!=="rechazado" && b.estado!=="enviado" && b.estado!=="entregado");
+}
+function _bkSeleccionadosParaAprobar(){
+  var vistos=new Set();
+  return getBackups().filter(function(b){
+    var id=b._sbId||b._fbKey||b.id;
+    if(!_bkSelected.has(b.id)||!_bkAprobableEnLote(b)||!id||vistos.has(id)) return false;
+    vistos.add(id);return true;
+  });
+}
+function _bkActualizarSeleccion(){
+  var count=document.getElementById("bk-sel-count"), btn=document.getElementById("bk-aprobar-seleccionados");
+  if(count) count.textContent=_bkSelected.size+" seleccionado"+(_bkSelected.size!==1?"s":"");
+  if(!btn) return;
+  var permitido=_bkPuedeAprobar(), n=permitido&&_bkSelectMode?_bkSeleccionadosParaAprobar().length:0;
+  btn.style.display=permitido?"":"none";
+  btn.disabled=!n||!!_bkLoteAprobacion;
+  btn.textContent="✓ Aprobar seleccionados"+(n?" ("+n+")":"");
+  btn.title="Sólo pedidos pendientes de aprobación";
+}
+function _bkResultadoAprobacion(msg){
+  var el=document.getElementById("bk-aprobar-resultado"), wrap=document.getElementById("backup-list");
+  if(el){
+    var pos=wrap?_bkCapturarScroll(wrap):null;
+    el.textContent=msg;el.style.display=msg?"block":"none";
+    if(pos) _bkRestaurarScroll(wrap,pos);
+  }
+}
+function _bkSesionLote(lote){return _sbEmpId===lote.empresa && currentUser===lote.usuario && _bkPuedeAprobar();}
+
+async function _bkAprobarSeleccionados(){
+  if(!_bkSelectMode||!_bkPuedeAprobar()||_bkLoteAprobacion) return;
+  if(_bkCambiosAprobacion.size){showNotif("Esperá a que termine la aprobación en curso","err");return;}
+  if(!_sbEmpId||!navigator.onLine){showNotif("Necesitás conexión para aprobar pedidos","err");return;}
+  var pedidos=_bkSeleccionadosParaAprobar(), ignorados=_bkSelected.size-pedidos.length;
+  if(!pedidos.length){showNotif("No hay pedidos pendientes en la selección","err");return;}
+  var lote={empresa:_sbEmpId,usuario:currentUser}, n=pedidos.length, ok=0, omitidos=0, errores=[], intentados=0, confirmado=false;
+  _bkLoteAprobacion=lote;_bkRevisionLoteAprobacion++;_bkActualizarSeleccion();
+  try{
+    if(!await _confirmar({icono:"✓",titulo:"Aprobar "+n+" pedido"+(n===1?"":"s"),
+      mensaje:"Se aprobarán los pedidos pendientes seleccionados. No se asignarán a una ruta ni se enviarán avisos."+(ignorados?"\n\nSe omiten "+ignorados+" que no están pendientes o están repetidos.":""),
+      ok:"Aprobar "+n,cancelar:"Cancelar",persistente:true})) return;
+    confirmado=true;
+    for(var i=0;i<n && _bkSesionLote(lote) && navigator.onLine;i++){
+      var bk=pedidos[i];intentados++;
+      _bkResultadoAprobacion("Aprobando pedidos: "+intentados+" de "+n+"…");
+      try{
+        var resultado=await _cambiarAprobacion(bk,true,lote);
+        if(resultado===true){ok++;_bkSelected.delete(bk.id);}
+        else if(resultado==="omitido"){omitidos++;_bkSelected.delete(bk.id);}
+        else throw new Error("No se confirmó la aprobación");
+      }catch(e){errores.push({nom:bk.clienteNom||"Pedido",motivo:e.message||"No se pudo aprobar"});}
+    }
+  }finally{
+    _bkLoteAprobacion=null;
+    if(_bkSesionLote(lote)){
+      _bkActualizarSeleccion();
+      if(confirmado){
+        var resumen=ok+" aprobado"+(ok===1?"":"s")+" · "+(ignorados+omitidos)+" omitidos · "+errores.length+" con error";
+        if(intentados<n) resumen+=" · "+(n-intentados)+" sin procesar";
+        _bkResultadoAprobacion(resumen+(errores.length?" — "+errores.slice(0,3).map(function(e){return e.nom+": "+e.motivo;}).join(" · ")+(errores.length>3?" · …":""):""));
+        renderBackup();
+        showNotif(resumen,errores.length||intentados<n?"err":"ok");
+      }
+    }else{_bkResultadoAprobacion("");}
+  }
+}
 
 function _bkToggleSelect(){
+  if(_bkLoteAprobacion) return;
   _bkSelectMode = !_bkSelectMode;
   _bkSelected.clear();
   var toolbar = document.getElementById("bk-select-toolbar");
   var btn     = document.getElementById("bk-sel-btn");
   if(toolbar) toolbar.style.display = _bkSelectMode ? "flex" : "none";
   if(btn) btn.style.background = _bkSelectMode ? "var(--accent)" : "";
+  _bkResultadoAprobacion("");
   renderBackup();
 }
 
 function _bkToggleItem(id){
+  if(_bkLoteAprobacion) return false;
   if(_bkSelected.has(id)) _bkSelected.delete(id);
   else _bkSelected.add(id);
-  var countEl = document.getElementById("bk-sel-count");
-  if(countEl) countEl.textContent = _bkSelected.size + " seleccionado" + (_bkSelected.size!==1?"s":"");
+  _bkActualizarSeleccion();
   // Update card visual
   var card = document.querySelector("[data-bk-id='"+id+"']");
   if(card) card.style.outline = _bkSelected.has(id) ? "2.5px solid var(--accent)" : "none";
+  return true;
 }
 
 function _bkSelAll(){
-  var cards = document.querySelectorAll("[data-bk-id]");
+  if(_bkLoteAprobacion) return;
+  var cards = document.querySelectorAll("#backup-list [data-bk-id]");
   var allSelected = cards.length > 0 && Array.from(cards).every(function(c){ return _bkSelected.has(c.dataset.bkId); });
   if(allSelected){
     // Deseleccionar todos
@@ -24063,11 +24147,11 @@ function _bkSelAll(){
     // Seleccionar todos visibles
     cards.forEach(function(c){ _bkSelected.add(c.dataset.bkId); c.style.outline="2.5px solid var(--accent)"; });
   }
-  var countEl = document.getElementById("bk-sel-count");
-  if(countEl) countEl.textContent = _bkSelected.size+" seleccionado"+(_bkSelected.size!==1?"s":"");
+  renderBackup();
 }
 
 async function _bkReasignar(){
+  if(_bkLoteAprobacion) return;
   if(!_bkSelected.size){ showNotif("Seleccioná al menos un pedido","err"); return; }
 
   // Si rutasData está vacío (no se entró a Hoja de Ruta en esta sesión), cargarlo ahora
@@ -24602,6 +24686,7 @@ async function _confirmarReasignar(){
 var _bkAutoRefreshTimer = null;
 
 function _bkRefresh(){
+  if(_bkLoteAprobacion) return;
   var btn = document.getElementById("bk-refresh-btn");
   var status = document.getElementById("bk-sync-status");
   if(btn){ btn.textContent="⏳"; btn.disabled=true; }
@@ -24829,8 +24914,8 @@ function renderBackup(){
   // Ven TODOS los pedidos: admin, armador y co-admin (el co-admin es un admin
   // acotado: ya ve Finanzas y Auditoría, así que en Backup también ve todo).
   // El jefe de ventas, como el vendedor, ve solo los pedidos que cargó él.
-  var isAdminBk = currentUser && (currentUser.role === "admin" || currentUser.role === "armador" ||
-                    _tengoRol("admin") || _tengoRol("armador") || _tengoRol("co-admin"));
+  var isAdminBk = _bkPuedeAprobar();
+  _bkActualizarSeleccion();
   // Puede editar SUS propios pedidos: vendedor, jefe de ventas y co-admin.
   var isVendedorBk = currentUser && (currentUser.role === "vendedor" || !currentUser.role ||
                     _tengoRol("vendedor") || _tengoRol("jefe-ventas") || _tengoRol("co-admin"));
@@ -25041,10 +25126,10 @@ function renderBackup(){
               '<div style="font-size:9.5px;color:#1e2a4a;font-weight:700">🟦 c/Fact. A</div>'
             : '<div style="font-weight:700;font-size:14px">$'+fM(_totalMostrar)+'</div>')+
         '</div>';
-      chk.onclick = function(e){ e.stopPropagation(); _bkToggleItem(bk.id); renderBackup(); };
+      chk.onclick = function(e){ e.stopPropagation(); if(_bkToggleItem(bk.id)) renderBackup(); };
       card.appendChild(chk);
       card.style.cursor="pointer";
-      card.onclick=function(){ _bkToggleItem(bk.id); renderBackup(); };
+      card.onclick=function(){ if(_bkToggleItem(bk.id)) renderBackup(); };
       _bkListaNueva.appendChild(card);
     } else {
 
@@ -26855,7 +26940,20 @@ async function _sincronizarVentaAprobadaEditada(bk){
   });
 }
 
-async function confirmarBackupComoRemito(bkParam){
+async function _bkCargarCostosAprobacion(){
+  var costos=Object.create(null);
+  try {
+    var productos=await sbGet("productos","select=id,codigo,precio_base&empresa_id=eq."+_sbEmpId+"&limit=5000") || [];
+    productos.forEach(function(p){
+      var costo=p.precio_base==null?null:+p.precio_base;
+      if(p.id!=null && p.id!=="") costos[String(p.id)]=costo;
+      if(p.codigo!=null && p.codigo!=="") costos[String(p.codigo)]=costo;
+    });
+  }catch(e){console.warn("[Aprobar] no se pudo cargar costos:",e.message);}
+  return costos;
+}
+
+async function confirmarBackupComoRemito(bkParam,lote){
   var bk = bkParam || _editBkItem;
   if(!bk) return;
   var ahora = new Date();
@@ -26887,15 +26985,8 @@ async function confirmarBackupComoRemito(bkParam){
   // Los ítems del pedido original conservan sus precios (p = precio al momento del pedido)
   // NO se recalculan precios — se usa lo que tenía el pedido
   // Congelar el COSTO actual de cada producto (foto al aprobar) para la ganancia histórica
-  var _costoMap={};
-  try {
-    var _pr = await sbGet("productos","select=id,codigo,precio_base&empresa_id=eq."+_sbEmpId+"&limit=5000") || [];
-    _pr.forEach(function(p){
-      var _c=(p.precio_base!=null?+p.precio_base:null);
-      if(p.id!=null && p.id!=="")        _costoMap[String(p.id)]=_c;
-      if(p.codigo!=null && p.codigo!=="")_costoMap[String(p.codigo)]=_c;
-    });
-  } catch(e){ console.warn("[Aprobar] no se pudo cargar costos:", e.message); }
+  var _costoMap=lote?(lote.costos||(lote.costos=await _bkCargarCostosAprobacion())):await _bkCargarCostosAprobacion();
+  if(lote&&!_bkSesionLote(lote)) throw new Error("Cambió la sesión durante la aprobación");
   var itemsAprobados = items.map(function(i){
     // Conservar sub original (ya tiene descuentos aplicados), dsc y todos los campos
     var _cst = _costoMap[String(i.id)];
@@ -26966,7 +27057,10 @@ async function confirmarBackupComoRemito(bkParam){
     ["Total aprobado: $"+fM(_totalBase),"Vendedor: "+vendedorNom]
   ));
   if(sbId && _sbEmpId){
-    await sbPatch("backup_pedidos","id=eq."+sbId+"&empresa_id=eq."+_sbEmpId, {
+    if(lote&&!_bkSesionLote(lote)) throw new Error("Cambió la sesión durante la aprobación");
+    var match="id=eq."+sbId+"&empresa_id=eq."+_sbEmpId;
+    if(lote) match+="&aprobado=is.null&ruta_vinculada_id=is.null";
+    var guardados=await sbPatch("backup_pedidos",match, {
       tipo_comprobante: bk.tipoComprobante || "remito",
       items:           itemsAprobados,
       descuentos:      _dscCanon,
@@ -26980,7 +27074,10 @@ async function confirmarBackupComoRemito(bkParam){
       ruta_vinculada_id:null,
       historial:       _histAprob
     });
+    if(lote&&(!Array.isArray(guardados)||!guardados.some(function(p){return p.id===sbId&&p.aprobado===true;})))
+      throw new Error("El pedido cambió o el servidor no confirmó la aprobación; actualizá la lista");
   }
+  if(lote&&!_bkSesionLote(lote)) throw new Error("Cambió la sesión durante la aprobación");
   var arr2 = getBackups();
   var idx2 = arr2.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId; });
   if(idx2>=0){
@@ -35803,7 +35900,29 @@ async function _bkActualizarPrecios(bk){
   }
 }
 
-async function _cambiarAprobacion(bk, aprobado){
+async function _cambiarAprobacion(bk, aprobado, lote){
+  if(_bkLoteAprobacion && _bkLoteAprobacion!==lote){showNotif("Ya se están aprobando los pedidos seleccionados","err");return false;}
+  var id=bk._sbId||bk._fbKey||bk.id;
+  if(_bkCambiosAprobacion.has(id)) return false;
+  _bkCambiosAprobacion.add(id);
+  try{
+    if(lote){
+      if(_bkLoteAprobacion!==lote || !_bkSesionLote(lote) || !navigator.onLine) throw new Error("Ya no está disponible la sesión de aprobación");
+      var actuales=await _sbGetBackup(id), actual=actuales&&actuales[id];
+      if(!_bkSesionLote(lote) || !navigator.onLine) throw new Error("Se perdió la sesión o la conexión");
+      if(!actual) throw new Error("El pedido no está disponible en el servidor");
+      if(!_bkAprobableEnLote(actual)){
+        var arr=getBackups(), ix=arr.findIndex(function(b){return b.id===bk.id;});
+        if(ix>=0){arr[ix]=Object.assign({},actual,{id:bk.id});saveBackups(arr);}
+        return "omitido";
+      }
+      bk=Object.assign({},actual,{id:bk.id});
+    }
+    return await _bkAplicarAprobacion(bk,aprobado,lote);
+  }finally{_bkCambiosAprobacion.delete(id);}
+}
+
+async function _bkAplicarAprobacion(bk, aprobado, lote){
   var sbId = bk._sbId || bk._fbKey || bk.id;
   var _itemsReales = (bk.items||[]).filter(function(it){ return !it.pendiente; });
   var eraRechazado=bk.aprobado===false;
@@ -35830,7 +35949,7 @@ async function _cambiarAprobacion(bk, aprobado){
       }
       var ahoraRe=new Date().toISOString();
       if(eraRechazado) bk.reaprobadoEn=ahoraRe;
-      await confirmarBackupComoRemito(bk);
+      await confirmarBackupComoRemito(bk,lote);
       bk.aprobado=true; bk.stockDevuelto=false; bk._stkDevuelto=false;
       bk.estado="recibido"; bk.rutaVinculadaId=null;
     }else{
@@ -35854,6 +35973,7 @@ async function _cambiarAprobacion(bk, aprobado){
     }
   }catch(e){
     console.warn("[Aprobación segura]",e);
+    if(lote) throw e; // El lote sólo admite pendientes sin stock devuelto.
     // Si la reaprobación llegó a sacar stock pero falló el guardado posterior,
     // compensar de inmediato y mantener el pedido rechazado.
     if(aprobado===true && sacoEnEsteIntento){
@@ -35878,6 +35998,7 @@ async function _cambiarAprobacion(bk, aprobado){
   var idx = arr.findIndex(function(x){ return x.id===bk.id || x._sbId===sbId || x._fbKey===sbId; });
   if(idx>=0) arr[idx]=Object.assign({},arr[idx],bk);
   saveBackups(arr);
+  if(lote) return true; // Un solo render (con ancla de scroll) al terminar el lote.
   backupAbierto = bk.id;
 
   renderBackup();
@@ -35885,6 +36006,7 @@ async function _cambiarAprobacion(bk, aprobado){
 
   // Aprobar es una operación interna: no cambia el pedido a entregado ni
   // dispara avisos. La entrega se comunica solamente desde Reparto.
+  return true;
 }
 // Detecta el contenedor que realmente scrollea alrededor de la lista de backups
 function _bkScrollEl(wrap){
