@@ -1112,6 +1112,7 @@ html[data-theme="dark"] #ped-float-summary { background:#1e242d; border:1px soli
   #catalogo.section.active { padding-left:max(16px, calc((100% - 720px)/2)); padding-right:max(16px, calc((100% - 720px)/2)); }
 }
 /* Backup de Pedidos: lista + panel de detalle al lado en desktop */
+#backup.section.active { overflow-anchor:none; }
 .backup-split { display:block; }
 .backup-detail-panel { display:none; }
 @media (min-width:901px){
@@ -23992,11 +23993,11 @@ function sincronizarPendientesBackup(){ _syncPendingBackups(); }
 async function cargarBackupFirebase(){
   if(!_sbEmpId && !empresaKey) return;
   var wrap=document.getElementById("backup-list");
-  if(wrap) wrap.innerHTML = _skeletonCards(6, "pedido");
 
-  // Mostrar caché local inmediatamente mientras carga Supabase
+  // No reemplazar una lista visible por un esqueleto durante la actualización.
   var cached = getBackups();
-  if(cached.length){ renderBackup(); }
+  if(cached.length) renderBackup();
+  else if(wrap) wrap.innerHTML = _skeletonCards(6, "pedido");
 
   if(!_sbEmpId){ renderBackup(); return; }
 
@@ -24822,6 +24823,7 @@ function _ncBackupAviso(){
 function renderBackup(){
   var wrap = document.getElementById("backup-list");
   if(!wrap) return;
+  var _posicion = _bkCapturarScroll(wrap);
   try { _ncBackupAviso(); } catch(e){}
   var all = getBackups();
   // Ven TODOS los pedidos: admin, armador y co-admin (el co-admin es un admin
@@ -24886,16 +24888,18 @@ function renderBackup(){
     return true;
   });
 
+  var _bkPanel = document.getElementById("backup-detail-panel");
+  var _bkDesktop = window.matchMedia && window.matchMedia("(min-width:901px)").matches;
+  var _bkDetalleVacio='<div class="bk-detail-panel-empty">💾<div style="margin-top:10px;font-weight:600">Elegí un pedido de la izquierda</div><div style="font-size:12px;margin-top:4px">para ver su detalle, productos y acciones acá.</div></div>';
   if(!arr.length){
     var msgs={todos:"Sin pedidos",espera:"Sin pedidos en espera",aprobados:"Sin pedidos aprobados",rechazados:"Sin pedidos rechazados"};
     var msgDia = (_bkTab.indexOf("dia_")===0||_bkTab.indexOf("diaap_")===0) ? "Sin pedidos para este día de entrega" : (msgs[_bkTab]||"Sin pedidos");
     wrap.innerHTML='<div class="bk-zero"><div class="bk-zero-icon">💾</div><div class="bk-zero-txt">'+msgDia+'</div></div>';
+    if(_bkPanel) _bkPanel.innerHTML=_bkDesktop?_bkDetalleVacio:"";
     return;
   }
-  wrap.innerHTML="";
-  var _bkPanel = document.getElementById("backup-detail-panel");
-  var _bkDesktop = window.matchMedia && window.matchMedia("(min-width:901px)").matches;
-  if(_bkPanel) _bkPanel.innerHTML="";
+  var _bkListaNueva = document.createDocumentFragment();
+  var _bkDetalleNuevo = null;
   arr.forEach(function(bk,idx){
     var isOpen = backupAbierto === bk.id;
     var d = new Date(bk.fecha);
@@ -25041,7 +25045,7 @@ function renderBackup(){
       card.appendChild(chk);
       card.style.cursor="pointer";
       card.onclick=function(){ _bkToggleItem(bk.id); renderBackup(); };
-      wrap.appendChild(card);
+      _bkListaNueva.appendChild(card);
     } else {
 
     /* Header */
@@ -25390,16 +25394,19 @@ function renderBackup(){
     detail.appendChild(histNuevo);
 
     if(_bkDesktop && _bkPanel){
-      if(isOpen){ _bkPanel.appendChild(detail); }
+      if(isOpen){ _bkDetalleNuevo=detail; }
     } else {
       card.appendChild(detail);
     }
-    wrap.appendChild(card);
+    _bkListaNueva.appendChild(card);
     } // end else (normal render)
   });
-  if(_bkDesktop && _bkPanel && !_bkPanel.children.length){
-    _bkPanel.innerHTML='<div class="bk-detail-panel-empty">💾<div style="margin-top:10px;font-weight:600">Elegí un pedido de la izquierda</div><div style="font-size:12px;margin-top:4px">para ver su detalle, productos y acciones acá.</div></div>';
+  wrap.replaceChildren(_bkListaNueva);
+  if(_bkPanel){
+    if(_bkDetalleNuevo) _bkPanel.replaceChildren(_bkDetalleNuevo);
+    else _bkPanel.innerHTML=_bkDesktop?_bkDetalleVacio:"";
   }
+  _bkRestaurarScroll(wrap,_posicion);
 }
 
 
@@ -26995,8 +27002,7 @@ async function confirmarBackupComoRemito(bkParam){
   bk.historial=_histAprob;
 
   if(_editBkItem) cerrarModal("modal-editar-backup");
-  renderBackup();
-  showNotif("✅ Pedido aprobado y registrado","ok");
+  // _cambiarAprobacion actualiza la lista una sola vez al terminar.
 }
 
 // Comparte un PDF de jsPDF: en la app nativa (Capacitor) usa los plugins de Archivos+Compartir;
@@ -35874,29 +35880,49 @@ async function _cambiarAprobacion(bk, aprobado){
   saveBackups(arr);
   backupAbierto = bk.id;
 
-  // Preservar la posición de scroll (aprobar no debe mandarte arriba)
-  var _sc = _bkScrollEl();
-  var _doc = document.scrollingElement || document.documentElement;
-  var _sy = _sc ? _sc.scrollTop : 0;
-  var _dy = _doc ? _doc.scrollTop : 0;
   renderBackup();
-  var _restore=function(){ try{ if(_sc) _sc.scrollTop=_sy; if(_doc && _doc!==_sc) _doc.scrollTop=_dy; }catch(e){} };
-  _restore();
-  requestAnimationFrame(function(){ _restore(); requestAnimationFrame(_restore); });
-  setTimeout(_restore, 70); setTimeout(_restore, 180);
   showNotif(aprobado===true ? (eraRechazado?"✅ Pedido reaprobado: stock y comisión actualizados. Asignalo a una ruta.":"✅ Pedido aprobado. Asignalo a una ruta con \"Asignar a Ruta\".") : "❌ Pedido rechazado — stock y comisión actualizados", aprobado?"ok":"err");
 
   // Aprobar es una operación interna: no cambia el pedido a entregado ni
   // dispara avisos. La entrega se comunica solamente desde Reparto.
 }
 // Detecta el contenedor que realmente scrollea alrededor de la lista de backups
-function _bkScrollEl(){
-  var el=document.getElementById("backup-list");
+function _bkScrollEl(wrap){
+  var el=wrap;
   while(el && el!==document.body){
     try{ var st=getComputedStyle(el); if(/(auto|scroll)/.test(st.overflowY) && el.scrollHeight>el.clientHeight+4) return el; }catch(e){}
     el=el.parentElement;
   }
   return document.scrollingElement || document.documentElement;
+}
+
+function _bkScrollBorde(sc){
+  return sc===document.scrollingElement||sc===document.documentElement ? 0 : sc.getBoundingClientRect().top+sc.clientTop;
+}
+function _bkCapturarScroll(wrap){
+  var sec=document.getElementById("backup");
+  if(!sec || !sec.classList.contains("active")) return null;
+  var sc=_bkScrollEl(wrap);
+  if(!sc || sc.scrollTop<=0) return null;
+  var borde=_bkScrollBorde(sc);
+  var cards=Array.from(wrap.children).filter(function(card){return !!card.dataset.bkId;});
+  var indice=cards.findIndex(function(card){return card.getBoundingClientRect().bottom>borde;});
+  if(indice<0) return {sc:sc,top:sc.scrollTop,ids:[]};
+  return {sc:sc,top:sc.scrollTop,offset:cards[indice].getBoundingClientRect().top-borde,
+    ids:cards.slice(indice).concat(cards.slice(0,indice).reverse()).map(function(card){return card.dataset.bkId;})};
+}
+function _bkRestaurarScroll(wrap,pos){
+  if(!pos) return;
+  var sc=pos.sc, porId=new Map(), destino=pos.top;
+  Array.from(wrap.children).forEach(function(card){porId.set(card.dataset.bkId,card);});
+  var id=pos.ids.find(function(id){return porId.has(id);});
+  if(id){
+    var card=porId.get(id), rect=card.getBoundingClientRect();
+    // Si el pedido sale del filtro, mostrar su vecino en su lugar, no media tarjeta fuera de pantalla.
+    var offset=id===pos.ids[0]?Math.max(pos.offset,1-rect.height):Math.max(0,pos.offset);
+    destino=sc.scrollTop+rect.top-_bkScrollBorde(sc)-offset;
+  }
+  sc.scrollTop=Math.max(0,destino);
 }
 
 var META_VENTAS = 20000000;

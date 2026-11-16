@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.74 — avisos sin detalle duplicado y días desde la entrega
-const CACHE_NAME = 'distribix-v1.74';
-const CACHE_STATIC = 'distribix-static-v1.74';
+// DISTRIBIX Service Worker v1.75 — conserva la posición en Backup de Pedidos
+const CACHE_NAME = 'distribix-v1.75';
+const CACHE_STATIC = 'distribix-static-v1.75';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
