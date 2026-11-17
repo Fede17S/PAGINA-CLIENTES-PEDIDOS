@@ -29239,11 +29239,11 @@ function _refrescarRutasEntreDispositivos(forzar){
   if(tab==="hoja"){
     return cargarRutasFirebase({preservarVista:true,silencioso:true}).then(function(){return true;});
   }
-  return _cargarRutasServidorSeguras().then(function(all){
+  return _cargarRutasServidorSeguras().then(async function(all){
     rutasData=_filtrarRutasParaUsuario(all);
     _guardarRutasOffline();
     poblarSelectorMapaRutas();
-    _meAplicarDatosRutasActualizados();
+    await _meAplicarDatosRutasActualizados();
     return true;
   }).catch(function(err){
     console.warn("[Reparto] No se pudo actualizar entre dispositivos:",err&&err.message);
@@ -29286,6 +29286,8 @@ window.addEventListener("offline", actualizarEstadoConexion);
 var _mapaLeaflet = null;
 var _mapaMarkers = [];
 var _mapaParadas = [];
+var _mapaParadasRuta = null, _meConstruccionRuta = 0;
+var _meDomiciliosCache = null;
 var _geocodeCache = {};
 var _rutaMapaKey = null;
 var _mePosicion = null; // {lat,lng} GPS position
@@ -29325,7 +29327,7 @@ function iniciarMapaEntregas() {
           rutasData=_filtrarRutasParaUsuario(canonicas);
           _guardarRutasOffline();
           poblarSelectorMapaRutas();
-          _meAplicarDatosRutasActualizados();
+          await _meAplicarDatosRutasActualizados();
           if(!Object.keys(rutasData).length){
             document.getElementById("mapa-paradas").innerHTML='<div class="me-empty">No hay hojas de ruta disponibles.</div>';
           }else if(!document.getElementById("mapa-paradas").textContent.trim()||/Cargando hojas/.test(document.getElementById("mapa-paradas").textContent)){
@@ -29604,6 +29606,13 @@ function poblarSelectorMapaRutas() {
 function seleccionarRutaMapa() {
   _rutaMapaKey = document.getElementById("mapa-ruta-sel").value;
   _meParadaElegidaKey = null;
+  if(_mapaParadasRuta===_rutaMapaKey) return;
+  _meConstruccionRuta++;
+  _mapaParadasRuta=null;
+  _mapaParadas=[];
+  if(_mapaLeaflet) _mapaMarkers.forEach(function(m){_mapaLeaflet.removeLayer(m);});
+  _mapaMarkers=[];
+  document.getElementById("mapa-paradas").innerHTML='<div class="me-empty">📍 Elegí <b>Orden de lista</b> o <b>Ruta óptima</b> para ver las paradas.</div>';
 }
 
 function cargarGeocodeCache() {
@@ -29700,6 +29709,9 @@ async function optimizarYMostrar(modo) {
   if (!ruta) return;
   var cliEntries = Object.entries(ruta.clientes||{});
   if (!cliEntries.length) { showNotif("Esta ruta no tiene clientes","err"); return; }
+  var claveRuta=_rutaMapaKey, empresa=_sbEmpId, intento=++_meConstruccionRuta;
+  _mapaParadasRuta=null;
+  function vigente(){return intento===_meConstruccionRuta && claveRuta===_rutaMapaKey && empresa===_sbEmpId;}
 
   document.getElementById("mapa-paradas").innerHTML =
     '<div class="geocoding-progress">🔍 Buscando ubicaciones...<br><small>Puede tardar unos segundos según la cantidad de clientes</small></div>';
@@ -29730,63 +29742,23 @@ async function optimizarYMostrar(modo) {
   var gpsEl = document.getElementById("ms-gps-status");
   if(gpsEl) gpsEl.textContent = _mePosicion ? "✓ GPS" : "Sin GPS";
 
-  // Mapa de clientes: nombre/id → {dir, lat, lng}
-  var usuariosMap  = {}; // → direccion string
-  var coordsMap    = {}; // → {lat, lng} ya guardadas
-  try {
-    // Primero Supabase (tiene lat/lng guardadas)
-    if(_sbEmpId){
-      var uRows = await sbGet("usuarios","select=uid,name,direccion,lat,lng&empresa_id=eq."+_sbEmpId+"&not.is.null=direccion");
-      (uRows||[]).forEach(function(u){
-        var keys = [(u.name||"").toLowerCase(), (u.uid||"").toLowerCase()].filter(Boolean);
-        keys.forEach(function(k){
-          if(u.direccion) usuariosMap[k] = u.direccion;
-          if(u.lat && u.lng) coordsMap[k] = {lat:parseFloat(u.lat), lng:parseFloat(u.lng)};
-        });
-      });
-    }
-  } catch(e){ console.warn("Supabase usuarios mapa:", e); }
-  try {
-    // Fallback Firebase
-    var empData = await fbGet("empresas/"+empresaKey);
-    Object.values(empData.usuarios||{}).forEach(function(u){
-      var k1 = (u.name||"").toLowerCase(), k2 = (u.id||"").toLowerCase();
-      if(u.direccion){ if(!usuariosMap[k1]) usuariosMap[k1]=u.direccion; if(!usuariosMap[k2]) usuariosMap[k2]=u.direccion; }
-      if(u.lat && u.lng){ if(!coordsMap[k1]) coordsMap[k1]={lat:parseFloat(u.lat),lng:parseFloat(u.lng)}; }
-    });
-  } catch(e){}
-
+  var domicilios=await _meCargarDomicilios();
+  if(!vigente()) return;
+  ruta=rutasData[claveRuta]||ruta;
+  cliEntries=Object.entries(ruta.clientes||{});
   var puntos = [];
-  // Teléfonos de clientes (probando nombres de columna comunes, sin romper si no existe)
-  var telMap={};
-  for(var ti=0; ti<3; ti++){
-    var campo=["tel","telefono","celular"][ti];
-    try{
-      var tRows=await sbGet("usuarios","select=uid,name,"+campo+"&empresa_id=eq."+_sbEmpId+"&role=eq.cliente&limit=2000");
-      if(tRows){ tRows.forEach(function(u){ var t=u[campo]||""; if(t){ if(u.name)telMap[(""+u.name).toLowerCase()]=t; if(u.uid)telMap[(""+u.uid).toLowerCase()]=t; } }); if(Object.keys(telMap).length) break; }
-    }catch(e){}
-  }
   for (var ci=0; ci<cliEntries.length; ci++) {
     var ck=cliEntries[ci][0], cli=cliEntries[ci][1];
-    var nomKey = (cli.nom||"").toLowerCase(), idKey = (cli.id||"").toLowerCase();
-    var dir = usuariosMap[nomKey] || usuariosMap[idKey] || "";
-    var tel = telMap[nomKey] || telMap[idKey] || "";
+    var punto=_meParadaConDomicilio(ck,cli,domicilios);
     document.getElementById("mapa-paradas").innerHTML =
-      '<div class="geocoding-progress">📍 ' + (ci+1) + '/' + cliEntries.length + ' — <b>' + cli.nom + '</b></div>';
-    // Usar coords guardadas si existen, sino geocodificar
-    var savedCoords = coordsMap[nomKey] || coordsMap[idKey] || null;
-    var coords = savedCoords || (dir ? await geocodeAddress(dir) : null);
-    puntos.push({cliKey:ck, cli:cli, dir:dir, tel:tel,
-      lat:coords?coords.lat:null, lng:coords?coords.lng:null, hasCoords:!!coords});
-    // Guardar las coords geocodificadas en la base para no volver a buscarlas la próxima vez
-    if(!savedCoords && coords && coords.lat){
-      try{
-        coordsMap[idKey]=coords; coordsMap[nomKey]=coords;
-        fbPatchQ("empresas/"+empresaKey+"/usuarios/"+ck, {lat:coords.lat, lng:coords.lng}, "Coords guardadas: "+(cli.nom||""));
-      }catch(e){}
+      '<div class="geocoding-progress">📍 ' + (ci+1) + '/' + cliEntries.length + ' — <b>' + escHtml(cli.nom||"") + '</b></div>';
+    if(!punto.hasCoords && punto.dir && navigator.onLine){
+      var coords=_meCoordsValidas(await geocodeAddress(punto.dir));
+      if(!vigente()) return;
+      if(coords){punto.lat=coords.lat;punto.lng=coords.lng;punto.hasCoords=true;}
+      else if(ci+1<cliEntries.length){await new Promise(function(r){setTimeout(r,1000);});if(!vigente()) return;}
     }
-    // Solo esperar si necesitó geocodificar por Nominatim (no si usó coords guardadas)
-    if(!savedCoords && dir && !_geocodeCache[dir.toLowerCase()]) await new Promise(function(r){setTimeout(r,1000);});
+    puntos.push(punto);
   }
 
   var conCoords = puntos.filter(function(p){return p.hasCoords;});
@@ -29808,8 +29780,9 @@ async function optimizarYMostrar(modo) {
 
   _initMapaBase();
   if(typeof L!=="undefined" && _mapaLeaflet) initMapa(startLat, startLng, ordered);
-  renderParadas(ordered);
   _mapaParadas = ordered;
+  _mapaParadasRuta=claveRuta;
+  renderParadas(ordered);
 }
 
 
@@ -29842,8 +29815,8 @@ function initMapa(startLat, startLng, ordered) {
     });
     var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
     var saldo=Math.round((_meImporteNeto(p.cli)-ef-tr)*100)/100;
-    var popup = "<b>"+(i+1)+". "+p.cli.nom+"</b><br>"+
-      (p.dir ? p.dir+"<br>" : "Sin dirección<br>")+
+    var popup = "<b>"+(i+1)+". "+escHtml(p.cli.nom||"")+"</b><br>"+
+      (p.dir ? escHtml(p.dir)+"<br>" : "Sin dirección<br>")+
       "Total: $"+fM(_meImporteNeto(p.cli))+"<br>"+
       (saldo>0 ? "<span style='color:#d97706'>⚠️ Saldo: $"+fM(saldo)+"</span>" : "<span style='color:#059669'>✅ Cobrado</span>");
     var marker = L.marker([p.lat,p.lng],{icon:icon}).addTo(_mapaLeaflet).bindPopup(popup);
@@ -29858,10 +29831,10 @@ function initMapa(startLat, startLng, ordered) {
   }
 
   // Show warning banner for clients without address
-  var sinDir = ordered.filter(function(p){return !p.dir;});
+  var sinDir = ordered.filter(function(p){return !p.dir && !p.pinGuardado;});
   if(sinDir.length){
     var warnHtml = '<div class="me-warn-box">⚠️ <b>'+sinDir.length+' sin dirección:</b> '+
-      sinDir.map(function(p){return p.cli.nom;}).join(", ")+
+      sinDir.map(function(p){return escHtml(p.cli.nom||"");}).join(", ")+
       ' — Agregá las direcciones en <b>Gestión de Clientes</b></div>';
     document.getElementById("mapa-paradas").insertAdjacentHTML("afterbegin", warnHtml);
   }
@@ -29870,12 +29843,69 @@ function initMapa(startLat, startLng, ordered) {
   setTimeout(function(){_mapaLeaflet.invalidateSize();},300);
 }
 
+function _meDomicilioClave(v){return String(v==null?"":v).trim().toLowerCase();}
+function _meIndiceDomicilios(filas){
+  var uuid=new Map(), uid=new Map(), nombre=new Map();
+  function agregar(m,k,u){if(k)m.set(k,m.has(k)?null:u);}
+  (filas||[]).forEach(function(u){
+    if(!u) return;
+    var remoto=Object.prototype.hasOwnProperty.call(u,"uid");
+    agregar(uuid,_meDomicilioClave(u._sbId||(remoto?u.id:"")),u);
+    agregar(uid,_meDomicilioClave(remoto?u.uid:u.id),u);
+    if(!u.role||_meDomicilioClave(u.role)==="cliente") agregar(nombre,_meDomicilioClave(u.name),u);
+  });
+  return {uuid:uuid,uid:uid,nombre:nombre};
+}
+async function _meCargarDomicilios(){
+  var empresa=_sbEmpId, usuario=currentUser;
+  if(empresa&&navigator.onLine){
+    try{
+      var filas=[], tam=500;
+      for(var pag=0;;pag++){
+        var lote=await _sbGetRaw("usuarios","select=id,uid,name,role,direccion,telefono,lat,lng&empresa_id=eq."+
+          encodeURIComponent(empresa)+"&order=id.asc&limit="+tam+"&offset="+(pag*tam));
+        if(empresa!==_sbEmpId||usuario!==currentUser) return _meIndiceDomicilios([]);
+        if(!Array.isArray(lote)) throw new Error("No llegaron las direcciones");
+        filas=filas.concat(lote);
+        if(lote.length<tam) break;
+      }
+      var indice=_meIndiceDomicilios(filas);
+      _meDomiciliosCache={empresa:empresa,usuario:usuario,indice:indice};
+      return indice;
+    }catch(e){console.warn("[Reparto] No se pudieron actualizar las direcciones:",e&&e.message);}
+  }
+  if(empresa!==_sbEmpId||usuario!==currentUser) return _meIndiceDomicilios([]);
+  if(_meDomiciliosCache&&_meDomiciliosCache.empresa===empresa&&_meDomiciliosCache.usuario===usuario) return _meDomiciliosCache.indice;
+  return _meIndiceDomicilios(Object.values(_clientesDB||{}));
+}
+function _meCoordsValidas(p){
+  if(!p||p.lat==null||p.lng==null||String(p.lat).trim()===""||String(p.lng).trim()==="") return null;
+  var lat=Number(p.lat),lng=Number(p.lng);
+  return isFinite(lat)&&isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180&&(lat!==0||lng!==0)?{lat:lat,lng:lng}:null;
+}
+function _meParadaConDomicilio(ck,cli,indice){
+  // La dirección, teléfono y pin salen de la misma ficha. Un ID presente
+  // nunca puede caer al nombre de otro cliente. Sólo los pedidos sin ID usan nombre único.
+  var id=_meDomicilioClave(cli.id), u=id?(indice.uuid.get(id)||indice.uid.get(id)):indice.nombre.get(_meDomicilioClave(cli.nom));
+  var dir=String(u&&u.direccion||"").trim(), pin=_meCoordsValidas(u);
+  var coords=pin||(dir?_meCoordsValidas(_geocodeCache[_meDomicilioClave(dir)]):null);
+  return {cliKey:ck,cli:cli,dir:dir,tel:(u&&(u.telefono||u.tel))||"",lat:coords?coords.lat:null,lng:coords?coords.lng:null,
+    hasCoords:!!coords,pinGuardado:!!pin};
+}
+function _meDestino(p){
+  var pin=p.pinGuardado?_meCoordsValidas(p):null;
+  if(pin) return pin.lat+","+pin.lng;
+  var dir=String(p.dir||"").trim();
+  return dir?dir+(/\bArgentina$/i.test(dir)?"":", Argentina"):"";
+}
 function _meNavUrls(p){
-  var lat=p.lat,lng=p.lng,dir=p.dir||"";
+  var destino=_meDestino(p);
+  if(!destino) return {};
+  var q=encodeURIComponent(destino);
   return {
-    gmaps: lat&&lng ? "https://www.google.com/maps/dir/?api=1&destination="+lat+","+lng : "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(dir+", Argentina"),
-    waze:  lat&&lng ? "https://waze.com/ul?ll="+lat+","+lng+"&navigate=yes" : "https://waze.com/ul?q="+encodeURIComponent(dir+", Argentina")+"&navigate=yes",
-    apple: lat&&lng ? "https://maps.apple.com/?daddr="+lat+","+lng : "https://maps.apple.com/?daddr="+encodeURIComponent(dir+", Argentina")
+    gmaps: "https://www.google.com/maps/dir/?api=1&destination="+q,
+    waze: "https://waze.com/ul?"+(p.pinGuardado&&_meCoordsValidas(p)?"ll=":"q=")+q+"&navigate=yes",
+    apple: "https://maps.apple.com/?daddr="+q
   };
 }
 function _meTel(t){ return (""+t).replace(/[^0-9+]/g,""); }
@@ -29924,7 +29954,7 @@ function renderParadas(ordered) {
 
   // Tarjeta PRÓXIMA PARADA
   if(proxIdx>=0){
-    var pp=ordered[proxIdx], ppu=_meNavUrls(pp);
+    var pp=ordered[proxIdx];
     var ppSaldo=Math.round(((pp.cli.importe||0)-(pp.cli.efectivo||0)-(pp.cli.transferencia||0))*100)/100;
     // Comprobante de entrega: usa los indicadores livianos (no necesita bajar las imágenes)
     var _ppComps = Array.isArray(pp.cli.comprobantes) ? pp.cli.comprobantes : null;
@@ -29956,7 +29986,7 @@ function renderParadas(ordered) {
     html+='<div class="me-next">'+
       '<div class="me-next-tag">'+_ppEtiqueta+'</div>'+
       '<div class="me-next-nom" onclick="focusParada('+proxIdx+','+pp.lat+','+pp.lng+')">'+(proxIdx+1)+'. '+escHtml(pp.cli.nom||"")+'</div>'+
-      '<div class="me-next-dir">'+(pp.dir?'📍 '+escHtml(pp.dir):'<span style="color:#fde68a">⚠️ Sin dirección</span>')+'</div>'+
+      '<div class="me-next-dir">'+(pp.dir?'📍 '+escHtml(pp.dir):pp.pinGuardado?'📍 Ubicación fijada en el mapa':'<span style="color:#fde68a">⚠️ Sin dirección</span>')+'</div>'+
       '<div class="me-next-money"><span>Total $'+fM(pp.cli.importe||0)+'</span>'+(ppSaldo>0?'<span class="me-pend">Cobrar $'+fM(ppSaldo)+'</span>':'<span class="me-ok">✓ Cobrado</span>')+'</div>'+
       '<div class="me-next-actions">'+_ppAcciones+'</div>'+
       '<button class="me-dev-btn" onclick="_devAbrir('+proxIdx+')">↩️ Devolución / rotura'+((pp.cli.devoluciones&&pp.cli.devoluciones.length)?' <span class="me-dev-badge">'+pp.cli.devoluciones.length+'</span>':'')+'</button>'+
@@ -29978,7 +30008,6 @@ function renderParadas(ordered) {
   // Lista completa
   html+='<div class="me-list-head">Todas las paradas · Tocá un cliente para atenderlo ahora</div>';
   ordered.forEach(function(p,i){
-    var u=_meNavUrls(p);
     var ef=p.cli.efectivo||0, tr=p.cli.transferencia||0;
     var saldo=Math.round((_meImporteNeto(p.cli)-ef-tr)*100)/100;
     var color = p.cli.rechazado ? "#dc2626" : (p.cli.entregado ? "#9ca3af" : COLORS[i%COLORS.length]);
@@ -29994,7 +30023,7 @@ function renderParadas(ordered) {
         '<div class="parada-num" style="background:'+color+'">'+(p.cli.entregado?"✓":(i+1))+'</div>'+
         '<div class="parada-info">'+
           '<div class="parada-nom">'+escHtml(p.cli.nom||"")+nearTag+'</div>'+
-          '<div class="parada-dir">'+(p.dir?'📍 '+escHtml(p.dir):'<span style="color:#f59e0b">⚠️ Sin dirección GPS</span>')+'</div>'+
+          '<div class="parada-dir">'+(p.dir?'📍 '+escHtml(p.dir):p.pinGuardado?'📍 Ubicación fijada en el mapa':'<span style="color:#f59e0b">⚠️ Sin dirección GPS</span>')+'</div>'+
         '</div>'+
         '<div style="text-align:right;flex-shrink:0">'+
           '<div class="parada-total">$'+fM(_meImporteNeto(p.cli))+'</div>'+estado+
@@ -30262,23 +30291,21 @@ function _meRefrescarSiVisible(){
 // Reenlaza las tarjetas abiertas de Reparto con los objetos recién leídos de
 // Supabase. Mantiene el orden elegido, quita paradas borradas y agrega al final
 // las que otro dispositivo haya incorporado a la misma ruta.
-function _meAplicarDatosRutasActualizados(){
+async function _meAplicarDatosRutasActualizados(){
   try{
-    if(!_rutaMapaKey||!rutasData[_rutaMapaKey]||!Array.isArray(_mapaParadas)||!_mapaParadas.length) return;
-    var clientes=(rutasData[_rutaMapaKey]&&rutasData[_rutaMapaKey].clientes)||{};
-    var usados={}, nuevas=[];
+    var rk=_rutaMapaKey, intento=_meConstruccionRuta, empresa=_sbEmpId;
+    if(!rk||_mapaParadasRuta!==rk||!rutasData[rk]) return;
+    var indice=await _meCargarDomicilios();
+    if(empresa!==_sbEmpId||intento!==_meConstruccionRuta||_rutaMapaKey!==rk||_mapaParadasRuta!==rk||!rutasData[rk]) return;
+    var clientes=rutasData[rk].clientes||{};
+    var usados=new Set(), nuevas=[];
     _mapaParadas.forEach(function(p){
       if(!p||!clientes[p.cliKey]) return;
-      p.cli=clientes[p.cliKey];
-      usados[p.cliKey]=true;
-      nuevas.push(p);
+      usados.add(p.cliKey);
+      nuevas.push(_meParadaConDomicilio(p.cliKey,clientes[p.cliKey],indice));
     });
     Object.keys(clientes).forEach(function(ck){
-      if(usados[ck]) return;
-      var cli=clientes[ck], info=(typeof _hrCliInfo==="function")?_hrCliInfo(cli):{dir:"",tel:""};
-      var db=(typeof _clientesDB!=="undefined"&&_clientesDB&&cli.id)?_clientesDB[cli.id]:null;
-      var lat=db&&db.lat?parseFloat(db.lat):null, lng=db&&db.lng?parseFloat(db.lng):null;
-      nuevas.push({cliKey:ck,cli:cli,dir:info.dir||"",tel:info.tel||"",lat:lat,lng:lng,hasCoords:!!(lat&&lng)});
+      if(!usados.has(ck)) nuevas.push(_meParadaConDomicilio(ck,clientes[ck],indice));
     });
     _mapaParadas=nuevas;
     renderParadas(_mapaParadas);
@@ -30290,14 +30317,14 @@ function _meAplicarDatosRutasActualizados(){
 }
 
 function _meAbrirRutaCompleta(){
-  var pts=_mapaParadas.filter(function(p){return p.hasCoords && !p.cli.entregado;});
+  var pts=_mapaParadas.filter(function(p){return !p.cli.entregado && !p.cli.rechazado;}).map(_meDestino).filter(Boolean);
   if(!pts.length){ showNotif("No hay paradas pendientes con ubicación","err"); return; }
   if(pts.length>10) showNotif("Google Maps permite ~10 paradas; se abren las primeras","ok");
   pts=pts.slice(0,10);
   var origin=_mePosicion?(_mePosicion.lat+","+_mePosicion.lng):"";
   var dest=pts[pts.length-1];
-  var way=pts.slice(0,-1).map(function(p){return p.lat+","+p.lng;}).join("|");
-  var url="https://www.google.com/maps/dir/?api=1"+(origin?"&origin="+origin:"")+"&destination="+dest.lat+","+dest.lng+(way?"&waypoints="+encodeURIComponent(way):"")+"&travelmode=driving";
+  var way=pts.slice(0,-1).join("|");
+  var url="https://www.google.com/maps/dir/?api=1"+(origin?"&origin="+origin:"")+"&destination="+encodeURIComponent(dest)+(way?"&waypoints="+encodeURIComponent(way):"")+"&travelmode=driving";
   window.open(url,"_blank");
 }
 
@@ -30982,7 +31009,8 @@ function _usuarioPayloadCoincide(fila,payload){
     var k=claves[i];
     if(!Object.prototype.hasOwnProperty.call(payload,k)) continue;
     if(k==="lat" || k==="lng"){
-      if(!isFinite(Number(fila[k])) || Math.abs(Number(fila[k])-Number(payload[k]))>0.000001) return false;
+      if(payload[k]==null){ if(fila[k]!=null) return false; }
+      else if(fila[k]==null || !isFinite(Number(fila[k])) || Math.abs(Number(fila[k])-Number(payload[k]))>0.000001) return false;
     }else if(String(fila[k]==null?"":fila[k])!==String(payload[k]==null?"":payload[k])) return false;
   }
   if(Object.prototype.hasOwnProperty.call(payload,"roles")){
@@ -31086,6 +31114,9 @@ async function guardarEditCliente() {
       showNotif("Las coordenadas de la ubicación no son válidas","err"); return;
     }
     updated.lat=latEc; updated.lng=lngEc;
+  }else if(dir!==String(_origEd.direccion||"").trim()){
+    // Un domicilio escrito a mano no conserva el pin del domicilio anterior.
+    updated.lat=null; updated.lng=null;
   }
 
   var _ecSaveBtn=document.getElementById("ec-save-btn");
@@ -31167,6 +31198,7 @@ async function guardarEditCliente() {
       _sbId: entryActual._sbId || pushKey,
       _fbKey: entryActual._fbKey
     });
+    _meDomiciliosCache=null;
     if(currentUser && String(currentUser._sbId||"")===String(_clientesDB[pushKey]._sbId||"")){
       currentUser.name=updated.name;
       if(_puedeElegirRol2){ currentUser.role=updated.role; currentUser.roles=updated.roles; }
@@ -31417,7 +31449,8 @@ async function importarCSV(){
 
 /* ── VERIFICADOR DE DIRECCIÓN ── */
 async function _verificarDir(inputId, resultId) {
-  var dir = document.getElementById(inputId).value.trim();
+  var input=document.getElementById(inputId), dir=input.value.trim();
+  var clienteEditado=(document.getElementById("ec-key")||{}).value;
   var res = document.getElementById(resultId);
   if (!dir) { res.style.display="none"; return; }
   res.style.cssText="display:block;background:var(--s3);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--muted)";
@@ -31425,6 +31458,7 @@ async function _verificarDir(inputId, resultId) {
   // Force fresh lookup
   delete _geocodeCache[dir.toLowerCase()];
   var coords = await geocodeAddress(dir);
+  if(input.value.trim()!==dir||(inputId==="ec-dir"&&(document.getElementById("ec-key")||{}).value!==clienteEditado)) return;
   if (coords) {
     var prefix=inputId.replace("-dir","");
     var latEl=document.getElementById(prefix+"-lat"), lngEl=document.getElementById(prefix+"-lng");
@@ -40350,6 +40384,7 @@ function _meNav(i){
   var p=_mapaParadas[i]; if(!p) return;
   var urls=_meNavUrls(p);
   var url=urls[_meNavApp()]||urls.gmaps;
+  if(!url){showNotif("Este cliente no tiene dirección ni ubicación. Revisá su ficha en Gestión de Clientes.","err");return;}
   try{ window.open(url,"_system"); }catch(e){ try{ window.open(url,"_blank"); }catch(e2){ location.href=url; } }
 }
 function _meNavSelectorHTML(){
@@ -40882,6 +40917,7 @@ function _pinDetectarDir(){
   if(!_pinMarker) return;
   var ll=_pinMarker.getLatLng();
   var seq=++_pinRevSeq;
+  _pinDetectedAddr="";
   var el=document.getElementById("pin-addr");
   if(el) el.innerHTML='<span style="color:var(--muted);font-weight:500">🔎 Detectando dirección…</span>';
   _reverseGeocode(ll.lat,ll.lng).then(function(dir){
