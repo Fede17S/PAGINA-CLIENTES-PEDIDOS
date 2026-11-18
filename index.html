@@ -9790,6 +9790,7 @@ function _asegurarStockParaPedido(){
       // Una respuesta vacía verificada también es un inventario válido.
       if(f!==null && f!==undefined){
         stockData = f;
+        if(typeof _pgRenderCats==="function" && window._tabActual==="pedido") _pgRenderCats();
         if(typeof _pgRender==="function" && window._tabActual==="pedido") _pgRender();
       }
     }).catch(function(){ _pedStockEnCurso = false; _pedStockUlt = Date.now(); });
@@ -10792,6 +10793,13 @@ async function _sbInsertBackup(data){
     var _syncErr=new Error("Necesitás conexión para confirmar el pedido. Los productos siguen en pantalla para que vuelvas a intentar.");
     _syncErr.code="PEDIDO_NO_CONFIRMADO";
     throw _syncErr;
+  }
+  // El bloqueo manual también se revalida con una lectura real del servidor.
+  await _pedActualizarDisponibilidadRemota();
+  if(!_pedValidarDisponibles(data.items||[],true)){
+    var _noDisponible=new Error("El pedido contiene productos no disponibles. Revisalo antes de enviar.");
+    _noDisponible.code="PEDIDO_NO_CONFIRMADO";
+    throw _noDisponible;
   }
   // Rechequeo final, inmediatamente antes de crear el pedido. La pantalla puede
   // haber quedado abierta mientras otro vendedor agotaba el mismo producto.
@@ -12518,6 +12526,57 @@ function _sinStock(id){
   // Sin ficha de inventario → no cuenta como agotado (se ve y se puede pedir, con aviso)
   if(_stkSinFicha(id)) return false;
   return _stkDisponible(id) <= 0;
+}
+// Una regla comercial para grilla, buscador y familias. No toca inventario.
+function _pedProductoDisponible(p){return !!p && p.activo!==false && !_sinStock(p.id);}
+function _pedPuedeAgregar(id,avisar){
+  var p=(dbStock||[]).find(function(x){return String(x.id)===String(id);});
+  if(_pedProductoDisponible(p)) return true;
+  if(avisar!==false) showNotif("🚫 "+((p&&p.n)||id)+": "+(!p||p.activo===false?"producto no disponible":"sin stock")+". No se agregó al pedido.","err");
+  return false;
+}
+function _pedValidarDisponibles(items,avisar){
+  var ids=new Set(), faltantes=[];
+  (items||[]).forEach(function(it){
+    if(!it||it.pendiente===true||ids.has(String(it.id))) return;
+    ids.add(String(it.id));
+    if(!_pedPuedeAgregar(it.id,false)) faltantes.push(it.n||String(it.id));
+  });
+  if(faltantes.length&&avisar!==false) showNotif("🚫 Revisá el pedido: no disponibles o sin stock: "+faltantes.slice(0,4).join(", ")+". Quitalos para continuar.","err");
+  return !faltantes.length;
+}
+async function _pedActualizarDisponibilidadRemota(){
+  var empresa=_sbEmpId, usuario=currentUser, filas=[];
+  if(!empresa||!navigator.onLine) throw new Error("Necesitás conexión para verificar la disponibilidad del catálogo.");
+  for(var pag=0;;pag++){
+    var lote=await _sbGetRaw("productos","select=id,codigo,activo&empresa_id=eq."+encodeURIComponent(empresa)+"&order=id.asc&limit=500&offset="+(pag*500));
+    if(empresa!==_sbEmpId||usuario!==currentUser) throw new Error("La sesión cambió durante la verificación del catálogo.");
+    if(!Array.isArray(lote)) throw new Error("No se pudo verificar la disponibilidad del catálogo.");
+    filas=filas.concat(lote);if(lote.length<500) break;
+  }
+  var porCodigo=new Map();
+  filas.forEach(function(p){porCodigo.set(String(p.codigo||p.id),p);});
+  (dbStock||[]).forEach(function(p){var actual=porCodigo.get(String(p.id));p.activo=!!actual&&actual.activo!==false;});
+  Object.values(_prodData||{}).forEach(function(p){var actual=porCodigo.get(String(p.codigo||p.id||p._sbId||""));p.activo=!!actual&&actual.activo!==false;});
+  if(typeof _pgRenderCats==="function") _pgRenderCats();
+  if(typeof _pgRender==="function") _pgRender();
+}
+var _pedDisponibilidadLectura=null, _pedDisponibilidadEmpresa=null, _pedDisponibilidadUlt=0;
+function _pedRefrescarDisponibilidad(){
+  if(!_sbEmpId||!navigator.onLine) return;
+  if(_pedDisponibilidadLectura&&_pedDisponibilidadEmpresa===_sbEmpId) return;
+  if(_pedDisponibilidadEmpresa===_sbEmpId&&Date.now()-_pedDisponibilidadUlt<60000) return;
+  var empresa=_sbEmpId;
+  _pedDisponibilidadEmpresa=empresa;
+  var lectura=_pedActualizarDisponibilidadRemota().then(function(){if(empresa===_sbEmpId)_pedDisponibilidadUlt=Date.now();}).catch(function(e){console.warn("[Pedido] No se pudo refrescar disponibilidad:",e&&e.message);}).finally(function(){if(_pedDisponibilidadLectura===lectura)_pedDisponibilidadLectura=null;});
+  _pedDisponibilidadLectura=lectura;
+}
+function _pgOcultarNoDisponiblesFamilia(){
+  var lista=document.querySelector("#fam-overlay .pgv-list");if(!lista) return;
+  lista.querySelectorAll(".pgv-row").forEach(function(row){
+    if(!_pedPuedeAgregar(row.id.slice(4),false)) row.remove();
+  });
+  if(!lista.querySelector(".pgv-row")) lista.innerHTML='<div class="pg-empty">Esta familia no tiene variedades disponibles.</div>';
 }
 // Cantidad total de un producto dentro de un pedido. Suma lineas por unidad,
 // caja y cualquier otra presentacion que comparta el mismo codigo.
@@ -14924,8 +14983,9 @@ async function cargarCatalogo(){
       var _catIndex = {};
       Object.values(productos).filter(function(p){return p.nombre;}).forEach(function(p){
         var cat = (p.categoria||"Sin categoría").replace(/^"+|"+$/g,"").replace(/\\"/g,"").trim()||"Sin categoría";
-        var id  = p.codigo ? String(p.codigo) : p.nombre.substring(0,4);
-        var prod = {id:id, codigo:p.codigo||"", codigoBarras:p.codigoBarras||"", ubicacionPasillo:p.ubicacionPasillo||"", ubicacionEstante:p.ubicacionEstante||"", ubicacionOrden:p.ubicacionOrden, n:p.nombre, pCli:p.precioClientes||0, pPat:p.precioPatagonia||0, cat:cat, familia:p.familia||null, esNovedad:p.esNovedad===true, foto:p.foto||"", unidadesBulto:p.unidadesBulto||1, esPortada:p.esPortada||false};
+        var id  = p.codigo ? String(p.codigo) : String(p.id||p._sbId||"");
+        if(!id) return;
+        var prod = {id:id, codigo:p.codigo||"", codigoBarras:p.codigoBarras||"", ubicacionPasillo:p.ubicacionPasillo||"", ubicacionEstante:p.ubicacionEstante||"", ubicacionOrden:p.ubicacionOrden, n:p.nombre, pCli:p.precioClientes||0, pPat:p.precioPatagonia||0, cat:cat, familia:p.familia||null, esNovedad:p.esNovedad===true, foto:p.foto||"", unidadesBulto:p.unidadesBulto||1, esPortada:p.esPortada||false,activo:p.activo!==false};
         dbStock.push(prod);
         if(!_catIndex[cat]) _catIndex[cat]=[];
         _catIndex[cat].push(prod);
@@ -15742,7 +15802,7 @@ function filtrar(t){
   var box=document.getElementById("res-"+t),bus=document.getElementById("bus-"+t).value.toLowerCase().trim();
   box.innerHTML="";
   if(bus.length<1){box.classList.remove("open");return;}
-  var res=dbStock.filter(function(p){return p.activo!==false && _matchBusq((p.n||"")+" "+(p.id||"")+" "+(p.padre||"")+" "+(p.familia||""), bus);}).slice(0,20);
+  var res=dbStock.filter(function(p){return _pedProductoDisponible(p) && _matchBusq((p.n||"")+" "+(p.id||"")+" "+(p.padre||"")+" "+(p.familia||""), bus);}).slice(0,20);
   if(res.length){
     box.classList.add("open");
     res.forEach(function(p){
@@ -15785,6 +15845,7 @@ function filtrar(t){
         '<span class="dd-name">'+p.n+(p.padre?'<span class="dd-grupo"> · '+p.padre+'</span>':'')+ofHtml+promoHtml+(_bloqDD?'<span style="font-size:9.5px;background:#6b7280;color:#fff;padding:1px 6px;border-radius:8px;margin-left:5px;font-weight:700">SIN STOCK</span>':'')+'</span>'+
         stkHtml+'<span class="dd-price">$'+fM(pre)+'</span>';
       function _selProduct(usePromo){
+        if(!_pedPuedeAgregar(p.id,true)) return;
         if(_bloqDD){ showNotif("🚫 "+(p.n||"Este producto")+" no tiene stock","err"); return; }
         _avisarSinFicha(p.id, p.n);
         var precioFinal = (usePromo && p.precioPromo) ? p.precioPromo : pre;
@@ -16998,7 +17059,7 @@ function _pgRenderCats(){
   var cont=document.getElementById("ped-cats");
   if(!cont) return;
   var cats={};
-  (dbStock||[]).forEach(function(p){ if(p.activo===false) return; var c=(p.cat||"").trim(); if(c) cats[c]=(cats[c]||0)+1; });
+  (dbStock||[]).forEach(function(p){ if(!_pedProductoDisponible(p)) return; var c=(p.cat||"").trim(); if(c) cats[c]=(cats[c]||0)+1; });
   var arr=Object.keys(cats).sort(function(a,b){return a.localeCompare(b);});
   var html='<button class="ped-cat-chip'+(_pgCat===""?" on":"")+'" onclick="_pgSetCat(\'\')">Todas</button>';
   html+=arr.map(function(c){
@@ -17033,12 +17094,13 @@ function _matchBusq(texto, q){
   return palabras.every(function(w){ return t.indexOf(w)!==-1; });
 }
 function _pgRender(){
+  _pgOcultarNoDisponiblesFamilia();
   var cont=document.getElementById("ped-grilla");
   if(!cont) return;
   var lista=tipoLista['ped']||"Clientes";
   var q=_pgQ;
   var arr=(dbStock||[]).filter(function(p){
-    if(p.activo===false) return false;   // desactivado en Mis Productos → no se muestra al vendedor
+    if(!_pedProductoDisponible(p)) return false;
     if(_pgCat && (p.cat||"").trim()!==_pgCat) return false;
     if(!q) return true;
     return _matchBusq((p.n||"")+" "+(p.id||"")+" "+(p.familia||""), q);
@@ -17141,6 +17203,7 @@ function _pgRender(){
 
 // Panel de variantes de una familia
 function _pgvStepHtml(p, qty){
+  if(!_pedProductoDisponible(p)) return '<button class="pg-add pg-add-bloq" disabled>🚫 No disponible</button>';
   return qty>0
     ? '<div class="pg-step">'+
         '<button onclick="_pgvDelta(\''+p.id+'\',-1,event)">−</button>'+
@@ -17154,7 +17217,8 @@ function _pgvStepHtml(p, qty){
 }
 function _pgAbrirFamilia(fam){
   var lista=tipoLista['ped']||"Clientes";
-  var prods=(dbStock||[]).filter(function(p){return p.familia===fam;});
+  var prods=(dbStock||[]).filter(function(p){return p.familia===fam && _pedProductoDisponible(p);});
+  if(!prods.length){showNotif("Esta familia no tiene variedades disponibles","info");return;}
   prods.sort(function(a,b){ return (a.n||"").localeCompare(b.n||""); });
   var port = (typeof _portadaDe==="function") ? _portadaDe(fam) : null;
   var tituloFam = (port && port.titulo) ? port.titulo : fam;
@@ -17209,6 +17273,7 @@ function _pgPesoPrompt(id, e){
   ordenes['ped'] = ordenes['ped']||[];
   var idx = ordenes['ped'].findIndex(function(x){return x.id===p.id;});
   var cantOtros = _stkCantEnItems(ordenes['ped'],p.id) - (idx>=0 ? +(ordenes['ped'][idx].c||0) : 0);
+  if(g>0 && !_pedPuedeAgregar(id,true)) return;
   if(g>0 && !_stkPuedeCantidad(p.id,cantOtros+kg,p.n,null,true)) return;
   if(g<=0){
     if(idx>=0) ordenes['ped'].splice(idx,1);
@@ -17245,6 +17310,7 @@ function _pgSetCant(id, val, e){
     renderItems('ped'); _pgRender();
     return;
   }
+  if(!_pedPuedeAgregar(id,true)) return;
   // Respetar la compra mínima (solo aplica vendiendo por unidad)
   if(!esCaja && n<minU){
     n=minU;
@@ -17284,6 +17350,7 @@ function _pgDelta(id, d, e){
   if(e) e.stopPropagation();
   var p=(dbStock||[]).find(function(x){return x.id===id;});
   if(!p) return;
+  if(d>0 && !_pedPuedeAgregar(id,true)) return;
   var lista=tipoLista['ped']||"Clientes";
   var preNormal=_precioDe(p,lista);
   var ofPre = _ofPrecioLista(p, lista); // precio de oferta si vigente
@@ -17445,6 +17512,7 @@ async function _confirmarPedido(){
   if(_confirmandoPedidoStock) return;
   _confirmandoPedidoStock=true;
   try{
+    if(!_pedValidarDisponibles(ordenes['ped']||[],true)) return;
     _cartRevalidarPromos();
     var famOk=_famMinValidarPedido(ordenes['ped']||[],true);
     if(!famOk.ok){
@@ -17787,6 +17855,7 @@ function _cartQuitarItemDsc(i){
 function _cartDelta(i,d){
   var it=ordenes['ped'][i];
   if(!it) return;
+  if(d>0 && !_pedPuedeAgregar(it.id,true)) return;
   if(d>0 && !_stkPuedeCantidad(it.id,_stkCantEnItems(ordenes['ped'],it.id)+d,it.n,null,true)) return;
   it.c+=d;
   if(it.c<=0){ ordenes['ped'].splice(i,1); if(_cartDscOpen===i) _cartDscOpen=-1; }
@@ -17814,6 +17883,7 @@ function _updateFloatFromCalc(){
 async function agregar(t){
   var cant=parseFloat(document.getElementById("cant-"+t).value)||1;
   if(!itemSel[t]) return;
+  if(t==="ped" && !_pedPuedeAgregar(itemSel[t].id,true)) return;
   // ── CAJA: si está en modo caja, guardar igual que la tienda (unidades totales,
   //    nombre "(caja xN)", precio unitario de la caja) ──
   if(_modoCaja[t] && _puedeCajaP(itemSel[t])){
@@ -17870,6 +17940,7 @@ async function agregar(t){
     }
   }
   // Precio efectivo: oferta > promo > normal
+  if(t==="ped" && !_pedPuedeAgregar(itemSel[t].id,true)) return;
   var _preEf = _ofP ? _ofP : (usarPromo ? _pp : _precioNormal);
   if(exist){
     exist.c=cantTotal;
@@ -32544,6 +32615,7 @@ function cargarProductos(opciones) {
 // Asegura que dbStock tenga los datos de oferta (carga productos completos si falta)
 var _ofertasStockCargadas = false;
 function _asegurarOfertasEnStock(){
+  _pedRefrescarDisponibilidad();
   // dbStock está completo si tiene la marca de oferta Y los datos de caja (unidadVenta)
   var completo = (dbStock||[]).some(function(p){ return p && p.ofertaActiva!==undefined && p.unidadVenta!==undefined; });
   if(completo) return;
