@@ -4220,7 +4220,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-provwa1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-compras2</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -5132,7 +5132,7 @@ _sysAlertMount();
 
 <!-- MODAL CONSOLIDADO DE SELECCIÓN -->
 <div class="modal-bg" id="modal-consol-sel" onclick="if(event.target===this)cerrarModal('modal-consol-sel')">
-  <div class="modal-box" style="max-width:520px;max-height:88vh;display:flex;flex-direction:column">
+  <div class="modal-box" style="max-width:900px;max-height:90dvh;display:flex;flex-direction:column">
     <div class="modal-head">
       <div class="modal-ttl" id="consol-sel-titulo">📊 Productos a pedir</div>
       <button class="modal-cls" onclick="cerrarModal('modal-consol-sel')">✕</button>
@@ -27713,10 +27713,7 @@ function _paVerSeleccion(){
     Object.keys(diaData).forEach(function(k){
       var ped = diaData[k];
       (ped.items||[]).forEach(function(it){
-        var pk = it.id||it.n;
-        if(!acum[pk]) acum[pk]={id:it.id||"", n:it.n||"?", cant:0, total:0};
-        acum[pk].cant += (it.c||0);
-        acum[pk].total += (it.sub||0);
+        _paAgregarConsolidado(acum,it);
       });
       // recolectar observación si la tiene
       if(ped.obs && ped.obs.trim()){
@@ -27726,6 +27723,14 @@ function _paVerSeleccion(){
   });
   var prods = Object.values(acum).sort(function(a,b){return b.cant-a.cant;});
   _paRenderConsolEnModal(prods, dias.length, obsList);
+}
+function _paAgregarConsolidado(acum,it){
+  if(!it)return;
+  // c ya expresa unidades reales (o kg): una caja NO vuelve a multiplicarse.
+  var id=it.id==null?"":String(it.id),peso=it.esPeso===true;
+  var key=JSON.stringify([id,id?"":String(it.n||"?"),peso]);
+  if(!acum[key])acum[key]={id:id,n:it.n||"?",cant:0,total:0,esPeso:peso,_ub:+it._ub||null};
+  acum[key].cant+=Number(it.c)||0;acum[key].total+=Number(it.sub)||0;
 }
 
 var _paSelProds = []; // guardar para exportar
@@ -27747,15 +27752,17 @@ function _paMapaProveedores(){
 var _paConsolTodos = [];   // todos los productos sin filtrar (para el selector)
 var _paConsolFiltro = "";  // proveedorId actual del filtro ("" = todos)
 async function _paRenderConsolEnModal(prods, nDias, obsList){
+  var empresaLectura=_sbEmpId;
   // Asegurar productos y proveedores cargados para mostrar el proveedor de cada producto
   try {
     if((!_prodData || (typeof _prodData==="object" && !Object.keys(_prodData).length)) && typeof _sbGetProductos==="function"){
-      var _pd = await _sbGetProductos(true); if(_pd) _prodData = _pd;
+      var _pd = await _sbGetProductos(true); if(empresaLectura!==_sbEmpId)return; if(_pd) _prodData = _pd;
     }
     if((!_provData || !_provData.length) && typeof _sbGetProveedores==="function"){
-      var _pv = await _sbGetProveedores(); if(_pv && _pv.length) _provData = _pv;
+      var _pv = await _sbGetProveedores(); if(empresaLectura!==_sbEmpId)return; if(_pv && _pv.length) _provData = _pv;
     }
   } catch(e){ console.warn("consol modal prov:", e); }
+  if(empresaLectura!==_sbEmpId)return;
   _paConsolTodos = prods;
   _paConsolFiltro = "";
   _paSelObs = obsList || [];
@@ -27767,6 +27774,7 @@ async function _paRenderConsolEnModal(prods, nDias, obsList){
 
 function _paProvHue(id){ if(!id) return 210; var h=0,str=String(id); for(var i=0;i<str.length;i++){ h=str.charCodeAt(i)+((h<<5)-h); } return Math.abs(h)%360; }
 function _paPintarConsol(){
+  if(window.PedidosProveedorV2)return window.PedidosProveedorV2.pintarModal();
   var body = document.getElementById("consol-sel-body");
   if(!body) return;
   var mapa = _paMapaProveedores();
@@ -27878,9 +27886,11 @@ function _paAbrirWhatsAppProveedor(prods,observaciones){
   _cc2AbrirWhatsAppSeguro(url);
 }
 function _exportSelTexto(){
+  if(window.PedidosProveedorV2)return window.PedidosProveedorV2.compartirSeleccion();
   _paAbrirWhatsAppProveedor(_paSelProds,_paSelObs);
 }
 function _paCopiarPedidoProveedor(seleccion){
+  if(seleccion&&window.PedidosProveedorV2)return window.PedidosProveedorV2.copiarSeleccion();
   var prods=seleccion?_paSelProds:_paConsolidar();
   if(!prods||!prods.length){showNotif("No hay productos para copiar","warn");return;}
   var txt=_paTextoProveedor(prods,seleccion?_paSelObs:[]);
@@ -27900,6 +27910,7 @@ function _paCopiarPedidoProveedor(seleccion){
   fallback();
 }
 function _exportSelCSV(){
+  if(window.PedidosProveedorV2)return window.PedidosProveedorV2.csvSeleccion();
   if(!_paSelProds.length) return;
   var rows=[["Codigo","Producto","Cantidad","Subtotal"]];
   _paSelProds.forEach(function(p){ rows.push([p.id||"", p.n||"", String(p.cant), String(p.total)]); });
@@ -27936,10 +27947,7 @@ function _paConsolidar(){
     Object.keys(diaData).forEach(function(fbKey){
       var ped = diaData[fbKey];
       (ped.items||[]).forEach(function(it){
-        var k = it.id || it.n;
-        if(!acum[k]) acum[k] = {id:it.id||"", n:it.n||"?", cant:0, total:0};
-        acum[k].cant += (it.c||0);
-        acum[k].total += (it.sub||0);
+        _paAgregarConsolidado(acum,it);
       });
     });
   });
@@ -27947,20 +27955,25 @@ function _paConsolidar(){
 }
 
 async function _renderConsolidado(){
+  var empresaLectura=_sbEmpId;
   var wrap = document.getElementById("pedidos-consol-list");
   if(!wrap) return;
   // Asegurar que estén cargados los productos y proveedores para mostrar el proveedor de cada uno
   try {
     if((!_prodData || (typeof _prodData==="object" && !Object.keys(_prodData).length)) && typeof _sbGetProductos==="function"){
       var _pd = await _sbGetProductos(true);
+      if(empresaLectura!==_sbEmpId)return;
       if(_pd) _prodData = _pd;
     }
     if((!_provData || !_provData.length) && typeof _sbGetProveedores==="function"){
       var _pv = await _sbGetProveedores();
+      if(empresaLectura!==_sbEmpId)return;
       if(_pv && _pv.length) _provData = _pv;
     }
   } catch(e){ console.warn("consol prov:", e); }
+  if(empresaLectura!==_sbEmpId)return;
   var prods = _paConsolidar();
+  if(window.PedidosProveedorV2)return window.PedidosProveedorV2.pintarPeriodo(prods);
   if(!prods.length){
     wrap.innerHTML='<div class="empty-box"><div class="empty-icon">📊</div>Sin productos para consolidar.</div>';
     return;
@@ -27989,6 +28002,11 @@ async function _renderConsolidado(){
 function _exportarProveedor(){
   var prods=_paConsolidar();
   if(!prods.length){ showNotif("No hay productos para exportar","warn"); return; }
+  if(window.PedidosProveedorV2){
+    cerrarModal("modal-export-prov");
+    var nDias=Object.keys(pedidosAcumData||{}).filter(function(d){return _paDiaEnPeriodo(d);}).length;
+    _paRenderConsolEnModal(prods,nDias,[]);return;
+  }
   var m=document.getElementById("modal-export-prov");
   if(m) m.classList.add("open");
 }
@@ -43613,5 +43631,6 @@ async function _rvtGuardarVisita(){
 <script src="remito-diseno-v2.js?v=20261118-2"></script>
 <script src="sync-avisos-v1.js?v=20261119-1"></script>
 <script src="iclap-catalogo-v1.js?v=20261119-2"></script>
+<script src="pedidos-proveedor-v2.js?v=20261119-1"></script>
 </body>
 </html>

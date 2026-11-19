@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.84 — WhatsApp y copiar separados en compras
-const CACHE_NAME = 'distribix-v1.84';
-const CACHE_STATIC = 'distribix-static-v1.84';
+// DISTRIBIX Service Worker v1.85 — compras separadas por proveedor y costo base
+const CACHE_NAME = 'distribix-v1.85';
+const CACHE_STATIC = 'distribix-static-v1.85';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -23,6 +23,8 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './sync-avisos-v1.js',
   './iclap-catalogo-v1.js',
   './iclap-catalogo-v1.css',
+  './pedidos-proveedor-v2.js',
+  './pedidos-proveedor-v2.css',
   './qrcode-1.4.4.min.js',
   './pdfjs/pdf.min.mjs',
   './pdfjs/pdf.worker.min.mjs',
