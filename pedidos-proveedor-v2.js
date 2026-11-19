@@ -22,11 +22,13 @@
     var idx=indice(catalogo),prov=new Map();(proveedores||[]).forEach(function(p){if(p&&p.id!=null)prov.set(String(p.id),p);});
     var rows=(productos||[]).map(function(raw){
       var p=raw.id==null?null:idx.get(String(raw.id)),pid=p&&(p.proveedorId||p.proveedor_id),id=pid==null?'':String(pid),supplier=prov.get(id)||null;
-      var cant=num(raw.cant),venta=num(raw.total),esPeso=raw.esPeso===true||!!(p&&(p.vendePor||p.vende_por)==='peso');
+      var cant=num(raw.cant),venta=num(raw.total),modo=p&&(p.vendePor||p.vende_por),medidaGuardada=typeof raw.esPeso==='boolean';
+      var esPeso=raw.esPeso===true||(!medidaGuardada&&modo==='peso');
+      var conflictoMedida=!!(p&&modo&&medidaGuardada&&esPeso!==(modo==='peso'));
       var costo=p?num(p.precioBase!==undefined?p.precioBase:p.precio_base):null;
-      if(!(costo>0))costo=null; // 0/vacío no es "gratis" ni precio de venta.
+      if(!(costo>0)||conflictoMedida)costo=null; // 0/vacío no es "gratis" ni precio de venta.
       var ub=p?num(p.unidadesBulto!==undefined?p.unidadesBulto:p.unidades_bulto):num(raw._ub);
-      if(!Number.isInteger(ub)||ub<=1||esPeso)ub=null;
+      if(!Number.isInteger(ub)||ub<=1||esPeso||conflictoMedida)ub=null;
       var tipo=p&&(p.unidadBulto||p.unidad_bulto)||'bulto',equiv='';
       if(esPeso)equiv=fmt(cant||0)+' kg';
       else if(ub){var packs=Math.floor((cant||0)/ub),resto=Math.round(((cant||0)-packs*ub)*1e6)/1e6;
@@ -37,7 +39,7 @@
         esPeso:esPeso,provId:id,provNombre:supplier?String(supplier.nombre||'Proveedor'):id?'Proveedor sin ficha':'Sin proveedor asignado',
         telefono:supplier?(telefono(supplier.whatsapp)||telefono(supplier.telefono)):'',costoUnitario:costo,
         costoCompra:costo==null||cant==null||cant<0?null:money(costo*cant),unidadesBulto:ub,unidadBulto:String(tipo),equivalencia:equiv,
-        sinProducto:!p,advertencia:!p?'Producto sin coincidencia única en el catálogo':costo==null?'Falta precio base de compra':''};
+        sinProducto:!p,advertencia:cant==null||cant<0?'Cantidad inválida; revisar pedido':conflictoMedida?'La medida del pedido no coincide con el catálogo; revisar costo':!p?'Producto sin coincidencia única en el catálogo':costo==null?'Falta precio base de compra':''};
     });
     var grupos=new Map();rows.forEach(function(r){var key=r.provId||'__sin__';if(!grupos.has(key))grupos.set(key,{key:key,id:r.provId,nombre:r.provNombre,telefono:r.telefono,rows:[]});grupos.get(key).rows.push(r);});
     return {rows:rows,grupos:Array.from(grupos.values()).sort(function(a,b){return a.key==='__sin__'?1:b.key==='__sin__'?-1:a.nombre.localeCompare(b.nombre,'es');})};

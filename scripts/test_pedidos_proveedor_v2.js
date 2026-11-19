@@ -22,6 +22,7 @@ const csv=lib.csv(model.rows);assert.ok(csv.includes('Subtotal compra referencia
 const injected=lib.preparar([{id:'?sql',n:'=HYPERLINK("x")',cant:1,total:1}],{},[]);assert.ok(lib.csv(injected.rows).includes("'=HYPERLINK"),'Evitar fórmulas ejecutables al abrir CSV');
 const conflict=lib.preparar([{id:'DUP',n:'No adivinar',cant:2,total:100}],{a:{codigo:'DUP',precioBase:1},b:{codigo:'DUP',precioBase:99}},[]);assert.equal(conflict.rows[0].costoCompra,null);
 const noGuess=lib.preparar([{id:'M',n:'Crema X150 ml',cant:240,total:100}],{a:{id:'M',precioBase:1}},[]);assert.equal(noGuess.rows[0].unidadesBulto,null);
+const changedUnit=lib.preparar([{id:'M',n:'Antes por unidad',cant:10,total:100,esPeso:false}],{M:{id:'M',precioBase:200,vendePor:'peso'}},[]);assert.equal(changedUnit.rows[0].esPeso,false);assert.equal(changedUnit.rows[0].costoCompra,null);assert.ok(changedUnit.rows[0].advertencia.includes('medida'));
 for(const value of [null,'',0,-10,NaN,'no-numero'])assert.equal(lib.preparar([{id:'M',cant:2,total:100}],{M:{id:'M',precioBase:value}},[]).rows[0].costoCompra,null);
 // Las dos entradas reales (período y selección de días) conservan kg y packs sin multiplicar.
 const html=fs.readFileSync(process.argv[2]||'PANEL-index_15.html','utf8');
