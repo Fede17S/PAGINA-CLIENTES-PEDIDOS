@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.85 — compras separadas por proveedor y costo base
-const CACHE_NAME = 'distribix-v1.85';
-const CACHE_STATIC = 'distribix-static-v1.85';
+// DISTRIBIX Service Worker v1.86 — compras con verificación de unidad y costo
+const CACHE_NAME = 'distribix-v1.86';
+const CACHE_STATIC = 'distribix-static-v1.86';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
