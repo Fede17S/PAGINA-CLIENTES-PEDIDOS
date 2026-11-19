@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.81 — avisos de sincronización y reportes técnicos
-const CACHE_NAME = 'distribix-v1.81';
-const CACHE_STATIC = 'distribix-static-v1.81';
+// DISTRIBIX Service Worker v1.82 — vitrina externa iClap exclusiva de 1122
+const CACHE_NAME = 'distribix-v1.82';
+const CACHE_STATIC = 'distribix-static-v1.82';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -21,6 +21,8 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './stock-integridad-v3.js',
   './remito-diseno-v2.js',
   './sync-avisos-v1.js',
+  './iclap-catalogo-v1.js',
+  './iclap-catalogo-v1.css',
   './qrcode-1.4.4.min.js',
   './pdfjs/pdf.min.mjs',
   './pdfjs/pdf.worker.min.mjs',
@@ -93,7 +95,8 @@ self.addEventListener('fetch', function(event) {
     return url.includes(domain);
   });
 
-  if (isNetworkOnly || request.method !== 'GET') return;
+  // La vitrina externa no puede rescatar precios/disponibilidad viejos del caché.
+  if (isNetworkOnly || new URL(url).pathname === '/api/iclap' || request.method !== 'GET') return;
 
   // Navegación: busca primero la versión nueva y usa la copia local si no hay
   // señal. Así una actualización desplegada no queda escondida por un HTML viejo.
