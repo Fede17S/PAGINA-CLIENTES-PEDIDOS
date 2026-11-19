@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const {insets}=require('../panel-viewport-v1.js');
+const phone={iphone:true,screenMax:852,width:393,height:852,medidos:{top:0,left:0,right:0,bottom:0}};
+assert.deepEqual(insets(phone),{top:0,right:0,bottom:0,left:0},'Safari normal no recibe un margen inventado');
+assert.deepEqual(insets({...phone,standalone:true}),{top:59,right:0,bottom:34,left:0});
+assert.deepEqual(insets({...phone,nativo:true,screenMax:812}),{top:47,right:0,bottom:34,left:0});
+assert.deepEqual(insets({...phone,nativo:true,width:852,height:393}),{top:0,right:47,bottom:21,left:47});
+assert.deepEqual(insets({...phone,nativo:true,medidos:{top:62,bottom:34,left:0,right:0}}),{top:62,right:0,bottom:34,left:0},'Respetar medición real, no bajar una isla de mayor tamaño');
+assert.deepEqual(insets({...phone,standalone:true,medidos:{top:0,left:59,right:59,bottom:21}}),{top:0,right:59,bottom:21,left:59});
+assert.deepEqual(insets({...phone,iphone:false,android:true,nativo:true}),{top:28,right:0,bottom:0,left:0});
+assert.deepEqual(insets({...phone,iphone:false,android:true}),{top:0,right:0,bottom:0,left:0});
+assert.deepEqual(insets({...phone,iphone:false,standalone:true}),{top:0,right:0,bottom:0,left:0},'No adivinar notch para iPad/escritorio');
+const html=fs.readFileSync(process.argv[2]||'PANEL-index_15.html','utf8');
+assert.ok(html.includes('viewport-fit=cover'));assert.ok(html.includes('aria-label="Cerrar consolidado"'));assert.ok(html.includes('window.PanelViewport.prepararConsolidado()'));
+assert.ok(!html.includes('function _ajustarSafeTop()'),'No conservar el fallback duplicado anterior');
+assert.ok(html.includes(':root { --header-h:48px; }'));assert.ok(html.includes('class="pp-modal-footer"'));
+const moduleSource=fs.readFileSync('panel-viewport-v1.js','utf8');assert.ok(!/sbFetch\(|sbPatch\(|sbUpsert\(|localStorage\.|saveBackups\(/.test(moduleSource));
+console.log('Viewport: Safari sin doble margen, notch/isla medidos, PWA/nativo de respaldo, horizontal, Android y accesibilidad de cierre OK');

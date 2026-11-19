@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.86 — compras con verificación de unidad y costo
-const CACHE_NAME = 'distribix-v1.86';
-const CACHE_STATIC = 'distribix-static-v1.86';
+// DISTRIBIX Service Worker v1.87 — modal visible y safe-area sin duplicar
+const CACHE_NAME = 'distribix-v1.87';
+const CACHE_STATIC = 'distribix-static-v1.87';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -25,6 +25,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './iclap-catalogo-v1.css',
   './pedidos-proveedor-v2.js',
   './pedidos-proveedor-v2.css',
+  './panel-viewport-v1.js',
   './qrcode-1.4.4.min.js',
   './pdfjs/pdf.min.mjs',
   './pdfjs/pdf.worker.min.mjs',

@@ -82,6 +82,8 @@
   --radius-sm: 8px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --shadow-sm: 0 1px 2px rgba(20,18,12,.04);
   --shadow:    0 1px 3px rgba(20,18,12,.06), 0 1px 2px rgba(20,18,12,.04);
   --shadow-lg: 0 8px 24px rgba(20,18,12,.08), 0 2px 6px rgba(20,18,12,.04);
@@ -176,7 +178,7 @@ body {
 /* Avisos compactos: píldoras flotantes que se expanden al tocarlas. */
 #system-alert-dock {
   position:fixed;
-  top:calc(58px + var(--safe-top));
+  top:calc(var(--header-h) + var(--safe-top) + 6px);
   right:12px;
   z-index:10020;
   width:min(420px, calc(100vw - 24px));
@@ -682,7 +684,7 @@ html.has-session #login-screen { display:none !important; }
 .app-header {
   background:var(--s1); height:calc(var(--header-h) + var(--safe-top));
   padding-top:max(var(--safe-top), env(safe-area-inset-top, 0px));
-  display:flex; align-items:center; gap:12px; padding-left:16px; padding-right:16px;
+  display:flex; align-items:center; gap:12px; padding-left:max(16px,var(--safe-left)); padding-right:max(16px,var(--safe-right));
   position:fixed; top:0; left:0; right:0; z-index:200;
   border-bottom:1px solid var(--border);
   box-sizing:border-box;
@@ -1921,6 +1923,25 @@ html[data-theme="dark"] .hr-sec button.hr-act-rech{background:#351517;color:#fca
 .modal-ttl { font-size:15px; font-weight:700; color:var(--text); letter-spacing:-0.01em }
 .modal-cls { background:var(--s3); border:none; color:var(--muted); font-size:16px; cursor:pointer; line-height:1; padding:6px 10px; border-radius:7px; transition:all .15s }
 .modal-cls:hover { color:var(--text); background:var(--s4) }
+/* Compras: portal sobre el header/FAB; sólo el contenido central hace scroll. */
+#modal-consol-sel, #pp-wa-selector {
+  z-index:100050; inset:auto;
+  top:var(--panel-vv-top,0px); left:var(--panel-vv-left,0px);
+  width:var(--panel-vv-width,100%); height:var(--panel-vv-height,100dvh);
+  padding:max(8px,var(--modal-safe-top,var(--safe-top))) max(8px,var(--modal-safe-right,var(--safe-right))) max(8px,var(--modal-safe-bottom,var(--safe-bottom))) max(8px,var(--modal-safe-left,var(--safe-left)));
+  overflow:hidden; overscroll-behavior:none;
+}
+#pp-wa-selector { z-index:100100; }
+#modal-consol-sel > .modal-box, #pp-wa-selector > .modal-box {
+  display:flex; flex-direction:column; max-height:100% !important; min-height:0; min-width:0; margin:0;
+}
+#modal-consol-sel .modal-head, #pp-wa-selector .modal-head { flex-shrink:0; min-height:56px; gap:10px; padding:6px 12px; background:var(--s2); }
+#modal-consol-sel .modal-ttl { flex:1; min-width:0; overflow-wrap:anywhere; font-size:14px; }
+#modal-consol-sel .modal-cls, #pp-wa-selector .modal-cls { flex:0 0 44px; width:44px; height:44px; padding:0; font-size:20px; }
+#consol-sel-body { flex:1 1 auto !important; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:12px !important; }
+#modal-consol-sel .pp-modal-footer { flex-shrink:0; padding:8px 12px !important; background:var(--s2); }
+body.pp-modal-open #nav-fab, body.pp-modal-open #nav-fab-panel, body.pp-modal-open #nav-fab-back { visibility:hidden !important; pointer-events:none !important; }
+@media (max-height:450px) { #modal-consol-sel .modal-head { min-height:48px; padding-top:2px; padding-bottom:2px; } #modal-consol-sel .pp-modal-footer { padding-top:5px !important; padding-bottom:5px !important; } }
 .modal-body { padding:20px }
 .modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; background:var(--s3) }
 .modal-input {
@@ -2304,13 +2325,15 @@ html[data-theme="dark"] .hr-sec button.hr-act-rech{background:#351517;color:#fca
   .main > .section { max-width:980px; margin-left:auto; margin-right:auto; }
 }
 @media (max-width:899px) {
+  :root { --header-h:48px; }
   /* En móvil la navegación es SOLO la barra inferior:
      ocultar completamente sidebar, overlay y hamburguesa. */
   #sidebar { display:none !important; }
   #overlay { display:none !important; }
   .hbtn { display:none !important; }
   /* Header ocupa todo el ancho y muestra el botón de cuenta */
-  .app-header { left:0; gap:8px; padding:0 12px; }
+  .app-header { left:0; gap:7px; padding:var(--safe-top) max(12px,var(--safe-right)) 0 max(12px,var(--safe-left)); }
+  .htitle { font-size:14px; min-width:0; }
   #hdr-cuenta-btn { display:flex; }
   .main { padding-bottom:calc(16px + var(--safe-bottom)) }
 }
@@ -4220,7 +4243,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-compras2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-viewport1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4414,38 +4437,7 @@ a:focus-visible, button:focus-visible {
   </div>
   <button id="hdr-cuenta-btn" onclick="_abrirMenuCuenta()" aria-label="Cuenta" title="Cuenta">👤</button>
 </header>
-<script>
-/* Fallback de safe-area: si env(safe-area-inset-top) devuelve 0 pero hay barra de
-   estado encima (bug del WebView en iPhone con notch y en la app Android), forzamos
-   --safe-top para que el header/banner no queden tapados. En la web normal no toca nada. */
-(function(){
-  function _ajustarSafeTop(){
-    try{
-      var probe=document.createElement("div");
-      probe.style.cssText="position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);";
-      document.body.appendChild(probe);
-      var inset=probe.getBoundingClientRect().height||probe.offsetHeight||0;
-      document.body.removeChild(probe);
-      if(inset >= 20) return;   // el sistema ya reporta bien el safe-area
-      var ua=navigator.userAgent||"";
-      var isIOS=/iPhone|iPod/.test(ua) || (/iPad|Macintosh/.test(ua) && navigator.maxTouchPoints>1);
-      var esAppNativa=!!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-      var maxD=window.screen ? Math.max(window.screen.width||0, window.screen.height||0) : 0;
-      if(isIOS && maxD >= 812){
-        var top = maxD >= 850 ? 55 : 47;   // Dynamic Island vs notch clásico
-        document.documentElement.style.setProperty("--safe-top", top+"px");
-      } else if(esAppNativa && /Android/.test(ua)){
-        // El WebView de Android reporta env(safe-area-inset-top)=0 aunque haya barra
-        // de estado encima. Le damos un alto razonable para no quedar tapados.
-        document.documentElement.style.setProperty("--safe-top", "28px");
-      }
-    }catch(e){}
-  }
-  _ajustarSafeTop();
-  // Reintento por si Capacitor todavía no había inyectado window.Capacitor
-  setTimeout(_ajustarSafeTop, 500);
-})();
-</script>
+<script src="panel-viewport-v1.js?v=20261119-1"></script>
 <script>
 /* Centro de avisos compacto. Conserva los IDs existentes para no alterar la lógica. */
 function _sysAlertMount(){
@@ -5131,14 +5123,14 @@ _sysAlertMount();
 </div>
 
 <!-- MODAL CONSOLIDADO DE SELECCIÓN -->
-<div class="modal-bg" id="modal-consol-sel" onclick="if(event.target===this)cerrarModal('modal-consol-sel')">
+<div class="modal-bg" id="modal-consol-sel" role="dialog" aria-modal="true" aria-labelledby="consol-sel-titulo" onclick="if(event.target===this)cerrarModal('modal-consol-sel')">
   <div class="modal-box" style="max-width:900px;max-height:90dvh;display:flex;flex-direction:column">
     <div class="modal-head">
       <div class="modal-ttl" id="consol-sel-titulo">📊 Productos a pedir</div>
-      <button class="modal-cls" onclick="cerrarModal('modal-consol-sel')">✕</button>
+      <button type="button" class="modal-cls" aria-label="Cerrar consolidado" onclick="cerrarModal('modal-consol-sel')">✕</button>
     </div>
     <div id="consol-sel-body" style="flex:1;overflow-y:auto;padding:14px 16px"></div>
-    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0">
+    <div class="pp-modal-footer" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0">
       <button type="button" class="btn btn-ghost btn-sm" onclick="_exportSelTexto()" style="flex:1 1 100px">💬 WhatsApp</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="_paCopiarPedidoProveedor(true)" style="flex:1 1 100px">📋 Copiar</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="_exportSelCSV()" style="flex:1 1 100px">📄 CSV</button>
@@ -27768,6 +27760,7 @@ async function _paRenderConsolEnModal(prods, nDias, obsList){
   _paSelObs = obsList || [];
   var titulo = document.getElementById("consol-sel-titulo");
   if(titulo) titulo.textContent = "📊 "+nDias+" día"+(nDias!==1?"s":"")+" seleccionado"+(nDias!==1?"s":"");
+  if(window.PanelViewport)window.PanelViewport.prepararConsolidado();
   _paPintarConsol();
   document.getElementById("modal-consol-sel").classList.add("open");
 }
