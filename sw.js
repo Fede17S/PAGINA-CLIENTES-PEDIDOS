@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.82 — vitrina externa iClap exclusiva de 1122
-const CACHE_NAME = 'distribix-v1.82';
-const CACHE_STATIC = 'distribix-static-v1.82';
+// DISTRIBIX Service Worker v1.83 — iClap con imágenes públicas entre dominios
+const CACHE_NAME = 'distribix-v1.83';
+const CACHE_STATIC = 'distribix-static-v1.83';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea

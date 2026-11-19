@@ -36,6 +36,13 @@
   }
   function seleccion(products,cfg){var c=config(cfg);return c.enabled?products.filter(function(p){return c.mode!=="selected"||c.skus.indexOf(p.sku)>=0;}):[];}
   function urlAPI(){return root.location&&/^https?:$/.test(root.location.protocol)&&!(root.document&&root.document.getElementById("catalogo-vivo"))?"/api/iclap?empresa=1122":RELAY;}
+  function urlImagen(image){
+    if(typeof image!=="string"||image.indexOf(ORIGIN+"/api/media?key=")!==0)return "";
+    var key=new URL(image).searchParams.get("key");
+    var relay=new URL(urlAPI(),root.location&&root.location.href||RELAY);
+    relay.pathname="/api/iclap-imagen";relay.search="?empresa=1122&key="+encodeURIComponent(key||"");
+    return relay.href;
+  }
   async function cargar(codigo,signal){
     if(!permitido(codigo))throw new Error("Integración no habilitada para esta empresa");
     var r=await root.fetch(urlAPI(),{method:"GET",credentials:"omit",cache:"no-store",signal:signal});
@@ -47,7 +54,7 @@
       return {sku:texto(p.sku,200),model:texto(p.model,180),category:texto(p.category,80),brand:texto(p.brand,60),condition:texto(p.condition,40),specs:texto(p.specs,120),price:precio(p.price),from:p.from===true,
         availability:["available","last_units","preorder","out_of_stock"].indexOf(p.availability)>=0?p.availability:"unknown",
         href:ORIGIN+"/producto/"+encodeURIComponent(p.href.slice((ORIGIN+"/producto/").length)),
-        image:typeof p.image==="string"&&p.image.indexOf(ORIGIN+"/api/media?key=")===0?p.image:""};
+        image:urlImagen(p.image)};
     });
   }
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -57,7 +64,7 @@
     if(!root.document||root.document.getElementById("iclap-estilos"))return;
     var link=root.document.createElement("link");link.id="iclap-estilos";link.rel="stylesheet";
     var script=root.document.querySelector('script[src*="iclap-catalogo-v1.js"]');
-    link.href=new URL("iclap-catalogo-v1.css?v=20261119-1",script?script.src:root.location.href).href;
+    link.href=new URL("iclap-catalogo-v1.css?v=20261119-2",script?script.src:root.location.href).href;
     root.document.head.appendChild(link);
   }
   function card(p){

@@ -29,7 +29,9 @@ Si no había configuración iClap se muestran todos los productos publicados. Co
 ## Publicación y pruebas
 
 Panel: `PANEL-index_15.html` como `index.html`, módulo JS/CSS y `sw.js` en `Fede17S/PAGINA-CLIENTES-PEDIDOS`.
-Tienda: `pagina tienda.html` como `index.html`, mismo módulo JS/CSS y `api/iclap.js` en `Fede17S/PAGINA-TIENDA`. El puente requiere la copia JS en la raíz. La tienda usa ruta relativa; el panel/archivo local usa el puente publicado en la tienda madre para no depender de CORS del origen iClap.
+Tienda: `pagina tienda.html` como `index.html`, mismo módulo JS/CSS, `api/iclap.js` y `api/iclap-imagen.js` en `Fede17S/PAGINA-TIENDA`. El puente requiere la copia JS en la raíz. La tienda usa ruta relativa; el panel/archivo local usa el puente publicado en la tienda madre para no depender de CORS del origen iClap.
+
+iClap protege sus imágenes con `Cross-Origin-Resource-Policy: same-origin`. El puente de fotos sólo acepta claves UUID del formato real del catálogo, pide el recurso original sin cookies ni credenciales y respeta el 404 si no es público. No acepta URLs, SVG ni archivos de más de 2 MB. No se debilitan las cabeceras de seguridad de iClap.
 
 No cambia ni requiere desplegar el proyecto VENTA DE IPHONE. No se compila APK en esta etapa.
 
