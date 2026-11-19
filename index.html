@@ -4220,7 +4220,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-iclap1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-provwa1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -5032,7 +5032,8 @@ _sysAlertMount();
     </div>
     <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
       <p style="font-size:12.5px;color:var(--muted);margin:0 0 4px">Exporta el total consolidado de productos a pedir.</p>
-      <button onclick="_exportProvTexto()" style="width:100%;padding:13px;background:#25d366;color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">💬 Texto / WhatsApp</button>
+      <button type="button" onclick="_exportProvTexto()" style="width:100%;padding:13px;background:#25d366;color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">💬 Abrir WhatsApp</button>
+      <button type="button" class="btn btn-ghost" onclick="_paCopiarPedidoProveedor(false)">📋 Copiar pedido</button>
       <button onclick="_exportProvCSV()" style="width:100%;padding:13px;background:var(--s3);color:var(--text);border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">📄 Descargar CSV (Excel)</button>
     </div>
   </div>
@@ -5137,9 +5138,10 @@ _sysAlertMount();
       <button class="modal-cls" onclick="cerrarModal('modal-consol-sel')">✕</button>
     </div>
     <div id="consol-sel-body" style="flex:1;overflow-y:auto;padding:14px 16px"></div>
-    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
-      <button class="btn btn-ghost btn-sm" onclick="_exportSelTexto()" style="flex:1">💬 WhatsApp</button>
-      <button class="btn btn-ghost btn-sm" onclick="_exportSelCSV()" style="flex:1">📄 CSV</button>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="_exportSelTexto()" style="flex:1 1 100px">💬 WhatsApp</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="_paCopiarPedidoProveedor(true)" style="flex:1 1 100px">📋 Copiar</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="_exportSelCSV()" style="flex:1 1 100px">📄 CSV</button>
     </div>
   </div>
 </div>
@@ -27847,22 +27849,55 @@ function _paPintarConsol(){
   }
   body.innerHTML = html;
 }
-function _exportSelTexto(){
-  if(!_paSelProds.length) return;
+// Un único formato para ambas vistas. Sólo lee el consolidado; no cambia stock.
+function _paTextoProveedor(prods, observaciones){
   var emp=(empresaData&&empresaData.nombre)?empresaData.nombre:"CoreDistri";
   var L=["🛒 *Pedido al proveedor*","De: "+emp,"🗓️ "+new Date().toLocaleDateString("es-AR"),""];
-  _paSelProds.forEach(function(p){ L.push("• "+p.n+" — *"+p.cant+"u*"+(p.id?(" ("+p.id+")"):"")); });
-  var tot=_paSelProds.reduce(function(s,p){return s+p.cant;},0);
-  L.push(""); L.push("Total: "+_paSelProds.length+" productos · "+tot+" unidades");
+  prods.forEach(function(p){ L.push("• "+p.n+" — *"+p.cant+"u*"+(p.id?(" ("+p.id+")"):"")); });
+  var tot=prods.reduce(function(s,p){return s+p.cant;},0);
+  L.push(""); L.push("Total: "+prods.length+" productos · "+tot+" unidades");
   // observaciones al final
-  if(_paSelObs && _paSelObs.length){
+  if(observaciones && observaciones.length){
     L.push(""); L.push("💬 *Observaciones:*");
-    _paSelObs.forEach(function(o){ L.push("• "+o.cliente+": "+o.obs); });
+    observaciones.forEach(function(o){ L.push("• "+o.cliente+": "+o.obs); });
   }
-  var txt=L.join("\n");
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(function(){ showNotif("📋 Copiado","ok"); }).catch(function(){ window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank"); });
-  } else { window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank"); }
+  return L.join("\n");
+}
+function _paAbrirWhatsAppProveedor(prods,observaciones){
+  if(!prods||!prods.length){showNotif("No hay productos para compartir","warn");return;}
+  // Abrir durante el clic, sin esperar al portapapeles (evita perder el gesto).
+  var url="https://wa.me/?text="+encodeURIComponent(_paTextoProveedor(prods,observaciones));
+  var nativa=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform());
+  if(!nativa&&!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"")){
+    // Con noopener window.open puede devolver null aunque haya abierto la pestaña.
+    // Un enlace evita el falso fallback que sacaba también al panel de su lugar.
+    var enlace=document.createElement("a");enlace.href=url;enlace.target="_blank";enlace.rel="noopener noreferrer";
+    document.body.appendChild(enlace);enlace.click();enlace.remove();
+    showNotif("WhatsApp preparado. Revisá el pedido antes de enviarlo.","ok");return;
+  }
+  _cc2AbrirWhatsAppSeguro(url);
+}
+function _exportSelTexto(){
+  _paAbrirWhatsAppProveedor(_paSelProds,_paSelObs);
+}
+function _paCopiarPedidoProveedor(seleccion){
+  var prods=seleccion?_paSelProds:_paConsolidar();
+  if(!prods||!prods.length){showNotif("No hay productos para copiar","warn");return;}
+  var txt=_paTextoProveedor(prods,seleccion?_paSelObs:[]);
+  function fallback(){
+    var campo=document.createElement("textarea"),previo=document.activeElement,ok=false;
+    campo.value=txt;campo.setAttribute("readonly","");campo.style.cssText="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px";
+    try{document.body.appendChild(campo);campo.focus();campo.select();campo.setSelectionRange(0,txt.length);ok=!!document.execCommand("copy");}catch(e){}
+    finally{campo.remove();if(previo&&previo.focus)try{previo.focus({preventScroll:true});}catch(e){}}
+    showNotif(ok?"📋 Pedido completo copiado":"No se pudo copiar. Usá WhatsApp o descargá el CSV.",ok?"ok":"warn");
+  }
+  // Copiar nunca abre WhatsApp ni registra un envío.
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(txt).then(function(){showNotif("📋 Pedido completo copiado","ok");}).catch(fallback);
+    }
+  }catch(e){}
+  fallback();
 }
 function _exportSelCSV(){
   if(!_paSelProds.length) return;
@@ -27958,23 +27993,7 @@ function _exportarProveedor(){
   if(m) m.classList.add("open");
 }
 function _exportProvTexto(){
-  var prods=_paConsolidar();
-  var emp=(empresaData&&empresaData.nombre)?empresaData.nombre:"CoreDistri";
-  var L=["🛒 *Pedido al proveedor*","De: "+emp,"🗓️ "+new Date().toLocaleDateString("es-AR"),""];
-  prods.forEach(function(p){
-    L.push("• "+p.n+" — *"+p.cant+"u*"+(p.id?(" ("+p.id+")"):""));
-  });
-  var totalUnid=prods.reduce(function(s,p){return s+p.cant;},0);
-  L.push("");
-  L.push("Total: "+prods.length+" productos · "+totalUnid+" unidades");
-  var txt=L.join("\n");
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(function(){
-      showNotif("📋 Pedido copiado","ok"); cerrarModal("modal-export-prov");
-    }).catch(function(){ window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank"); });
-  } else {
-    window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank");
-  }
+  _paAbrirWhatsAppProveedor(_paConsolidar(),[]);
 }
 function _exportProvCSV(){
   var prods=_paConsolidar();

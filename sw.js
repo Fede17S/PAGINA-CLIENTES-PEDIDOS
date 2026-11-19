@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.83 — iClap con imágenes públicas entre dominios
-const CACHE_NAME = 'distribix-v1.83';
-const CACHE_STATIC = 'distribix-static-v1.83';
+// DISTRIBIX Service Worker v1.84 — WhatsApp y copiar separados en compras
+const CACHE_NAME = 'distribix-v1.84';
+const CACHE_STATIC = 'distribix-static-v1.84';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
