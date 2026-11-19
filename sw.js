@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.80 — remito compacto, columnas, cobros y formatos
-const CACHE_NAME = 'distribix-v1.80';
-const CACHE_STATIC = 'distribix-static-v1.80';
+// DISTRIBIX Service Worker v1.81 — avisos de sincronización y reportes técnicos
+const CACHE_NAME = 'distribix-v1.81';
+const CACHE_STATIC = 'distribix-static-v1.81';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -20,6 +20,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './stock-operaciones-v2.js',
   './stock-integridad-v3.js',
   './remito-diseno-v2.js',
+  './sync-avisos-v1.js',
   './qrcode-1.4.4.min.js',
   './pdfjs/pdf.min.mjs',
   './pdfjs/pdf.worker.min.mjs',

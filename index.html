@@ -4220,7 +4220,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.18-remitos3</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-sync1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4601,6 +4601,7 @@ _sysAlertMount();
           <span id="cuenta-notif-knob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>
         </button>
       </div>
+      <button id="cuenta-sync-avisos" onclick="cerrarModal('modal-cuenta');_verPendientesOffline();" style="width:100%;padding:11px 12px;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center">☁️ Sincronización y errores</button>
       <button id="cuenta-onb-btn" onclick="cerrarModal('modal-cuenta');abrirOnboarding();" style="display:none;width:100%;padding:11px 12px;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent);border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center">🚀 Primeros pasos</button>
       <button onclick="doLogout()" style="width:100%;padding:11px 12px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center">🚪 Cerrar sesión</button>
     </div>
@@ -5923,6 +5924,11 @@ _sysAlertMount();
     <button class="cfg-save" onclick="guardarWhatsApp()">💾 Guardar WhatsApp</button>
   </div>
   <div id="cfg-panel-tools" style="display:none">
+    <div class="cfg-card">
+      <div class="cfg-card-h">☁️ Sincronización y errores</div>
+      <div class="cfg-card-sub">Revisá pendientes, consultá errores detallados y prepará reportes para soporte. Ocultar un aviso no borra el cambio pendiente.</div>
+      <button class="cfg-tool-btn" onclick="_verPendientesOffline()">Abrir pendientes y reportes técnicos</button>
+    </div>
     <div class="cfg-card">
       <div class="cfg-card-h">📤 Exportar datos</div>
       <div class="cfg-card-sub">Descargá una copia de tu base en Excel para respaldo o análisis.</div>
@@ -7911,8 +7917,17 @@ function _sbFetchTransporte(method, path, body){
       if(timer) clearTimeout(timer);
       if(!r.ok) return r.text().then(function(t){
         var msg = t||String(r.status);
-        try{ var parsed=JSON.parse(t); msg=parsed.message||parsed.details||parsed.hint||msg; }catch(e){}
-        throw new Error(msg);
+        var parsed=null;
+        try{ parsed=JSON.parse(t); msg=parsed.message||parsed.details||parsed.hint||msg; }catch(e){}
+        var failure=new Error(msg);
+        failure.status=r.status;
+        failure.code=parsed&&parsed.code||"HTTP_"+r.status;
+        failure.details=parsed&&parsed.details||"";
+        failure.hint=parsed&&parsed.hint||"";
+        failure.requestId=r.headers.get("x-request-id")||r.headers.get("sb-request-id")||"";
+        failure.method=method;
+        failure.endpoint=String(path||"").split("?")[0];
+        throw failure;
       });
       var ct = r.headers.get("content-type")||"";
       if(r.status===204 || !ct.includes("json")) return null;
@@ -29175,6 +29190,7 @@ async function _syncQueue(){
   var ops=_offlineQueue.slice(),synced=0;
   for(var i=0;i<ops.length;i++){
     var op=ops[i];
+    if(op.pausaSincronizacion){_syncLastError=op.ultimoError||"Operación pendiente de revisión";break;}
     try{
       await _replayOfflineOp(op);
       synced++;
@@ -29185,6 +29201,7 @@ async function _syncQueue(){
       op.intentos=(op.intentos||0)+1;
       op.ultimoError=msg;
       op.ultimoIntento=new Date().toISOString();
+      try{if(window.SyncAvisos) window.SyncAvisos.registrar(op,e);}catch(diagErr){console.warn("[Sync] No se pudo completar el diagnóstico local");}
       _syncLastError=msg;
       _saveQueue();
       if(e && e.code==="STOCK_PENDIENTE_REVISION"){ op.requiereRevision=true; _saveQueue(); continue; }
@@ -29200,8 +29217,8 @@ async function _syncQueue(){
     showNotif("☁️ "+synced+" operación"+(synced>1?"es":"")+" sincronizada"+(synced>1?"s":"")+" con éxito","ok");
     setTimeout(function(){ _refrescarRutasEntreDispositivos(true); },250);
   }
-  if(_offlineQueue.some(function(op){return !op.requiereRevision;})&&navigator.onLine){
-    var primero=_offlineQueue[0]||{};
+  var primero=_offlineQueue.find(function(op){return !op.requiereRevision;});
+  if(primero&&!primero.pausaSincronizacion&&navigator.onLine){
     var demora=(primero.intentos||0)>=3?60000:12000;
     _syncRetryTimer=setTimeout(function(){_syncRetryTimer=null;if(!_isSyncing)_syncQueue();},demora);
   }else if(!_offlineQueue.length){
@@ -29266,6 +29283,7 @@ function _updateBanner(){
   }
 }
 function _verPendientesOffline(){
+  if(window.SyncAvisos) return window.SyncAvisos.abrir();
   if(!_offlineQueue||!_offlineQueue.length) return;
   if(window.StockSeguro && _offlineQueue.some(window.StockSeguro.esDiferida)) return window.StockSeguro.revisarPendientes();
   var op=_offlineQueue[0]||{};
@@ -43570,5 +43588,6 @@ async function _rvtGuardarVisita(){
 <script src="stock-integridad-v3.js?v=20260930-1"></script>
 <script src="stock-operaciones-v2.js?v=20260929-1"></script>
 <script src="remito-diseno-v2.js?v=20261118-2"></script>
+<script src="sync-avisos-v1.js?v=20261119-1"></script>
 </body>
 </html>
