@@ -4220,7 +4220,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.09.30-midia1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.18-remitos2</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -12156,6 +12156,7 @@ function _pdfPieY(doc, gap, altoPie){
   return y;
 }
 function _getPdfConfig(){
+  if(window.RemitoDisenoV2) return window.RemitoDisenoV2.configGuardada();
   var cfg = _pdfConfig;
   return {
     showTelefono:    (document.getElementById("pdf-show-telefono")||{checked:true}).checked,
@@ -12166,7 +12167,7 @@ function _getPdfConfig(){
     showCodigo:      (document.getElementById("pdf-show-codigo")||{checked:true}).checked,
     showObs:         (document.getElementById("pdf-show-obs")||{checked:true}).checked,
     showFirma:       (document.getElementById("pdf-show-firma")||{checked:true}).checked,
-    minRows:         parseInt((document.getElementById("pdf-min-rows")||{value:"15"}).value)||15,
+    minRows:         Math.max(0,Math.min(40,Number((document.getElementById("pdf-min-rows")||{value:"15"}).value))),
     fontEmpresa:     parseInt((document.getElementById("pdf-font-empresa")||{value:"11"}).value)||11,
     fontTabla:       parseInt((document.getElementById("pdf-font-tabla")||{value:"9"}).value)||9,
     pieTexto:        (document.getElementById("pdf-pie-texto")||{value:""}).value.trim()
@@ -12174,6 +12175,7 @@ function _getPdfConfig(){
 }
 
 async function guardarDisenoRemito(){
+  if(window.RemitoDisenoV2) return window.RemitoDisenoV2.save();
   if(!_sbEmpId){ showNotif("Sin empresa activa","err"); return; }
   var cfg = _getPdfConfig();
   try {
@@ -12184,6 +12186,7 @@ async function guardarDisenoRemito(){
 }
 
 async function cargarDisenoRemito(){
+  if(window.RemitoDisenoV2) return window.RemitoDisenoV2.open();
   if(!_sbEmpId) return;
   try {
     var rows = await sbGet("empresas_config","select=pdf_config&empresa_id=eq."+_sbEmpId);
@@ -12209,6 +12212,7 @@ async function cargarDisenoRemito(){
 }
 
 function previsualizarRemito(){
+  if(window.RemitoDisenoV2) return window.RemitoDisenoV2.preview();
   var frame = document.getElementById("pdf-preview-frame");
   if(!frame) return;
   var ed = _getEmpDatos();
@@ -12295,15 +12299,19 @@ function previsualizarRemito(){
 }
 
 function descargarPlantillaRemito(){
+  if(window.RemitoDisenoV2) return window.RemitoDisenoV2.download(true);
   // Fuerza un preview actualizado y luego descarga el HTML de plantilla
   previsualizarRemito();
   setTimeout(function(){
     var frame=document.getElementById("pdf-preview-frame");
-    if(!frame||!frame.src) return;
+    if(!frame) return;
     var a=document.createElement("a");
-    a.href=frame.src;
+    var downloadUrl=frame.srcdoc?URL.createObjectURL(new Blob([frame.srcdoc],{type:"text/html;charset=utf-8"})):frame.src;
+    if(!downloadUrl) return;
+    a.href=downloadUrl;
     a.download="plantilla_remito.html";
     a.click();
+    if(frame.srcdoc) setTimeout(function(){URL.revokeObjectURL(downloadUrl);},30000);
     showNotif("✓ Plantilla descargada — abrila en el browser para verla","ok");
   },300);
 }
@@ -12422,7 +12430,7 @@ function setCfgTab(tab, btn){
   });
   if(tab==="empresa")     cargarDatosEmpresa();
   if(tab==="empresa" && typeof _2faRefrescarCard==="function") _2faRefrescarCard();
-  if(tab==="remito"){ cargarDisenoRemito(); setTimeout(function(){ try{ previsualizarRemito(); }catch(e){} }, 400); }
+  if(tab==="remito"){ cargarDisenoRemito().then(function(){try{previsualizarRemito();}catch(e){}}); }
   if(tab==="facturacion") cargarFacturacion();
   if(tab==="whatsapp")    cargarWhatsApp();
   var _sec = document.getElementById("datos-empresa");
@@ -18322,6 +18330,7 @@ function aplicarItemDscRem(i){ aplicarItemDsc('rem',i); }
 function quitarItemDscRem(i){ quitarItemDsc('rem',i); }
 
 async function generarPDF(m){
+  if(window.RemitoDisenoV2) await window.RemitoDisenoV2.ensure();
   var t=m==="pedido"?"ped":"rem";
   if(!ordenes[t].length){
     if(dbStock.length===0){
@@ -18404,7 +18413,7 @@ async function generarPDF(m){
 
   // ── Leer config de diseño guardada ──
   var pdfCfg     = _getPdfConfig();
-  var pdfMinRows = pdfCfg.minRows   || 15;
+  var pdfMinRows = pdfCfg.minRows != null ? pdfCfg.minRows : 15;
   var pdfFontEmp = pdfCfg.fontEmpresa || 11;
   var pdfFontTbl = pdfCfg.fontTabla   || 9;
   var pdfPieTxt  = pdfCfg.pieTexto  || "";
@@ -18417,6 +18426,12 @@ async function generarPDF(m){
   if(pdfCfg.showCuitCliente === false) cliCuit = "";
   if(pdfCfg.showDirCliente  === false) cliDir  = "";
 
+  if(window.RemitoDisenoV2 && pdfCfg.version===2){
+    var _calcDiseno={items:ordenes[t],subtotalLista:subtotalLista,subtotalItems:subtotalItemsDsc,
+      ahorroItems:ahorroItems,ahorroPromos:ahorroPromos,ahorroManual:ahorroManual,montoDscGen:montoDscGen,total:totalFinal};
+    doc=window.RemitoDisenoV2.crear(window.RemitoDisenoV2.modelo({items:ordenes[t],obs:obs},cliRaw||{},
+      {nombre:nom,numero:remitoNum,fecha:fechaHoy,ruta:m==="remito"&&rutaAbierta&&rutasData[rutaAbierta]?(rutasData[rutaAbierta].hrNum||rutasData[rutaAbierta].nombre):""},_calcDiseno),pdfCfg);
+  } else {
   // ── ENCABEZADO: Empresa centrado arriba ──
   var logoW=0;
   if(empresaData&&empresaData.logo){ try{doc.addImage(empresaData.logo,"PNG",80,6,50,16); logoW=1;}catch(e){} }
@@ -18610,6 +18625,7 @@ async function generarPDF(m){
   var pieParts2 = [empNom, "N° "+remitoNum, hrLabelPie?"Ruta "+hrLabelPie:"", fechaHoy].filter(Boolean);
   doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
   doc.text(pieParts2.join("  ·  "),105,289,{align:"center"});
+  }
 
   if(m==="remito"){
     var totalNum=totalFinal, ahora=new Date();
@@ -20589,6 +20605,7 @@ function cargarRutasFirebase(opciones){
   });
 }
 async function imprimirPedidosDeRuta(rk){
+  if(window.RemitoDisenoV2) await window.RemitoDisenoV2.ensure();
   var ruta = rutasData[rk];
   if(!ruta){ showNotif("Ruta no encontrada","err"); return; }
   var clientes = Object.entries(ruta.clientes||{});
@@ -20644,7 +20661,7 @@ async function imprimirPedidosDeRuta(rk){
   var empNom = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
   var cfg  = _getPdfConfig();
   var showObs   = cfg.showObs!==false;
-  var pdfMinRows = cfg.minRows||10;
+  var pdfMinRows = cfg.minRows != null ? cfg.minRows : 10;
   var isFirst = true;
   // Alto que ocupan los datos fiscales + formas de pago + WhatsApp al pie.
   // Se calcula una sola vez (es igual para todas las hojas) y se usa para
@@ -20684,6 +20701,11 @@ async function imprimirPedidosDeRuta(rk){
     var cliTel  = (cfg.showTelefono  !==false)?(cliRaw?(cliRaw.tel||cliRaw.telefono||""):""):"";
     var cliRec  = (cfg.showEncargado !==false)?(cliRaw?(cliRaw.rec||cliRaw.recepciona||""):""):"";
 
+    if(window.RemitoDisenoV2 && cfg.version===2){
+      window.RemitoDisenoV2.draw(doc,window.RemitoDisenoV2.modelo(cli,cliRaw||{},
+        {nombre:nom,numero:remitoNum,fecha:fechaStr,ruta:hrNum},_calcRutaPdf),cfg);
+      continue;
+    }
     // ── Encabezado empresa ──
     var _esFactA = (cli.tipoComprobante === "factura_a");
     if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",80,6,50,16);}catch(e){}}
@@ -27253,6 +27275,7 @@ function _chequearTotalRemito(bk){
 }
 
 async function generarPDFDesdeBackup(bk, compartir){
+  if(window.RemitoDisenoV2) await window.RemitoDisenoV2.ensure();
   if(!_chequearTotalRemito(bk)) return;
   if(!(await _pedConfirmarDescuentosFuertes((bk&&bk.items)||[],(bk&&bk.lista)||"Clientes"))) return;
   var jsPDF=window.jspdf.jsPDF, doc=new jsPDF();
@@ -27298,7 +27321,7 @@ async function generarPDFDesdeBackup(bk, compartir){
     if(_dc) cliRaw=_dc;
   }
   var cfg      = _getPdfConfig();
-  var pdfMinRows = cfg.minRows||12;
+  var pdfMinRows = cfg.minRows != null ? cfg.minRows : 12;
   var showObs    = cfg.showObs!==false;
 
   // CUIT y ZONA siempre obligatorios — ignorar cfg.showZona/showCuit
@@ -27312,6 +27335,10 @@ async function generarPDFDesdeBackup(bk, compartir){
   var cliTel  = (cfg.showTelefono   !==false)?(cliRaw?(cliRaw.tel||cliRaw.telefono||""):""):"";
   var cliRec  = (cfg.showEncargado  !==false)?(cliRaw?(cliRaw.rec||cliRaw.recepciona||""):""):"";
 
+  if(window.RemitoDisenoV2 && cfg.version===2){
+    doc=window.RemitoDisenoV2.crear(window.RemitoDisenoV2.modelo(bk,cliRaw||{},
+      {nombre:nom,numero:remitoNum,fecha:fechaStr,ruta:hrNum,vendedor:bk.usuarioNom||""}),cfg);
+  } else {
   // ── Encabezado empresa ──
   if(empresaData&&empresaData.logo){try{doc.addImage(empresaData.logo,"PNG",80,6,50,16);}catch(e){}}
   doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.setTextColor.apply(doc,INK);
@@ -27512,6 +27539,7 @@ async function generarPDFDesdeBackup(bk, compartir){
   var pieParts=[empNom,tipoLabel+" N°"+remitoNum,hrNum?"Ruta "+hrNum:"",fechaStr].filter(Boolean);
   doc.setFontSize(7); doc.setTextColor(190,195,205); doc.setFont("helvetica","normal");
   doc.text(pieParts.join("  ·  "),105,289,{align:"center"});
+  }
 
   var nomSafe=nom.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g,"").replace(/\s+/g,"_").slice(0,25);
   var hrTag=hrNum?hrNum.replace("-","")+"_":"";
@@ -43540,5 +43568,6 @@ async function _rvtGuardarVisita(){
 <script src="deposito-mapa-v1.js?v=20260913-1"></script>
 <script src="stock-integridad-v3.js?v=20260930-1"></script>
 <script src="stock-operaciones-v2.js?v=20260929-1"></script>
+<script src="remito-diseno-v2.js?v=20261118-1"></script>
 </body>
 </html>

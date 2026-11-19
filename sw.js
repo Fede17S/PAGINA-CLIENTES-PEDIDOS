@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.78 — disponibilidad en Nuevo Pedido y familias
-const CACHE_NAME = 'distribix-v1.78';
-const CACHE_STATIC = 'distribix-static-v1.78';
+// DISTRIBIX Service Worker v1.79 — editor visual de remitos
+const CACHE_NAME = 'distribix-v1.79';
+const CACHE_STATIC = 'distribix-static-v1.79';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -19,6 +19,11 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './deposito-mapa-v1.js',
   './stock-operaciones-v2.js',
   './stock-integridad-v3.js',
+  './remito-diseno-v2.js',
+  './pdfjs/pdf.min.mjs',
+  './pdfjs/pdf.worker.min.mjs',
+  './pdfjs/standard_fonts/LiberationSans-Regular.ttf',
+  './pdfjs/standard_fonts/LiberationSans-Bold.ttf',
   './manifest.json',
   './distribix-logo-completo.png',
   './favicon-distribix.ico',
