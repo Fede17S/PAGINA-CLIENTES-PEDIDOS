@@ -21,18 +21,28 @@ assert.equal(api.normalize({fontTabla:0}).fontTabla,7);
 assert.equal(api.normalize({color:'<script>',logoPos:'x'}).color,'#233f8d');
 assert.equal(api.normalize({blancoNegro:null}).blancoNegro,false);
 assert.equal(api.normalize({showLogo:false}).showLogo,false);
+assert.equal(api.normalize({}).formato,'a4');
+assert.equal(api.normalize({formato:'desconocido'}).formato,'a4');
+assert.equal(api.normalize({showQR:null}).showQR,false);
+assert.equal(api.normalize({showAhorro:null}).showAhorro,false);
+assert.deepEqual(Array.from(api.normalize({ordenColumnas:['subtotal','subtotal','invalida']}).ordenColumnas).slice(0,3),['subtotal','descripcion','cantidad']);
+assert.ok(!api.normalize({columnasOcultas:['descripcion','cantidad','invalida']}).columnasOcultas.length);
+assert.equal(api.safeUrl('javascript:alert(1)'),'');assert.equal(api.safeUrl('https://usuario:clave@ejemplo.test'),'');
+assert.equal(api.safeUrl(' https://ejemplo.test/pago '),'https://ejemplo.test/pago');
 (async()=>{
  await api.ensure();assert.equal(api.configGuardada().minRows,0);assert.equal(api.configGuardada().version,1);
  await api.save();assert.equal(writes.length,1);assert.equal(saved.A.version,2);
  assert.equal(saved.A.extraCompat,'conservar');assert.equal(saved.A.disenoAnterior.fontEmpresa,12);
+ const sortKeys=value=>Array.isArray(value)?value.map(sortKeys):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,sortKeys(value[k])])):value;
+ saved.A=sortKeys(saved.A);await api.save();assert.equal(writes.length,2,'El orden de claves de JSONB no genera un conflicto falso');
  // Detectar cambios de otro administrador antes de sobrescribir.
- saved.A.color='#abcdef';await api.save();assert.equal(writes.length,1);
+ saved.A.color='#abcdef';await api.save();assert.equal(writes.length,2);
  assert.ok(alerts.some(s=>s.includes('Otro administrador')));
  ctx._sbEmpId='B';ctx.empresaData={_config:{}};await api.ensure();
  assert.equal(api.configGuardada().color,'#445566');
- ctx.currentUser={role:'vendedor'};await api.save();assert.equal(writes.length,1);
+ ctx.currentUser={role:'vendedor'};await api.save();assert.equal(writes.length,2);
  ctx._sbEmpId='C';ctx.empresaData={_config:{}};ctx.currentUser={role:'admin'};getFailure=true;
- assert.equal(await api.ensure(),false);await api.save();assert.equal(writes.length,1,'No guardar si no se cargó la configuración');
+ assert.equal(await api.ensure(),false);await api.save();assert.equal(writes.length,2,'No guardar si no se cargó la configuración');
  // Lectura lenta de empresa anterior no contamina la actual.
  getFailure=false;let finishA;
  ctx._sbEmpId='D';ctx.sbGet=()=>new Promise(resolve=>finishA=resolve);const loadingA=api.ensure();

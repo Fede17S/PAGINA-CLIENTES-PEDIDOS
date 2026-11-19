@@ -3936,7 +3936,7 @@ a:focus-visible, button:focus-visible {
 
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="qrcode-1.4.4.min.js"></script>
 <script>
   // Anti-flash: si ya hay sesión guardada, ocultar el login ANTES de pintarlo.
   try {
@@ -4220,7 +4220,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.18-remitos2</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.18-remitos3</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -20660,6 +20660,7 @@ async function imprimirPedidosDeRuta(rk){
   var ed   = _getEmpDatos();
   var empNom = ed.nombre||(empresaData&&empresaData.nombre)||"EMPRESA";
   var cfg  = _getPdfConfig();
+  if(window.RemitoDisenoV2 && cfg.version===2) doc=window.RemitoDisenoV2.nuevoDocumento(cfg);
   var showObs   = cfg.showObs!==false;
   var pdfMinRows = cfg.minRows != null ? cfg.minRows : 10;
   var isFirst = true;
@@ -43568,6 +43569,6 @@ async function _rvtGuardarVisita(){
 <script src="deposito-mapa-v1.js?v=20260913-1"></script>
 <script src="stock-integridad-v3.js?v=20260930-1"></script>
 <script src="stock-operaciones-v2.js?v=20260929-1"></script>
-<script src="remito-diseno-v2.js?v=20261118-1"></script>
+<script src="remito-diseno-v2.js?v=20261118-2"></script>
 </body>
 </html>

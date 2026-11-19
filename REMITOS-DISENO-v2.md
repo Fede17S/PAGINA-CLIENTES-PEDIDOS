@@ -39,3 +39,26 @@ Se conservaron sin cambios; no se usaron como evidencia de aprobación completa.
 
 PDF.js 5.6.205 y sus fuentes se distribuyen localmente en `pdfjs/`, con sus licencias.
 Service Worker v1.79. Publicar este módulo y la carpeta `pdfjs/` junto con el panel, no en la tienda.
+
+## Segunda etapa — datos compactos y opciones de impresión
+
+- Datos del cliente en dos columnas a lo ancho de A4/A5; una columna en ticket de 80 mm.
+  Cada fila toma la altura del dato más largo y puede continuar en otra hoja.
+- Columnas configurables con visibilidad y orden mediante flechas. Descripción y cantidad
+  siempre presentes. Código y presentación pueden tener columna propia.
+- Resumen configurable: subtotal, promociones/descuentos, IVA, ahorro informativo y cantidad
+  de renglones. Ocultar un detalle no altera el total; no se mezcla deuda anterior con la venta.
+- Datos de pago y contacto por campo (alias, CBU, titular, enlace, WhatsApp).
+- QR optativo al enlace de pago, tienda de la empresa o URL personalizada HTTP/HTTPS.
+  Se genera localmente y no confirma ni registra pagos. URLs con credenciales o esquemas
+  ejecutables se rechazan. Generador QR 1.4.4 local, con licencia MIT.
+- Formatos nativos A4, A5 y ticket 80 × 297 mm por página, con encabezados/tabla/pie adaptados.
+  A4 sigue como predeterminado. Elegir ticket propone tres columnas legibles; se pueden ajustar.
+  La impresora debe configurarse con el papel correspondiente y escala 100%.
+- El formato guardado se aplica tanto a Backup como a HR y Nuevo Pedido. Los ejemplos no
+  consumen números ni hacen movimientos de inventario.
+- Verificado por lectura del QR renderizado y límites de texto en A4/A5/ticket, además de
+  las pruebas de guardado, borradores, permisos, empresas y totales. Un pedido corto completo
+  no deja las firmas en una hoja separada. Prueba con dirección/nombre extensos y campos ocultos.
+
+Service Worker v1.80; módulo `remito-diseno-v2.js?v=20261118-2` y `qrcode-1.4.4.min.js` local.
