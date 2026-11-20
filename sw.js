@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.88 — teléfonos WhatsApp con prefijo automático
-const CACHE_NAME = 'distribix-v1.88';
-const CACHE_STATIC = 'distribix-static-v1.88';
+// DISTRIBIX Service Worker v1.89 — condiciones por cantidad en todo el catálogo PDF
+const CACHE_NAME = 'distribix-v1.89';
+const CACHE_STATIC = 'distribix-static-v1.89';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea

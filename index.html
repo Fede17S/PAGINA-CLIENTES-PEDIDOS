@@ -4243,7 +4243,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-telefono1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.20-catalogopromo1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -38301,6 +38301,10 @@ function _temporadaInfo(t){
     primavera:{nombre:"PRIMAVERA",emoji:"🌸",color:[199,67,130]}
   }[t]||{nombre:"TEMPORADA",emoji:"🌦️",color:[80,110,130]};
 }
+// La cantidad es una condición del precio: nunca presentarla como rebaja unitaria.
+function _catTramosPDF(p){
+  return _tramosDe(p).filter(function(t){return Number.isFinite(+t.desde)&&Number.isFinite(+t.precio)&&+t.desde>0&&+t.precio>0;}).map(function(t){return {desde:+t.desde,precio:+t.precio};});
+}
 async function generarCatalogoPDF(previewMode){
   if(typeof _trackUso==="function" && !previewMode) _trackUso("generar_catalogo_pdf");
   if(!dbStock.length){ showNotif("Cargá los productos primero desde Mis Productos","err"); return; }
@@ -38364,11 +38368,12 @@ async function generarCatalogoPDF(previewMode){
         if(p.ofertaHasta===undefined)   p.ofertaHasta   = (src.ofertaHasta||src.oferta_hasta);
         if(!p.precioPromo)              p.precioPromo   = (src.precioPromo!==undefined?src.precioPromo:src.precio_promo);
         if(p.cantPromo===undefined)     p.cantPromo     = (src.cantPromo||src.cant_promo);
+        if(!Array.isArray(p.tramos))    p.tramos        = Array.isArray(src.tramos)?src.tramos:null;
       });
     })();
 
     // Productos con promo (precio por cantidad) U oferta vigente (precio rebajado)
-    var prodsPromo = dbStock.filter(function(p){ return p.activo!==false && ((p.precioPromo && p.precioPromo > 0) || _ofVigente(p)) && !_sinStock(p.id); });
+    var prodsPromo = dbStock.filter(function(p){ return p.activo!==false && (_catTramosPDF(p).length || _ofVigente(p)) && !_sinStock(p.id); });
 
     if(!prods.length && inclPromos !== "solo"){ showNotif("No hay productos con esos filtros","err"); btn.disabled=false; progress.style.display="none"; return; }
     // Vista previa: solo una muestra (rápida) — el catálogo completo se genera después
@@ -38415,6 +38420,49 @@ async function generarCatalogoPDF(previewMode){
     function setFill(rgb){ doc.setFillColor(rgb[0],rgb[1],rgb[2]); }
     function setDraw(rgb){ doc.setDrawColor(rgb[0],rgb[1],rgb[2]); }
     function setTxt(rgb){ doc.setTextColor(rgb[0],rgb[1],rgb[2]); }
+
+    // Un mismo bloque en todas las secciones. Reserva espacio para TODOS los tramos.
+    function _preciosPDF(prod,ancho){
+      var tramos=_catTramosPDF(prod),base=+_catPrecio(prod,lista)||0;
+      var oferta=lista!=="ambas"&&_ofVigente(prod)?+_ofPrecioLista(prod,lista):0;
+      var filas=[],alto=0,peso=prod.vendePor==="peso",unidad=peso?"/kg":" c/u";
+      function fila(txt,size,color,tachado){
+        doc.setFont("helvetica",tachado?"normal":"bold");doc.setFontSize(size);
+        var ls=doc.splitTextToSize(_pdfTxt(txt),ancho-8),paso=size*0.352778*1.3;
+        ls.forEach(function(t){filas.push({texto:t,size:size,color:color,tachado:!!tachado,y:alto+size*0.352778});alto+=paso;});
+      }
+      if(lista==="ambas"){
+        fila("CLI: $"+fM(prod.pCli),9,"normal");fila("PAT: $"+fM(prod.pPat),9,"normal");
+      } else if(oferta>0){
+        if(oferta<base)fila("Antes: $"+fM(base),8,"anterior",true);
+        fila("$"+fM(oferta)+unidad,14,"promo");
+      } else if(tramos.length){
+        fila((peso?"Por kg: $":"Unitario: $")+fM(base),9,"normal");
+      } else {
+        fila("$"+fM(base),17,"normal");
+        if(mostrarCaja&&prod.unidadesBulto>1)fila("caja x"+prod.unidadesBulto+": $"+fM(prod.precioCaja>0?prod.precioCaja:base*prod.unidadesBulto),7.5,"suave");
+      }
+      // La oferta directa mantiene su prioridad; no se mezclan dos descuentos.
+      if(!(oferta>0))tramos.forEach(function(t){
+        fila("Llevando "+new Intl.NumberFormat("es-AR").format(t.desde)+(peso?"+ kg: $":"+ u.: $")+fM(t.precio)+unidad,8,"promo");
+      });
+      return {filas:filas,alto:alto,cantidad:!(oferta>0)&&tramos.length>0};
+    }
+    function _pintarPreciosPDF(prod,x,y,ancho,colorNormal){
+      var bloque=_preciosPDF(prod,ancho);
+      var sobreOscuro=estilo==="oscuro"&&colorNormal===T.accent;
+      bloque.filas.forEach(function(f){
+        doc.setFont("helvetica",f.tachado?"normal":"bold");doc.setFontSize(f.size);
+        var c=f.color==="promo"?(sobreOscuro?[255,155,165]:[220,30,50]):f.color==="anterior"?[145,143,137]:f.color==="suave"?T.textMid:(sobreOscuro?[214,224,255]:colorNormal);
+        doc.setTextColor(c[0],c[1],c[2]);doc.text(f.texto,x+ancho/2,y+f.y,{align:"center"});
+        if(f.tachado){var tw=doc.getTextWidth(f.texto);doc.setDrawColor(c[0],c[1],c[2]);doc.setLineWidth(.25);doc.line(x+ancho/2-tw/2,y+f.y-1,x+ancho/2+tw/2,y+f.y-1);}
+      });
+    }
+    function _filasPDF(items,ancho,disponible,maxFilas,reserva){
+      var minimo=Math.max.apply(null,items.map(function(p){return _preciosPDF(p,ancho).alto+reserva;}).concat([1]));
+      if(minimo>disponible)throw new Error("Hay demasiados tramos para una tarjeta. Reducí los tramos de precio para generar el catálogo sin cortar condiciones.");
+      return Math.max(1,Math.min(maxFilas,Math.floor((disponible+5)/(minimo+5))));
+    }
 
     // ── PORTADA ──────────────────────────────────────────────────────
     setFill(T.headerBg); doc.rect(0,0,W,H,"F");
@@ -38533,6 +38581,8 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
       if(prodsPromo.length){
         var pY0 = promoTexto ? 100 : 62;
         var pCols = 3, pRows = 2;
+        var pCellW = (W-MARGIN*2-(pCols-1)*6)/pCols;
+        pRows=_filasPDF(prodsPromo,pCellW,H-pY0-MARGIN,2,38);
         var _porPag = pCols*pRows;
         var _totPagOf = Math.ceil(prodsPromo.length/_porPag);
 
@@ -38559,7 +38609,8 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
           doc.roundedRect(px,py,pCellW,pCellH,3,3,"FD");
 
           // Imagen (se dibuja PRIMERO, el badge va encima)
-          var imgH=pCellH*0.50, imgY=py+3, imgX=px+3, imgW=pCellW-6;
+          var bloquePrecio=_preciosPDF(prod,pCellW);
+          var imgH=Math.min(pCellH*0.50,pCellH-bloquePrecio.alto-24), imgY=py+3, imgX=px+3, imgW=pCellW-6;
           if(imagenes[prod.id]){
             try{
               doc.setFillColor(245,244,240);
@@ -38575,9 +38626,10 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
 
           // Badge OFERTA — ENCIMA de la imagen (antes quedaba tapado)
           doc.setFillColor(220,30,50);
-          doc.roundedRect(px+2,py+2,17,6.5,3,3,"F");
+          var badgeW=bloquePrecio.cantidad?29:17;
+          doc.roundedRect(px+2,py+2,badgeW,6.5,3,3,"F");
           doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(6);
-          doc.text("OFERTA",px+10.5,py+6.4,{align:"center"});
+          doc.text(bloquePrecio.cantidad?"POR CANTIDAD":"OFERTA",px+2+badgeW/2,py+6.4,{align:"center"});
 
           // Nombre (más grande y legible)
           var ty=imgY+imgH+6;
@@ -38586,30 +38638,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
           doc.text(nl,px+pCellW/2,ty,{align:"center",lineHeightFactor:1.25});
           ty+=nl.length*4.6+4;
 
-          // Precio tachado y precio de oferta/promo
-          var pBase = _catPrecio(prod, lista);
-          var ofVig = _ofVigente(prod);
-          var precioReb = ofVig ? _ofPrecioLista(prod, lista) : prod.precioPromo;
-          // Si por algún motivo no hay precio rebajado, usar el precio normal (nunca mostrar $0)
-          if(precioReb==null || precioReb<=0) precioReb = pBase;
-          var etiquetaExtra = ofVig ? "" : (prod.cantPromo ? ("\nLLEVANDO "+prod.cantPromo) : "");
-          // "Antes" solo si el rebajado es realmente menor
-          if(precioReb < pBase){
-            doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-            doc.text("Antes: $"+fM(pBase),px+pCellW/2,ty,{align:"center"});
-            var tw=doc.getTextWidth("Antes: $"+fM(pBase));
-            doc.setDrawColor(150,148,140); doc.setLineWidth(0.4);
-            doc.line(px+pCellW/2-tw/2,ty-1.2,px+pCellW/2+tw/2,ty-1.2);
-          }
-          ty+=7.5;
-          // Precio de oferta BIEN grande
-          doc.setTextColor(220,30,50); doc.setFont("helvetica","bold"); doc.setFontSize(15);
-          doc.text("$"+fM(precioReb),px+pCellW/2,ty,{align:"center"});
-          // "LLEVANDO N" debajo, más chico
-          if(!ofVig && prod.cantPromo){
-            doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(220,30,50);
-            doc.text("LLEVANDO "+prod.cantPromo,px+pCellW/2,ty+5.5,{align:"center"});
-          }
+          _pintarPreciosPDF(prod,px,py+pCellH-4-bloquePrecio.alto,pCellW,[30,30,25]);
         });
       } else if(inclPromos==="si"){
         var noY=100;
@@ -38626,24 +38655,25 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
     }
 
     function _dibujarVitrinaEspecial(items,titulo,subtitulo,color,badge){
-      for(var pg=0;pg<Math.ceil(items.length/8);pg++){
-        var lote=items.slice(pg*8,(pg+1)*8);
+      var nY=56,nCols=2,nCellW=(W-MARGIN*2-6)/nCols;
+      var nRows=_filasPDF(items,nCellW,H-nY-MARGIN,4,32),porVitrina=nCols*nRows;
+      for(var pg=0;pg<Math.ceil(items.length/porVitrina);pg++){
+        var lote=items.slice(pg*porVitrina,(pg+1)*porVitrina);
         doc.addPage();
         doc.setFillColor(248,247,244); doc.rect(0,0,W,H,"F");
         doc.setFillColor(color[0],color[1],color[2]); doc.rect(0,0,W,42,"F");
         doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(22);
-        doc.text(_pdfTxt(titulo)+(items.length>8?" "+(pg+1)+"/"+Math.ceil(items.length/8):""),W/2,22,{align:"center"});
+        doc.text(_pdfTxt(titulo)+(items.length>porVitrina?" "+(pg+1)+"/"+Math.ceil(items.length/porVitrina):""),W/2,22,{align:"center"});
         doc.setFont("helvetica","normal"); doc.setFontSize(10);
         doc.text(_pdfTxt(subtitulo),W/2,32,{align:"center"});
-        var nY=56,nCols=2,nRows=4;
-        var nCellW=(W-MARGIN*2-6)/nCols;
         var nCellH=(H-nY-MARGIN-(nRows-1)*5)/nRows;
         lote.forEach(function(prod,idx){
           var ci=idx%nCols,ri=Math.floor(idx/nCols);
           var px=MARGIN+ci*(nCellW+6),py=nY+ri*(nCellH+5);
           doc.setFillColor(255,255,255);doc.setDrawColor(color[0],color[1],color[2]);doc.setLineWidth(0.7);
           doc.roundedRect(px,py,nCellW,nCellH,3,3,"FD");
-          var iH=nCellH*0.52,iY=py+3,iX=px+3,iW=nCellW-6;
+          var bloqueVit=_preciosPDF(prod,nCellW);
+          var iH=Math.min(nCellH*0.52,nCellH-bloqueVit.alto-23),iY=py+3,iX=px+3,iW=nCellW-6;
           doc.setFillColor(245,244,240);doc.roundedRect(iX,iY,iW,iH,2,2,"F");
           if(imagenes[prod.id]){try{doc.addImage(imagenes[prod.id],"JPEG",iX+2,iY+2,iW-4,iH-4,undefined,"FAST");}catch(e){}}
           doc.setFillColor(color[0],color[1],color[2]);doc.roundedRect(px+2,py+2,22,6.5,3,3,"F");
@@ -38654,9 +38684,7 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
           var nn=doc.splitTextToSize(_pdfTxt(prod.n),nCellW-5).slice(0,2);
           doc.text(nn,px+nCellW/2,ny2,{align:"center",lineHeightFactor:1.25});
           ny2+=nn.length*5+5;
-          var _precioVit=_ofVigente(prod)?_ofPrecioLista(prod,lista):((prod.precioPromo&&prod.precioPromo>0)?prod.precioPromo:_catPrecio(prod,lista));
-          doc.setTextColor(color[0],color[1],color[2]);doc.setFontSize(15);
-          doc.text("$"+fM(_precioVit),px+nCellW/2,ny2,{align:"center"});
+          _pintarPreciosPDF(prod,px,py+nCellH-4-bloqueVit.alto,nCellW,color);
         });
         doc.setDrawColor(220,220,215);doc.line(MARGIN,H-10,W-MARGIN,H-10);
         doc.setTextColor(145,145,140);doc.setFont("helvetica","normal");doc.setFontSize(7);
@@ -38697,6 +38725,8 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
       var gridTop = MARGIN+headerH+catBandH+4;
       var availH  = H - gridTop - footerH - MARGIN;
       var cellW=(W-MARGIN*2-(cols-1)*6)/cols;
+      rows=_filasPDF(prods,cellW,availH,rows,32+(mostrarCod?4:0)+(mostrarStock?4:0));
+      ppp=cols*rows;
       var cellH=(availH-(rows-1)*5)/rows;
 
       // Agrupar por categoría (prods ya vienen ordenados por cat + nombre)
@@ -38743,17 +38773,11 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
           if(T.shadow){ doc.setGState(new doc.GState({opacity:0.12})); setFill([0,0,0]); doc.roundedRect(x+1,y+1,cellW,cellH,3,3,"F"); doc.setGState(new doc.GState({opacity:1})); }
           setFill(T.card); setDraw(T.border); doc.setLineWidth(0.25);
           doc.roundedRect(x,y,cellW,cellH,3,3,"FD");
-          var _enOferta = badgeOferta && (_ofVigente(prod) || (prod.precioPromo && prod.precioPromo>0));
-          // Badge PROMO
-          if(prod.precioPromo && prod.precioPromo>0){
-            doc.setFillColor(220,30,50);
-            doc.roundedRect(x+cellW-18,y+2,16,6,3,3,"F");
-            doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(5);
-            doc.text("PROMO",x+cellW-10,y+5.8,{align:"center"});
-          }
+          var bloqueCard=_preciosPDF(prod,cellW);
+          var _enOferta = badgeOferta && (_ofVigente(prod) || bloqueCard.cantidad);
           // Imagen
           // Imagen: rectángulo fijo más alto (los productos altos se ven grandes)
-          var imgH=cellH*0.55, imgY=y+3, imgX=x+3, imgW=cellW-6;
+          var imgH=Math.min(cellH*0.55,cellH-bloqueCard.alto-24-(mostrarCod?4:0)-(mostrarStock?4:0)), imgY=y+3, imgX=x+3, imgW=cellW-6;
           if(imagenes[prod.id]){
             try{
               setFill(estilo==="oscuro"?[45,45,45]:[248,247,244]);
@@ -38771,9 +38795,10 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
           // Badge OFERTA — encima de la foto, bien visible (el borde se dibuja al final)
           if(_enOferta){
             doc.setFillColor(220,30,50);
-            doc.roundedRect(x+2,y+2,18,7,3,3,"F");
+            var ofBadgeW=bloqueCard.cantidad?29:18;
+            doc.roundedRect(x+2,y+2,ofBadgeW,7,3,3,"F");
             doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(6);
-            doc.text("OFERTA",x+11,y+6.8,{align:"center"});
+            doc.text(bloqueCard.cantidad?"POR CANTIDAD":"OFERTA",x+2+ofBadgeW/2,y+6.8,{align:"center"});
           }
           if(prod.temporada && prod.temporada===_temporadaActual()){
             var _ti=_temporadaInfo(prod.temporada);
@@ -38794,31 +38819,8 @@ doc.text("Generado con DISTRIBIX", W/2, H-10, {align:"center"});
             doc.setTextColor(qty>0?30:180,qty>0?130:30,qty>0?80:30); doc.setFontSize(7);
             doc.text(qty>0?"Stock: "+qty+" u.":"Sin stock",x+cellW/2,textY,{align:"center"});
           }
-          // ── PRECIO: anclado abajo de la tarjeta ──
-          var precioY = y + cellH - 9;   // fijo cerca del fondo, no depende del alto del nombre
-          doc.setFont("helvetica","bold"); doc.setFontSize(17); setTxt(T.accent);
-          if(lista==="ambas"){
-            doc.setFontSize(11);
-            doc.text("CLI: $"+fM(prod.pCli),x+cellW/2,precioY-4,{align:"center"});
-            setTxt(T.textMid); doc.text("PAT: $"+fM(prod.pPat),x+cellW/2,precioY+2,{align:"center"});
-          } else {
-            var precio=_catPrecio(prod, lista);
-            if(prod.precioPromo && prod.precioPromo>0){
-              // Precio normal tachado arriba, promo grande abajo
-              doc.setTextColor(150,148,140); doc.setFont("helvetica","normal"); doc.setFontSize(8);
-              doc.text("$"+fM(precio),x+cellW/2,precioY-6,{align:"center"});
-              var tw2=doc.getTextWidth("$"+fM(precio));
-              doc.line(x+cellW/2-tw2/2-1,precioY-7.2,x+cellW/2+tw2/2+1,precioY-7.2);
-              doc.setTextColor(220,30,50); doc.setFont("helvetica","bold"); doc.setFontSize(16);
-              doc.text("$"+fM(prod.precioPromo),x+cellW/2,precioY,{align:"center"});
-            } else {
-              doc.text("$"+fM(precio),x+cellW/2,precioY,{align:"center"});
-              if(mostrarCaja && prod.unidadesBulto && prod.unidadesBulto>1){
-                doc.setFont("helvetica","normal"); doc.setFontSize(7.5); setTxt(T.textMid);
-                doc.text("caja x"+prod.unidadesBulto+": $"+fM((prod.precioCaja&&prod.precioCaja>0)?prod.precioCaja:precio*prod.unidadesBulto),x+cellW/2,precioY+4.5,{align:"center"});
-              }
-            }
-          }
+          // El precio unitario no se tacha por una promo condicionada a cantidad.
+          _pintarPreciosPDF(prod,x,y+cellH-4-bloqueCard.alto,cellW,T.accent);
           // Borde rojo de oferta — AL FINAL, así queda encima de la imagen (no cortado)
           if(_enOferta){
             doc.setDrawColor(220,30,50); doc.setLineWidth(0.9);
