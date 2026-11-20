@@ -4243,7 +4243,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-viewport1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.19-telefono1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4438,6 +4438,7 @@ a:focus-visible, button:focus-visible {
   <button id="hdr-cuenta-btn" onclick="_abrirMenuCuenta()" aria-label="Cuenta" title="Cuenta">👤</button>
 </header>
 <script src="panel-viewport-v1.js?v=20261119-1"></script>
+<script src="whatsapp-telefono-v1.js?v=20261119-1"></script>
 <script>
 /* Centro de avisos compacto. Conserva los IDs existentes para no alterar la lógica. */
 function _sysAlertMount(){
@@ -5896,7 +5897,7 @@ _sysAlertMount();
       <div class="cfg-field full">
         <label class="cfg-label">Número (con código de país)</label>
         <input type="tel" id="wa-numero" class="cfg-input" placeholder="ej: 5492804123456">
-        <span class="cfg-hint">Sin espacios ni signos. Ej: 549 + característica sin 0 + número sin 15.</span>
+        <span class="cfg-hint">Argentina: característica + número (ej. 280 4123456). El +54 9 se completa solo. Otros países: incluí + y código de país.</span>
       </div>
     </div>
     <div class="cfg-card">
@@ -18969,7 +18970,8 @@ function renderProveedores(){
     }
     var acts = [];
     if(p.telefono) acts.push('<a class="prov-act" href="tel:'+escHtml(p.telefono)+'">📞 Llamar</a>');
-    if(p.whatsapp) acts.push('<a class="prov-act" href="https://wa.me/'+escHtml((p.whatsapp||"").replace(/[^0-9]/g,""))+'" target="_blank">💬 WhatsApp</a>');
+    var wa=_cc2NumeroWhatsApp(p.whatsapp||p.telefono);
+    if(wa) acts.push('<a class="prov-act" href="https://wa.me/'+escHtml(wa)+'" target="_blank">💬 WhatsApp</a>');
     if(p.web)      acts.push('<a class="prov-act" href="'+escHtml(p.web)+'" target="_blank">🌐 Web</a>');
     acts.push('<button class="prov-act" onclick="_abrirCuentaProveedor(\''+p.id+'\')">💰 Cuenta</button>');
     acts.push('<button class="prov-act" onclick="_abrirEditProveedor(\''+p.id+'\')">✏️ Editar</button>');
@@ -20099,14 +20101,8 @@ function _recordarDeudaWhatsApp(cliNom, saldo){
   var tel = c ? (c.tel||c.telefono||"") : "";
   if(!tel){ showNotif("Este cliente no tiene teléfono cargado","err"); return; }
 
-  // Normalizar teléfono para WhatsApp (solo dígitos, con código de país AR si falta)
-  var num = tel.replace(/\D/g,"");
-  if(num.length>0 && num[0]!=="5"){
-    // Si no empieza con 54 (Argentina), agregarlo
-    if(num.length===10) num = "54"+num;          // 11 1234 5678 → 54...
-    else if(num.length===11 && num[0]==="0") num = "54"+num.slice(1);
-    else num = "54"+num;
-  }
+  var num = _cc2NumeroWhatsApp(tel);
+  if(!num){showNotif("Revisá el teléfono: incluí característica y número completo","err");return;}
 
   var emp = (empresaData && empresaData.nombre) || (_getEmpDatos&&_getEmpDatos().nombre) || "";
   var msg = "Hola"+(c&&c.name?" "+c.name.split("(")[0].trim():"")+"! 👋\n\n"+
@@ -20277,8 +20273,7 @@ async function _cc2WhatsApp(){
   _cc2AbrirWhatsAppSeguro("https://wa.me/"+num+"?text="+encodeURIComponent(msg));
 }
 function _cc2NumeroWhatsApp(tel){
-  var n=String(tel||"").replace(/\D/g,"").replace(/^00/,"").replace(/^0/,"");
-  if(!n)return "";if(n.indexOf("549")===0)return n;if(n.indexOf("54")===0)return "549"+n.slice(2).replace(/^9/,"");if(n.indexOf("9")===0&&n.length===11)return "54"+n;return "549"+n.replace(/^15/,"");
+  return window.WhatsAppTelefono?window.WhatsAppTelefono.numero(tel):"";
 }
 function _cc2AbrirWhatsAppSeguro(url){
   showNotif("Abriendo WhatsApp…","ok");
@@ -22304,12 +22299,12 @@ function _hrBadges(rk, ck, cli, n, st){
   return b;
 }
 function _hrBlQuick(cli, info){
-  var dir=info.dir, tel=info.tel;
+  var dir=info.dir, tel=info.tel, wa=_cc2NumeroWhatsApp(tel);
   if(!dir && !tel) return "";
   var h='<div class="hr-quick">';
   if(dir) h+='<a href="https://maps.google.com/?q='+encodeURIComponent(dir)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🧭 Cómo llegar</a>';
-  if(tel) h+='<a href="tel:'+_hrAtt(tel)+'" onclick="event.stopPropagation()">📞 Llamar</a>'+
-             '<a href="https://wa.me/54'+_hrAtt(tel.replace(/^\+?54/,""))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">💬 WhatsApp</a>';
+  if(tel) h+='<a href="tel:'+_hrAtt(tel)+'" onclick="event.stopPropagation()">📞 Llamar</a>';
+  if(wa) h+='<a href="https://wa.me/'+_hrAtt(wa)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">💬 WhatsApp</a>';
   return h+'</div>';
 }
 function _hrBlRech(cli){
@@ -35828,7 +35823,7 @@ function _telLindo(t){
 }
 function _telDePedido(bk){
   if(!bk) return "";
-  function limpiar(x){ return (""+(x||"")).replace(/[^0-9]/g,""); }
+  function limpiar(x){ return _cc2NumeroWhatsApp(x); }
   // 1) Teléfono guardado en el propio pedido
   var t = limpiar(bk.clienteTel || bk.tel || bk.telefono);
   if(t.length>=8) return t;
@@ -35840,7 +35835,7 @@ function _telDePedido(bk){
     var c = null;
     if(cid)  c = lista.find(function(u){ return (""+(u.id||""))===cid || (""+(u._sbId||""))===cid; });
     if(!c && cnom) c = lista.find(function(u){ return (""+(u.name||"")).trim().toLowerCase()===cnom; });
-    if(c){ t = limpiar(c.tel); if(t.length>=8) return t; }
+    if(c){ t = limpiar(c.tel||c.telefono); if(t.length>=8) return t; }
   }catch(e){}
   // 3) Pedidos de la tienda: el clienteId ES el teléfono
   t = limpiar(bk.clienteId);
@@ -38128,10 +38123,7 @@ function _waRender(){
 }
 function _waTodos(v){ _waSel={}; _waClientes.forEach(function(c,i){ _waSel[i]=v; }); _waRender(); }
 function _waTel(t){
-  var n = String(t||"").replace(/\D/g,"");
-  if(!n) return "";
-  if(n.indexOf("54")!==0) n = "54" + (n.indexOf("9")===0 ? n : "9"+n);   // Argentina
-  return n;
+  return _cc2NumeroWhatsApp(t);
 }
 var _waCola = [], _waIdx = 0;
 function _waEnviar(){
@@ -38151,6 +38143,7 @@ function _waSiguiente(msg){
   }
   var c=_waCola[_waIdx];
   var tel=_waTel(c.telefono||c.tel);
+  if(!tel){showNotif("Revisá el teléfono de "+(c.name||"este cliente")+": incluí característica y número completo","err");return;}
   var url="https://wa.me/"+tel+"?text="+encodeURIComponent(msg);
   window.open(url, "_blank");
   _waIdx++;
@@ -43286,9 +43279,8 @@ function _rvtDesdeDorm(uuid){
   _rvtAbrirAgregar(0, uuid);
 }
 function _rvtWpp(tel){
-  var t = String(tel).replace(/[^0-9]/g,"");
-  if(t.length===10) t = "549"+t;
-  else if(t.length===11 && t.charAt(0)==="9") t = "54"+t;
+  var t = _cc2NumeroWhatsApp(tel);
+  if(!t){showNotif("Revisá el teléfono: incluí característica y número completo","err");return;}
   var url = "https://wa.me/"+t;
   try{ window.open(url,"_system"); }catch(e){ try{ window.open(url,"_blank"); }catch(e2){ location.href=url; } }
 }
@@ -43624,6 +43616,6 @@ async function _rvtGuardarVisita(){
 <script src="remito-diseno-v2.js?v=20261118-2"></script>
 <script src="sync-avisos-v1.js?v=20261119-1"></script>
 <script src="iclap-catalogo-v1.js?v=20261119-2"></script>
-<script src="pedidos-proveedor-v2.js?v=20261119-2"></script>
+<script src="pedidos-proveedor-v2.js?v=20261119-3"></script>
 </body>
 </html>

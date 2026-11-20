@@ -7,11 +7,9 @@
   function pesos(n){return '$'+new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function telefono(v){
-    var s=String(v||'').trim();if(!s||/[a-z]/i.test(s))return '';
-    var n=s.replace(/\D/g,'');if(s.indexOf('00')===0)n=n.slice(2);
-    if(s[0]==='+'||s.indexOf('00')===0)return /^[1-9]\d{7,14}$/.test(n)?n:'';
-    if(/^54\d{10,11}$/.test(n))return n;
-    n=n.replace(/^0/,'').replace(/^15/,'');return /^\d{10}$/.test(n)?'549'+n:'';
+    var api=root.WhatsAppTelefono;
+    if(!api&&typeof module==='object'&&module.exports)api=require('./whatsapp-telefono-v1.js');
+    return api?api.numero(v):'';
   }
   function indice(catalogo){
     var map=new Map();Object.keys(catalogo||{}).forEach(function(k){var p=catalogo[k];if(!p||typeof p!=='object')return;

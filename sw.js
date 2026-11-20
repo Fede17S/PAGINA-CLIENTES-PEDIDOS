@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.87 — modal visible y safe-area sin duplicar
-const CACHE_NAME = 'distribix-v1.87';
-const CACHE_STATIC = 'distribix-static-v1.87';
+// DISTRIBIX Service Worker v1.88 — teléfonos WhatsApp con prefijo automático
+const CACHE_NAME = 'distribix-v1.88';
+const CACHE_STATIC = 'distribix-static-v1.88';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -26,6 +26,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './pedidos-proveedor-v2.js',
   './pedidos-proveedor-v2.css',
   './panel-viewport-v1.js',
+  './whatsapp-telefono-v1.js',
   './qrcode-1.4.4.min.js',
   './pdfjs/pdf.min.mjs',
   './pdfjs/pdf.worker.min.mjs',
