@@ -1941,6 +1941,8 @@ html[data-theme="dark"] .hr-sec button.hr-act-rech{background:#351517;color:#fca
 #consol-sel-body { flex:1 1 auto !important; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:12px !important; }
 #modal-consol-sel .pp-modal-footer { flex-shrink:0; padding:8px 12px !important; background:var(--s2); }
 body.pp-modal-open #nav-fab, body.pp-modal-open #nav-fab-panel, body.pp-modal-open #nav-fab-back { visibility:hidden !important; pointer-events:none !important; }
+#modal-tareas, #dev-modal { padding:max(8px,var(--safe-top)) max(8px,var(--safe-right)) max(8px,var(--safe-bottom)) max(8px,var(--safe-left)); }
+#modal-tareas > .modal-box, #dev-modal > .dev-card { max-height:100% !important; }
 @media (max-height:450px) { #modal-consol-sel .modal-head { min-height:48px; padding-top:2px; padding-bottom:2px; } #modal-consol-sel .pp-modal-footer { padding-top:5px !important; padding-bottom:5px !important; } }
 .modal-body { padding:20px }
 .modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; background:var(--s3) }
@@ -4243,7 +4245,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.20-catalogopromo1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.20-reparto1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -13282,7 +13284,7 @@ function _dashFechaContable(c){
   return (c&&c.ruta_id&&fechas[String(c.ruta_id)]) || (c&&c.fecha) || null;
 }
 function _dashImporteContable(c){
-  if(!c || c.rechazado===true) return 0;
+  if(!c || _rechazoDefinitivo(c)) return 0;
   var desc=(typeof _devDescuentoCli==="function")?_devDescuentoCli(c):0;
   return Math.max(0,Math.round(((+c.importe||0)-(+desc||0))*100)/100);
 }
@@ -13419,10 +13421,10 @@ async function _cargarDashData(force){
     _dashCache.rutaFecha=_rf;
   } catch(e){ if(!_dashCache.rutaFecha)_dashCache.rutaFecha={}; }
   // Entregas (hoja de ruta) — liviano, sin items. Fuente de facturado, cobrado y saldos.
-  try { _dashCache.entregas = await sbGet("ruta_clientes","select=ruta_id,nom,cliente_id,importe,efectivo,transferencia,pagos_adicionales,devoluciones,rechazado,entregado,entregado_en,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || (_dashCache.entregas||[]); } catch(e){ if(!_dashCache.entregas)_dashCache.entregas=[]; }
+  try { _dashCache.entregas = await sbGet("ruta_clientes","select=ruta_id,nom,cliente_id,importe,efectivo,transferencia,pagos_adicionales,devoluciones,rechazado,rechazo_confirmado,entregado,entregado_en,fecha&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || (_dashCache.entregas||[]); } catch(e){ if(!_dashCache.entregas)_dashCache.entregas=[]; }
   // Items de la ruta (más pesado) — solo en carga/refresh manual, para Top productos
   if(force || !_dashCache.entItems){
-    try { _dashCache.entItems = await sbGet("ruta_clientes","select=ruta_id,nom,items,fecha,rechazado&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || []; } catch(e){ if(!_dashCache.entItems)_dashCache.entItems=[]; }
+    try { _dashCache.entItems = await sbGet("ruta_clientes","select=ruta_id,nom,items,fecha,rechazado,rechazo_confirmado&empresa_id=eq."+_sbEmpId+"&order=fecha.desc&limit=5000") || []; } catch(e){ if(!_dashCache.entItems)_dashCache.entItems=[]; }
   }
   if(force || !_dashCache.zonaCli){
     try {
@@ -13507,11 +13509,11 @@ function _dashRender(){
 
   // FACTURADO = lo cargado en hojas de ruta del rango, por FECHA DE LA RUTA.
   // Rechazados no facturan y las notas de crédito aplicadas descuentan.
-  var entRangoFact=ent.filter(function(c){ return c.rechazado!==true && zonaOk(c.nom) && enRango(_dashFechaContable(c),lim); });
+  var entRangoFact=ent.filter(function(c){ return !_rechazoDefinitivo(c) && zonaOk(c.nom) && enRango(_dashFechaContable(c),lim); });
   var facturado=entRangoFact.reduce(function(s,c){return s+_dashImporteContable(c);},0);
   var facturadoPrev=null;
   if(lim.prevIni){
-    facturadoPrev=ent.filter(function(c){ return c.rechazado!==true && zonaOk(c.nom) && enPrev(_dashFechaContable(c)); }).reduce(function(s,c){return s+_dashImporteContable(c);},0);
+    facturadoPrev=ent.filter(function(c){ return !_rechazoDefinitivo(c) && zonaOk(c.nom) && enPrev(_dashFechaContable(c)); }).reduce(function(s,c){return s+_dashImporteContable(c);},0);
   }
 
   // COBRADO usa exactamente el mismo conjunto contable que FACTURADO.
@@ -13519,7 +13521,7 @@ function _dashRender(){
   var cobrado=cobRango.reduce(function(s,c){return s+cobradoDe(c);},0);
   var cobradoPrev=null;
   if(lim.prevIni){
-    cobradoPrev=ent.filter(function(c){ return c.rechazado!==true && zonaOk(c.nom) && enPrev(_dashFechaContable(c)); }).reduce(function(s,c){return s+cobradoDe(c);},0);
+    cobradoPrev=ent.filter(function(c){ return !_rechazoDefinitivo(c) && zonaOk(c.nom) && enPrev(_dashFechaContable(c)); }).reduce(function(s,c){return s+cobradoDe(c);},0);
   }
   var entregasN=cobRango.filter(function(c){return c.entregado;}).length;
 
@@ -13549,7 +13551,7 @@ function _dashRender(){
   var topCli=Object.keys(cliMap).map(function(k){return{nom:k,monto:cliMap[k]};}).sort(function(a,b){return b.monto-a.monto;}).slice(0,5);
 
   var prodMap={};
-  entIt.forEach(function(c){ if(c.rechazado===true || !zonaOk(c.nom) || !enRango(_dashFechaContable(c),lim)) return; (c.items||[]).forEach(function(it){ var n=it.n||it.nombre||it.nom||it.name||"?"; var q=it.c||it.cant||it.cantidad||it.qty||0; if(n!=="?") prodMap[n]=(prodMap[n]||0)+q; }); });
+    entIt.forEach(function(c){ if(_rechazoDefinitivo(c) || !zonaOk(c.nom) || !enRango(_dashFechaContable(c),lim)) return; (c.items||[]).forEach(function(it){ var n=it.n||it.nombre||it.nom||it.name||"?"; var q=it.c||it.cant||it.cantidad||it.qty||0; if(n!=="?") prodMap[n]=(prodMap[n]||0)+q; }); });
   var topProd=Object.keys(prodMap).map(function(k){return{nom:k,cant:prodMap[k]};}).sort(function(a,b){return b.cant-a.cant;}).slice(0,5);
 
   // Clientes en riesgo — agrupar por ID de cliente (no por nombre).
@@ -20153,13 +20155,13 @@ async function _cc2CargarCuenta(ref,nom){
       if(tel)u.tel=tel;
     }catch(eTel){}
   }
-  var cols="id,ruta_id,pedido_id,cliente_id,nom,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha,remito_num,tipo_comprobante,rechazado";
+  var cols="id,ruta_id,pedido_id,cliente_id,nom,importe,efectivo,transferencia,pagos_adicionales,entregado,entregado_en,fecha,remito_num,tipo_comprobante,rechazado,rechazo_confirmado";
   var rutas=await sbGet("ruta_clientes","select="+cols+"&empresa_id=eq."+_sbEmpId+"&cliente_id=eq."+encodeURIComponent(uid)+"&order=fecha.desc");
   if(!rutas||!rutas.length){
     var mismoNombre=Object.values(_clientesDB||{}).filter(function(x){return (x.name||"").trim().toLowerCase()===(u.name||nom||"").trim().toLowerCase();});
     if(mismoNombre.length===1) rutas=await sbGet("ruta_clientes","select="+cols+"&empresa_id=eq."+_sbEmpId+"&nom=eq."+encodeURIComponent(u.name||nom||"")+"&order=fecha.desc");
   }
-  rutas=(rutas||[]).filter(function(r){return r.rechazado!==true;});
+  rutas=(rutas||[]).filter(function(r){return !_rechazoDefinitivo(r);});
   var rutaIds=[]; rutas.forEach(function(r){if(r.ruta_id&&rutaIds.indexOf(r.ruta_id)<0)rutaIds.push(r.ruta_id);});
   var rutasMeta=[];
   if(rutaIds.length) rutasMeta=await sbGet("rutas","select=id,hr_num,nombre,fecha&empresa_id=eq."+_sbEmpId+"&id=in.("+rutaIds.join(",")+")");
@@ -20891,16 +20893,17 @@ async function crearNuevaRuta(){
 async function borrarRuta(rk){ if(!(await _confirmar({icono:"🗑️",titulo:"Borrar hoja de ruta",mensaje:"Se va a borrar esta hoja de ruta completa. No se puede deshacer.",ok:"Borrar",peligro:true})))return; _auditar("borrar","ruta",rk,"Borró la hoja de ruta: "+((rutasData[rk]&&rutasData[rk].nombre)||rk)); fbDelQ("empresas/"+empresaKey+"/rutas/"+rk,"Borrar hoja de ruta").then(function(){delete rutasData[rk];if(rutaAbierta===rk)rutaAbierta=null;renderRutas();showNotif(navigator.onLine?"Hoja de ruta borrada":"Borrado guardado en el dispositivo","ok");}).catch(function(){alert("Error al borrar.");}); }
 // ===== NOTAS DE CRÉDITO — estados, roles e historial =====
 // Conviven con el sistema de devoluciones/roturas/faltantes. Cada nota puede estar
-// 'notificada' (repartidor), 'aplicada' (vendedor/admin) o 'rechazada' (admin).
+// 'notificada' (pendiente), 'aplicada' (aprobada por admin) o 'rechazada' (admin).
 // Las notas VIEJAS (sin estado) cuentan como 'aplicada' para no cambiar los totales existentes.
 function _devEstado(d){ return (d && d.estado) ? d.estado : 'aplicada'; }
-function _devEstadoLabel(e){ return {notificada:'🟡 Notificada', aplicada:'🟢 Aplicada', rechazada:'🔴 Rechazada'}[e]||e; }
+function _rechazoDefinitivo(c){return !!(c&&c.rechazado===true&&(c.rechazoConfirmado===true||c.rechazo_confirmado===true));}
+function _devEstadoLabel(e){ return {notificada:'🟡 Pendiente del admin', aplicada:'🟢 Aprobada', rechazada:'🔴 Rechazada',retirada:'↩️ Retirada'}[e]||e; }
 function _ncTieneRol(r){
   if(!currentUser) return false;
   if(currentUser.role===r) return true;
   return Array.isArray(currentUser.roles) && currentUser.roles.indexOf(r)>=0;
 }
-function _ncPuedeAplicar(){ return _ncTieneRol('admin') || _ncTieneRol('vendedor'); }
+function _ncPuedeAplicar(){ return _ncTieneRol('admin'); }
 function _ncPuedeRechazar(){ return _ncTieneRol('admin'); }
 function _ncLog(d, accion, extra){
   if(!d.historial) d.historial=[];
@@ -20919,9 +20922,9 @@ function _devDescuentoCli(c){
 }
 function calcRuta(ruta){
   var cl=Object.values(ruta.clientes||{});
-  var tot=cl.reduce(function(s,c){return s+(c.rechazado?0:_hrNums(c).tot);},0);
+  var tot=cl.reduce(function(s,c){return s+(_rechazoDefinitivo(c)?0:_hrNums(c).tot);},0);
   var cob=cl.reduce(function(s,c){
-    if(c.rechazado) return s;
+    if(_rechazoDefinitivo(c)) return s;
     var base=(c.efectivo||0)+(c.transferencia||0);
     var adicional=(c.pagosAdicionales||[]).reduce(function(sa,p){return sa+(p.monto||0);},0);
     return s+base+adicional;
@@ -20930,7 +20933,8 @@ function calcRuta(ruta){
     pagados:cl.filter(function(c){
       // Un rechazado no cuenta como "pagado" (no se cobró), pero tampoco como pendiente:
       // se excluye del total. Para el progreso lo tratamos como resuelto.
-      if(c.rechazado) return true;
+      if(_rechazoDefinitivo(c)) return true;
+      if(c.rechazado) return false;
       if(!c.entregado) return false;   // no entregado todavía → no está pagado
       var base=(c.efectivo||0)+(c.transferencia||0);
       var adicional=(c.pagosAdicionales||[]).reduce(function(sa,p){return sa+(p.monto||0);},0);
@@ -20975,7 +20979,7 @@ function _hrBarra(listo, deben, total, alto){
 function _hrCuentas(ruta){
   var c={pend:0, cobrar:0, parcial:0, listo:0, rech:0, tot:0};
   Object.values(ruta.clientes||{}).forEach(function(cl){
-    var st=_hrEstado(cl); c[st]++; c.tot++;
+    var st=_hrEstado(cl); if(st==='rech'&&!_rechazoDefinitivo(cl))st='pend';c[st]++; c.tot++;
   });
   c.deben = c.cobrar + c.parcial;          // entregadas sin cobrar del todo
   c.resueltas = c.listo + c.rech;          // ya no hay nada que hacer
@@ -21057,7 +21061,7 @@ function renderRutas(){
     var q=_hrCuentas(rutasData[k]);
     gCli+=q.tot; gListo+=q.listo; gDeben+=q.deben; gPend+=q.pend; gRech+=q.rech; gEnt+=q.entregadas;
     Object.values(rutasData[k].clientes||{}).forEach(function(cl){
-      if(cl.rechazado) return;
+      if(_rechazoDefinitivo(cl)) return;
       var n=_hrNums(cl), saldo=Math.max(0,n.saldo||0);
       if(cl.entregado) gCalle+=saldo; else gPorEntregar+=saldo;
     });
@@ -22292,8 +22296,9 @@ function _hrBadges(rk, ck, cli, n, st){
   if(ds.length){
     var pend=ds.filter(function(d){return _devEstadoEnPedido(cli,d)==='notificada';}).length;
     var apl =ds.filter(function(d){return _devEstadoEnPedido(cli,d)==='aplicada';}).length;
-    var col = pend>0 ? 'background:#fef3c7;color:#b45309' : 'background:#dcfce7;color:#166534';
-    b+=' <span class="rc-item-dsc-badge" style="'+col+';cursor:pointer" onclick="event.stopPropagation();_devAdminVer(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">↩️ '+(pend>0?(pend+" a revisar"):apl)+'</span>';
+    var col = pend>0 ? 'background:#fef3c7;color:#b45309' : apl>0?'background:#dcfce7;color:#166534':'background:#fee2e2;color:#b91c1c';
+    var aviso=pend>0?pend+" devolución(es) pendiente(s) del admin":apl>0?apl+" devolución(es) aprobada(s)":"Devolución revisada";
+    b+=' <span class="rc-item-dsc-badge" style="'+col+';cursor:pointer" onclick="event.stopPropagation();_devAdminVer(\''+_hrQ(rk)+'\',\''+_hrQ(ck)+'\')">↩️ '+aviso+'</span>';
   }
   if(n.saldo < -0.5) b+=' <span class="rc-item-dsc-badge" style="background:#fee2e2;color:#b91c1c">⚠ de más $'+fM(Math.abs(n.saldo))+'</span>';
   return b;
@@ -28798,6 +28803,14 @@ function _aplicarPendientesRutas(base,local){
     var p=_fbPathParse(op.path||"");
     var esPathRuta=p[0]==="empresas"&&p[2]==="rutas";
 
+    if(metodo==="REPARTO_REPORTE"){
+      var rr=op.data||{},hr=out[rr.rutaId],cr=hr&&hr.clientes&&hr.clientes[rr.cliId];
+      if(cr&&!(cr.auditLog||[]).some(function(x){return x.reporteId===(rr.datos||{}).id;})){
+        hr.clientes[rr.cliId]=Object.assign({},cr,{rechazado:true,rechazoConfirmado:false,motivoRechazo:(rr.datos||{}).motivo||"",entregado:false});
+      }
+      return;
+    }
+
     // Las devoluciones se sincronizan como operaciones por NOTA (no como una
     // fotografía completa del array). Mientras esperan conexión se superponen
     // sobre la lectura del servidor para que un refresco no las haga reaparecer.
@@ -29170,6 +29183,9 @@ async function _replayOfflineOp(op){
     }
   }
   if(op.method==="DEV_NOTE") return _devReplayNota(op.data||{});
+  if(op.method==="REPARTO_REPORTE"){
+    var rr=op.data||{};return window.RepartoRevision.solicitar(rr.rutaId,rr.cliId,"notificar_rechazo",rr.datos||{});
+  }
   if(op.method==="RPC") return sbFetch("POST",op.path,op.data);
   if(op.method==="SB_POST") return sbPost(op.path,op.data);
   if(op.method==="SB_PATCH") return sbPatch(op.path,op.data.match,op.data.body);
@@ -40023,6 +40039,7 @@ function _esMotivoReprogramacion(motivo){
 // Marca una parada como RECHAZADA (el cliente canceló definitivamente).
 // Si pidió otra fecha se deriva al flujo de reprogramación y el stock no cambia.
 async function _meRechazar(i){
+  if(!window.RepartoRevision){showNotif("Actualizá el panel para registrar el rechazo de forma segura","err");return;}
   var p=_mapaParadas[i]; if(!p) return;
   if(p.cli.rechazado){
     showNotif(p.cli.rechazoConfirmado===true?"Este rechazo ya fue confirmado":"Este pedido ya está marcado como rechazado","info");
@@ -40349,6 +40366,7 @@ async function _rechazoPasarABackup(rutaId,cliKey,cli,ahora){
 }
 
 async function _confirmarRechazo(rutaId, cliKey, opts){
+  if(!window.RepartoRevision){showNotif("Actualizá el panel para resolver el rechazo de forma segura","err");return false;}
   opts=opts||{};
   var ruta=rutasData[rutaId];
   var cli = ruta && ruta.clientes && ruta.clientes[cliKey];
@@ -40642,6 +40660,7 @@ function _devBusyKey(target,d){ return String((target&&target.ck)||"")+"|"+_devC
 // Sincronización por nota: lee el JSON vigente, modifica únicamente la nota
 // elegida y vuelve a guardar. Así dos dispositivos no pisan el array completo.
 async function _devReplayNota(datos){
+  if(!window.RepartoRevision)throw new Error("Falta cargar la revisión segura de reparto. Actualizá el panel.");
   datos=datos||{};
   if(!_sbEmpId||!datos.cliId) throw new Error("Falta identificar la parada para sincronizar la devolución");
   var match="id=eq."+encodeURIComponent(String(datos.cliId))+"&empresa_id=eq."+_sbEmpId;
@@ -40700,7 +40719,6 @@ function _devHojaAbrir(rk,ck,e){
     ck:ck,
     cli:cli,
     readonly:false,
-    forceApply:true,
     persist:function(action,note,noteKey){
       return _devPersistir(rk,ck,cli,{action:action,note:note,noteKey:noteKey}).then(function(){
         if(typeof renderRutas==="function") renderRutas();
@@ -40761,10 +40779,9 @@ function _devRenderList(){
     // Acciones según rol y estado
     var acc='';
     var dis=busy?' disabled':'';
-    if(est==='notificada' && _ncPuedeAplicar()) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px"'+dis+' onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
+    if(est==='notificada' && _ncPuedeAplicar()) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px"'+dis+' onclick="_ncAplicar('+idx+')">✓ Aprobar</button>';
     if(est==='notificada' && _ncPuedeRechazar()) acc+='<button class="dev-del" style="background:#dc2626;color:#fff;width:auto;padding:0 8px"'+dis+' onclick="_ncRechazar('+idx+')">✕ Rechazar</button>';
-    if(est==='rechazada' && _ncPuedeAplicar() && _devTarget.cli.rechazoConfirmado!==true) acc+='<button class="dev-del" style="background:#16a34a;color:#fff;width:auto;padding:0 8px"'+dis+' onclick="_ncAplicar('+idx+')">✓ Aplicar</button>';
-    var puedeBorrar = !ro && _devTarget.cli.rechazoConfirmado!==true;
+    var puedeBorrar = !ro && est==='notificada' && _devTarget.cli.rechazoConfirmado!==true;
     return '<div class="dev-item" style="flex-wrap:wrap"><div style="flex:1;min-width:150px"><b>'+_devEsc(d.producto)+'</b> ×'+(d.cantidad||1)+montoTxt+
       '<div class="dev-item-sub">'+_devMotivoLabel(d.motivo)+' · <span style="color:'+col+';font-weight:700">'+_devEstadoLabel(est)+'</span>'+(d.nota?' · '+_devEsc(d.nota):'')+(fecha?' · '+fecha:'')+'</div>'+
       (_devTarget.cli.rechazoConfirmado===true?'<div style="font-size:10px;color:#166534;margin-top:3px">✓ Pedido completo rechazado: stock ya resuelto.</div>':'')+
@@ -40823,6 +40840,7 @@ async function _ncStockRevertir(d,target,accion){
 }
 // Aplicar una nota de crédito (vendedor o admin)
 async function _ncAplicar(idx){
+  if(!window.RepartoRevision){showNotif("Actualizá el panel para aprobar devoluciones de forma segura","err");return;}
   var target=_devTarget; if(!target) return;
   var d=(target.cli.devoluciones||[])[idx]; if(!d) return;
   if(!_ncPuedeAplicar()){ if(typeof showNotif==="function") showNotif("No tenés permiso para aplicar","err"); return; }
@@ -40853,6 +40871,7 @@ async function _ncAplicar(idx){
 }
 // Rechazar una nota de crédito (solo admin)
 async function _ncRechazar(idx){
+  if(!window.RepartoRevision){showNotif("Actualizá el panel para rechazar devoluciones de forma segura","err");return;}
   var target=_devTarget; if(!target) return;
   var d=(target.cli.devoluciones||[])[idx]; if(!d) return;
   if(!_ncPuedeRechazar()){ if(typeof showNotif==="function") showNotif("Solo el admin puede rechazar","err"); return; }
@@ -40922,6 +40941,7 @@ function _ncDashRender(){
 async function _devAgregar(){
   var target=_devTarget;
   if(!target||target.readonly) return;
+  if(target._agregando)return;
   if(target.cli.rechazoConfirmado===true){
     if(typeof showNotif==="function") showNotif("El pedido completo ya fue rechazado; no se pueden agregar devoluciones sueltas","warn");
     return;
@@ -40946,7 +40966,7 @@ async function _devAgregar(){
   }
   if(_maxPedido>0){
     var _yaDevuelto=(target.cli.devoluciones||[]).reduce(function(s,d){
-      if(!d||_devEstado(d)==="rechazada") return s;
+      if(!d||_devEstado(d)==="rechazada"||_devEstado(d)==="retirada") return s;
       var mismo=_cod ? String(d.codigo||"")===String(_cod) : d.producto===prod;
       return s+(mismo?+(d.cantidad||1):0);
     },0);
@@ -40959,12 +40979,13 @@ async function _devAgregar(){
   // Solo devolucion y faltante descuentan del importe (rotura la absorbe la empresa)
   var _descuenta=(motivo==="devolucion"||motivo==="faltante");
   var _monto=_descuenta ? Math.round(_pu*cant*100)/100 : 0;
-  // Estado inicial: el repartidor NOTIFICA (queda pendiente); vendedor/admin la crean ya APLICADA.
-  var _estIni = (target.forceApply || _ncPuedeAplicar()) ? 'aplicada' : 'notificada';
+  // Toda nota nueva queda pendiente: requiere una decisión explícita del admin.
+  var _estIni = 'notificada'; // Siempre requiere una decisión explícita del admin.
   var _ahora=new Date().toISOString();
   var _d = {id:"nc_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),producto:prod,cantidad:cant,motivo:motivo,nota:nota,precioUnit:_pu,monto:_monto,descuenta:_descuenta,codigo:_cod,ts:_ahora,actualizadoEn:_ahora,estado:_estIni,historial:[]};
   _ncLog(_d,'notificada');
   if(_estIni==='aplicada') _ncLog(_d,'aplicada');
+  target._agregando=true;
   target.cli.devoluciones.push(_d);
   var _busyKey=_devBusyKey(target,_d);
   _devBusy[_busyKey]=true;
@@ -40980,10 +41001,12 @@ async function _devAgregar(){
     console.warn("[NC] agregar:",e&&e.message);
     if(typeof showNotif==="function") showNotif("No se registró la devolución: "+((e&&e.message)||"error de guardado"),"err");
     delete _devBusy[_busyKey];
+    target._agregando=false;
     _devRenderList();
     return;
   }
   delete _devBusy[_busyKey];
+  target._agregando=false;
   if(_estIni==='aplicada' && !_cod && (motivo==="devolucion"||motivo==="faltante")){
     if(typeof showNotif==="function") setTimeout(function(){ showNotif("⚠️ Producto escrito a mano: ajustá el stock a mano desde Stock","warn"); }, 900);
   }
@@ -41017,6 +41040,7 @@ async function _devQuitar(idx){
   }
 }
 function _devPersistir(rk,ck,cli,meta){
+  if(!window.RepartoRevision)return Promise.reject(new Error("Falta cargar la revisión segura de reparto. Actualizá el panel."));
   if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]) rutasData[rk].clientes[ck].devoluciones=cli.devoluciones;
   _guardarRutasOffline();
   meta=meta||{};
@@ -42325,6 +42349,11 @@ function _sysPresenciaInit(){ _sysRegistrarLogin(); _sysIniciarHeartbeat(); }
         '</span>' +
         '<span class="dash-cta-ar">›</span>' +
       '</button>';
+    if(data.devols.length||data.rechazos.length){
+      card.innerHTML+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">'+
+        (data.devols.length?'<button class="btn btn-ghost" style="flex:1;min-width:180px;border-color:#d97706" onclick="_tpAbrirEn(\'devols\',event)">↩️ '+data.devols.length+' devolución(es) por revisar</button>':'')+
+        (data.rechazos.length?'<button class="btn btn-ghost" style="flex:1;min-width:180px;border-color:#dc2626" onclick="_tpAbrirEn(\'rechazos\',event)">❌ '+data.rechazos.length+' rechazo(s) por revisar</button>':'')+'</div>';
+    }
   }
 
   /* ---------- panel (modal) ---------- */
@@ -42411,7 +42440,8 @@ function _sysPresenciaInit(){ _sysRegistrarLogin(); _sysIniciarHeartbeat(); }
             '<span style="font-size:11px;color:var(--muted)">'+_tpFecha(x.fecha)+'</span></div>'+
           '<div style="font-size:11px;color:var(--muted);margin:2px 0 7px">'+_tpEsc(x.motivo||"Sin motivo")+extra+'</div>'+
           '<div style="display:flex;gap:6px">'+
-            '<button class="btn btn-sm" style="flex:1;background:#0a7048;color:#fff" onclick="_tpConfirmarRech(\''+_tpJs(x.rk)+'\',\''+_tpJs(x.ck)+'\')">&#10003; Confirmar</button>'+
+            '<button class="btn btn-sm" style="flex:1;background:#0a7048;color:#fff" onclick="_tpConfirmarRech(\''+_tpJs(x.rk)+'\',\''+_tpJs(x.ck)+'\')">&#10003; Aprobar rechazo</button>'+
+            '<button class="btn btn-ghost btn-sm" style="flex:1" onclick="_tpDesestimarRech(\''+_tpJs(x.rk)+'\',\''+_tpJs(x.ck)+'\')">No aprobar</button>'+
             '<button class="btn btn-ghost btn-sm" onclick="_tpIrHoja()" title="Ver en Hoja de Ruta">&#128203;</button>'+
           '</div></div>';
       }).join("");
@@ -42481,6 +42511,9 @@ function _sysPresenciaInit(){ _sysRegistrarLogin(); _sysIniciarHeartbeat(); }
   window._tpConfirmarRech = function(rk, ck){
     try { Promise.resolve(_confirmarRechazo(rk, ck)).then(function(){ _tpRefrescar(); }).catch(function(){ _tpRefrescar(); }); }
     catch(e){ _tpRefrescar(); }
+  };
+  window._tpDesestimarRech = function(rk,ck){
+    return window.RepartoRevision.resolverRechazo(rk,ck,false).then(function(){_tpRefrescar();});
   };
   window._tpIrHoja = function(){
     if(typeof cerrarModal === "function") cerrarModal("modal-tareas");
@@ -43619,5 +43652,6 @@ async function _rvtGuardarVisita(){
 <script src="sync-avisos-v1.js?v=20261119-1"></script>
 <script src="iclap-catalogo-v1.js?v=20261119-2"></script>
 <script src="pedidos-proveedor-v2.js?v=20261119-3"></script>
+<script src="reparto-revision-v1.js?v=20261120-1"></script>
 </body>
 </html>

@@ -1,0 +1,20 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const src=fs.readFileSync(process.argv[2]||'PANEL-index_15.html','utf8');
+function fn(n){const s=src.indexOf('function '+n+'(');assert.ok(s>=0,n);const next=src.slice(s+10).search(/\n(?:async )?function /),b=src.slice(s,next<0?src.length:s+10+next),l=b.split('\n')[0];return l.trimEnd().endsWith('}')?l:b.slice(0,b.lastIndexOf('\n}')+2);}
+const ctx=vm.createContext({currentUser:{role:'vendedor'},window:{},fM:String,showNotif(){}});
+for(const n of ['_devEstado','_rechazoDefinitivo','_ncTieneRol','_ncPuedeAplicar','_ncPuedeRechazar','_devDescuentoCli','_hrNums','_hrEstado','_hrCuentas','calcRuta','_dashImporteContable'])vm.runInContext(fn(n),ctx);
+assert.equal(ctx._ncPuedeAplicar(),false,'vendedor no resuelve');ctx.currentUser.role='repartidor';assert.equal(ctx._ncPuedeAplicar(),false);ctx.currentUser.role='admin';assert.equal(ctx._ncPuedeAplicar(),true);
+const c={importe:1000,rechazado:true,rechazoConfirmado:false,entregado:false,devoluciones:[{estado:'notificada',monto:200}]};
+assert.equal(ctx.calcRuta({clientes:{C:c}}).total,1000,'solicitud pendiente no anula facturado');
+assert.equal(ctx.calcRuta({clientes:{C:c}}).pagados,0,'no se cobra por rechazar');
+assert.equal(ctx._hrCuentas({clientes:{C:c}}).resueltas,0,'todavía debe resolver el admin');
+assert.equal(ctx._dashImporteContable({...c,rechazo_confirmado:false}),1000);
+c.rechazoConfirmado=true;assert.equal(ctx.calcRuta({clientes:{C:c}}).total,0);assert.equal(ctx._dashImporteContable({...c,rechazo_confirmado:true}),0);
+assert.equal(ctx._devDescuentoCli({devoluciones:[{estado:'notificada',monto:20,motivo:'devolucion'},{estado:'rechazada',monto:30,motivo:'devolucion'},{estado:'aplicada',monto:40,motivo:'devolucion'}]}),40);
+const moduleCode=fs.readFileSync('reparto-revision-v1.js','utf8');for(const n of ['_ncAplicar','_ncRechazar','_confirmarRechazo','_meRechazar','_devReplayNota','_devPersistir'])assert.ok(moduleCode.includes('w.'+n+'='),'falta enganche '+n);
+assert.ok(src.includes('<script src="reparto-revision-v1.js?v=20261120-1"></script>'));
+assert.ok(src.includes("var _estIni = 'notificada'"));assert.ok(src.includes('window._tpDesestimarRech'));
+assert.ok(fs.readFileSync('sw.js','utf8').includes("'./reparto-revision-v1.js'"),'módulo disponible offline');
+const sql=fs.readFileSync('supabase/migrations/20261120041544_reparto_revision_atomica_v1.sql','utf8');
+for(const text of ['security invoker','for update','REVISION_SOLO_ADMIN','REVISION_CAMBIO_EN_OTRO_DISPOSITIVO','REVISION_EMPRESA_DENEGADA','REVISION_USAR_REPROGRAMACION_SIN_STOCK'])assert.ok(sql.includes(text),text);
+console.log('Reparto: solo admin resuelve, importe/progreso pendientes intactos, notas solo aprobadas descuentan, módulo y RPC atómica conectados OK');

@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.89 — condiciones por cantidad en todo el catálogo PDF
-const CACHE_NAME = 'distribix-v1.89';
-const CACHE_STATIC = 'distribix-static-v1.89';
+// DISTRIBIX Service Worker v1.90 — revisión atómica de incidencias de reparto
+const CACHE_NAME = 'distribix-v1.90';
+const CACHE_STATIC = 'distribix-static-v1.90';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -27,6 +27,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './pedidos-proveedor-v2.css',
   './panel-viewport-v1.js',
   './whatsapp-telefono-v1.js',
+  './reparto-revision-v1.js',
   './qrcode-1.4.4.min.js',
   './pdfjs/pdf.min.mjs',
   './pdfjs/pdf.worker.min.mjs',
