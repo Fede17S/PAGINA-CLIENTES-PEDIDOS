@@ -189,6 +189,7 @@ window._armAbrir=async function(id){
   if(_armOpening||window._armGuardando) return;
   var bk=(typeof window._armGetAll==="function"?window._armGetAll():[]).find(function(b){return String(b.id)===String(id);});
   if(!bk)return;
+  if(typeof window._armEnCola==="function"&&!window._armEnCola(bk)){if(window.showNotif)window.showNotif("Este pedido ya no está pendiente de armado.","info");return;}
   if(typeof navigator!=="undefined"&&navigator.onLine===false){if(window.showNotif)window.showNotif("Necesitás conexión para reservar el pedido","err");return;}
   if(!aSbId(bk)||!window._sbEmpId){if(window.showNotif)window.showNotif("El pedido todavía no está sincronizado","err");return;}
   _armOpening=true;
@@ -197,6 +198,7 @@ window._armAbrir=async function(id){
     var r=await aRpc("reclamar",bk,{token:token,revision:null});
     if(!r||r.ok===false){
       if(window.showNotif) window.showNotif(r&&r.codigo==="PEDIDO_BLOQUEADO"?("🔒 Lo está armando "+(r.nombre||r.usuario||"otra persona")):"Este pedido ya fue armado","warn");
+      if(r&&r.codigo==="PEDIDO_YA_ARMADO"&&typeof window._armInicioRender==="function")await window._armInicioRender(true);
       return;
     }
     _armLockToken=token; _armRevision=aNum(r.revision); _armLockLost=false;
@@ -379,7 +381,8 @@ window._armConfirmarFinal=async function(){
     document.getElementById("arm-modal").style.display="none";window._armGuardando=false;
     if(typeof window._armInicioRender==="function")await window._armInicioRender();
     if(!rutaOk&&window.showNotif)window.showNotif("Pedido armado. La hoja de ruta no respondió; actualizala antes de imprimir.","warn");
-    var next=typeof window._armPendientes==="function"?window._armPendientes()[0]:null;
+    var siguientes=window._armPendientesVisibles||window._armPendientes;
+    var next=typeof siguientes==="function"?siguientes()[0]:null;
     if(next&&typeof window._confirmar==="function"){
       var seguir=await window._confirmar({icono:"✅",titulo:"Pedido listo",mensaje:(res.faltantes.length?"Se registraron "+res.faltantes.reduce(function(t,x){return t+aNum(x.c);},0)+" unidades faltantes. ":"")+"¿Querés continuar con el siguiente pedido?",ok:"Armar siguiente",cancelar:"Volver a la lista"});
       if(seguir)window._armAbrir(next.id);
@@ -473,7 +476,12 @@ window._armScanCerrar=function(){
 };
 
 window._armConsolidado=function(){
-  var map={};(typeof window._armPendientes==="function"?window._armPendientes():[]).forEach(function(b){(b.items||[]).forEach(function(it,i){var id=aId(it),key=id||aNombre(it).trim().toLowerCase(),n=aNombre(it);if(window._armQuery&&n.toLowerCase().indexOf(window._armQuery)<0)return;var u=aUbicacion(it);if(!map[key])map[key]={key:key,id:id,n:n,c:0,ubicacion:u.texto,orden:u.orden,asignaciones:[]};map[key].c+=aCant(it);map[key].asignaciones.push({pedidoId:b.id,indice:i,c:aCant(it),cliente:b.clienteNom||"Pedido"});});});
+  var map={}, pendientes=window._armPendientesVisibles||window._armPendientes;
+  var q=typeof window._armCriterios==="function"?window._armCriterios("arm").q:"";
+  (typeof pendientes==="function"?pendientes():[]).forEach(function(b){
+    var todas=!q||window._armCoincideCabecera(b,q);
+    (b.items||[]).forEach(function(it,i){var id=aId(it),key=id||aNombre(it).trim().toLowerCase(),n=aNombre(it);if(!todas&&!window._armCoincideItem(it,q))return;var u=aUbicacion(it);if(!map[key])map[key]={key:key,id:id,n:n,c:0,ubicacion:u.texto,orden:u.orden,asignaciones:[]};map[key].c+=aCant(it);map[key].asignaciones.push({pedidoId:b.id,indice:i,c:aCant(it),cliente:b.clienteNom||"Pedido"});});
+  });
   return Object.keys(map).map(function(k){return map[k];}).sort(function(a,b){return a.orden-b.orden||a.ubicacion.localeCompare(b.ubicacion)||a.n.localeCompare(b.n);});
 };
 window._armConsTick=function(k){window._armConsCheck[k]=!window._armConsCheck[k];try{localStorage.setItem(aConsKey(),JSON.stringify(window._armConsCheck));}catch(e){}window._armRenderLista();};
@@ -501,11 +509,12 @@ window._armRenderLista=function(){
     var cons=window._armConsolidado(),sel=cons.filter(function(x){return !!window._armConsCheck[x.key];}).length;
     cont.innerHTML='<div class="armv2-cons-actions"><button onclick="_armConsTodos(true)">✓ Marcar todo</button><button onclick="_armConsTodos(false)">Limpiar</button><button id="armv2-cons-aplicar" class="primary" onclick="_armConsDistribuir()" '+(!sel?'disabled':'')+'>📦 Distribuir en pedidos'+(sel?' ('+sel+')':'')+'</button></div>'+(cons.length?cons.map(function(x){var on=!!window._armConsCheck[x.key],det=x.asignaciones.slice(0,4).map(function(a){return aEsc(a.cliente)+' ×'+a.c;}).join(" · "),safeKey=encodeURIComponent(x.key).replace(/'/g,"%27");return '<div class="arm-cons'+(on?' arm-on':'')+'" onclick="_armConsTick(decodeURIComponent(\''+safeKey+'\'))"><div class="arm-chk">'+(on?'✓':'')+'</div><div class="armv2-main"><div class="arm-item-n">'+aEsc(x.n)+'</div><div class="armv2-tags">'+(x.ubicacion?'<span class="armv2-tag loc">📍 '+aEsc(x.ubicacion)+'</span>':'')+'<span class="armv2-alloc">'+aEsc(det)+(x.asignaciones.length>4?' · +'+(x.asignaciones.length-4)+' pedidos':'')+'</span></div></div><div class="arm-item-q">'+x.c+' u</div></div>';}).join(""):'<div class="repi-empty">No hay productos pendientes.</div>');return;
   }
-  var pend=(typeof window._armPendientes==="function"?window._armPendientes():[]).filter(typeof window._armMatch==="function"?window._armMatch:function(){return true;});
-  if(!pend.length){cont.innerHTML='<div class="repi-empty">🎉 No hay pedidos pendientes de armado.</div>';return;}
+  var pendientes=window._armPendientesVisibles||window._armPendientes;
+  var pend=typeof pendientes==="function"?pendientes():[];
+  if(!pend.length){cont.innerHTML='<div class="repi-empty">No hay pedidos pendientes con estos filtros.</div>';return;}
   cont.innerHTML=pend.map(function(b){var badges="",lock=aLockOtro(b),p=aJsonObject(b.armadoProgreso),done=Object.keys(aJsonObject(p.check)).length+Object.keys(aJsonObject(p.faltantes)).filter(function(k){return aNum(p.faltantes[k])>0&&!p.check[k];}).length,ruta=typeof window._armRutaNom==="function"?window._armRutaNom(b):"";
     if(b.armadorAsignado&&String(b.armadorAsignado)===String(window._armUid()))badges+='<span class="arm-badge arm-badge-mine">👤 Para vos</span>';if(typeof window._armEsOnline==="function"&&window._armEsOnline(b))badges+='<span class="arm-badge arm-badge-online">🛒 Online</span>';if(lock)badges+='<span class="arm-badge armv2-badge-lock">🔒 '+aEsc(b.armadoLockNombre||"En uso")+'</span>';else if(done)badges+='<span class="arm-badge arm-badge-prep">↻ '+done+'/'+(b.items||[]).length+'</span>';
-    return '<div class="arm-ped"><div class="arm-ped-top"><div class="arm-ped-nom">'+aEsc(b.clienteNom||"Pedido")+'</div><div class="arm-ped-badges">'+badges+'</div></div><div class="arm-ped-meta">'+(b.items||[]).length+' productos · '+(typeof window._armUnidades==="function"?window._armUnidades(b):0)+' u'+(ruta?' · 🚚 '+aEsc(ruta):'')+(typeof window._armHace==="function"?' · '+window._armHace(b.fecha):'')+'</div><button class="arm-ped-btn" '+(lock?'disabled':'')+' onclick="_armAbrir(\''+aEsc(b.id)+'\')">'+(lock?'🔒 En uso':(done?'↻ Continuar':'📦 Armar'))+'</button></div>';
+    return '<div class="arm-ped"><div class="arm-ped-top"><div class="arm-ped-nom">'+aEsc(b.clienteNom||"Pedido")+'</div><div class="arm-ped-badges">'+badges+'</div></div><div class="arm-ped-meta">'+(b.items||[]).length+' productos · '+(typeof window._armUnidades==="function"?window._armUnidades(b):0)+' u'+(ruta?' · 🚚 '+aEsc(ruta):'')+(typeof window._armHace==="function"?' · '+window._armHace(b.fecha):'')+(typeof window._armInfoPedido==="function"?'<br>'+aEsc(window._armInfoPedido(b)):'')+'</div><button class="arm-ped-btn" '+(lock?'disabled':'')+' onclick="_armAbrir(\''+aEsc(b.id)+'\')">'+(lock?'🔒 En uso':(done?'↻ Continuar':'📦 Armar'))+'</button></div>';
   }).join("");
 };
 
@@ -515,7 +524,7 @@ function aRenderMetrics(){
   var prom=mins.length?Math.round(mins.reduce(function(t,x){return t+x;},0)/mins.length):0;
   host.innerHTML='<div><b>'+prom+' min</b><span>promedio/pedido</span></div><div><b>'+units+'</b><span>unidades armadas</span></div><div><b>'+falt+'</b><span>faltantes</span></div><div><b>'+sust+'</b><span>sustituciones</span></div><div><b>'+corr+'</b><span>correcciones</span></div>';
 }
-window._armInicioRender=async function(){if(typeof _armLegacyInicioRender==="function")await _armLegacyInicioRender();aRenderMetrics();};
+window._armInicioRender=async function(recargar){if(typeof _armLegacyInicioRender==="function")await _armLegacyInicioRender(recargar);aRenderMetrics();};
 
 function aInject(){
   if(document.getElementById("armador-operativo-v2-style"))return;
