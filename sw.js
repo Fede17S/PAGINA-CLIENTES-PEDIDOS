@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.93 — Hoja de Ruta a todo el ancho en PC
-const CACHE_NAME = 'distribix-v1.93';
-const CACHE_STATIC = 'distribix-static-v1.93';
+// DISTRIBIX Service Worker v1.94 — pedidos durables sin conexión
+const CACHE_NAME = 'distribix-v1.94';
+const CACHE_STATIC = 'distribix-static-v1.94';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea

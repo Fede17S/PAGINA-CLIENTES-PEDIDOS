@@ -44,7 +44,7 @@ function build(){
  const transport=panel.slice(panel.indexOf('function _sbFetchTransporte'),panel.indexOf('// ===== LOG DE AUDITORÍA'));
  const tc={currentUser:null,_sbEmpId:null,_empToken:null,_empTokenVigente:()=>true,SB_HDR:{},SB_URL:'https://test.invalid',setTimeout:()=>1,clearTimeout:()=>{},AbortController,
   fetch:async()=>({ok:false,status:409,headers:{get:k=>k==='sb-request-id'?'request-id-1':null},text:async()=>JSON.stringify({code:'23503',message:'mensaje SQL',details:'detalle SQL',hint:'sugerencia SQL'})})};
- vm.createContext(tc);vm.runInContext(transport,tc);
+ tc.window=tc;vm.createContext(tc);vm.runInContext(transport,tc);
  await assert.rejects(()=>tc._sbFetchTransporte('POST','/rest/v1/ruta_clientes?token=secreto',{}),e=>e.code==='23503'&&e.status===409&&e.details==='detalle SQL'&&e.endpoint==='/rest/v1/ruta_clientes'&&e.requestId==='request-id-1');
  // Cola real: errores permanentes no se repiten ni dejan pasar operaciones posteriores.
  const sync=panel.slice(panel.indexOf('async function _syncQueue(){'),panel.indexOf('/* ─ Banner ─ */',panel.indexOf('async function _syncQueue(){')));

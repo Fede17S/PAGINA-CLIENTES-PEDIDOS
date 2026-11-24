@@ -6,7 +6,8 @@
   function usr(){var u=w.currentUser||{};return String(u.id||u.uid||u._sbId||'sin-usuario');}
   function scope(){return emp()+'|'+usr();}
   function canArchive(){var u=w.currentUser||{};return [u.role].concat(u.roles||[]).some(function(r){return r==='admin'||r==='co-admin';});}
-  function queue(){return Array.isArray(w._offlineQueue)?w._offlineQueue:[];}
+  function rutaQueue(){return Array.isArray(w._offlineQueue)?w._offlineQueue:[];}
+  function queue(){return rutaQueue().concat(typeof w._bkQueueGet==='function'?w._bkQueueGet():[]);}
   function key(kind){return 'distribix:sync:'+kind+':'+emp()+(kind==='oculto'?':'+usr():'');}
   function notify(t,error){if(typeof w.showNotif==='function')w.showNotif(t,error?'err':'ok');}
   function scrub(value,max){
@@ -48,6 +49,11 @@
   }
   function explain(op){
     var d=detail(op);
+    if(op.method==='PEDIDO_LOCAL'){
+      if(d.codigo==='STOCK_INSUFICIENTE'||d.codigo==='PEDIDO_NO_DISPONIBLE')return 'El servidor no confirmó el stock o la disponibilidad. No se emitió el remito. El pedido sigue guardado; revisá con administración antes de reintentar.';
+      if(op.pausaSincronizacion)return 'El pedido sigue guardado en el teléfono. Revisá el detalle y reintentá cuando se resuelva el problema.';
+      return 'Pedido guardado en este teléfono. Se enviará con los mismos productos y precios cuando vuelva la conexión.';
+    }
     if(stock(op))return 'Movimiento antiguo de productos o stock. Está detenido para revisión manual; no se aplicará automáticamente.';
     if(d.codigo==='23503'||/foreign key/i.test(d.mensaje))return /ruta_clientes_ruta_id_fkey|ruta_id/i.test(d.mensaje+' '+d.detalles)
       ?'La hoja de ruta de destino ya no existe o no está disponible. Actualizá las rutas y revisá el destino antes de reintentar.'
@@ -89,14 +95,14 @@
   async function archive(id){
     if(!canArchive()){notify('Solo administración puede archivar operaciones pendientes.',true);return false;}
     if(w._isSyncing){notify('Esperá a que termine la sincronización antes de archivar.',true);return false;}
-    var op=queue().find(function(x){return x.id===id;});if(!op||!op.ultimoError&&!op.errorDetalle){notify('Solo se archivan operaciones con error registrado.',true);return false;}
-    var ctx=scope(),snapshot=JSON.stringify(op),queueSnapshot=JSON.stringify(queue());
+    var op=rutaQueue().find(function(x){return x.id===id;});if(!op||!op.ultimoError&&!op.errorDetalle){notify('Solo se archivan operaciones con error registrado.',true);return false;}
+    var ctx=scope(),snapshot=JSON.stringify(op),queueSnapshot=JSON.stringify(rutaQueue());
     var message='Se quitará este cambio de los reintentos y quedará una copia recuperable en este dispositivo.\n\nNO se confirma como realizado ni se revierten pasos que ya se hayan guardado. Puede afectar entregas o cobros: revisá el estado del servidor.\n\nLos demás pendientes no se enviarán por esta acción. ¿Archivar la operación fallida?';
     var ok=typeof w._confirmar==='function'?await w._confirmar({icono:'🗃️',titulo:'Archivar operación fallida',mensaje:message,ok:'Archivar y detener reintentos',cancelar:'Conservar pendiente',persistente:true,peligro:true}):w.confirm(message);
     if(!ok||scope()!==ctx||!canArchive()||w._isSyncing)return false;
-    op=queue().find(function(x){return x.id===id;});if(!op||JSON.stringify(op)!==snapshot){notify('La operación cambió. Revisá el detalle nuevamente.',true);return false;}
+    op=rutaQueue().find(function(x){return x.id===id;});if(!op||JSON.stringify(op)!==snapshot){notify('La operación cambió. Revisá el detalle nuevamente.',true);return false;}
     try{
-      if(JSON.stringify(queue())!==queueSnapshot)throw Error('La cola cambió mientras confirmabas. Revisá el estado actualizado');
+      if(JSON.stringify(rutaQueue())!==queueSnapshot)throw Error('La cola cambió mientras confirmabas. Revisá el estado actualizado');
       var queueKey=typeof w._ofKey==='function'?w._ofKey():null;
       if(!queueKey)throw Error('No se encontró la cola activa');
       var persisted=localStorage.getItem(queueKey);
@@ -105,7 +111,7 @@
       if(!all.some(function(r){return r.op&&r.op.id===id;}))all.push({fecha:new Date().toISOString(),por:usr(),op:JSON.parse(snapshot)});
       var backup=JSON.stringify(all);localStorage.setItem(key('archivo'),backup);
       if(localStorage.getItem(key('archivo'))!==backup)throw Error('No se pudo comprobar el respaldo local');
-      var next=queue().filter(function(x){return x.id!==id;}),payload=JSON.stringify(next);
+      var next=rutaQueue().filter(function(x){return x.id!==id;}),payload=JSON.stringify(next);
       localStorage.setItem(queueKey,payload);
       if(localStorage.getItem(queueKey)!==payload)throw Error('No se pudo guardar la cola actualizada');
       w._offlineQueue=next;w._syncLastError=(next.find(function(x){return x.ultimoError;})||{}).ultimoError||null;
@@ -118,7 +124,14 @@
     if(!navigator.onLine){notify('Necesitás conexión para reintentar.',true);return;}
     var ops=queue(),target=ops.find(function(x){return x.id===id;});if(!target)return;
     if(stock(target)){notify('Este movimiento requiere revisión de stock; no se reintenta desde aquí.',true);return;}
-    var first=ops.find(function(x){return !stock(x);});
+    if(target.method==='PEDIDO_LOCAL'){
+      if(typeof w._syncPendingBackups==='function') await w._syncPendingBackups(true,id);
+      render();
+      var volver=document.querySelector('#sync-avisos-modal.open .sa-head button');
+      if(volver)volver.focus();
+      return;
+    }
+    var first=rutaQueue().find(function(x){return !stock(x);});
     if(first&&first.id!==id){notify('Se debe resolver primero la operación anterior para respetar el orden.',true);return;}
     var ctx=scope(),ok=typeof w._confirmar==='function'?await w._confirmar({icono:'🔄',titulo:'Reintentar pendientes en orden',mensaje:'Se intentará este cambio y, si se confirma, continuará la cola en su orden. Revisá antes que no esté aplicado parcialmente. Los movimientos de stock detenidos no se habilitan por este botón.',ok:'Reintentar',persistente:true}):w.confirm('¿Reintentar este cambio y continuar la cola en orden?');
     if(!ok||scope()!==ctx||w._isSyncing||!queue().some(function(x){return x===target;}))return;
@@ -151,9 +164,9 @@
       card.append(technical(op));
       var actions=node('div',null,'sa-actions');
       var send=button('Avisar al programador',function(){showReport(op);});actions.append(send);
-      if(!stock(op)){var re=button('Reintentar en orden',function(){retry(op.id);});re.disabled=!!w._isSyncing||!navigator.onLine;actions.append(re);}
+      if(!stock(op)){var re=button(op.method==='PEDIDO_LOCAL'?'Reintentar pedido':'Reintentar en orden',function(){retry(op.id);});re.disabled=(op.method==='PEDIDO_LOCAL'?!!w._bkSyncBusy:!!w._isSyncing)||!navigator.onLine;actions.append(re);}
       else if(w.StockSeguro&&canArchive()){actions.append(button('Revisar movimientos antiguos',async function(){await w.StockSeguro.revisarPendientes();render();}));}
-      if(canArchive()){var ar=button('Archivar operación fallida',function(){archive(op.id);});ar.disabled=!!w._isSyncing||!op.ultimoError&&!op.errorDetalle;actions.append(ar);}
+      if(canArchive()&&op.method!=='PEDIDO_LOCAL'){var ar=button('Archivar operación fallida',function(){archive(op.id);});ar.disabled=!!w._isSyncing||!op.ultimoError&&!op.errorDetalle;actions.append(ar);}
       card.append(actions);body.append(card);
     });
     if(canArchive()){

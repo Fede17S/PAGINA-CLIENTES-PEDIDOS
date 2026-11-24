@@ -4241,7 +4241,7 @@ a:focus-visible, button:focus-visible {
       <span class="sb-icon">⚙️</span>Configuración
     </button>
   </nav>
-  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.23-hoja1</div>
+  <div id="app-version-tag" style="padding:8px 16px 12px;font-size:10px;color:var(--muted);text-align:center;opacity:.8">DISTRIBIX · v2026.11.23-offline1</div>
   <div id="sb-mobile-hint" style="display:none;padding:16px;text-align:center;color:var(--muted)">
     <div style="font-size:30px;margin-bottom:8px">👇</div>
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Navegá desde abajo</div>
@@ -4766,7 +4766,7 @@ _sysAlertMount();
       <div id="dsc-ped-preview" style="display:none" class="rc-dsc-preview"></div>
     </div>
   </div>
-  <div class="card"><div class="card-body"><textarea id="obs-ped" placeholder="Observaciones…" rows="2"></textarea></div></div>
+  <div class="card"><div class="card-body"><textarea id="obs-ped" placeholder="Observaciones…" rows="2" oninput="_pedidoGuardarBorrador()"></textarea></div></div>
   <button class="btn btn-green" onclick="_confirmarPedido()">🟢 Enviar Pedido</button>
   </div><!-- /ped-paso2 -->
 </div>
@@ -10787,6 +10787,7 @@ async function _sbGetBackup(soloId){
 }
 
 async function _sbInsertBackup(data){
+  var opciones=arguments[1]||{}, empEnvio=_sbEmpId, usrEnvio=currentUser;
   if(typeof _trackUso==="function") _trackUso("nuevo_pedido");
   // Un pedido confirmado debe existir primero en Supabase. Esto evita mostrar
   // el PDF o borrar el formulario cuando la conexión sólo parecía funcionar.
@@ -10795,16 +10796,29 @@ async function _sbInsertBackup(data){
     _syncErr.code="PEDIDO_NO_CONFIRMADO";
     throw _syncErr;
   }
+  if(opciones.reintento && data.id){
+    // Si el servidor ya lo confirmó no revalidar contra un stock que esa
+    // misma venta descontó. Nunca usar una lectura de caché como confirmación.
+    var ex=await _sbGetRaw("backup_pedidos","select=id,remito_num&empresa_id=eq."+encodeURIComponent(empEnvio)+"&local_id=eq."+encodeURIComponent(data.id)+"&limit=1");
+    if(empEnvio!==_sbEmpId||usrEnvio!==currentUser) throw new Error("La sesión cambió durante el envío.");
+    if(ex&&ex[0]&&ex[0].id&&ex[0].remito_num){
+      data._remitoNum=String(ex[0].remito_num);data._rpcRepetido=true;
+      return ex[0].id;
+    }
+  }
   // El bloqueo manual también se revalida con una lectura real del servidor.
-  await _pedActualizarDisponibilidadRemota();
-  if(!_pedValidarDisponibles(data.items||[],true)){
+  var disponibilidad=await _pedActualizarDisponibilidadRemota();
+  var noDisponibles=opciones.sinRefrescar && disponibilidad instanceof Map
+    ? (data.items||[]).filter(function(it){var p=disponibilidad.get(String(it.id));return !p||p.activo===false;})
+    : null;
+  if(noDisponibles?noDisponibles.length:!_pedValidarDisponibles(data.items||[],true)){
     var _noDisponible=new Error("El pedido contiene productos no disponibles. Revisalo antes de enviar.");
-    _noDisponible.code="PEDIDO_NO_CONFIRMADO";
+    _noDisponible.code="PEDIDO_NO_DISPONIBLE";
     throw _noDisponible;
   }
   // Rechequeo final, inmediatamente antes de crear el pedido. La pantalla puede
   // haber quedado abierta mientras otro vendedor agotaba el mismo producto.
-  if(_stkPedidoRequiereControl(data.items||[])){
+  if(!opciones.sinRefrescar&&_stkPedidoRequiereControl(data.items||[])){
     var _stockFresco=await _sbGetStockFull();
     if(!_stockFresco){
       var _loadErr=new Error("No se pudo obtener el stock actualizado.");
@@ -10888,6 +10902,7 @@ async function _sbInsertBackup(data){
 
   var _rpcRes;
   try{
+    if(empEnvio!==_sbEmpId||usrEnvio!==currentUser) throw new Error("La sesión cambió durante el envío.");
     _rpcRes=await sbFetch("POST","/rest/v1/rpc/pedido_confirmar_atomico",{
       p_empresa:_sbEmpId,
       p_local_id:String(data.id||""),
@@ -10912,9 +10927,10 @@ async function _sbInsertBackup(data){
   data._remitoNum=String(_resultado.remito_num);
   data._sbId=String(_newId);
   data._fbKey=String(_newId);
+  data._rpcRepetido=_resultado.repetido===true;
   // El pedido ya quedó confirmado. Un fallo al refrescar la pantalla no debe
   // convertir un éxito real en un falso error ni provocar un segundo pedido.
-  if(_ctrlStockOn()){
+  if(_ctrlStockOn()&&!opciones.sinRefrescar){
     try{ await _stkRefrescar(); }catch(_refreshErr){ console.warn("[Stock] pedido confirmado; no se pudo refrescar la vista:",_refreshErr.message); }
   }
   return _newId;
@@ -12569,6 +12585,7 @@ async function _pedActualizarDisponibilidadRemota(){
   Object.values(_prodData||{}).forEach(function(p){var actual=porCodigo.get(String(p.codigo||p.id||p._sbId||""));p.activo=!!actual&&actual.activo!==false;});
   if(typeof _pgRenderCats==="function") _pgRenderCats();
   if(typeof _pgRender==="function") _pgRender();
+  return porCodigo;
 }
 var _pedDisponibilidadLectura=null, _pedDisponibilidadEmpresa=null, _pedDisponibilidadUlt=0;
 function _pedRefrescarDisponibilidad(){
@@ -12600,6 +12617,9 @@ function _stkCantEnItems(items, id){
 function _stkPuedeCantidad(id, cantidadNueva, nombre, creditoItems, avisar){
   if(!_stkDebeControlarProducto(id)) return true;
   if(!stockData || Object.keys(stockData).length===0){
+    // Sin copia de inventario se puede anotar una venta, no confirmarla: el
+    // servidor verificará el stock recién al recibir el pedido.
+    if(!navigator.onLine&&window._tabActual==="pedido"&&!creditoItems) return true;
     if(avisar!==false) showNotif("⏳ Cargando stock. Intentá nuevamente en un momento.","info");
     try{ _asegurarStockParaPedido(); }catch(e){}
     return false;
@@ -13784,6 +13804,7 @@ function iniciarApp(){
   _actualizarAvatarCuenta();
   aplicarRol();
   cargarCatalogo();
+  if(navigator.onLine) setTimeout(function(){_syncQueue();_syncPendingBackups(true);},400);
   if(typeof _cargarFamPortadas==="function"){ _cargarFamPortadas().catch(function(){}); }
   setTimeout(_checkPendientes, 2500);
   // Precargar pedidos en segundo plano (para "Suele pedir" en Nuevo Pedido)
@@ -14855,6 +14876,7 @@ function verTab(id,btn){
     // Co-Admin, Jefe de ventas, Vendedor y Admin usan el mismo armador vigente.
     // Esto también corrige equipos que conservaron la preferencia clásica vieja.
     if(typeof _setPedMetodo==="function") _setPedMetodo(true);
+    _pedidoRestaurarBorrador();
     if(typeof ordenes!=="undefined" && ordenes.ped && ordenes.ped.length) renderItems("ped");
     // Asegurar que dbStock tenga la info de ofertas (cargar productos completos si falta)
     _asegurarOfertasEnStock();
@@ -15486,6 +15508,7 @@ function _elegirCliente(t, c){
   if(t==="ped"){ _pgQ=""; _pgCat=""; var bp=document.getElementById("bus-ped"); if(bp) bp.value=""; _pgRenderCats(); _pgRender(); _setPedMetodo(_pedMetodoNuevo);
     var _h=document.getElementById("ped-hero"); if(_h) _h.style.display="none";
     var _r=document.getElementById("cli-recientes-ped"); if(_r) _r.style.display="none";
+    _pedidoGuardarBorrador();
   }
 }
 
@@ -15625,6 +15648,7 @@ async function limpiarCliente(t, noFocus){
   }
 
   if(!noFocus) setTimeout(function(){ inp.focus(); }, 50);
+  if(t==="ped") _pedidoGuardarBorrador();
 }
 
 var _pickersInitialized = false;
@@ -17516,44 +17540,21 @@ async function _pedConfirmarDescuentosFuertes(items,lista){
     persistente:true
   });
 }
-// Confirmar pedido: refresca Supabase y vuelve a validar todo el carrito.
-// Esta segunda barrera evita confirmar una cantidad que otro vendedor consumio
-// mientras el pedido estaba abierto.
+// Revisar el carrito en el dispositivo. El servidor valida disponibilidad y
+// stock después de que el pedido quedó guardado de forma persistente.
 var _confirmandoPedidoStock=false;
 async function _confirmarPedido(){
   if(_confirmandoPedidoStock) return;
   _confirmandoPedidoStock=true;
   try{
-    if(!_pedValidarDisponibles(ordenes['ped']||[],true)) return;
     _cartRevalidarPromos();
     var famOk=_famMinValidarPedido(ordenes['ped']||[],true);
     if(!famOk.ok){
       _abrirCartModal();
       return;
     }
-    // Rechequeo final únicamente cuando la empresa activó el control. En modo
-    // preventa no se consulta, limita ni descuenta inventario.
-    if(_stkPedidoRequiereControl(ordenes['ped']||[])){
-      if(!navigator.onLine){
-        showNotif("🚫 Necesitás conexión para comprobar el stock antes de confirmar.","err");
-        return;
-      }
-      try{
-        var fresco=await _sbGetStockFull();
-        if(!fresco) throw new Error("stock no disponible");
-        stockData=fresco;
-      }catch(e){
-        showNotif("🚫 No se pudo actualizar el stock. Intentá nuevamente.","err");
-        return;
-      }
-      if(!_stkValidarPedido(ordenes['ped'],null,true).ok){
-        if(typeof _pgRender==="function") _pgRender();
-        if(typeof _renderCartModal==="function") _renderCartModal();
-        return;
-      }
-    }
     _cerrarCartModal();
-    generarPDF('pedido');
+    await generarPDF('pedido');
   }finally{
     _confirmandoPedidoStock=false;
   }
@@ -17624,6 +17625,7 @@ function _cerrarCartModal(){
   if(m) m.classList.remove("open");
 }
 function _renderCartModal(){
+  _pedidoGuardarBorrador();
   var body=document.getElementById("cart-body");
   var foot=document.getElementById("cart-foot");
   if(!body||!foot) return;
@@ -17751,6 +17753,7 @@ function _cartObsTog(){
 function _cartObsSync(el){
   var real=_cartObsEl();
   if(real) real.value = el.value;   // el textarea de abajo es la fuente de verdad
+  _pedidoGuardarBorrador();
 }
 function _cartObsChip(txt){
   var real=_cartObsEl(); if(!real) return;
@@ -18013,6 +18016,7 @@ function _scrollAItems(t){
 }
 
 function renderItems(t){
+  if(t==="ped") _pedidoGuardarBorrador();
   var wrap=document.getElementById("items-"+t);
   var subtotalBase = ordenes[t].reduce(function(s,i){return s+(i.p*i.c);},0);
   var subtotalConItemDsc = ordenes[t].reduce(function(s,i){return s+i.sub;},0);
@@ -18333,7 +18337,84 @@ function toggleItemDscRem(i){ toggleItemDsc('rem',i); }
 function aplicarItemDscRem(i){ aplicarItemDsc('rem',i); }
 function quitarItemDscRem(i){ quitarItemDsc('rem',i); }
 
+var _pedidoBorradorScope="", _pedidoBorradorId="", _pedidoCaptura=null, _pedidoAvisoDisco=false;
+function _pedidoNuevoId(){
+  var r=new Uint32Array(4);window.crypto.getRandomValues(r);
+  return "bk_"+Date.now()+"_"+Array.from(r).map(function(n){return n.toString(36);}).join("-");
+}
+function _pedidoFormulario(){
+  return {clienteId:(document.getElementById("idCli-ped")||{}).value||"",
+    clienteNom:(document.getElementById("nomCli-ped")||{}).value||"",
+    obs:(document.getElementById("obs-ped")||{}).value||"",
+    lista:tipoLista.ped||"Clientes",items:ordenes.ped||[],descuento:dscGen.ped};
+}
+function _pedidoBorradorIgual(firma){
+  return !!firma&&firma===JSON.stringify(_pedidoFormulario());
+}
+function _pedidoGuardarBorrador(){
+  var scope=_pedidoLocalScope();
+  if(!scope||_pedidoBorradorScope!==scope) return false;
+  var f=_pedidoFormulario(), firma=JSON.stringify(f);
+  try{
+    if(!f.clienteId&&!f.clienteNom&&!f.obs&&!f.items.length){
+      localStorage.removeItem(scope+":borrador");_pedidoBorradorId="";
+    }else{
+      if(!_pedidoBorradorId||(_pedidoCaptura&&_pedidoCaptura.id===_pedidoBorradorId&&_pedidoCaptura.firma!==firma))
+        _pedidoBorradorId=_pedidoNuevoId();
+      _pedidoLocalGuardarClave(scope+":borrador",{id:_pedidoBorradorId,form:f});
+    }
+    _pedidoAvisoDisco=false;return true;
+  }catch(e){
+    if(!_pedidoAvisoDisco){_pedidoAvisoDisco=true;showNotif("No se pudo guardar el borrador en el equipo. No cierres la app.","err");}
+    return false;
+  }
+}
+function _pedidoRestaurarBorrador(){
+  var scope=_pedidoLocalScope();
+  if(!scope||_pedidoBorradorScope===scope) return;
+  _pedidoBorradorScope=scope;_pedidoBorradorId="";
+  try{
+    var b=JSON.parse(localStorage.getItem(scope+":borrador")||"null"), f=b&&b.form;
+    if(!f||!b.id||!Array.isArray(f.items)) return;
+    // Si la app se cerró justo después del guardado, no reabrir el mismo
+    // pedido: su copia ya está en la cola o en el listado confirmado.
+    if(_bkQueueGet().some(function(op){return op.id===b.id;})||
+       getBackups().some(function(x){return x.id===b.id&&x._synced;})){
+      localStorage.removeItem(scope+":borrador");return;
+    }
+    _pedidoBorradorId=b.id;
+    ordenes.ped=f.items;dscGen.ped=f.descuento;
+    var obs=document.getElementById("obs-ped");if(obs) obs.value=f.obs||"";
+    if(f.clienteId||f.clienteNom) _elegirCliente("ped",{id:f.clienteId,nombre:f.clienteNom,lista:f.lista});
+    renderItems("ped");
+    showNotif("Recuperamos el pedido que estabas armando.","ok");
+  }catch(e){console.warn("[Pedido] No se pudo recuperar el borrador",e&&e.message);}
+}
+async function _prepararPedidoSinPdf(){
+  if(_pedidoCaptura||!ordenes.ped.length) return;
+  if(!(await _pedConfirmarDescuentosFuertes(ordenes.ped,tipoLista.ped||"Clientes"))) return;
+  _pedidoRestaurarBorrador();
+  if(!ordenes.ped.length||!_pedidoGuardarBorrador()) return;
+  var f=JSON.parse(JSON.stringify(_pedidoFormulario())), items=f.items, dg=f.descuento;
+  var bruto=items.reduce(function(s,i){
+    return s+(i.ofAplicada&&i.ofNormal?i.ofNormal:i.promoAplicada&&i.promoNormal?i.promoNormal:i.p)*i.c;
+  },0);
+  var sub=items.reduce(function(s,i){return s+i.sub;},0);
+  var ahorro=bruto-sub, promo=_desgloseDescuentosItems(items).ahorroPromos;
+  var monto=dg?(dg.tipo==="%"?sub*dg.valor/100:Math.min(dg.valor,sub)):0;
+  var total=sub-monto;
+  _mostrarPopupTipoComprobante({
+    id:_pedidoBorradorId,fecha:new Date().toISOString(),clienteId:f.clienteId,clienteNom:f.clienteNom||"Mostrador",obs:f.obs.trim(),lista:f.lista,
+    items:items,total:total,totalConIVA:Math.round(total*121)/100,tipo:"pedido",usuario:currentUser.id,usuarioNom:currentUser.name||currentUser.id,
+    aprobado:null,tipoComprobante:null,_tPDF:"ped",_firmaFormulario:JSON.stringify(f),
+    descuentos:{ahorroItems:ahorro,ahorroPromos:promo,ahorroManual:Math.max(0,Math.round((ahorro-promo)*100)/100),montoDscGen:monto,
+      ahorroTotal:ahorro+monto,subtotalLista:bruto,dscGenTipo:dg?dg.tipo:null,dscGenValor:dg?dg.valor:null}
+  });
+}
+window.addEventListener("pagehide",_pedidoGuardarBorrador);
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden") _pedidoGuardarBorrador();});
 async function generarPDF(m){
+  if(m==="pedido") return _prepararPedidoSinPdf();
   if(window.RemitoDisenoV2) await window.RemitoDisenoV2.ensure();
   var t=m==="pedido"?"ped":"rem";
   if(!ordenes[t].length){
@@ -20572,18 +20653,22 @@ function _filtrarRutasParaUsuario(all){
 
 function _cargarRutasServidorSeguras(){
   var _revisionRuta=window.StockSeguro?window.StockSeguro.revision():0;
+  var revisionCola=_revisionColaRutas;
+  var scopeRutas=_sbEmpId;
   var local=_cargarRutasOffline();
   if(!navigator.onLine){
     return Promise.resolve(_fusionarRutasOffline(rutasData||{},local||{}));
   }
   if(_rutasServidorPromise) return _rutasServidorPromise;
   _rutasServidorPromise=fbGet("empresas/"+empresaKey+"/rutas").then(function(d){
+    if(scopeRutas!==_sbEmpId) throw new Error("La empresa cambió mientras se leían las rutas.");
     if(d===null||d===undefined) throw new Error("Supabase no devolvió las hojas de ruta");
     _rutasUltimaCarga=Date.now();
     // Online: partir SIEMPRE de Supabase y sumar solo los cambios exactos en cola.
     return _aplicarPendientesRutas(d,local);
   }).then(function(v){
     _rutasServidorPromise=null;
+    if(revisionCola!==_revisionColaRutas&&navigator.onLine) return _cargarRutasServidorSeguras();
     if(window.StockSeguro && _revisionRuta!==window.StockSeguro.revision()) return _cargarRutasServidorSeguras();
     return v;
   },function(err){
@@ -20604,6 +20689,7 @@ function cargarRutasFirebase(opciones){
   }
   if(!opciones.silencioso) setStatus("fb-hoja-status","sync","☁️ Cargando…");
   return _cargarRutasServidorSeguras().then(function(all){
+    if(opciones.silencioso&&(window._tabActual!=="hoja"||_vistaTrabajoEnUso("hoja"))) return rutasData;
     rutasData=_filtrarRutasParaUsuario(all);
     if(!opciones.silencioso) setStatus("fb-hoja-status","ok","✅");
     _poblarFiltrosMesRuta();
@@ -22261,14 +22347,12 @@ async function _hrGuardar(rk,ck,e){
   var efEl=document.getElementById("ef-"+rk+"-"+ck), trEl=document.getElementById("tr-"+rk+"-"+ck);
   var ef=efEl?_parseImporte(efEl.value):0, tr=trEl?_parseImporte(trEl.value):0;
   var tot=Math.round((ef+tr)*100)/100;
-  var anterior={efectivo:cli.efectivo||0,transferencia:cli.transferencia||0};
   var ahora=cli.entregadoEn||new Date().toISOString();
   var modo=tot>0?((ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo")):(cli.modo||"ninguno");
-  cli.efectivo=ef; cli.transferencia=tr; cli.modo=modo;
-  cli.entregado=true; cli.entregadoEn=ahora;
   var confirmado=await _mePersistirParada(rk,ck,{
     efectivo:ef,transferencia:tr,modo:modo,entregado:true,entregadoEn:ahora
-  },"Entrega y cobro: "+(cli.nom||ck),anterior);
+  },"Entrega y cobro: "+(cli.nom||ck));
+  if(confirmado===null) return;
   delete _hrEditCobro[rk+"|"+ck];
   delete _hrMasAbierto[rk+"|"+ck];
   if(clienteAbierto[rk]===ck) delete clienteAbierto[rk];
@@ -23875,44 +23959,46 @@ function saveBackups(arr){
   }catch(e){ console.warn('[Backup] localStorage lleno, usando solo caché'); }
 }
 
-async function guardarBackup(item){
-  // Siempre síncrono, también en preventa. El control_stock decide si se
-  // descuenta mercadería; no decide si el pedido puede quedar sólo en el móvil.
-  if(!_sbEmpId || !navigator.onLine){
-    var _gbOffline=new Error("Necesitás conexión para confirmar el pedido. No se perdió nada: corregí la conexión y volvé a tocar Confirmar.");
-    _gbOffline.code="PEDIDO_NO_CONFIRMADO";
-    throw _gbOffline;
-  }
-  var _gbId=await _sbInsertBackup(item);
-  if(!_gbId) throw new Error("Supabase no devolvió el identificador del pedido.");
-  item._localTs=Date.now();
-  item._sbId=_gbId;
-  item._fbKey=_gbId;
-  item._synced=true;
-  _bkAddToLocal(item);
-  _bkQueueRemove(item.id);
-  renderBackup();
-  return _gbId;
+function _pedidoLocalScope(){
+  var u=currentUser&&(currentUser.id||currentUser.uid||currentUser._sbId);
+  return _sbEmpId&&u ? "dm_pedidos_local_v1:"+encodeURIComponent(_sbEmpId)+":"+encodeURIComponent(u) : "";
 }
-
-// ── Cola persistente en localStorage ──
+function _pedidoLocalGuardarClave(key, valor){
+  if(!key) throw new Error("No se encontró tu sesión local.");
+  var json=JSON.stringify(valor);
+  try{ localStorage.setItem(key,json); }
+  catch(e){ _limpiarCacheViejo(); localStorage.setItem(key,json); }
+}
+function _bkQueueGet(estricto){
+  try{
+    var key=_pedidoLocalScope();
+    if(!key) return [];
+    var q=JSON.parse(localStorage.getItem(key)||"[]");
+    if(!Array.isArray(q)) throw new Error("La cola local no se pudo leer.");
+    return q;
+  }catch(e){ if(estricto) throw e; return []; }
+}
+function _bkQueueEditar(fn){
+  var q=_bkQueueGet(true), next=fn(q);
+  _pedidoLocalGuardarClave(_pedidoLocalScope(),next);
+  _bkPendingQueue=next;
+  _updateBanner();
+}
 function _bkQueueAdd(item){
-  var q = _bkQueueGet();
-  if(!q.find(function(x){ return x.id===item.id; })){
-    q.push(item);
-    try{ localStorage.setItem("dm_bk_queue", JSON.stringify(q.slice(-100))); }catch(e){}
-  }
+  _bkQueueEditar(function(q){
+    if(q.some(function(op){return op.id===item.id;})) throw new Error("Este pedido ya está guardado.");
+    var copia=Object.assign({},item);
+    delete copia._firmaFormulario;
+    return q.concat([{id:item.id,method:"PEDIDO_LOCAL",path:"/rest/v1/rpc/pedido_confirmar_atomico",
+      ts:item.fecha,desc:"Pedido: "+item.clienteNom,data:copia}]);
+  });
 }
 function _bkQueueRemove(id){
-  var q = _bkQueueGet().filter(function(x){ return x.id!==id; });
-  try{ localStorage.setItem("dm_bk_queue", JSON.stringify(q)); }catch(e){}
-  _bkPendingQueue = q;
+  _bkQueueEditar(function(q){return q.filter(function(op){return op.id!==id;});});
 }
-function _bkQueueGet(){
-  try{ return JSON.parse(localStorage.getItem("dm_bk_queue")||"[]"); }catch(e){ return []; }
+function _bkQueueActualizar(id,campos){
+  _bkQueueEditar(function(q){return q.map(function(op){return op.id===id?Object.assign({},op,campos):op;});});
 }
-
-// ── Caché local de backups ──
 function _bkAddToLocal(item){
   var arr = getBackups();
   var idx = arr.findIndex(function(x){ return x.id===item.id; });
@@ -23921,182 +24007,92 @@ function _bkAddToLocal(item){
   _backupCache = arr;
 }
 
-async function _sbInsertBackupConReintento(item, intentosRestantes, delayMs){
-  if(!_sbEmpId) return;
-  try {
-    // La idempotencia vive en Supabase. Aunque se pierda la respuesta de red,
-    // repetir el mismo local_id devuelve el mismo pedido y el mismo remito.
-    var newId = await _sbInsertBackup(item);
-    if(newId){
-      item._sbId=newId; item._fbKey=newId; item._synced=true;
-      _bkAddToLocal(item);
-      _bkQueueRemove(item.id);
-      _bkPendingQueue = _bkPendingQueue.filter(function(x){ return x.id!==item.id; });
-      console.log('[Backup] ✅ Guardado en Supabase:', newId);
-      // Actualizar badge de sync en UI
-      var syncEl = document.getElementById("bk-sync-status");
-      if(syncEl) syncEl.style.display="none";
-    } else {
-      throw new Error("Insert no retornó ID");
-    }
-  } catch(e){
-    console.warn('[Backup] Error ('+intentosRestantes+' intentos rest.):', e.message);
-    if(e && e.code==="STOCK_INSUFICIENTE"){
-      // No reintentar automaticamente una venta rechazada por stock.
-      _bkQueueRemove(item.id);
-      var _sinVenta=getBackups().filter(function(x){return x.id!==item.id;});
-      saveBackups(_sinVenta);
-      renderBackup();
-      showNotif("🚫 Pedido cancelado: "+e.message,"err");
-      return;
-    }
-    if(intentosRestantes > 1){
-      var delay = Math.min(delayMs * 1.5, 30000); // backoff exponencial, máx 30s
-      setTimeout(function(){
-        if(navigator.onLine) _sbInsertBackupConReintento(item, intentosRestantes-1, delay);
-        else {
-          // Offline: esperar a que vuelva la conexión
-          window.addEventListener("online", function retry(){
-            window.removeEventListener("online", retry);
-            setTimeout(function(){ _sbInsertBackupConReintento(item, intentosRestantes-1, delay); }, 1500);
-          });
-        }
-      }, delayMs);
-    } else {
-      // Agotados los intentos — queda en cola persistente para la próxima sesión
-      _bkShowPendingWarning();
-    }
-  }
+var _bkSyncBusy=false, _bkSyncTimer=null;
+function _bkProgramarSync(ms){
+  if(_bkSyncTimer||!navigator.onLine||!_bkQueueGet().some(function(op){return !op.pausaSincronizacion;})) return;
+  _bkSyncTimer=setTimeout(function(){_bkSyncTimer=null;_syncPendingBackups();},ms||1000);
 }
-
-function _bkShowPendingWarning(){
-  var q = _bkQueueGet();
-  // Mostrar en Backup Pedidos si está abierto
-  var s = document.getElementById("bk-sync-status");
-  if(s && q.length>0){
-    s.style.display="block";
-    s.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:8px 12px;border-radius:7px;font-weight:600;background:#fffbeb;color:#b45309;border:1px solid #fde68a;cursor:pointer";
-    s.innerHTML="⚠️ "+q.length+" pedido"+(q.length!==1?"s":"")+" sin sincronizar — <b>tocá aquí para reintentar</b>";
-    s.onclick=function(){ _syncPendingBackups(); };
-  } else if(s && q.length===0){
-    s.style.display="none";
-  }
-  if(q.length>0) showNotif("⚠️ "+q.length+" pedido"+(q.length!==1?"s":"")+" pendiente"+(q.length!==1?"s":"")+" — conectate para subir","warn");
+function _bkErrorRevisar(e){
+  return !!(e&&(["STOCK_INSUFICIENTE","PEDIDO_NO_DISPONIBLE","EMPRESA_NO_AUTORIZADA"].indexOf(e.code)>=0
+    || [400,401,403,404,409,422].indexOf(Number(e.status))>=0 || /sesión venció/i.test(e.message||"")));
 }
-
-// Sincronizar pendientes — versión robusta
-async function _syncPendingBackups(){
-  var pending = _bkQueueGet();
-  if(!pending.length){ 
-    var s=document.getElementById("bk-sync-status"); 
-    if(s) s.style.display="none"; 
-    return; 
+async function _bkEnviarGuardado(op,scope){
+  // Marcar antes de intentar el POST: si la app se cierra o se pierde la
+  // respuesta, el próximo intento consulta (en vivo) el mismo local_id.
+  _bkQueueActualizar(op.id,{intentos:(op.intentos||0)+1,ultimoIntento:new Date().toISOString()});
+  var item=op.data;
+  var sid=await _sbInsertBackup(item,{reintento:true,sinRefrescar:true});
+  if(_pedidoLocalScope()!==scope) return false;
+  if(!sid||!item._remitoNum) throw new Error("Todavía no se pudo verificar el número de remito.");
+  item._sbId=String(sid);item._fbKey=String(sid);item._localTs=Date.now();item._synced=true;
+  // Solo el primer envío confirmado suma el uso de la oferta; no un replay.
+  _bkQueueRemove(op.id);
+  if(!item._rpcRepetido) { try{ _ofSumarUsadas(item.items||[]); }catch(e){} }
+  try{ _bkAddToLocal(item);if(window._tabActual==="backup") renderBackup(); }catch(e){}
+  if(_ctrlStockOn()){
+    Promise.resolve(_sbGetStockFull()).then(function(f){
+      if(f&&_pedidoLocalScope()===scope) stockData=f;
+    }).catch(function(){});
   }
-
-  // Si no hay _sbEmpId, intentar recuperarlo desde la sesión
-  if(!_sbEmpId){
-    try{
-      var sess=JSON.parse(localStorage.getItem("dm_session")||"{}");
-      if(sess.empresaKey){ _sbEmpId=sess.empresaKey; empresaKey=sess.empresaKey; }
-    }catch(e){}
-  }
-
-  if(!_sbEmpId){
-    showNotif("Error: sesión inválida. Cerrá sesión y volvé a entrar.","err");
-    return;
-  }
-
-  if(!navigator.onLine){
-    showNotif("📵 Sin conexión — cuando vuelva internet se sube solo","warn");
-    // Esperar a que vuelva
-    window.addEventListener("online", function onlineRetry(){
-      window.removeEventListener("online", onlineRetry);
-      setTimeout(_syncPendingBackups, 1500);
-    });
-    return;
-  }
-
-  // Mostrar progreso
-  var s = document.getElementById("bk-sync-status");
-  if(s){
-    s.style.display="block";
-    s.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:8px 12px;border-radius:7px;font-weight:600;background:#e8f4fd;color:#1e40af;border:1px solid #bfdbfe";
-    s.innerHTML="⏳ Subiendo "+pending.length+" pedido"+(pending.length!==1?"s":"")+" al servidor…";
-    s.onclick=null;
-  }
-  showNotif("⏳ Sincronizando "+pending.length+" pedidos…","ok");
-
-  var synced=0, errores=0;
-
-  for(var i=0;i<pending.length;i++){
-    var item=pending[i];
-    if(s) s.innerHTML="⏳ Subiendo pedido "+(i+1)+"/"+pending.length+"…";
-    try{
-      // Verificar si ya existe (por id local idempotente, luego por UUID)
-      var existe=null;
-      if(item.id){
-        var chk0=await sbGet("backup_pedidos","select=id&empresa_id=eq."+_sbEmpId+"&local_id=eq."+encodeURIComponent(item.id));
-        if(chk0&&chk0.length) existe=chk0;
-      }
-      if((!existe||!existe.length) && item._sbId && typeof item._sbId==="string" && item._sbId.length>10 && !item._sbId.startsWith("bk_")){
-        var chk=await sbGet("backup_pedidos","select=id&id=eq."+item._sbId+"&empresa_id=eq."+_sbEmpId);
-        if(chk&&chk.length) existe=chk;
-      }
-      if(existe&&existe.length){
-        item._sbId=existe[0].id; item._synced=true;
-        _bkAddToLocal(item); _bkQueueRemove(item.id);
-        synced++; continue;
-      }
-      // Insertar
-      var newId=await _sbInsertBackup(item);
-      if(newId){
-        item._sbId=newId; item._synced=true;
-        _bkAddToLocal(item); _bkQueueRemove(item.id);
-        synced++;
-        console.log('[Sync] ✅ '+item.clienteNom+' → '+newId);
-      } else {
-        throw new Error("Insert no devolvió ID");
-      }
-    }catch(ex){
-      console.warn('[Sync] Fallo pedido '+i+' ('+((item&&item.clienteNom)||"?")+'):', ex.message);
-      errores++;
-      // Guardar el error para mostrarlo
-      if(i===0) window._lastSyncError = ex.message;
-    }
-  }
-
-  // Resultado
-  if(s){
-    var restantes=_bkQueueGet().length;
-    if(restantes===0){
-      s.style.display="none";
-    } else {
-      s.style.cssText="display:block;font-size:11.5px;margin-bottom:8px;padding:8px 12px;border-radius:7px;font-weight:600;background:#fffbeb;color:#b45309;border:1px solid #fde68a;cursor:pointer";
-      s.innerHTML="⚠️ "+restantes+" pedido"+(restantes!==1?"s":"")+" sin sincronizar — <b>tocá aquí para reintentar</b>";
-      s.onclick=function(){ _syncPendingBackups(); };
-    }
-  }
-
-  if(synced>0){
-    showNotif("✅ "+synced+" pedido"+(synced!==1?"s":"")+" sincronizado"+(synced!==1?"s":"")+" correctamente","ok");
-    cargarBackupFirebase();
-  }
-  if(errores>0 && synced===0){
-    var errMsg = window._lastSyncError || "Error desconocido";
-    showNotif("❌ No se pudo sincronizar: "+errMsg.slice(0,80),"err");
-    // Mostrar alerta si el error no es obvio
-    if(!errMsg.includes("network") && !errMsg.includes("fetch")){
-      alert("Error al sincronizar pedido:\n\n"+errMsg+"\n\nMostrá esta pantalla al admin.");
-    }
-  }
+  return true;
 }
-
-// Sincronizar al volver online
-window.addEventListener("online", function(){
-  setTimeout(function(){
-    if(_sbEmpId && _bkQueueGet().length) _syncPendingBackups();
-  }, 2000);
-});
+async function guardarBackup(item){
+  // El remito directo mantiene su flujo online. El pedido nuevo tiene una
+  // copia durable antes de tocar la red y sólo el servidor confirma el stock.
+  if(item.tipo!=="pedido"){
+    var directo=await _sbInsertBackup(item);
+    if(!directo) throw new Error("Supabase no devolvió el identificador del remito.");
+    item._synced=true;_bkAddToLocal(item);renderBackup();
+    try{_ofSumarUsadas(item.items||[]);}catch(e){}
+    return {confirmado:true};
+  }
+  var ctx=_pedidoLocalScope();
+  _bkQueueAdd(item);
+  var soloEste=_bkQueueGet().length===1;
+  if(!navigator.onLine||!soloEste||_bkSyncBusy){_bkProgramarSync();return {confirmado:false};}
+  _bkSyncBusy=true;
+  try{
+    var op=_bkQueueGet()[0];
+    var confirmado=await _bkEnviarGuardado(op,ctx);
+    if(confirmado) Object.assign(item,op.data);
+    return {confirmado:confirmado};
+  }catch(e){
+    if(_pedidoLocalScope()!==ctx) return {confirmado:false};
+    // Si el servidor rechazó stock/disponibilidad y el usuario todavía tiene
+    // el formulario, puede corregirlo. Si no, conservar el pedido para revisión.
+    if(e&&["STOCK_INSUFICIENTE","PEDIDO_NO_DISPONIBLE"].includes(e.code)&&_pedidoBorradorIgual(item._firmaFormulario)){
+      try{ _bkQueueRemove(item.id); }catch(storageErr){ return {confirmado:false}; }
+      throw e;
+    }
+    try{ _bkQueueActualizar(item.id,{ultimoError:String(e.message||e).slice(0,280),errorDetalle:{codigo:e.code,http:e.status},pausaSincronizacion:_bkErrorRevisar(e)}); }catch(storageErr){}
+    return {confirmado:false};
+  }finally{_bkSyncBusy=false;_updateBanner();_bkProgramarSync(12000);}
+}
+async function _syncPendingBackups(manual,id){
+  var ctx=_pedidoLocalScope();
+  if(!ctx||_bkSyncBusy||!navigator.onLine) return false;
+  var pending=_bkQueueGet().filter(function(op){return !id||op.id===id;});
+  if(!pending.length) return true;
+  _bkSyncBusy=true;_updateBanner();
+  var hechos=0, esperar=false;
+  try{
+    for(var i=0;i<pending.length&&navigator.onLine&&_pedidoLocalScope()===ctx;i++){
+      var op=pending[i];
+      if(op.pausaSincronizacion&&manual!==true) continue;
+      try{ if(await _bkEnviarGuardado(op,ctx)) hechos++; }
+      catch(e){
+        if(_pedidoLocalScope()!==ctx) break;
+        var revisar=_bkErrorRevisar(e);
+        _bkQueueActualizar(op.id,{ultimoError:String(e.message||e).slice(0,280),errorDetalle:{codigo:e.code,http:e.status},pausaSincronizacion:revisar});
+        if(!revisar){esperar=true;break;}
+      }
+    }
+  }catch(e){ console.warn("[Pedidos] No se pudo actualizar la cola local",e&&e.message); }
+  finally{_bkSyncBusy=false;_updateBanner();}
+  if(hechos&&_pedidoLocalScope()===ctx) showNotif("☁️ "+hechos+" pedido"+(hechos===1?" sincronizado":"s sincronizados"),"ok");
+  if(_pedidoLocalScope()===ctx&&_bkQueueGet().some(function(op){return !op.pausaSincronizacion;})) _bkProgramarSync(esperar?30000:1000);
+  return !esperar;
+}
 
 function subirBackupFirebase(item){ /* no-op */ }
 function sincronizarPendientesBackup(){ _syncPendingBackups(); }
@@ -25740,6 +25736,14 @@ async function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   if(!_bkItemPendiente) return;
   var bk = _bkItemPendiente;
   _bkItemPendiente = null;
+  var _esPedidoNuevo=bk.tipo==="pedido", _pedidoCtx=_pedidoLocalScope();
+  if(_esPedidoNuevo){
+    if(_pedidoCaptura) return;
+    if(!_pedidoBorradorIgual(bk._firmaFormulario)||_pedidoBorradorId!==bk.id){
+      showNotif("El pedido cambió. Revisalo antes de confirmar.","warn");return;
+    }
+    _pedidoCaptura={id:bk.id,firma:bk._firmaFormulario};
+  }
   bk.tipoComprobante = tipo;
   if(fechaEntrega){ bk.fechaEntrega = fechaEntrega; bk.diaEntrega = diaEntrega; }
 
@@ -25748,7 +25752,7 @@ async function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   var _esFactA = (tipo === "factura_a");
   var totalConIVA = _esFactA ? Math.round((bk.total||0) * 1.21 * 100) / 100 : (bk.total||0);
   if(_esFactA) bk.totalConIVA = totalConIVA;
-  if(rutaAbierta && rutasData[rutaAbierta] && rutasData[rutaAbierta].clientes){
+  if(!_esPedidoNuevo && rutaAbierta && rutasData[rutaAbierta] && rutasData[rutaAbierta].clientes){
     var _clientes = rutasData[rutaAbierta].clientes;
     var _nomLow2  = (bk.clienteNom||"").toLowerCase();
     var _cliKeys2 = Object.keys(_clientes);
@@ -25775,6 +25779,10 @@ async function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   // Construir items desde _ordenes (los del pedido actual, con descuentos)
   bk.items = (bk._ordenes || bk.items || []).map(function(i){
     var it = { id:i.id, n:i.n, c:i.c, p:i.p, sub:i.sub, esPeso:i.esPeso||false, gramos:i.gramos||null, dsc:i.disc||i.dsc||null };
+    if(_esPedidoNuevo){
+      var p=(dbStock||[]).find(function(p){return String(p.id)===String(i.id);});
+      if(i.cost!=null) it.cost=i.cost; else if(p&&+p.precioBase>0) it.cost=+p.precioBase;
+    }
     if(i._esCaja) it._esCaja=true;
     if(+(i._ub||0)>1) it._ub=+i._ub;
     if(i.ofNormal && i.ofPrecio){ it.ofNormal=i.ofNormal; it.ofPrecio=i.ofPrecio; it.ofAplicada=!!i.ofAplicada; }
@@ -25788,8 +25796,9 @@ async function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
   delete bk._ordenes; delete bk._hayDescuentos;
   delete bk._subtotalLista; delete bk._ahorroItems; delete bk._montoDscGen;
 
+  var resultadoPedido;
   try{
-    await guardarBackup(bk);
+    resultadoPedido=await guardarBackup(bk);
   }catch(e){
     console.warn("[Pedido] confirmación rechazada:", e&&e.message);
     var _msgPed=(e&&e.code==="STOCK_INSUFICIENTE")
@@ -25798,20 +25807,23 @@ async function _confirmarTipoYFecha(tipo, fechaEntrega, diaEntrega){
     showNotif(_msgPed,"err");
     // Mantener los productos y el cliente en pantalla para que el vendedor
     // pueda corregir cantidades y volver a intentar.
-    _bkItemPendiente=bk;
-    try{
-      var _frescoPed=await _sbGetStockFull();
-      if(_frescoPed) stockData=_frescoPed;
-      if(typeof _pgRender==="function") _pgRender();
-      if(typeof _renderCartModal==="function") _renderCartModal();
-    }catch(_rfErr){}
+    if(!_esPedidoNuevo) _bkItemPendiente=bk;
     return;
+  }finally{
+    if(_esPedidoNuevo) _pedidoCaptura=null;
   }
 
-  try{ if(typeof _ofSumarUsadas==="function") _ofSumarUsadas(bk.items||[]); }catch(e){}
-
-  // Recién limpiar cuando Supabase aceptó el pedido y descontó el stock.
-  if(_formTipoPedido){ limpiarFormulario(_formTipoPedido); limpiarCliente(_formTipoPedido, true); }
+  if(_esPedidoNuevo&&_pedidoLocalScope()!==_pedidoCtx) return;
+  var mismoFormulario=!_esPedidoNuevo||(_pedidoBorradorId===bk.id&&_pedidoBorradorIgual(bk._firmaFormulario));
+  if(_formTipoPedido&&mismoFormulario){
+    limpiarFormulario(_formTipoPedido); limpiarCliente(_formTipoPedido, true);
+  }
+  if(_esPedidoNuevo&&!resultadoPedido.confirmado){
+    showNotif("Pedido guardado en este teléfono. Pendiente de confirmación en el servidor.","warn");return;
+  }
+  if(_esPedidoNuevo&&(!mismoFormulario||!window.jspdf||!window.jspdf.jsPDF||window._tabActual!=="pedido")){
+    showNotif("Pedido confirmado · remito "+bk._remitoNum,"ok");return;
+  }
 
   // Mostrar animación de pedido completado; el PDF se comparte al tocar el botón
   _mostrarPedidoOk(bk);
@@ -28681,6 +28693,7 @@ var _isSyncing     = false;
 var _rutasOfflineTimer = null;
 var _syncLastError = null;
 var _syncRetryTimer = null;
+var _revisionColaRutas = 0;
 
 function _ofKey(suffix){ return "dm_offq_"+(empresaKey||"global")+(suffix||""); }
 function _cacheKey(suffix){ return "dm_rcache_"+(empresaKey||"global")+(suffix||""); }
@@ -28936,7 +28949,7 @@ function _loadQueue(){
 }
 function _saveQueue(){
   var payload;
-  try { payload = JSON.stringify(_offlineQueue); } catch(e){ return; }
+  try { payload = JSON.stringify(_offlineQueue); } catch(e){ return false; }
   try {
     localStorage.setItem(_ofKey(), payload);
   } catch(e){
@@ -28954,8 +28967,10 @@ function _saveQueue(){
       // Si AÚN no entra, avisar FUERTE para que no se pierda plata en silencio.
       try{ showNotif("⚠️ Sin espacio para guardar operaciones pendientes. Conectate a internet cuanto antes para no perder cobros.","err"); }catch(_){}
       console.error("[Offline] CRÍTICO: no se pudo persistir la cola de operaciones pendientes.");
+      return false;
     }
   }
+  return true;
 }
 
 /* ─ Cache de lecturas ─ */
@@ -28979,16 +28994,26 @@ function _getCached(path){
 
 /* ─ Encolar operación offline ─ */
 function _enqueue(method, path, data, desc){
-  if(window.StockSeguro && window.StockSeguro.esDiferida({method:method,path:path,data:data})){
+  return _enqueueLote([{method:method,path:path,data:data,desc:desc}]).then(function(ids){return ids[0];});
+}
+async function _enqueueLote(datos){
+  if(!_sbEmpId||!currentUser) throw new Error("Volvé a ingresar para guardar cambios.");
+  if(window.StockSeguro && datos.some(window.StockSeguro.esDiferida)){
     return Promise.reject(new Error("Este cambio de productos o stock requiere conexión y confirmación. No se aplicó ni se programó para después."));
   }
-  var op = { id:"op_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), method:method, path:path, data:data, ts:new Date().toISOString(), desc:desc||"" };
-  _offlineQueue.push(op);
-  _saveQueue();
+  var ops=datos.map(function(d){return {id:"op_"+_pedidoNuevoId(),method:d.method,path:d.path,data:d.data,ts:new Date().toISOString(),desc:d.desc||"",verificarFila:!!d.verificarFila};});
+  var previo=_offlineQueue;
+  _offlineQueue=previo.concat(ops);
+  if(!_saveQueue()){
+    _offlineQueue=previo;
+    throw new Error("No hay espacio para guardar el cambio en el dispositivo. No se aplicó.");
+  }
+  _revisionColaRutas++;
   _pedirSyncOffline();
-  if((path&&path.indexOf("/rutas/")!==-1)||method==="RC_COMP_ADD"||method==="RC_COMP_DEL") _programarGuardarRutasOffline();
+  if(ops.some(function(o){return (o.path&&o.path.indexOf("/rutas/")!==-1)||o.method==="RC_COMP_ADD"||o.method==="RC_COMP_DEL";})) _programarGuardarRutasOffline();
   _updateBanner();
-  return Promise.resolve(op.id);
+  if(navigator.onLine) setTimeout(_syncQueue,0);
+  return ops.map(function(o){return o.id;});
 }
 function _pedirSyncOffline(){
   try{
@@ -29004,12 +29029,14 @@ function fbPushQ(path, data, desc){
   return fbPush(path, data).catch(function(){ return _enqueue("POST", path, data, desc); });
 }
 function fbPatchQ(path, data, desc){
-  if(!navigator.onLine){ _enqueue("PATCH", path, data, desc); return Promise.resolve(); }
-  return fbPatch(path, data).catch(function(){ _enqueue("PATCH", path, data, desc); return Promise.resolve(); });
+  function guardar(){return _enqueue("PATCH", path, data, desc).then(function(){});}
+  if(!navigator.onLine||_offlineQueue.some(function(op){return op.method==="PATCH"&&op.path===path;})) return guardar();
+  return fbPatch(path, data).catch(guardar);
 }
 function fbDelQ(path, desc){
-  if(!navigator.onLine){ _enqueue("DELETE", path, null, desc); return Promise.resolve(); }
-  return fbDel(path).catch(function(){ _enqueue("DELETE", path, null, desc); return Promise.resolve(); });
+  function guardar(){return _enqueue("DELETE", path, null, desc).then(function(){});}
+  if(!navigator.onLine) return guardar();
+  return fbDel(path).catch(guardar);
 }
 
 /* ─ Sincronizar cola al reconectarse ─ */
@@ -29193,7 +29220,11 @@ async function _replayOfflineOp(op){
   if(op.method==="SB_PATCH") return sbPatch(op.path,op.data.match,op.data.body);
   if(op.method==="CC_DEUDA") return {omitido:true,motivo:"motor_cc_anterior_desactivado"};
   if(op.method==="POST") return fbPush(op.path,op.data);
-  if(op.method==="PATCH") return fbPatch(op.path,op.data);
+  if(op.method==="PATCH"){
+    var filas=await fbPatch(op.path,op.data);
+    if(op.verificarFila&&(!Array.isArray(filas)||!filas.length)) throw new Error("El servidor no confirmó la fila de entrega o del pedido.");
+    return filas;
+  }
   if(op.method==="DELETE") return fbDel(op.path);
   if(op.method==="STOCK_RETURN") return _stkDevolverAuto(op.data.ref,op.data.items,op.data.motivo);
   if(op.method==="STOCK_OUT") return _stkSalidaDirecta(op.data.ref,op.data.items,op.data.motivo);
@@ -29236,12 +29267,14 @@ async function _syncQueue(){
   _showSyncing(true);
   var ops=_offlineQueue.slice(),synced=0;
   for(var i=0;i<ops.length;i++){
+    if(!navigator.onLine) break;
     var op=ops[i];
     if(op.pausaSincronizacion){_syncLastError=op.ultimoError||"Operación pendiente de revisión";break;}
     try{
       await _replayOfflineOp(op);
       synced++;
       _offlineQueue=_offlineQueue.filter(function(x){return x.id!==op.id;});
+      _revisionColaRutas++;
       _saveQueue();
     }catch(e){
       var msg=String((e&&e.message)||e||"Error desconocido").replace(/\s+/g," ").slice(0,280);
@@ -29270,7 +29303,6 @@ async function _syncQueue(){
     _syncRetryTimer=setTimeout(function(){_syncRetryTimer=null;if(!_isSyncing)_syncQueue();},demora);
   }else if(!_offlineQueue.length){
     _syncLastError=null;
-    setTimeout(function(){try{cargarRutasFirebase();}catch(e){}},800);
   }
 }
 
@@ -29283,17 +29315,19 @@ function _updateBanner(){
   var icon    = document.getElementById("offline-icon");
   var action  = document.getElementById("offline-action-btn");
   if(!banner) return;
+  var pedidosLocales=_bkQueueGet();
+  var n=_offlineQueue.length+pedidosLocales.length;
   if(navigator.onLine){
-    var pendientes=_offlineQueue.length;
+    var pendientes=n;
     banner.style.display = pendientes>0 ? "flex" : "none";
     if(pendientes>0){
-      if(_isSyncing){
+      if(_isSyncing||_bkSyncBusy){
         _sysAlertTone(banner,"warning");
         if(icon) icon.textContent="☁️";
         if(txt) txt.textContent="☁️ Enviando datos pendientes…";
         if(detail) detail.textContent="La conexión volvió y el sistema está enviando las operaciones guardadas, respetando su orden.";
         if(action) action.textContent="Ver estado";
-      }else if(_syncLastError){
+      }else if(_syncLastError||pedidosLocales.some(function(op){return op.ultimoError;})){
         _sysAlertTone(banner,"danger");
         if(icon) icon.textContent="⚠️";
         if(txt) txt.textContent="No se pudieron enviar algunos datos";
@@ -29314,7 +29348,6 @@ function _updateBanner(){
     }
   } else {
     banner.style.display = "flex";
-    var n = _offlineQueue.length;
     _sysAlertTone(banner,n>0?"warning":"info");
     if(icon) icon.textContent="📵";
     if(badge){
@@ -29331,6 +29364,10 @@ function _updateBanner(){
 }
 function _verPendientesOffline(){
   if(window.SyncAvisos) return window.SyncAvisos.abrir();
+  if(_bkQueueGet().length){
+    if(!navigator.onLine) {showNotif("Hay "+_bkQueueGet().length+" pedidos guardados en este equipo.","warn");return;}
+    _syncPendingBackups(true);
+  }
   if(!_offlineQueue||!_offlineQueue.length) return;
   if(window.StockSeguro && _offlineQueue.some(window.StockSeguro.esDiferida)) return window.StockSeguro.revisarPendientes();
   var op=_offlineQueue[0]||{};
@@ -29382,7 +29419,7 @@ function actualizarEstadoConexion(){
   _updateBanner();
   if(navigator.onLine){
     _syncQueue();
-    sincronizarPendientesBackup();
+    _syncPendingBackups(true);
   }
 }
 window.addEventListener("online",  actualizarEstadoConexion);
@@ -29396,15 +29433,13 @@ function _refrescarRutasEntreDispositivos(forzar){
   if(tab!=="hoja"&&tab!=="mapa-entregas") return Promise.resolve(false);
   // No interrumpir a alguien que está escribiendo un cobro, editando un pedido
   // o trabajando dentro de un modal. El próximo foco/intervalo vuelve a probar.
-  var modalAbierto=document.querySelector(".modal-bg.open");
-  var secActiva=document.getElementById(tab), foco=document.activeElement;
-  var escribiendo=!!(secActiva&&foco&&secActiva.contains(foco)&&/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName||""));
-  if(modalAbierto||escribiendo) return Promise.resolve(false);
+  if(_vistaTrabajoEnUso(tab)) return Promise.resolve(false);
   if(!forzar&&Date.now()-(_rutasUltimaCarga||0)<12000) return Promise.resolve(false);
   if(tab==="hoja"){
     return cargarRutasFirebase({preservarVista:true,silencioso:true}).then(function(){return true;});
   }
   return _cargarRutasServidorSeguras().then(async function(all){
+    if(window._tabActual!==tab||_vistaTrabajoEnUso(tab)) return false;
     rutasData=_filtrarRutasParaUsuario(all);
     _guardarRutasOffline();
     poblarSelectorMapaRutas();
@@ -29415,9 +29450,15 @@ function _refrescarRutasEntreDispositivos(forzar){
     return false;
   });
 }
+function _vistaTrabajoEnUso(tab){
+  var modalAbierto=document.querySelector(".modal-bg.open,.cart-modal.open,.dev-ov[style*='display: flex']");
+  var secActiva=document.getElementById(tab), foco=document.activeElement;
+  var escribiendo=!!(secActiva&&foco&&secActiva.contains(foco)&&/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName||""));
+  return !!(modalAbierto||escribiendo);
+}
 
 document.addEventListener("visibilitychange",function(){
-  if(document.visibilityState==="visible") setTimeout(function(){_refrescarRutasEntreDispositivos(false);},180);
+  if(document.visibilityState==="visible") setTimeout(function(){_refrescarRutasEntreDispositivos(false);_bkProgramarSync();if(navigator.onLine)_syncQueue();},180);
 });
 window.addEventListener("focus",function(){
   setTimeout(function(){_refrescarRutasEntreDispositivos(false);},180);
@@ -29438,7 +29479,9 @@ window.addEventListener("online", function(){
       if(typeof _sbGetUsuarios==="function"){
         _sbGetUsuarios().then(function(u){ if(u){ _clientesDB=Object.assign(_clientesDB||{},u); if(typeof renderClientes==="function" && document.getElementById("clientes")) renderClientes(); } }).catch(function(){});
       }
-      if(typeof cargarCatalogo==="function") cargarCatalogo();
+      // El catálogo no necesita volver a inicializar pickers mientras se
+      // arma el pedido. Las lecturas de confirmación trabajan por su cuenta.
+      if(typeof cargarCatalogo==="function"&&window._tabActual!=="pedido") cargarCatalogo();
       _refrescarRutasEntreDispositivos(true);
     }catch(e){ console.warn("[Reconexión] refresh:", e); }
   }, 3000);
@@ -30240,73 +30283,27 @@ function _meInjectPagoInputs(rk,ck,ef,tr){
 // Reparto y Hoja de Ruta guardan ahora el estado completo de la parada en un
 // solo PATCH confirmado. Si la red falla, ese mismo PATCH queda primero en la
 // cola y el movimiento de cuenta corriente queda detrás, respetando el orden.
-async function _mePersistirParada(rk,ck,cambios,desc,pagoAnterior){
+async function _mePersistirParada(rk,ck,cambios,desc){
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  if(!cli) throw new Error("No se encontró la parada en memoria");
-  var path="empresas/"+empresaKey+"/rutas/"+rk+"/clientes/"+ck;
-  var rows=await fbPatchQ(path,cambios,desc||("Cambio de reparto: "+(cli.nom||ck)));
-  var confirmado=Array.isArray(rows)&&rows.length>0;
-
-  if(pagoAnterior){
-    var efNuevo=+(cambios.efectivo||0), trNuevo=+(cambios.transferencia||0);
-    var efAnterior=+(pagoAnterior.efectivo||0), trAnterior=+(pagoAnterior.transferencia||0);
-    var delta=Math.round(((efNuevo-efAnterior)+(trNuevo-trAnterior))*100)/100;
-    if(Math.abs(delta)>0.01){
-      var modo=cambios.modo||cli.modo||"efectivo";
-      var partes=[];
-      if(Math.abs(efNuevo-efAnterior)>0.01) partes.push("Efectivo $"+fM(efNuevo-efAnterior));
-      if(Math.abs(trNuevo-trAnterior)>0.01) partes.push("Transfer. $"+fM(trNuevo-trAnterior));
-      var pagoPayload={
-        p_op_id:"pay_delivery_"+rk+"_"+ck+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
-        p_empresa_id:_sbEmpId,
-        p_cliente_nom:cli.nom,
-        p_delta:-delta,
-        p_monto:delta,
-        p_forma:modo,
-        p_nota:"Pago "+modo+" — "+cli.nom+(partes.length?" ("+partes.join(" + ")+")":""),
-        p_usuario:currentUser?currentUser.id:"repartidor",
-        p_fecha:new Date().toISOString()
-      };
-      if(confirmado){
-        await _registrarPagoCC(pagoPayload);
-      }else{
-        // El PATCH ya quedó encolado por fbPatchQ. Agregar la cuenta corriente
-        // después evita descontar saldo antes de que exista el cobro en la ruta.
-        await _enqueue("RPC","/rest/v1/rpc/cc_registrar_pago",pagoPayload,"Pago CC: "+(cli.nom||""));
-      }
-    }
+  if(!cli) return null;
+  var base="empresas/"+empresaKey;
+  var ops=[{method:"PATCH",path:base+"/rutas/"+rk+"/clientes/"+(cli._rcId||ck),
+    data:cambios,desc:desc||("Cambio de reparto: "+(cli.nom||ck)),verificarFila:true}];
+  var pedidoId=cli.pedidoId||cli.pedido_id;
+  if(cambios.entregado===true&&pedidoId){
+    ops.push({method:"PATCH",path:base+"/backupPedidos/"+pedidoId,data:{estado:"entregado"},
+      desc:"Pedido entregado: "+(cli.nom||ck),verificarFila:true});
   }
-  return confirmado;
-}
-
-// Mantiene el estado del pedido original alineado con una entrega hecha desde
-// Reparto. Esta escritura va después de ruta_clientes: también offline queda
-// encolada detrás de la entrega y no puede anunciar un pedido todavía pendiente.
-async function _meMarcarPedidoEntregadoDesdeReparto(rk,ck){
-  var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
-  var pedidoId=cli&&(cli.pedidoId||cli.pedido_id);
-  if(!pedidoId) return true; // rutas antiguas sin vínculo exacto
-
-  var arr=typeof getBackups==="function"?(getBackups()||[]):[];
-  var bk=arr.find(function(x){ return String(x._sbId||x._fbKey||x.id)===String(pedidoId); });
-  if(bk&&bk.estado==="entregado") return true;
-
-  try{
-    var rows=await fbPatchQ(
-      "empresas/"+empresaKey+"/backupPedidos/"+pedidoId,
-      {estado:"entregado"},
-      "Pedido entregado desde Reparto: "+(cli.nom||ck)
-    );
-    var confirmado=Array.isArray(rows)&&rows.length>0;
-
-    if(bk){ bk.estado="entregado"; saveBackups(arr); }
-    var cacheBk=(_backupCache||[]).find(function(x){ return String(x._sbId||x._fbKey||x.id)===String(pedidoId); });
-    if(cacheBk) cacheBk.estado="entregado";
-    return confirmado;
-  }catch(e){
-    console.warn("[Reparto] No se pudo sincronizar el estado entregado del pedido:",e);
-    return false;
+  // El cobro ya está en los importes absolutos de la parada (CC v2). No
+  // duplicarlo con una operación de saldo del motor anterior.
+  try{ await _enqueueLote(ops); }
+  catch(e){
+    showNotif("No se pudo guardar la entrega o el cobro: "+(e.message||"error local"),"err");
+    return null;
   }
+  var actual=rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck];
+  if(actual) Object.assign(actual,cambios);
+  return false; // Guardado local. La cola confirma ambos pasos en orden.
 }
 
 async function _meGuardarCobro(i){
@@ -30316,11 +30313,10 @@ async function _meGuardarCobro(i){
   var tr=_parseImporte((document.getElementById("me-tr-"+i)||{}).value||"0");
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(!cli) return;
-  var anterior={efectivo:cli.efectivo||0,transferencia:cli.transferencia||0};
   var modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo");
-  cli.modo=modo; cli.efectivo=ef; cli.transferencia=tr;
-  p.cli.efectivo=ef; p.cli.transferencia=tr;
-  var confirmado=await _mePersistirParada(rk,ck,{efectivo:ef,transferencia:tr,modo:modo},"Cobro reparto: "+(cli.nom||ck),anterior);
+  var confirmado=await _mePersistirParada(rk,ck,{efectivo:ef,transferencia:tr,modo:modo},"Cobro reparto: "+(cli.nom||ck));
+  if(confirmado===null) return;
+  Object.assign(p.cli,{efectivo:ef,transferencia:tr,modo:modo});
   renderParadas(_mapaParadas);
   showNotif(confirmado ? "💰 Cobro guardado y confirmado" : "💰 Cobro guardado — pendiente de sincronizar",confirmado?"ok":"warn");
 }
@@ -30371,16 +30367,12 @@ async function _epConfirmar(){
   var tr=_parseImporte((document.getElementById("ep-tr")||{}).value||"0");
   var cli=rutasData[rk]&&rutasData[rk].clientes?rutasData[rk].clientes[ck]:null;
   if(!cli) return;
-  var anterior={efectivo:cli.efectivo||0,transferencia:cli.transferencia||0};
   var modo=(ef>0&&tr>0)?"mixto":(tr>0?"transferencia":"efectivo");
-  cli.modo=modo; cli.efectivo=ef; cli.transferencia=tr;
-  p.cli.efectivo=ef; p.cli.transferencia=tr;
-  p.cli.entregado=true; p.cli.entregadoEn=ahora;
-  cli.entregado=true; cli.entregadoEn=ahora;
   var confirmado=await _mePersistirParada(rk,ck,{
     efectivo:ef,transferencia:tr,modo:modo,entregado:true,entregadoEn:ahora
-  },"Entrega y cobro: "+(p.cli.nom||ck),anterior);
-  await _meMarcarPedidoEntregadoDesdeReparto(rk,ck);
+  },"Entrega y cobro: "+(p.cli.nom||ck));
+  if(confirmado===null) return;
+  Object.assign(p.cli,{efectivo:ef,transferencia:tr,modo:modo,entregado:true,entregadoEn:ahora});
   cerrarModal("modal-entrega-pago");
   renderParadas(_mapaParadas);
   if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setOpacity){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
@@ -30401,10 +30393,9 @@ async function _meEntregar(i){
   var p=_mapaParadas[i]; if(!p) return;
   if(!(await _confirmar({icono:"📦",titulo:"Marcar entregado",mensaje:"¿Marcar a "+(p.cli.nom||"este cliente")+" como entregado?",ok:"Entregado"}))) return;
   var rk=_rutaMapaKey, ck=p.cliKey, ahora=new Date().toISOString();
-  p.cli.entregado=true; p.cli.entregadoEn=ahora;
-  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].entregado=true; rutasData[rk].clientes[ck].entregadoEn=ahora; }
   var confirmado=await _mePersistirParada(rk,ck,{entregado:true,entregadoEn:ahora},"Entrega: "+(p.cli.nom||ck));
-  await _meMarcarPedidoEntregadoDesdeReparto(rk,ck);
+  if(confirmado===null) return;
+  p.cli.entregado=true;p.cli.entregadoEn=ahora;
   renderParadas(_mapaParadas);
   if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setIcon){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
   showNotif(confirmado ? "✅ Entrega confirmada" : "✅ Entrega guardada — pendiente de sincronizar",confirmado?"ok":"warn");
@@ -30461,7 +30452,8 @@ async function _meAplicarDatosRutasActualizados(){
     var rk=_rutaMapaKey, intento=_meConstruccionRuta, empresa=_sbEmpId;
     if(!rk||_mapaParadasRuta!==rk||!rutasData[rk]) return;
     var indice=await _meCargarDomicilios();
-    if(empresa!==_sbEmpId||intento!==_meConstruccionRuta||_rutaMapaKey!==rk||_mapaParadasRuta!==rk||!rutasData[rk]) return;
+    if(empresa!==_sbEmpId||intento!==_meConstruccionRuta||_rutaMapaKey!==rk||_mapaParadasRuta!==rk||!rutasData[rk]||
+       (window._tabActual==="mapa-entregas"&&_vistaTrabajoEnUso("mapa-entregas"))) return;
     var clientes=rutasData[rk].clientes||{};
     var usados=new Set(), nuevas=[];
     _mapaParadas.forEach(function(p){
@@ -32113,8 +32105,8 @@ async function compGuardarEnFB(rk, ck, base64, loaderEl) {
     _programarGuardarRutasOffline();
   }
   if(!navigator.onLine){
-    aplicarLocal();
     await _enqueue("RC_COMP_ADD","ruta_clientes/"+rcLocal,{cliId:rcLocal,comp:data},"Foto de entrega");
+    aplicarLocal();
     showNotif("✓ Comprobante guardado en el dispositivo","ok");
     return;
   }
@@ -32155,8 +32147,8 @@ async function compGuardarEnFB(rk, ck, base64, loaderEl) {
     showNotif("✓ Comprobante guardado","ok");
   } catch(err) {
     console.error("compGuardar error:", err);
-    aplicarLocal();
     await _enqueue("RC_COMP_ADD","ruta_clientes/"+rcLocal,{cliId:rcLocal,comp:data},"Foto de entrega");
+    aplicarLocal();
     showNotif("Comprobante guardado — se subirá al volver la conexión","warn");
   }
 }
@@ -40075,10 +40067,9 @@ async function _meEntregarSinPago(i){
   if(saldo>0) msg+=" Queda como fiado: debe $"+fM(saldo)+".";
   if(!(await _confirmar({icono:"📦",titulo:"Entregar sin pago",mensaje:msg,ok:"Entregar fiado"}))) return;
   var rk=_rutaMapaKey, ck=p.cliKey, ahora=new Date().toISOString();
-  p.cli.entregado=true; p.cli.entregadoEn=ahora;
-  if(rutasData[rk]&&rutasData[rk].clientes&&rutasData[rk].clientes[ck]){ rutasData[rk].clientes[ck].entregado=true; rutasData[rk].clientes[ck].entregadoEn=ahora; }
   var confirmado=await _mePersistirParada(rk,ck,{entregado:true,entregadoEn:ahora},"Entrega fiado: "+(p.cli.nom||ck));
-  await _meMarcarPedidoEntregadoDesdeReparto(rk,ck);
+  if(confirmado===null) return;
+  p.cli.entregado=true;p.cli.entregadoEn=ahora;
   renderParadas(_mapaParadas);
   if(_mapaMarkers[i+1]&&_mapaMarkers[i+1].setOpacity){ try{ _mapaMarkers[i+1].setOpacity(0.5); }catch(e){} }
   showNotif(confirmado?"📦 Entregado sin pago (fiado)":"📦 Entrega fiada guardada — pendiente de sincronizar",confirmado?"ok":"warn");
@@ -43784,7 +43775,7 @@ async function _rvtGuardarVisita(){
 <script src="stock-integridad-v3.js?v=20260930-1"></script>
 <script src="stock-operaciones-v2.js?v=20260929-1"></script>
 <script src="remito-diseno-v2.js?v=20261118-2"></script>
-<script src="sync-avisos-v1.js?v=20261119-1"></script>
+<script src="sync-avisos-v1.js?v=20261123-2"></script>
 <script src="iclap-catalogo-v1.js?v=20261119-2"></script>
 <script src="pedidos-proveedor-v2.js?v=20261119-3"></script>
 <script src="reparto-revision-v1.js?v=20261120-1"></script>
