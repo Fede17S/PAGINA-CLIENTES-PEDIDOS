@@ -1,6 +1,6 @@
-// DISTRIBIX Service Worker v1.94 — pedidos durables sin conexión
-const CACHE_NAME = 'distribix-v1.94';
-const CACHE_STATIC = 'distribix-static-v1.94';
+// DISTRIBIX Service Worker v1.95 — pedidos durables sin conexión y módulos de rutas
+const CACHE_NAME = 'distribix-v1.95';
+const CACHE_STATIC = 'distribix-static-v1.95';
 
 // Se conservan los nombres usados en GitHub. PANEL-index_15.html permite probar
 // directamente el archivo de desarrollo; si no existe en producción no bloquea
@@ -16,7 +16,7 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './barcode-productos-v1.js',
   './armador-operativo-v2.js',
   './deposito-stock-v1.js',
-  './deposito-mapa-v1.js',
+  './deposito-mapa-v1.js?v=20261126-1',
   './stock-operaciones-v2.js',
   './stock-integridad-v3.js',
   './remito-diseno-v2.js',
@@ -28,6 +28,9 @@ const APP_SHELL = PANEL_CANDIDATES.concat([
   './panel-viewport-v1.js',
   './whatsapp-telefono-v1.js',
   './reparto-revision-v1.js',
+  './ruta-historial-v1.js?v=20261120-1',
+  './ruta-consolidado-v1.js?v=20261125-1',
+  './recaudacion-ruta-v1.js?v=20261125-1',
   './qrcode-1.4.4.min.js',
   './pdfjs/pdf.min.mjs',
   './pdfjs/pdf.worker.min.mjs',

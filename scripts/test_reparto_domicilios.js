@@ -25,13 +25,16 @@ const ctx = vm.createContext({
   _geocodeCache:{},_mapaParadas:[],_mapaParadasRuta:null,_meConstruccionRuta:0,_meDomiciliosCache:null,_rutaMapaKey:null,
   _mapaLeaflet:null,_mapaMarkers:[],_mePosicion:{lat:-42.77,lng:-65.04},_meParadaElegidaKey:null,_ecFotoNueva:null,_zonasData:{},dbCli:[],
   rutasData:{r1:{clientes:{r1a:{id:'cl100',nom:'Almacén Sur'},r1b:{id:'CL200',nom:'Almacén Sur'},r1c:{id:'CL300',nom:'Cliente pin'}}}},
-  navigator:{onLine:true},document:{getElementById:node,querySelectorAll:()=>[]},window:{open:url=>opened.push(new URL(url))},
+  navigator:{onLine:true},document:{getElementById:node,querySelectorAll:()=>[]},window:{open:url=>opened.push(new URL(url)),RecaudacionRuta:require('../recaudacion-ruta-v1.js')},
   console:{warn(){},error(){}},showNotif:msg=>warnings.push(msg),_initMapaBase(){},setTimeout(){},iniciarCliPickers(){},cerrarModal(){},showSaved(){},
   COLORS:['#e63946'],_programarGuardarRutasOffline(){},_meImporteNeto:()=>0,fM:String,escHtml:String,geocodeAddress:async()=>({lat:-44.1,lng:-65.6}),
   _sbGetRaw:async (table,q)=>{assert.equal(table,'usuarios');assert.match(q,/empresa_id=eq\.emp-fixture&order=id\.asc/);reads.push(q);return rows;},
   _guardarUsuarioVerificado:async (id,payload)=>{assert.equal(id,key);writes.push(payload);},_meNavApp:()=> 'gmaps'
 });
 vm.runInContext([
+  between('function _rechazoDefinitivo(c)', 'function _devEstadoLabel'),
+  between('function _hrNums(cli)', 'function _hrEstado('),
+  between('function calcRuta(ruta)', 'function _poblarFiltroRepartidores'),
   between('function seleccionarRutaMapa()', 'function cargarGeocodeCache()'),
   between('function getDistKm(', 'var COLORS ='),
   between('function _meDomicilioClave(', 'function _meToggleCobro('),
