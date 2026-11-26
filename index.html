@@ -5499,7 +5499,7 @@ _sysAlertMount();
     <div class="modal-head"><div id="tienda-acceso-titulo" class="modal-ttl">Enlace personal de tienda</div><button type="button" class="modal-cls" aria-label="Cerrar" onclick="_tiendaAccesoCerrar()">✕</button></div>
     <div class="cr-body">
       <strong id="tienda-acceso-cliente"></strong>
-      <p style="font-size:13px;line-height:1.45;color:var(--muted);margin:8px 0">El cliente verá su lista de precios y sus datos de envío. Enviáselo solo al titular: se puede activar una vez, durante 72 horas.</p>
+      <p style="font-size:13px;line-height:1.45;color:var(--muted);margin:8px 0">El cliente verá su lista de precios y sus datos de envío. Enviáselo solo al titular. El enlace no vence y se puede activar una sola vez.</p>
       <p id="tienda-acceso-aviso" role="status" style="font-size:12px;line-height:1.45;margin:8px 0;color:var(--muted)"></p>
       <div id="tienda-acceso-enlace-wrap" hidden><label for="tienda-acceso-enlace">Enlace personal</label><input id="tienda-acceso-enlace" type="text" class="prov-inp" readonly autocomplete="off" spellcheck="false"></div>
     </div>
@@ -31125,7 +31125,7 @@ async function _tiendaAccesoCopiar(){
 }
 function _tiendaAccesoWhatsApp(){
   var f=_tiendaAccesoFicha;if(!_tiendaAccesoVigente(f)||!f.link||!f.telefono)return;
-  var msg="Hola "+f.nombre+". Este es tu enlace personal a nuestra tienda para ver tus precios y confirmar tus datos de entrega:\n\n"+f.link+"\n\nNo lo reenvíes. Se puede activar una sola vez durante 72 horas.";
+  var msg="Hola "+f.nombre+". Este es tu enlace personal a nuestra tienda para ver tus precios y confirmar tus datos de entrega:\n\n"+f.link+"\n\nNo lo reenvíes. No vence y se puede activar una sola vez.";
   _cc2AbrirWhatsAppSeguro("https://wa.me/"+f.telefono+"?text="+encodeURIComponent(msg));
 }
 
