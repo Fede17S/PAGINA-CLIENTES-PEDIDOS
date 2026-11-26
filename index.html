@@ -2682,6 +2682,7 @@ html[data-theme="dark"] .rc-edit-item { box-shadow:0 2px 10px rgba(0,0,0,.18) }
 .cr-footer .btn { flex:1 }
 .cr-more { margin-top:12px;border-top:1px solid var(--border);padding-top:9px }
 .cr-more summary { font-size:13px;font-weight:700;cursor:pointer;padding:5px 0 }
+#modal-tienda-acceso [hidden] { display:none!important }
 .alta-cliente-estado { color:var(--red);font-size:12px;line-height:1.35;margin:8px 0 0;overflow-wrap:anywhere }
 .prov-card { background:var(--s2); border:1px solid var(--border); border-radius:11px; padding:13px 15px; margin-bottom:9px }
 .prov-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px }
@@ -5480,6 +5481,24 @@ _sysAlertMount();
   </form>
 </div>
 <datalist id="alta-zonas"></datalist>
+
+<!-- Acceso individual a la tienda, sin datos privados en la URL -->
+<div class="modal-bg" id="modal-tienda-acceso" onclick="if(event.target===this)_tiendaAccesoCerrar()">
+  <div class="modal-box cr-box" role="dialog" aria-modal="true" aria-labelledby="tienda-acceso-titulo">
+    <div class="modal-head"><div id="tienda-acceso-titulo" class="modal-ttl">Enlace personal de tienda</div><button type="button" class="modal-cls" aria-label="Cerrar" onclick="_tiendaAccesoCerrar()">✕</button></div>
+    <div class="cr-body">
+      <strong id="tienda-acceso-cliente"></strong>
+      <p style="font-size:13px;line-height:1.45;color:var(--muted);margin:8px 0">El cliente verá su lista de precios y sus datos de envío. Enviáselo solo al titular: se puede activar una vez, durante 72 horas.</p>
+      <p id="tienda-acceso-aviso" role="status" style="font-size:12px;line-height:1.45;margin:8px 0;color:var(--muted)"></p>
+      <div id="tienda-acceso-enlace-wrap" hidden><label for="tienda-acceso-enlace">Enlace personal</label><input id="tienda-acceso-enlace" type="text" class="prov-inp" readonly autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div class="cr-footer">
+      <button type="button" class="btn btn-primary" id="tienda-acceso-generar" onclick="_tiendaAccesoGenerar()">Generar enlace</button>
+      <button type="button" class="btn btn-ghost" id="tienda-acceso-copiar" onclick="_tiendaAccesoCopiar()" hidden>Copiar enlace</button>
+      <button type="button" class="btn btn-primary" id="tienda-acceso-wa" onclick="_tiendaAccesoWhatsApp()" hidden>Enviar por WhatsApp</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL CARGA MASIVA DE STOCK -->
 <div class="modal-bg" id="modal-carga-stock" onclick="if(event.target===this)cerrarModal('modal-carga-stock')">
@@ -14395,7 +14414,7 @@ function _initBackButton(){
     C.Plugins.App.addListener("backButton", function(){
       // 1) Si hay un modal abierto, cerrarlo
       var modalAbierto=document.querySelector(".modal-bg.open");
-      if(modalAbierto){ modalAbierto.classList.remove("open"); return; }
+      if(modalAbierto){ if(modalAbierto.id==="modal-tienda-acceso")_tiendaAccesoCerrar();else modalAbierto.classList.remove("open");return; }
       var confirmOv=document.querySelector(".confirm-ov.show, #alerta-modal-ov[style*='flex']");
       if(confirmOv){ if(typeof _cerrarAlertaModal==="function") _cerrarAlertaModal(); return; }
       // 2) Si el catálogo vivo está abierto, cerrarlo
@@ -30979,6 +30998,7 @@ function _renderClientesList(){
       ? '<button class="cli-act" onclick="abrirResumenCliente(&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Resumen rápido">📊</button>'+
         '<button class="cli-act" onclick="abrirCuentaCorriente(&quot;'+escHtml(pk).replace(/"/g,'&quot;')+'&quot;,&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Cuenta corriente">💰</button>'
       : '';
+    var tiendaBtn=_tiendaAccesoHabilitado(u,pk)?'<button type="button" class="cli-act" data-cliente="'+_attr(pk)+'" onclick="_tiendaAccesoAbrir(this.dataset.cliente)" aria-label="Compartir enlace personal de tienda" title="Compartir enlace personal de tienda">🛍️</button>':'';
     return '<div class="cli-card" style="border-left:4px solid '+col+'">'+
       '<div class="cli-avatar" style="background:'+col+';color:#fff;overflow:hidden">'+(u.foto?'<img src="'+_attr(u.foto)+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block">':ini)+'</div>'+
       '<div class="cli-info">'+
@@ -30992,9 +31012,69 @@ function _renderClientesList(){
         (u.direccion ? '<div class="cli-meta">📍 '+escHtml(u.direccion)+'</div>' : '')+
       '</div>'+
       '<span class="cli-badge">'+escHtml(u.lista||'Clientes')+'</span>'+
-      '<div class="cli-card-actions">'+ccBtn+editDeleteBtns+'</div>'+
+      '<div class="cli-card-actions">'+ccBtn+tiendaBtn+editDeleteBtns+'</div>'+
     '</div>';
   }).join("");
+}
+
+var _tiendaAccesoFicha=null;
+function _tiendaAccesoHabilitado(u,id){
+  return !!(currentUser&&(_tengoRol("admin")||_esCoAdmin())&&u&&u.role==="cliente"&&
+    !_normalizarRoles(u.roles).some(function(r){return r!=="cliente";})&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id||""));
+}
+function _tiendaAccesoURL(codigo,token){
+  if(!String(codigo||"").trim()||!(/^[a-f0-9]{64}$/.test(token||"")))return "";
+  var u=new URL("https://pagina-tienda-seven.vercel.app/");
+  u.searchParams.set("emp",codigo); u.hash="acceso="+token;
+  return u.href;
+}
+function _tiendaAccesoUI(id){return document.getElementById("tienda-acceso-"+id);}
+function _tiendaAccesoAbrir(id){
+  var u=(_cliData||{})[id]||(_clientesDB||{})[id];
+  if(!_tiendaAccesoHabilitado(u,id)||!_sbEmpId)return;
+  _tiendaAccesoFicha={empresa:_sbEmpId,usuario:currentUser,id:id,nombre:u.name||u.id,link:"",telefono:_cc2NumeroWhatsApp(u.tel||u.telefono)};
+  _tiendaAccesoUI("cliente").textContent=_tiendaAccesoFicha.nombre;
+  var faltan=[!_tiendaAccesoFicha.telefono?"teléfono":"",!String(u.direccion||"").trim()?"dirección":""].filter(Boolean);
+  _tiendaAccesoUI("aviso").textContent=(faltan.length?"Falta completar "+faltan.join(" y ")+" en la ficha. El cliente podrá cargar el dato al pedir. ":"")+"Generar un enlace nuevo desactiva el anterior y su sesión.";
+  _tiendaAccesoUI("enlace").value="";
+  ["enlace-wrap","wa","copiar"].forEach(function(k){_tiendaAccesoUI(k).hidden=true;});
+  var b=_tiendaAccesoUI("generar");b.hidden=false;b.disabled=false;b.textContent="Generar enlace";
+  abrirModal("modal-tienda-acceso");
+}
+function _tiendaAccesoCerrar(){
+  if(_tiendaAccesoFicha&&_tiendaAccesoFicha.cargando)return;
+  _tiendaAccesoFicha=null; _tiendaAccesoUI("enlace").value="";
+  cerrarModal("modal-tienda-acceso");
+}
+function _tiendaAccesoVigente(f){return f&&f===_tiendaAccesoFicha&&f.empresa===_sbEmpId&&f.usuario===currentUser;}
+async function _tiendaAccesoGenerar(){
+  var f=_tiendaAccesoFicha,b=_tiendaAccesoUI("generar");
+  if(!_tiendaAccesoVigente(f)||f.cargando||f.link)return;
+  if(!navigator.onLine){_tiendaAccesoUI("aviso").textContent="Necesitás conexión para generar el enlace.";return;}
+  f.cargando=true;b.disabled=true;b.textContent="Generando…";
+  try{
+    var r=await sbFetch("POST","/rest/v1/rpc/tienda_emitir_enlace_v1",{p_empresa:f.empresa,p_usuario:f.id});
+    if(!_tiendaAccesoVigente(f))return;
+    f.link=_tiendaAccesoURL(r&&r.codigo,r&&r.token);
+    if(!f.link)throw Error("ENLACE_NO_CONFIRMADO");
+    f.telefono=_cc2NumeroWhatsApp(r.telefono||"");
+    _tiendaAccesoUI("aviso").textContent=f.telefono?"Listo. Abrí WhatsApp para revisar y enviar el mensaje.":"No hay un teléfono válido en la ficha. Podés copiar y compartir el enlace con el titular.";
+    _tiendaAccesoUI("enlace").value=f.link;
+    _tiendaAccesoUI("enlace-wrap").hidden=false;_tiendaAccesoUI("copiar").hidden=false;
+    _tiendaAccesoUI("wa").hidden=!f.telefono;b.hidden=true;
+  }catch(e){
+    if(_tiendaAccesoVigente(f))_tiendaAccesoUI("aviso").textContent=/TIENDA_CLIENTE_NO_DISPONIBLE/.test(e.message||"")?"Revisá que el cliente tenga una lista válida en esta empresa.":"No se pudo generar el enlace. Verificá tu sesión y reintentá.";
+  }finally{f.cargando=false;if(_tiendaAccesoVigente(f)){b.disabled=false;b.textContent="Generar enlace";}}
+}
+async function _tiendaAccesoCopiar(){
+  var f=_tiendaAccesoFicha;if(!_tiendaAccesoVigente(f)||!f.link)return;
+  try{await navigator.clipboard.writeText(f.link); if(_tiendaAccesoVigente(f))showNotif("Enlace copiado.","ok");}
+  catch(e){if(!_tiendaAccesoVigente(f))return;var inp=_tiendaAccesoUI("enlace");inp.focus();inp.select();_tiendaAccesoUI("aviso").textContent="Seleccionamos el enlace para que puedas copiarlo.";}
+}
+function _tiendaAccesoWhatsApp(){
+  var f=_tiendaAccesoFicha;if(!_tiendaAccesoVigente(f)||!f.link||!f.telefono)return;
+  var msg="Hola "+f.nombre+". Este es tu enlace personal a nuestra tienda para ver tus precios y confirmar tus datos de entrega:\n\n"+f.link+"\n\nNo lo reenvíes. Se puede activar una sola vez durante 72 horas.";
+  _cc2AbrirWhatsAppSeguro("https://wa.me/"+f.telefono+"?text="+encodeURIComponent(msg));
 }
 
 function _filtrarClientes(q){
