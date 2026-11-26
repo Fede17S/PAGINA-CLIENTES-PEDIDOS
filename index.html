@@ -2682,7 +2682,18 @@ html[data-theme="dark"] .rc-edit-item { box-shadow:0 2px 10px rgba(0,0,0,.18) }
 .cr-footer .btn { flex:1 }
 .cr-more { margin-top:12px;border-top:1px solid var(--border);padding-top:9px }
 .cr-more summary { font-size:13px;font-weight:700;cursor:pointer;padding:5px 0 }
+#modal-tienda-acceso {
+  z-index:100050; inset:auto; top:var(--panel-vv-top,0px); left:var(--panel-vv-left,0px);
+  width:var(--panel-vv-width,100%); height:100vh; height:var(--panel-vv-height,100dvh);
+  box-sizing:border-box; overflow:hidden; overscroll-behavior:none;
+  padding:max(8px,var(--modal-safe-top,0px)) max(8px,var(--modal-safe-right,0px)) max(8px,var(--modal-safe-bottom,0px)) max(8px,var(--modal-safe-left,0px));
+}
+#modal-tienda-acceso > .modal-box { max-height:100%;margin:0 }
+#modal-tienda-acceso .modal-head { flex-shrink:0;gap:8px }
+#modal-tienda-acceso .modal-cls { min-width:44px;min-height:44px }
+#modal-tienda-acceso .btn { min-height:40px }
 #modal-tienda-acceso [hidden] { display:none!important }
+body.tienda-acceso-abierto .main, body.tienda-acceso-abierto .section.active { overflow:hidden!important }
 .alta-cliente-estado { color:var(--red);font-size:12px;line-height:1.35;margin:8px 0 0;overflow-wrap:anywhere }
 .prov-card { background:var(--s2); border:1px solid var(--border); border-radius:11px; padding:13px 15px; margin-bottom:9px }
 .prov-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px }
@@ -30998,7 +31009,7 @@ function _renderClientesList(){
       ? '<button class="cli-act" onclick="abrirResumenCliente(&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Resumen rápido">📊</button>'+
         '<button class="cli-act" onclick="abrirCuentaCorriente(&quot;'+escHtml(pk).replace(/"/g,'&quot;')+'&quot;,&quot;'+escHtml(nom).replace(/"/g,'&quot;')+'&quot;)" title="Cuenta corriente">💰</button>'
       : '';
-    var tiendaBtn=_tiendaAccesoHabilitado(u,pk)?'<button type="button" class="cli-act" data-cliente="'+_attr(pk)+'" onclick="_tiendaAccesoAbrir(this.dataset.cliente)" aria-label="Compartir enlace personal de tienda" title="Compartir enlace personal de tienda">🛍️</button>':'';
+    var tiendaBtn=_tiendaAccesoHabilitado(u,pk)?'<button type="button" class="cli-act" data-cliente="'+_attr(pk)+'" onclick="_tiendaAccesoAbrir(this.getAttribute(\'data-cliente\'),this)" aria-label="Compartir enlace personal de tienda" aria-haspopup="dialog" title="Compartir enlace personal de tienda">🛍️</button>':'';
     return '<div class="cli-card" style="border-left:4px solid '+col+'">'+
       '<div class="cli-avatar" style="background:'+col+';color:#fff;overflow:hidden">'+(u.foto?'<img src="'+_attr(u.foto)+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block">':ini)+'</div>'+
       '<div class="cli-info">'+
@@ -31017,7 +31028,7 @@ function _renderClientesList(){
   }).join("");
 }
 
-var _tiendaAccesoFicha=null;
+var _tiendaAccesoFicha=null,_tiendaAccesoOrigen=null;
 function _tiendaAccesoHabilitado(u,id){
   return !!(currentUser&&(_tengoRol("admin")||_esCoAdmin())&&u&&u.role==="cliente"&&
     !_normalizarRoles(u.roles).some(function(r){return r!=="cliente";})&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id||""));
@@ -31029,32 +31040,70 @@ function _tiendaAccesoURL(codigo,token){
   return u.href;
 }
 function _tiendaAccesoUI(id){return document.getElementById("tienda-acceso-"+id);}
-function _tiendaAccesoAbrir(id){
+function _tiendaAccesoLimpiar(){
+  _tiendaAccesoFicha=null;
+  var inp=_tiendaAccesoUI("enlace");if(inp)inp.value="";
+  document.body.classList.remove("tienda-acceso-abierto");
+  var volver=_tiendaAccesoOrigen;_tiendaAccesoOrigen=null;
+  if(volver&&volver.isConnected)volver.focus({preventScroll:true});
+}
+function _tiendaAccesoMontar(){
+  var m=document.getElementById("modal-tienda-acceso");if(!m)return null;
+  if(m.parentNode!==document.body)document.body.appendChild(m);
+  if(!m.dataset.tiendaMontado){
+    m.dataset.tiendaMontado="1";
+    // También limpiar el enlace si el panel cierra el modal al cambiar de pestaña.
+    new MutationObserver(function(){if(!m.classList.contains("open")&&document.body.classList.contains("tienda-acceso-abierto"))_tiendaAccesoLimpiar();}).observe(m,{attributes:true,attributeFilter:["class"]});
+    m.addEventListener("keydown",function(e){
+      if(e.key==="Escape"){e.preventDefault();e.stopPropagation();_tiendaAccesoCerrar();return;}
+      if(e.key!=="Tab")return;
+      var botones=Array.from(m.querySelectorAll("button:not(:disabled),input:not(:disabled)")).filter(function(x){return x.getClientRects().length>0;});
+      var primero=botones[0],ultimo=botones[botones.length-1];
+      if(e.shiftKey&&document.activeElement===primero){e.preventDefault();ultimo.focus();}
+      else if(!e.shiftKey&&document.activeElement===ultimo){e.preventDefault();primero.focus();}
+    });
+  }
+  return m;
+}
+function _tiendaAccesoAbrir(id,origen){
+  var m=_tiendaAccesoMontar();if(!m){showNotif("No se pudo abrir el enlace de tienda. Actualizá el panel.","err");return;}
+  if(m.classList.contains("open"))return;
+  _tiendaAccesoOrigen=origen||document.activeElement;
+  _tiendaAccesoFicha=null;
   var u=(_cliData||{})[id]||(_clientesDB||{})[id];
-  if(!_tiendaAccesoHabilitado(u,id)||!_sbEmpId)return;
-  _tiendaAccesoFicha={empresa:_sbEmpId,usuario:currentUser,id:id,nombre:u.name||u.id,link:"",telefono:_cc2NumeroWhatsApp(u.tel||u.telefono)};
-  _tiendaAccesoUI("cliente").textContent=_tiendaAccesoFicha.nombre;
-  var faltan=[!_tiendaAccesoFicha.telefono?"teléfono":"",!String(u.direccion||"").trim()?"dirección":""].filter(Boolean);
-  _tiendaAccesoUI("aviso").textContent=(faltan.length?"Falta completar "+faltan.join(" y ")+" en la ficha. El cliente podrá cargar el dato al pedir. ":"")+"Generar un enlace nuevo desactiva el anterior y su sesión.";
+  var adm=!!(currentUser&&(_tengoRol("admin")||_esCoAdmin())),habilitado=!!(_sbEmpId&&_tiendaAccesoHabilitado(u,id));
+  _tiendaAccesoUI("cliente").textContent=habilitado?(u.name||u.id||"Cliente"):"";
+  var aviso=_tiendaAccesoUI("aviso");
+  if(habilitado){
+    _tiendaAccesoFicha={empresa:_sbEmpId,usuario:_tiendaAccesoIdSesion(),id:id,nombre:u.name||u.id||"Cliente",link:"",telefono:_cc2NumeroWhatsApp(u.tel||u.telefono)};
+    var faltan=[!_tiendaAccesoFicha.telefono?"teléfono":"",!String(u.direccion||"").trim()?"dirección":""].filter(Boolean);
+    aviso.textContent=(faltan.length?"Falta completar "+faltan.join(" y ")+" en la ficha. El cliente podrá cargar el dato al pedir. ":"")+"Generar un enlace nuevo desactiva el anterior y su sesión.";
+  }else aviso.textContent=(!currentUser||!_sbEmpId)?"Volvé a ingresar al panel para generar el enlace.":!adm?"Solo un administrador o co-admin puede generar este enlace.":"No encontramos la ficha del cliente. Actualizá la lista y volvé a intentar.";
   _tiendaAccesoUI("enlace").value="";
   ["enlace-wrap","wa","copiar"].forEach(function(k){_tiendaAccesoUI(k).hidden=true;});
-  var b=_tiendaAccesoUI("generar");b.hidden=false;b.disabled=false;b.textContent="Generar enlace";
-  abrirModal("modal-tienda-acceso");
+  var b=_tiendaAccesoUI("generar");b.hidden=!habilitado;b.disabled=false;b.textContent="Generar enlace";
+  document.body.classList.add("tienda-acceso-abierto");
+  m.classList.add("open");
+  (habilitado?b:m.querySelector(".modal-cls")).focus({preventScroll:true});
 }
 function _tiendaAccesoCerrar(){
-  if(_tiendaAccesoFicha&&_tiendaAccesoFicha.cargando)return;
-  _tiendaAccesoFicha=null; _tiendaAccesoUI("enlace").value="";
   cerrarModal("modal-tienda-acceso");
+  _tiendaAccesoLimpiar();
 }
-function _tiendaAccesoVigente(f){return f&&f===_tiendaAccesoFicha&&f.empresa===_sbEmpId&&f.usuario===currentUser;}
+function _tiendaAccesoIdSesion(){return currentUser?String(currentUser.id||currentUser.uid||"").trim().toLowerCase():"";}
+function _tiendaAccesoVigente(f){return f&&f===_tiendaAccesoFicha&&f.empresa===_sbEmpId&&f.usuario&&f.usuario===_tiendaAccesoIdSesion()&&(_tengoRol("admin")||_esCoAdmin());}
 async function _tiendaAccesoGenerar(){
   var f=_tiendaAccesoFicha,b=_tiendaAccesoUI("generar");
-  if(!_tiendaAccesoVigente(f)||f.cargando||f.link)return;
+  if(!_tiendaAccesoVigente(f)){_tiendaAccesoUI("aviso").textContent="La sesión cambió. Cerrá esta ventana y volvé a abrir el acceso desde la ficha.";return;}
+  if(f.cargando||f.link)return;
   if(!navigator.onLine){_tiendaAccesoUI("aviso").textContent="Necesitás conexión para generar el enlace.";return;}
   f.cargando=true;b.disabled=true;b.textContent="Generando…";
   try{
     var r=await sbFetch("POST","/rest/v1/rpc/tienda_emitir_enlace_v1",{p_empresa:f.empresa,p_usuario:f.id});
-    if(!_tiendaAccesoVigente(f))return;
+    if(!_tiendaAccesoVigente(f)){
+      if(f===_tiendaAccesoFicha)_tiendaAccesoUI("aviso").textContent="La sesión cambió. Cerrá esta ventana y volvé a abrir el acceso desde la ficha.";
+      return;
+    }
     f.link=_tiendaAccesoURL(r&&r.codigo,r&&r.token);
     if(!f.link)throw Error("ENLACE_NO_CONFIRMADO");
     f.telefono=_cc2NumeroWhatsApp(r.telefono||"");
@@ -31063,8 +31112,11 @@ async function _tiendaAccesoGenerar(){
     _tiendaAccesoUI("enlace-wrap").hidden=false;_tiendaAccesoUI("copiar").hidden=false;
     _tiendaAccesoUI("wa").hidden=!f.telefono;b.hidden=true;
   }catch(e){
-    if(_tiendaAccesoVigente(f))_tiendaAccesoUI("aviso").textContent=/TIENDA_CLIENTE_NO_DISPONIBLE/.test(e.message||"")?"Revisá que el cliente tenga una lista válida en esta empresa.":"No se pudo generar el enlace. Verificá tu sesión y reintentá.";
-  }finally{f.cargando=false;if(_tiendaAccesoVigente(f)){b.disabled=false;b.textContent="Generar enlace";}}
+    if(f===_tiendaAccesoFicha){
+      var msg=e&&e.message||"";
+      _tiendaAccesoUI("aviso").textContent=/TIENDA_CLIENTE_NO_DISPONIBLE/.test(msg)?"Revisá que el cliente tenga una lista válida en esta empresa.":/TIENDA_ACCESO_DENEGADO|sesión/i.test(msg)?"No se pudo verificar tu sesión. Volvé a ingresar al panel.":"No se pudo generar el enlace. Revisá la conexión y reintentá.";
+    }
+  }finally{f.cargando=false;if(f===_tiendaAccesoFicha){b.disabled=false;b.textContent="Generar enlace";}}
 }
 async function _tiendaAccesoCopiar(){
   var f=_tiendaAccesoFicha;if(!_tiendaAccesoVigente(f)||!f.link)return;
