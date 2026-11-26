@@ -5829,6 +5829,7 @@ _sysAlertMount();
     <button class="bk-tab" id="cfg-tab-remito" onclick="setCfgTab('remito',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🎨 Remito</button>
     <button class="bk-tab" id="cfg-tab-facturacion" onclick="setCfgTab('facturacion',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">💳 Facturación</button>
     <button class="bk-tab" id="cfg-tab-whatsapp" onclick="setCfgTab('whatsapp',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">📱 WhatsApp</button>
+    <button class="bk-tab" id="cfg-tab-tienda" onclick="setCfgTab('tienda',this)" style="display:none;border-radius:8px 8px 0 0;margin-bottom:-2px">🛍️ Tienda web</button>
     <button class="bk-tab" id="cfg-tab-tools" onclick="setCfgTab('tools',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🛠️ Herramientas</button>
     <button class="bk-tab" id="cfg-tab-cupones" onclick="setCfgTab('cupones',this)" style="border-radius:8px 8px 0 0;margin-bottom:-2px">🎟️ Cupones</button>
   </div>
@@ -5948,6 +5949,16 @@ _sysAlertMount();
     <div id="limp-ultima" style="font-size:11.5px;color:var(--muted);margin-top:10px"></div>
   </div>
   </div><!-- end cfg-panel-empresa -->
+  <div id="cfg-panel-tienda" style="display:none">
+    <div class="cfg-card">
+      <div class="cfg-card-h">🛍️ Tienda web</div>
+      <div class="cfg-card-sub">Editá el diseño, los banners y las zonas de envío de la empresa con la que ingresaste.</div>
+      <button type="button" class="mbtn mbtn-primary" id="tienda-panel-abrir" onclick="_tiendaEditorAbrirPanel()">Abrir editor de tienda</button>
+      <button type="button" class="mbtn" id="tienda-panel-cerrar" onclick="_tiendaEditorCerrarPanel()" hidden>Cerrar editor</button>
+      <p id="tienda-panel-estado" role="status" aria-live="polite" style="margin:10px 0;color:var(--muted)"></p>
+      <div id="tienda-panel-marco"></div>
+    </div>
+  </div>
   <div id="cfg-panel-facturacion" style="display:none">
     <div class="cfg-card">
       <div class="cfg-card-h">🧾 Datos fiscales</div>
@@ -12540,11 +12551,97 @@ async function _borrarCupon(id, codigo){
   } catch(e){ showNotif("Error al borrar","err"); }
 }
 
+var _tiendaEditorOrigen="https://pagina-tienda-seven.vercel.app", _tiendaEditorOrigenPanel="https://pagina-clientes-pedidos.vercel.app", _tiendaEditorContexto=null;
+function _tiendaEditorAutorizadoPanel(){
+  return !!(window.location.origin===_tiendaEditorOrigenPanel&&_sbEmpId&&currentUser&&_tengoRol("admin")&&_empTokenVigente(0));
+}
+function _tiendaEditorContextoValido(ctx){
+  return !!(ctx&&ctx===_tiendaEditorContexto&&ctx.empresa===_sbEmpId&&ctx.usuario===currentUser&&
+    window._tabActual==="datos-empresa"&&_tiendaEditorAutorizadoPanel());
+}
+function _tiendaEditorCerrarPanel(mensaje){
+  var ctx=_tiendaEditorContexto;_tiendaEditorContexto=null;
+  if(ctx&&ctx.timer)clearTimeout(ctx.timer);
+  var wrap=document.getElementById("tienda-panel-marco"), abrir=document.getElementById("tienda-panel-abrir"), cerrar=document.getElementById("tienda-panel-cerrar"), estado=document.getElementById("tienda-panel-estado");
+  if(wrap)wrap.replaceChildren();if(abrir)abrir.disabled=false;if(cerrar)cerrar.hidden=true;
+  if(estado)estado.textContent=typeof mensaje==="string"?mensaje:"";
+}
+function _tiendaEditorResponderPanel(ctx,cuerpo){
+  if(!_tiendaEditorContextoValido(ctx)||!ctx.marco||!ctx.marco.contentWindow)return;
+  ctx.marco.contentWindow.postMessage(Object.assign({canal:"tienda-editor-v1",id:ctx.id},cuerpo),_tiendaEditorOrigen);
+}
+async function _tiendaEditorAbrirPanel(){
+  if(!_tiendaEditorAutorizadoPanel()||window._tabActual!=="datos-empresa"){
+    _tiendaEditorCerrarPanel("Abrí el panel web e ingresá con tu usuario administrador.");return;
+  }
+  _tiendaEditorCerrarPanel("Verificando acceso a la tienda…");
+  var ctx={empresa:_sbEmpId,usuario:currentUser,id:Array.from(crypto.getRandomValues(new Uint8Array(16)),function(b){return b.toString(16).padStart(2,"0");}).join("")};
+  _tiendaEditorContexto=ctx;
+  document.getElementById("tienda-panel-abrir").disabled=true;
+  try{
+    var datos=await sbFetch("POST","/rest/v1/rpc/tienda_editor_cargar_panel_v1",{p_empresa:ctx.empresa});
+    if(!_tiendaEditorContextoValido(ctx)){
+      if(_tiendaEditorContexto===ctx)_tiendaEditorCerrarPanel("Tu sesión cambió. Abrí el editor de nuevo.");
+      return;
+    }
+    if(!datos||datos.empresa!==ctx.empresa||typeof datos.codigo!=="string"||!datos.codigo.trim()||!datos.config||typeof datos.config!=="object"||Array.isArray(datos.config))throw new Error("TIENDA_EDITOR_DENEGADO");
+    ctx.datos=datos;
+    var f=document.createElement("iframe"), url=new URL("/",_tiendaEditorOrigen);
+    url.searchParams.set("emp",datos.codigo);url.hash="editor-panel";
+    f.title="Editor de tienda web";f.referrerPolicy="origin";
+    f.setAttribute("sandbox","allow-scripts allow-same-origin allow-modals");
+    f.style.cssText="display:block;width:100%;height:clamp(450px,75dvh,920px);border:1px solid var(--border);border-radius:12px;background:var(--surface)";
+    ctx.marco=f;
+    f.addEventListener("load",function(){_tiendaEditorResponderPanel(ctx,{tipo:"inicio",empresa:ctx.empresa,config:ctx.datos.config});});
+    f.src=url.href;
+    document.getElementById("tienda-panel-marco").replaceChildren(f);
+    document.getElementById("tienda-panel-cerrar").hidden=false;
+    document.getElementById("tienda-panel-estado").textContent="Cargando editor…";
+    ctx.timer=setTimeout(function(){if(_tiendaEditorContexto===ctx&&!ctx.activo)_tiendaEditorCerrarPanel("No se pudo abrir el editor desde este panel. Volvé a intentar.");},20000);
+  }catch(e){if(_tiendaEditorContexto===ctx)_tiendaEditorCerrarPanel("No se pudo verificar el acceso al editor de esta empresa.");}
+}
+window.addEventListener("message",async function(ev){
+  var ctx=_tiendaEditorContexto,d=ev.data;
+  if(ev.origin!==_tiendaEditorOrigen||!ctx||!ctx.marco||ev.source!==ctx.marco.contentWindow||!d||d.canal!=="tienda-editor-v1")return;
+  if(!_tiendaEditorContextoValido(ctx)){_tiendaEditorCerrarPanel("Tu sesión cambió. Abrí el editor de nuevo.");return;}
+  if(d.tipo==="listo"){
+    _tiendaEditorResponderPanel(ctx,{tipo:"inicio",empresa:ctx.empresa,config:ctx.datos.config});return;
+  }
+  if(d.id!==ctx.id)return;
+  if(d.tipo==="activo"){
+    ctx.activo=true;clearTimeout(ctx.timer);document.getElementById("tienda-panel-estado").textContent="Editor de la empresa activo.";return;
+  }
+  if(d.tipo==="cerrar"){_tiendaEditorCerrarPanel();return;}
+  if(d.tipo!=="guardar"||!ctx.activo||ctx.guardando||typeof d.solicitud!=="string"||!/^[0-9a-f]{32}$/.test(d.solicitud))return;
+  var responder=function(ok,mensaje){_tiendaEditorResponderPanel(ctx,{tipo:"guardado",solicitud:d.solicitud,ok:ok,mensaje:mensaje});};
+  try{
+    if(!d.config||Object.getPrototypeOf(d.config)!==Object.prototype||JSON.stringify(d.config).length>2500000){
+      responder(false,"La configuración es demasiado grande o no es válida. Probá con imágenes más livianas.");return;
+    }
+  }catch(_){responder(false,"No se puede guardar esta configuración.");return;}
+  ctx.guardando=true;
+  try{
+    var r=await sbFetch("POST","/rest/v1/rpc/tienda_editor_guardar_panel_v1",{p_empresa:ctx.empresa,p_revision:ctx.datos.revision,p_config:d.config});
+    if(!_tiendaEditorContextoValido(ctx))return;
+    if(!r||r.empresa!==ctx.empresa||typeof r.revision!=="string")throw new Error("No confirmada");
+    ctx.datos.revision=r.revision;ctx.datos.config=r.config;
+    document.getElementById("tienda-panel-estado").textContent="Cambios publicados en la tienda.";
+    responder(true,"Cambios guardados en la tienda.");
+  }catch(e){
+    responder(false,/TIENDA_EDITOR_CONFLICTO|\b409\b/.test(String(e&&e.message||""))
+      ? "Otra sesión guardó cambios primero. Copiá lo que estabas editando y volvé a abrir el editor para revisar la versión actual."
+      : "No se pudo confirmar el guardado. Revisá la conexión o volvé a ingresar al panel.");
+  }finally{ctx.guardando=false;}
+});
 function setCfgTab(tab, btn){
   if(tab==="cupones"){ abrirModal("modal-cupones"); cargarCupones(); return; }
+  var tiendaTab=document.getElementById("cfg-tab-tienda"), puedeEditarTienda=_tiendaEditorAutorizadoPanel();
+  if(tiendaTab)tiendaTab.style.display=puedeEditarTienda?"":"none";
+  if(tab==="tienda"&&!puedeEditarTienda){tab="empresa";btn=document.getElementById("cfg-tab-empresa");}
+  if(tab!=="tienda")_tiendaEditorCerrarPanel();
   document.querySelectorAll("#cfg-tabs .bk-tab").forEach(function(b){ b.classList.remove("active"); });
   if(btn) btn.classList.add("active");
-  var panes = {empresa:"cfg-panel-empresa", remito:"cfg-panel-remito", facturacion:"cfg-panel-facturacion", whatsapp:"cfg-panel-whatsapp", tools:"cfg-panel-tools"};
+  var panes = {empresa:"cfg-panel-empresa", remito:"cfg-panel-remito", facturacion:"cfg-panel-facturacion", whatsapp:"cfg-panel-whatsapp", tools:"cfg-panel-tools", tienda:"cfg-panel-tienda"};
   var shown = null;
   Object.keys(panes).forEach(function(k){
     var el = document.getElementById(panes[k]); if(!el) return;
@@ -14935,6 +15032,7 @@ document.addEventListener("keydown", function(e){
 
 function verTab(id,btn){
   window._tabActual = id;
+  if(id!=="datos-empresa"&&_tiendaEditorContexto)_tiendaEditorCerrarPanel();
   if(typeof _trackUso==="function") _trackUso("abrir_"+id);
   // Cerrar cualquier modal abierto al cambiar de sección
   document.querySelectorAll(".modal-bg.open").forEach(function(m){ m.classList.remove("open"); });
