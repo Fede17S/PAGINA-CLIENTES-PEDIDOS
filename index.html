@@ -1923,6 +1923,17 @@ html[data-theme="dark"] .hr-sec button.hr-act-rech{background:#351517;color:#fca
 .modal-ttl { font-size:15px; font-weight:700; color:var(--text); letter-spacing:-0.01em }
 .modal-cls { background:var(--s3); border:none; color:var(--muted); font-size:16px; cursor:pointer; line-height:1; padding:6px 10px; border-radius:7px; transition:all .15s }
 .modal-cls:hover { color:var(--text); background:var(--s4) }
+#modal-bk-notificar {
+  z-index:100050; inset:auto; top:var(--panel-vv-top,0px); left:var(--panel-vv-left,0px);
+  width:var(--panel-vv-width,100%); height:var(--panel-vv-height,100dvh);
+  padding:max(8px,var(--modal-safe-top,var(--safe-top))) max(8px,var(--modal-safe-right,var(--safe-right))) max(8px,var(--modal-safe-bottom,var(--safe-bottom))) max(8px,var(--modal-safe-left,var(--safe-left)));
+  overscroll-behavior:none;
+}
+#modal-bk-notificar > .modal-box { display:flex; flex-direction:column; max-height:100%; min-height:0; min-width:0 }
+#modal-bk-notificar .modal-head { flex-shrink:0; gap:12px }
+#modal-bk-notificar .modal-cls { flex:0 0 auto }
+#bk-notif-body { padding:16px; min-height:0; overflow-y:auto; overscroll-behavior:contain }
+#bk-notif-enviar[aria-disabled="true"] { opacity:.5; cursor:default }
 /* Compras: portal sobre el header/FAB; sólo el contenido central hace scroll. */
 #modal-consol-sel, #pp-wa-selector {
   z-index:100050; inset:auto;
@@ -7543,16 +7554,19 @@ _sysAlertMount();
   </div>
 </div>
 <!-- MODAL NOTIFICAR ESTADO POR WHATSAPP -->
-<div class="modal-bg" id="modal-bk-notificar" style="z-index:9700" onclick="if(event.target===this)cerrarModal('modal-bk-notificar')">
-  <div class="modal-box" style="max-width:480px;overflow:hidden;padding:0">
+<div class="modal-bg" id="modal-bk-notificar" onclick="if(event.target===this)cerrarModal('modal-bk-notificar')">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="bk-notif-titulo" style="max-width:480px;overflow:hidden;padding:0">
     <div class="modal-head">
       <div>
-        <div class="modal-title">💬 Notificar por WhatsApp</div>
+        <div class="modal-title" id="bk-notif-titulo">💬 Notificar por WhatsApp</div>
         <div id="bk-notif-cliente" style="font-size:11.5px;color:var(--muted);margin-top:3px"></div>
       </div>
-      <button class="modal-cls" onclick="cerrarModal('modal-bk-notificar')">✕</button>
+      <button type="button" class="modal-cls" aria-label="Cerrar notificación" onclick="cerrarModal('modal-bk-notificar')">✕</button>
     </div>
-    <div style="padding:16px">
+    <div id="bk-notif-body">
+      <label for="bk-notif-telefono" style="display:block;font-size:12px;font-weight:700;margin-bottom:5px">Número de WhatsApp del cliente</label>
+      <input id="bk-notif-telefono" type="tel" autocomplete="off" placeholder="Ej.: 280 412-3456" aria-describedby="bk-notif-telefono-ayuda" oninput="_bkNotifRender()" style="box-sizing:border-box;width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:16px">
+      <div id="bk-notif-telefono-ayuda" role="status" style="font-size:11px;color:var(--muted);margin:6px 0 13px"></div>
       <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.55px;margin-bottom:8px">¿Qué estado querés informar?</div>
       <div id="bk-notif-estados" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
         <button type="button" class="bk-notif-opt" data-est="recibido" onclick="_bkNotifElegir('recibido')" style="padding:11px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-weight:700;cursor:pointer">📥 Recibido</button>
@@ -7561,11 +7575,11 @@ _sysAlertMount();
         <button type="button" class="bk-notif-opt" data-est="entregado" onclick="_bkNotifElegir('entregado')" style="padding:11px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--s2);color:var(--text);font-family:inherit;font-weight:700;cursor:pointer">✅ Entregado</button>
       </div>
       <div style="margin-top:14px;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.55px">Vista previa</div>
-      <div id="bk-notif-preview" style="margin-top:7px;padding:12px 13px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:11px;color:#14532d;font-size:13px;line-height:1.45;white-space:pre-wrap"></div>
-      <div style="font-size:10.5px;color:var(--muted);margin:9px 2px 14px">Este botón solo prepara el mensaje. No aprueba, rechaza ni cambia el estado guardado del pedido.</div>
-      <div style="display:flex;gap:8px">
+      <div id="bk-notif-preview" style="margin-top:7px;padding:12px 13px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:11px;color:#14532d;font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere"></div>
+      <div style="font-size:10.5px;color:var(--muted);margin:9px 2px 14px">Revisá el número y enviá el mensaje desde WhatsApp. No se guarda el número ni se cambia el estado del pedido.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="mbtn mbtn-ghost" onclick="cerrarModal('modal-bk-notificar')" style="flex:0 0 auto">Cancelar</button>
-        <button type="button" id="bk-notif-enviar" onclick="_bkNotifEnviar()" style="flex:1;padding:11px 14px;border:0;border-radius:10px;background:#25d366;color:#073b20;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer">Abrir WhatsApp →</button>
+        <a id="bk-notif-enviar" role="link" target="_blank" rel="noopener noreferrer" aria-disabled="true" onclick="_bkNotifEnviar(event)" style="flex:1;padding:11px 14px;border-radius:10px;background:#25d366;color:#073b20;font-size:13px;font-weight:800;text-align:center;text-decoration:none">Abrir WhatsApp →</a>
       </div>
     </div>
   </div>
@@ -25767,6 +25781,7 @@ function renderBackup(){
       if(bk.aprobado!==true){ var btnAprob=document.createElement("button"); btnAprob.className="bk-act-btn"; btnAprob.style.cssText="flex:1 1 150px;background:#e8f5ee;color:#0f8a4a;border-color:#a7f3d0;font-weight:700"; btnAprob.innerHTML=bk.aprobado===false?"↩ Reaprobar pedido":"✓ Aprobar"; btnAprob.onclick=function(e){e.stopPropagation();_cambiarAprobacion(bk,true);}; aprobar.appendChild(btnAprob); }
       if(bk.aprobado!==false){ var btnRech=document.createElement("button"); btnRech.className="bk-act-btn"; btnRech.style.cssText="flex:1;background:#fff0f0;color:#b91c1c;border-color:#fca5a5;font-weight:700"; btnRech.innerHTML="✗ Rechazar"; btnRech.onclick=function(e){e.stopPropagation();_cambiarAprobacion(bk,false);}; aprobar.appendChild(btnRech); }
       var btnNotif=document.createElement("button");
+      btnNotif.type="button";
       btnNotif.className="bk-act-btn";
       btnNotif.style.cssText="flex:1 1 150px;background:#ecfdf3;color:#087443;border-color:#86efac;font-weight:700";
       btnNotif.innerHTML="💬 Notificar";
@@ -36138,9 +36153,6 @@ async function _cambiarEstadoPedido(bk, nuevoEstado){
 }
 
 // Abre WhatsApp con un mensaje pre-armado según el estado, al teléfono del cliente.
-// Busca el teléfono del cliente de un pedido. Contempla los dos orígenes:
-//  - Pedidos de la tienda online: el teléfono viene en clienteId.
-//  - Pedidos cargados por un vendedor: hay que buscarlo en la ficha del cliente.
 // Formatea un teléfono para mostrarlo en un mensaje
 function _telLindo(t){
   var d=(""+(t||"")).replace(/[^0-9]/g,"");
@@ -36151,23 +36163,38 @@ function _telLindo(t){
 }
 function _telDePedido(bk){
   if(!bk) return "";
-  function limpiar(x){ return _cc2NumeroWhatsApp(x); }
-  // 1) Teléfono guardado en el propio pedido
-  var t = limpiar(bk.clienteTel || bk.tel || bk.telefono);
-  if(t.length>=8) return t;
-  // 2) Ficha del cliente (por id o, si no, por nombre)
-  try{
-    var lista = Object.values(_clientesDB||{});
-    var cid = (""+(bk.clienteId||"")).trim();
-    var cnom = (""+(bk.clienteNom||"")).trim().toLowerCase();
-    var c = null;
-    if(cid)  c = lista.find(function(u){ return (""+(u.id||""))===cid || (""+(u._sbId||""))===cid; });
-    if(!c && cnom) c = lista.find(function(u){ return (""+(u.name||"")).trim().toLowerCase()===cnom; });
-    if(c){ t = limpiar(c.tel||c.telefono); if(t.length>=8) return t; }
-  }catch(e){}
-  // 3) Pedidos de la tienda: el clienteId ES el teléfono
-  t = limpiar(bk.clienteId);
-  return t.length>=8 ? t : "";
+  function clave(v){return String(v==null?"":v).trim().toLowerCase();}
+  function normalizar(v){return _cc2NumeroWhatsApp(v);}
+  var cid=clave(bk.clienteId||bk.cliente_id), nom=clave(bk.clienteNom||bk.cliente_nom||bk.cliente);
+  var fichas=Object.entries((typeof _clientesDB!=="undefined"&&_clientesDB)||{});
+  var coincidencias=fichas.filter(function(par){
+    var u=par[1];if(!u)return false;
+    return cid?[par[0],u.id,u.uid,u._sbId].some(function(x){return clave(x)===cid;})
+      :!!nom&&clave(u.name||u.nombre)===nom;
+  });
+  if(coincidencias.length>1)return ""; // Un homónimo nunca decide el destinatario.
+  if(coincidencias.length===1){
+    var ficha=coincidencias[0][1];
+    var telefono=normalizar(ficha.tel||ficha.telefono);
+    if(telefono)return telefono;
+  }else if(cid&&typeof dbCli!=="undefined"&&Array.isArray(dbCli)){
+    // El catálogo puede tener los teléfonos antes de que se haya abierto Gestión de clientes.
+    var catalogo=dbCli.filter(function(u){return u&&clave(u.id)===cid;});
+    if(catalogo.length>1)return "";
+    if(catalogo.length===1){var local=normalizar(catalogo[0].telefono||catalogo[0].tel);if(local)return local;}
+  }
+  // No usar un teléfono histórico si el pedido pasó a otro cliente.
+  if(Array.isArray(bk.historial)&&bk.historial.some(function(h){
+    return h&&Array.isArray(h.cambios)&&h.cambios.some(function(c){return /^Cliente:\s.* → /.test(c);});
+  }))return "";
+  var guardado=normalizar(bk.clienteTel||bk.cliente_tel||bk.tel||bk.telefono);
+  if(guardado)return guardado;
+  var obs=String(bk.obs||"").split(" · ");
+  if(obs[0]==="📱 Pedido por tienda online"){
+    var pos=/^(Invitado v1|Domicilio alternativo v1)$/.test(obs[1]||"")?2:1;
+    if(/^Tel: /.test(obs[pos]||""))return normalizar(obs[pos].slice(5));
+  }
+  return ""; // Un clienteId numérico no es un número de teléfono.
 }
 async function _ofrecerAvisoWhatsApp(bk, estado){
   var tel = _telDePedido(bk);
@@ -36209,10 +36236,9 @@ async function _ofrecerAvisoWhatsApp(bk, estado){
 // en Supabase y no modifica el estado, la aprobacion, el stock ni la comision.
 var _bkNotifPedido=null;
 var _bkNotifEstado="recibido";
-function _bkNotifDatos(bk,estado){
+function _bkNotifDatos(bk,estado,telefono){
   if(!bk) return null;
-  var tel=_telDePedido(bk);
-  if(!tel) return null;
+  var tel=telefono===undefined?_telDePedido(bk):_cc2NumeroWhatsApp(telefono);
   var nombreNeg=(typeof empresaData!=="undefined"&&empresaData&&(empresaData.nombre||empresaData.appname))||"la tienda";
   var codigo=bk.trackCode||bk.track_code||"";
   var track=codigo?(" (código "+codigo+")"):"";
@@ -36238,14 +36264,12 @@ function _bkNotifDatos(bk,estado){
 }
 function _bkAbrirNotificar(bk){
   if(!bk) return;
-  if(!_telDePedido(bk)){
-    showNotif("Este cliente no tiene un teléfono cargado para WhatsApp","warn");
-    return;
-  }
   _bkNotifPedido=bk;
   _bkNotifEstado=["recibido","preparando","enviado","entregado"].indexOf(bk.estado)>=0?bk.estado:"recibido";
   var cli=document.getElementById("bk-notif-cliente");
-  if(cli) cli.textContent=(bk.clienteNom||"Cliente")+" · "+_telLindo(_telDePedido(bk));
+  if(cli) cli.textContent=bk.clienteNom||bk.cliente_nom||"Cliente";
+  var campo=document.getElementById("bk-notif-telefono"),tel=_telDePedido(bk);
+  if(campo) campo.value=tel?"+"+tel:"";
   _bkNotifRender();
   abrirModal("modal-bk-notificar");
 }
@@ -36255,25 +36279,44 @@ function _bkNotifElegir(estado){
   _bkNotifRender();
 }
 function _bkNotifRender(){
-  var datos=_bkNotifDatos(_bkNotifPedido,_bkNotifEstado);
+  var campo=document.getElementById("bk-notif-telefono");
+  var datos=_bkNotifDatos(_bkNotifPedido,_bkNotifEstado,campo?campo.value:"");
   document.querySelectorAll("#bk-notif-estados .bk-notif-opt").forEach(function(btn){
     var activo=btn.getAttribute("data-est")===_bkNotifEstado;
     btn.style.background=activo?"#15803d":"var(--s2)";
     btn.style.borderColor=activo?"#15803d":"var(--border)";
     btn.style.color=activo?"#fff":"var(--text)";
     btn.style.boxShadow=activo?"0 5px 14px rgba(21,128,61,.18)":"none";
+    btn.setAttribute("aria-pressed",activo?"true":"false");
   });
   var preview=document.getElementById("bk-notif-preview");
   if(preview) preview.textContent=datos?datos.msg:"No se pudo preparar el mensaje.";
   var enviar=document.getElementById("bk-notif-enviar");
-  if(enviar) enviar.disabled=!datos;
+  var tel=datos&&datos.tel;
+  var ayuda=document.getElementById("bk-notif-telefono-ayuda");
+  if(ayuda) ayuda.textContent=tel?"Destino: +"+tel
+    :campo&&campo.value.trim()?"El número está incompleto o no es válido. Incluí el código de área."
+    :"No encontramos un teléfono para este pedido. Escribilo con el código de área.";
+  if(campo)campo.setAttribute("aria-invalid",!tel&&campo.value.trim()?"true":"false");
+  if(enviar){
+    enviar.setAttribute("aria-disabled",tel?"false":"true");
+    if(tel)enviar.href="https://wa.me/"+tel+"?text="+encodeURIComponent(datos.msg);
+    else enviar.removeAttribute("href");
+    enviar.target=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"")?"_self":"_blank";
+  }
 }
-function _bkNotifEnviar(){
-  var datos=_bkNotifDatos(_bkNotifPedido,_bkNotifEstado);
-  if(!datos){ showNotif("No se pudo preparar el mensaje de WhatsApp","err"); return; }
-  window.open("https://wa.me/"+datos.tel+"?text="+encodeURIComponent(datos.msg),"_blank");
-  cerrarModal("modal-bk-notificar");
-  showNotif("💬 Mensaje preparado en WhatsApp","ok");
+function _bkNotifEnviar(event){
+  var enlace=event.currentTarget;
+  if(enlace.getAttribute("aria-disabled")==="true"||!enlace.hasAttribute("href")){
+    event.preventDefault();
+    document.getElementById("bk-notif-telefono").focus();
+    return;
+  }
+  if(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform()){
+    event.preventDefault();
+    _cc2AbrirWhatsAppSeguro(enlace.href);
+  }
+  // En web navega el enlace durante el clic, sin window.open ni esperas.
 }
 
 // Devuelve el precio normal vigente para el renglón y su presentación. Un valor
